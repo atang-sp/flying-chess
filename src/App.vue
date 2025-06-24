@@ -1,12 +1,20 @@
 <template>
   <div class="app">
     <header class="app-header">
-      <h1>🎲 飞行棋游戏</h1>
-      <p>经典蛇梯棋游戏，支持多人轮流对战</p>
+      <h1>🎲 惩罚飞行棋</h1>
+      <p>环形棋盘游戏，支持自定义惩罚设置</p>
     </header>
 
     <main class="app-main">
       <GameInstructions />
+      
+      <!-- 惩罚配置面板 -->
+      <div v-if="!gameStarted" class="config-panel">
+        <PunishmentConfigPanel 
+          :config="gameState.punishmentConfig"
+          @update="updatePunishmentConfig"
+        />
+      </div>
       
       <GameControls
         :gameStarted="gameStarted"
@@ -39,6 +47,13 @@
       />
     </main>
 
+    <!-- 惩罚显示弹窗 -->
+    <PunishmentDisplay
+      :punishment="currentPunishment"
+      @confirm="confirmPunishment"
+      @skip="skipPunishment"
+    />
+
     <footer class="app-footer">
       <p>使用 Vue 3 + TypeScript 构建</p>
     </footer>
@@ -48,12 +63,14 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
 import { GameService } from './services/gameService';
-import type { GameState, Player, BoardCell } from './types/game';
+import type { GameState, Player, BoardCell, PunishmentConfig, PunishmentAction } from './types/game';
 import GameInstructions from './components/GameInstructions.vue';
 import GameControls from './components/GameControls.vue';
 import PlayerPanel from './components/PlayerPanel.vue';
 import GameBoard from './components/GameBoard.vue';
 import Dice from './components/Dice.vue';
+import PunishmentConfigPanel from './components/PunishmentConfig.vue';
+import PunishmentDisplay from './components/PunishmentDisplay.vue';
 
 // 游戏状态
 const gameState = reactive<GameState>({
@@ -62,7 +79,8 @@ const gameState = reactive<GameState>({
   diceValue: null,
   gameStatus: 'waiting',
   winner: null,
-  board: []
+  board: [],
+  punishmentConfig: GameService.createPunishmentConfig()
 });
 
 // 游戏控制状态
@@ -71,13 +89,15 @@ const gameFinished = ref(false);
 const turnCount = ref(0);
 const lastEffect = ref<string>('');
 const isPaused = ref(false);
+const currentPunishment = ref<PunishmentAction | null>(null);
 
 // 计算属性
 const canRollDice = computed(() => {
   return gameStarted.value && 
          !gameFinished.value && 
          !isPaused.value && 
-         gameState.gameStatus === 'waiting';
+         gameState.gameStatus === 'waiting' &&
+         !currentPunishment.value;
 });
 
 // 初始化游戏
@@ -88,11 +108,18 @@ const initializeGame = () => {
   gameState.diceValue = null;
   gameState.gameStatus = 'waiting';
   gameState.winner = null;
+  gameState.punishmentConfig = GameService.createPunishmentConfig();
   gameStarted.value = false;
   gameFinished.value = false;
   turnCount.value = 0;
   lastEffect.value = '';
   isPaused.value = false;
+  currentPunishment.value = null;
+};
+
+// 更新惩罚配置
+const updatePunishmentConfig = (config: PunishmentConfig) => {
+  gameState.punishmentConfig = config;
 };
 
 // 开始游戏
@@ -138,7 +165,7 @@ const moveCurrentPlayer = async () => {
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const diceValue = gameState.diceValue!;
   
-  const { newPosition, effect } = GameService.movePlayer(
+  const { newPosition, effect, punishment } = GameService.movePlayer(
     currentPlayer, 
     diceValue, 
     gameState.board
@@ -152,6 +179,63 @@ const moveCurrentPlayer = async () => {
     lastEffect.value = effect;
   }
 
+  // 检查是否有惩罚
+  if (punishment) {
+    currentPunishment.value = punishment;
+    gameState.gameStatus = 'configuring';
+    return; // 等待用户处理惩罚
+  }
+
+  // 检查是否获胜
+  if (GameService.checkWinner(currentPlayer)) {
+    currentPlayer.isWinner = true;
+    gameState.winner = currentPlayer;
+    gameState.gameStatus = 'finished';
+    gameFinished.value = true;
+    return;
+  }
+
+  // 等待移动动画完成
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  // 切换到下一个玩家
+  gameState.currentPlayerIndex = GameService.getNextPlayer(
+    gameState.currentPlayerIndex, 
+    gameState.players.length
+  );
+  
+  turnCount.value++;
+  gameState.diceValue = null;
+  gameState.gameStatus = 'waiting';
+  
+  // 清除上一步效果
+  setTimeout(() => {
+    lastEffect.value = '';
+  }, 2000);
+};
+
+// 确认惩罚
+const confirmPunishment = async () => {
+  currentPunishment.value = null;
+  gameState.gameStatus = 'waiting';
+  
+  // 继续游戏流程
+  await continueAfterPunishment();
+};
+
+// 跳过惩罚
+const skipPunishment = async () => {
+  currentPunishment.value = null;
+  gameState.gameStatus = 'waiting';
+  
+  // 继续游戏流程
+  await continueAfterPunishment();
+};
+
+// 惩罚后的继续流程
+const continueAfterPunishment = async () => {
+  const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  
   // 检查是否获胜
   if (GameService.checkWinner(currentPlayer)) {
     currentPlayer.isWinner = true;
@@ -224,6 +308,13 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.config-panel {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
+  backdrop-filter: blur(10px);
 }
 
 .app-footer {

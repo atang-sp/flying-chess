@@ -1,19 +1,68 @@
 <template>
   <div class="game-board">
     <div class="board-container">
-      <div class="board-grid">
-        <div 
-          v-for="cell in boardCells" 
-          :key="cell.id"
-          class="board-cell"
-          :class="getCellClass(cell)"
-          @click="handleCellClick(cell)"
-        >
-          <div class="cell-number">{{ cell.position }}</div>
-          <div v-if="cell.effect" class="cell-effect">
-            <span v-if="cell.type === 'ladder'" class="ladder-icon">{{ CELL_ICONS.ladder }}</span>
-            <span v-else-if="cell.type === 'snake'" class="snake-icon">{{ CELL_ICONS.snake }}</span>
-            <span v-else-if="cell.type === 'special'" class="special-icon">{{ CELL_ICONS.special }}</span>
+      <!-- 环形棋盘 -->
+      <div class="circular-board">
+        <!-- 外圈 -->
+        <div class="outer-ring">
+          <div 
+            v-for="cell in outerRingCells" 
+            :key="cell.id"
+            class="board-cell outer-cell"
+            :class="getCellClass(cell)"
+            @click="handleCellClick(cell)"
+          >
+            <div class="cell-number">{{ cell.position }}</div>
+            <div v-if="cell.effect" class="cell-effect">
+              <span v-if="cell.type === 'punishment'" class="punishment-icon">{{ CELL_ICONS.punishment }}</span>
+              <span v-else-if="cell.type === 'bonus'" class="bonus-icon">{{ CELL_ICONS.bonus }}</span>
+              <span v-else-if="cell.type === 'special'" class="special-icon">{{ CELL_ICONS.special }}</span>
+            </div>
+            <div v-if="cell.effect" class="cell-description">
+              {{ cell.effect.description }}
+            </div>
+          </div>
+        </div>
+        
+        <!-- 内圈 -->
+        <div class="inner-ring">
+          <div 
+            v-for="cell in innerRingCells" 
+            :key="cell.id"
+            class="board-cell inner-cell"
+            :class="getCellClass(cell)"
+            @click="handleCellClick(cell)"
+          >
+            <div class="cell-number">{{ cell.position }}</div>
+            <div v-if="cell.effect" class="cell-effect">
+              <span v-if="cell.type === 'punishment'" class="punishment-icon">{{ CELL_ICONS.punishment }}</span>
+              <span v-else-if="cell.type === 'bonus'" class="bonus-icon">{{ CELL_ICONS.bonus }}</span>
+              <span v-else-if="cell.type === 'special'" class="special-icon">{{ CELL_ICONS.special }}</span>
+            </div>
+            <div v-if="cell.effect" class="cell-description">
+              {{ cell.effect.description }}
+            </div>
+          </div>
+        </div>
+        
+        <!-- 中心 -->
+        <div class="center-area">
+          <div 
+            v-for="cell in centerCells" 
+            :key="cell.id"
+            class="board-cell center-cell"
+            :class="getCellClass(cell)"
+            @click="handleCellClick(cell)"
+          >
+            <div class="cell-number">{{ cell.position }}</div>
+            <div v-if="cell.effect" class="cell-effect">
+              <span v-if="cell.type === 'punishment'" class="punishment-icon">{{ CELL_ICONS.punishment }}</span>
+              <span v-else-if="cell.type === 'bonus'" class="bonus-icon">{{ CELL_ICONS.bonus }}</span>
+              <span v-else-if="cell.type === 'special'" class="special-icon">{{ CELL_ICONS.special }}</span>
+            </div>
+            <div v-if="cell.effect" class="cell-description">
+              {{ cell.effect.description }}
+            </div>
           </div>
         </div>
       </div>
@@ -76,29 +125,17 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
-const boardCells = computed(() => {
-  // 将棋盘格子按蛇形排列（从下到上，从左到右）
-  const cells = [...props.board];
-  const rows = GAME_CONFIG.BOARD.GRID_SIZE;
-  const cols = GAME_CONFIG.BOARD.GRID_SIZE;
-  const arranged: BoardCell[] = [];
-  
-  for (let row = rows - 1; row >= 0; row--) {
-    const rowCells = [];
-    for (let col = 0; col < cols; col++) {
-      const index = row * cols + col;
-      if (index < cells.length) {
-        rowCells.push(cells[index]);
-      }
-    }
-    // 偶数行反转
-    if (row % 2 === 0) {
-      rowCells.reverse();
-    }
-    arranged.push(...rowCells);
-  }
-  
-  return arranged;
+// 将棋盘分为外圈、内圈、中心
+const outerRingCells = computed(() => {
+  return props.board.slice(0, 20); // 前20格
+});
+
+const innerRingCells = computed(() => {
+  return props.board.slice(20, 28); // 21-28格
+});
+
+const centerCells = computed(() => {
+  return props.board.slice(28, 30); // 29-30格
 });
 
 const currentPlayer = computed(() => {
@@ -110,8 +147,8 @@ const currentPlayer = computed(() => {
 
 const getCellClass = (cell: BoardCell) => {
   return {
-    'cell-ladder': cell.type === 'ladder',
-    'cell-snake': cell.type === 'snake',
+    'cell-punishment': cell.type === 'punishment',
+    'cell-bonus': cell.type === 'bonus',
     'cell-special': cell.type === 'special',
     'cell-normal': cell.type === 'normal'
   };
@@ -127,10 +164,33 @@ const getPlayerPosition = (player: Player) => {
     return { display: 'none' };
   }
   
-  return {
-    left: `${col * 10}%`,
-    bottom: `${row * 10}%`
-  };
+  // 根据环形布局计算位置
+  if (player.position <= 20) {
+    // 外圈：5x4布局
+    const index = player.position - 1;
+    const actualRow = Math.floor(index / 5);
+    const actualCol = index % 5;
+    return {
+      left: `${(actualCol + 1) * 16.67}%`,
+      top: `${(actualRow + 1) * 20}%`
+    };
+  } else if (player.position <= 28) {
+    // 内圈：4x2布局
+    const index = player.position - 21;
+    const actualRow = Math.floor(index / 4) + 1;
+    const actualCol = (index % 4) + 1;
+    return {
+      left: `${(actualCol + 1) * 16.67}%`,
+      top: `${(actualRow + 1) * 20}%`
+    };
+  } else {
+    // 中心：2x1布局
+    const index = player.position - 29;
+    return {
+      left: `${(index + 2) * 16.67}%`,
+      top: '60%'
+    };
+  }
 };
 
 const handleCellClick = (cell: BoardCell) => {
@@ -152,17 +212,53 @@ const handleCellClick = (cell: BoardCell) => {
   width: 600px;
   height: 600px;
   border: 3px solid #333;
-  border-radius: 8px;
+  border-radius: 50%;
   overflow: hidden;
   background: #f8f9fa;
 }
 
-.board-grid {
-  display: grid;
-  grid-template-columns: repeat(10, 1fr);
-  grid-template-rows: repeat(10, 1fr);
+.circular-board {
+  position: relative;
   width: 100%;
   height: 100%;
+}
+
+.outer-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 2px;
+  padding: 10px;
+}
+
+.inner-ring {
+  position: absolute;
+  top: 20%;
+  left: 20%;
+  width: 60%;
+  height: 60%;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 2px;
+  padding: 10px;
+}
+
+.center-area {
+  position: absolute;
+  top: 40%;
+  left: 40%;
+  width: 20%;
+  height: 20%;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2px;
+  padding: 5px;
 }
 
 .board-cell {
@@ -175,6 +271,9 @@ const handleCellClick = (cell: BoardCell) => {
   cursor: pointer;
   transition: all 0.2s ease;
   background: white;
+  border-radius: 8px;
+  min-height: 60px;
+  font-size: 0.8rem;
 }
 
 .board-cell:hover {
@@ -183,8 +282,20 @@ const handleCellClick = (cell: BoardCell) => {
   z-index: 10;
 }
 
+.outer-cell {
+  min-height: 80px;
+}
+
+.inner-cell {
+  min-height: 70px;
+}
+
+.center-cell {
+  min-height: 60px;
+}
+
 .cell-number {
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   font-weight: bold;
   color: #666;
   position: absolute;
@@ -197,26 +308,41 @@ const handleCellClick = (cell: BoardCell) => {
   margin-top: 0.5rem;
 }
 
-.cell-ladder {
-  background: linear-gradient(135deg, #a8e6cf, #88d8c0);
-  border-color: #4ecdc4;
+.cell-description {
+  font-size: 0.6rem;
+  text-align: center;
+  margin-top: 0.25rem;
+  color: #333;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.cell-snake {
-  background: linear-gradient(135deg, #ffb3ba, #ff8a95);
-  border-color: #ff6b6b;
+.cell-punishment {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+  border-color: #ff4757;
+  color: white;
+}
+
+.cell-bonus {
+  background: linear-gradient(135deg, #2ed573, #1e90ff);
+  border-color: #2ed573;
+  color: white;
 }
 
 .cell-special {
   background: linear-gradient(135deg, #ffd93d, #ffb347);
   border-color: #ffa726;
+  color: white;
 }
 
 .player-token {
   position: absolute;
   width: 40px;
   height: 40px;
-  transform: translate(-50%, 50%);
+  transform: translate(-50%, -50%);
   transition: all 0.5s ease;
   z-index: 20;
 }
@@ -291,8 +417,8 @@ const handleCellClick = (cell: BoardCell) => {
 }
 
 @keyframes pulse {
-  0%, 100% { transform: translate(-50%, 50%) scale(1); }
-  50% { transform: translate(-50%, 50%) scale(1.1); }
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.1); }
 }
 
 @media (max-width: 768px) {
@@ -312,6 +438,10 @@ const handleCellClick = (cell: BoardCell) => {
   
   .cell-effect {
     font-size: 1rem;
+  }
+  
+  .cell-description {
+    font-size: 0.5rem;
   }
 }
 </style> 
