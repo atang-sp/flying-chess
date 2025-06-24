@@ -20,6 +20,12 @@
         </div>
         
         <div class="punishment-item">
+          <span class="label">姿势:</span>
+          <span class="value position">{{ punishment.position.name }}</span>
+          <span class="difficulty">难度: {{ punishment.position.difficulty }}/5</span>
+        </div>
+        
+        <div class="punishment-item">
           <span class="label">次数:</span>
           <span class="value strikes">{{ punishment.strikes }} 下</span>
         </div>
@@ -141,12 +147,17 @@ const skipPunishment = () => {
   color: #9b59b6;
 }
 
-.strikes {
+.position {
   color: #f39c12;
 }
 
+.strikes {
+  color: #e67e22;
+}
+
 .intensity,
-.sensitivity {
+.sensitivity,
+.difficulty {
   font-size: 0.8rem;
   color: #666;
   background: #e0e0e0;

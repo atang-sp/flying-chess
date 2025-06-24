@@ -10,7 +10,7 @@ export const GAME_CONFIG = {
   DICE: {
     MIN_VALUE: 1,
     MAX_VALUE: 6,
-    ANIMATION_DURATION: 1000, // 动画持续时间(ms)
+    ANIMATION_DURATION: 2000, // 动画持续时间(ms) - 增加到2秒
   },
   
   // 玩家配置
@@ -28,31 +28,97 @@ export const GAME_CONFIG = {
   
   // 默认惩罚工具
   DEFAULT_TOOLS: [
-    { id: 'hand', name: '手掌', intensity: 1 },
-    { id: 'ruler', name: '尺子', intensity: 2 },
-    { id: 'belt', name: '皮带', intensity: 3 },
-    { id: 'cane', name: '藤条', intensity: 4 },
-    { id: 'paddle', name: '拍子', intensity: 5 },
+    { id: 'hand', name: '手掌', intensity: 1, ratio: 20 },
+    { id: 'ruler', name: '尺子', intensity: 2, ratio: 20 },
+    { id: 'wooden_board', name: '木板', intensity: 3, ratio: 20 },
+    { id: 'cane', name: '藤条', intensity: 4, ratio: 20 },
+    { id: 'paddle', name: '拍子', intensity: 5, ratio: 20 },
   ],
   
   // 默认身体部位
   DEFAULT_BODY_PARTS: [
-    { id: 'butt', name: '臀部', sensitivity: 5 },
-    { id: 'thighs', name: '大腿', sensitivity: 4 },
-    { id: 'calves', name: '小腿', sensitivity: 3 },
-    { id: 'hands', name: '手心', sensitivity: 2 },
-    { id: 'arms', name: '手臂', sensitivity: 1 },
+    { id: 'butt', name: '屁股', sensitivity: 5, ratio: 33.33 }, // 耐受性最高，任何工具都可以
+    { id: 'thighs', name: '大腿', sensitivity: 3, ratio: 33.33 }, // 中等耐受性
+    { id: 'hands', name: '手心', sensitivity: 1, ratio: 33.34 }, // 最敏感，只能用手掌
+  ],
+  
+  // 默认受罚姿势
+  DEFAULT_POSITIONS: [
+    { id: 'standing', name: '站立', difficulty: 1, ratio: 20 },
+    { id: 'wall_lean', name: '手扶墙', difficulty: 2, ratio: 20 },
+    { id: 'table_lean', name: '趴在桌子上', difficulty: 3, ratio: 20 },
+    { id: 'knee_grab', name: '手抓膝盖', difficulty: 4, ratio: 20 },
+    { id: 'kneeling', name: '跪趴', difficulty: 5, ratio: 20 },
   ],
   
   // 惩罚格子配置
   PUNISHMENT_CELLS: {
-    3: { tool: 'hand', bodyPart: 'hands', strikes: 5 },
-    7: { tool: 'ruler', bodyPart: 'calves', strikes: 8 },
-    11: { tool: 'belt', bodyPart: 'thighs', strikes: 10 },
-    15: { tool: 'cane', bodyPart: 'butt', strikes: 12 },
-    19: { tool: 'paddle', bodyPart: 'butt', strikes: 15 },
-    23: { tool: 'belt', bodyPart: 'thighs', strikes: 18 },
-    27: { tool: 'cane', bodyPart: 'butt', strikes: 20 },
+    3: { tool: 'hand', bodyPart: 'hands', position: 'standing', strikes: 5 },
+    7: { tool: 'ruler', bodyPart: 'thighs', position: 'wall_lean', strikes: 8 },
+    11: { tool: 'wooden_board', bodyPart: 'thighs', position: 'table_lean', strikes: 10 },
+    15: { tool: 'cane', bodyPart: 'butt', position: 'knee_grab', strikes: 12 },
+    19: { tool: 'paddle', bodyPart: 'butt', position: 'kneeling', strikes: 15 },
+    23: { tool: 'wooden_board', bodyPart: 'thighs', position: 'table_lean', strikes: 18 },
+    27: { tool: 'cane', bodyPart: 'butt', position: 'kneeling', strikes: 20 },
+  },
+  
+  // 动态惩罚格子配置
+  DYNAMIC_PUNISHMENT_CELLS: {
+    4: { 
+      type: 'dice_multiplier', 
+      tool: 'hand', 
+      bodyPart: 'butt', 
+      position: 'standing', 
+      multiplier: 2,
+      description: '打的数量是骰子点数的2倍'
+    },
+    8: { 
+      type: 'previous_player', 
+      tool: 'ruler', 
+      bodyPart: 'thighs', 
+      position: 'wall_lean', 
+      strikes: 10,
+      description: '上一个玩家挨打'
+    },
+    12: { 
+      type: 'next_player', 
+      tool: 'wooden_board', 
+      bodyPart: 'butt', 
+      position: 'table_lean', 
+      strikes: 12,
+      description: '下一个玩家挨打'
+    },
+    16: { 
+      type: 'other_player_choice', 
+      tool: 'cane', 
+      bodyPart: 'butt', 
+      position: 'knee_grab', 
+      description: '其他玩家指定打多少下'
+    },
+    20: { 
+      type: 'dice_multiplier', 
+      tool: 'paddle', 
+      bodyPart: 'butt', 
+      position: 'kneeling', 
+      multiplier: 3,
+      description: '打的数量是骰子点数的3倍'
+    },
+    24: { 
+      type: 'previous_player', 
+      tool: 'wooden_board', 
+      bodyPart: 'thighs', 
+      position: 'table_lean', 
+      strikes: 15,
+      description: '上一个玩家挨打'
+    },
+    28: { 
+      type: 'next_player', 
+      tool: 'cane', 
+      bodyPart: 'butt', 
+      position: 'kneeling', 
+      strikes: 18,
+      description: '下一个玩家挨打'
+    },
   },
   
   // 奖励格子配置
@@ -72,6 +138,13 @@ export const GAME_CONFIG = {
     12: { type: 'reverse', value: 2, description: '后退2步' },
     18: { type: 'skip', value: 1, description: '跳过下一回合' },
     24: { type: 'reverse', value: 3, description: '后退3步' },
+  },
+  
+  // 默认比例设置
+  DEFAULT_RATIOS: {
+    bodyPartRatio: 60, // 部位比例60%
+    toolRatio: 25, // 工具比例25%
+    positionRatio: 15, // 姿势比例15%
   }
 };
 

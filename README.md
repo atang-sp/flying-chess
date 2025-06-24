@@ -1,139 +1,132 @@
-# 🎲 飞行棋游戏
+# 🎲 惩罚飞行棋游戏
 
-一个基于 Vue 3 + TypeScript 构建的经典蛇梯棋游戏，支持多人轮流对战。
+一个基于Vue 3 + TypeScript开发的单机版飞行棋游戏，支持自定义惩罚设置和环形棋盘设计。
 
 ## ✨ 功能特性
 
-- 🎮 **完整的游戏逻辑**：包含骰子、移动、胜利检测等核心功能
-- 🎨 **精美的动画效果**：骰子滚动动画、棋子移动动画
-- 🎯 **可自定义棋盘**：支持梯子、蛇、特殊格子等多种格子类型
-- 👥 **多人游戏**：支持4个玩家轮流对战
-- 📱 **响应式设计**：适配桌面和移动设备
-- 🎪 **游戏控制**：开始、暂停、重置游戏功能
-- 📊 **实时状态显示**：玩家位置、进度、游戏状态等信息
-
-## 🎯 游戏规则
-
-1. **游戏目标**：第一个到达第100格的玩家获胜
-2. **游戏流程**：
-   - 玩家轮流投掷骰子（1-6点）
-   - 根据骰子点数移动棋子
-   - 遇到特殊格子会触发相应效果
-3. **特殊格子**：
-   - 🪜 **梯子**：向上移动到更高位置
-   - 🐍 **蛇**：向下移动到更低位置
-   - ⭐ **特殊格子**：触发特殊效果（跳过回合、后退等）
+- 🎯 **单机游戏**：支持4个玩家轮流游戏
+- 🎨 **环形棋盘**：美观的不规则环形设计
+- ⚙️ **自定义设置**：可配置工具、身体部位、姿势和比例
+- 🎲 **3D骰子**：流畅的3D滚动动画
+- 🎮 **动态效果**：多种棋盘格子效果
+- 📱 **移动端适配**：完美支持手机和平板设备
+- 🌐 **在线部署**：支持GitHub Pages等静态托管
 
 ## 🚀 快速开始
 
-### 安装依赖
+### 本地开发
 
 ```bash
+# 克隆项目
+git clone https://github.com/your-username/ludo-vue-demo.git
+cd ludo-vue-demo
+
+# 安装依赖
 npm install
-```
 
-### 启动开发服务器
-
-```bash
+# 启动开发服务器
 npm run dev
 ```
 
-### 构建生产版本
+### 构建部署
 
 ```bash
+# 构建生产版本
 npm run build
-```
 
-### 预览生产版本
-
-```bash
+# 预览构建结果
 npm run preview
 ```
 
+## 📱 移动端支持
+
+项目已针对移动端进行了全面优化：
+
+- **响应式设计**：自适应各种屏幕尺寸
+- **触摸友好**：优化的按钮大小和间距
+- **性能优化**：针对移动设备的资源优化
+- **界面适配**：小屏幕下的棋盘和控件布局
+
+## 🌐 在线部署
+
+### GitHub Pages（推荐）
+
+1. 推送代码到GitHub仓库
+2. 在仓库设置中启用GitHub Pages
+3. 选择"GitHub Actions"作为部署源
+4. 自动构建和部署
+
+### 其他部署选项
+
+- **Vercel**：连接GitHub仓库，自动部署
+- **Netlify**：拖拽dist文件夹或连接GitHub
+- **传统服务器**：上传dist文件夹内容
+
+详细部署说明请参考 [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+## 🎮 游戏玩法
+
+1. **开始页面**：点击开始进入游戏
+2. **说明页面**：查看游戏规则和玩法
+3. **设置页面**：配置惩罚工具、部位、姿势和比例
+4. **游戏页面**：轮流掷骰子，移动棋子，触发惩罚效果
+
+### 棋盘效果
+
+- **普通格子**：正常移动
+- **惩罚格子**：触发自定义惩罚
+- **特殊效果**：双倍移动、跳过回合、位置交换等
+
 ## 🛠️ 技术栈
 
-- **前端框架**：Vue 3
+- **前端框架**：Vue 3 + Composition API
 - **开发语言**：TypeScript
 - **构建工具**：Vite
-- **样式**：CSS3 + 动画效果
-- **状态管理**：Vue 3 Composition API
+- **样式**：CSS3 + 响应式设计
+- **部署**：GitHub Actions + GitHub Pages
 
 ## 📁 项目结构
 
 ```
-src/
-├── components/          # Vue组件
-│   ├── Dice.vue        # 骰子组件
-│   ├── GameBoard.vue   # 棋盘组件
-│   ├── GameControls.vue # 游戏控制组件
-│   └── PlayerPanel.vue # 玩家面板组件
-├── services/           # 服务层
-│   └── gameService.ts  # 游戏逻辑服务
-├── types/              # TypeScript类型定义
-│   └── game.ts         # 游戏相关类型
-├── assets/             # 静态资源
-├── App.vue             # 主应用组件
-└── main.ts             # 应用入口
+ludo-vue-demo/
+├── src/
+│   ├── components/     # Vue组件
+│   ├── services/       # 游戏逻辑服务
+│   ├── types/          # TypeScript类型定义
+│   ├── config/         # 游戏配置
+│   └── assets/         # 静态资源
+├── public/             # 公共资源
+├── dist/               # 构建输出
+└── .github/workflows/  # GitHub Actions配置
 ```
 
-## 🎮 游戏组件说明
+## 🔧 自定义配置
 
-### Dice.vue
-- 骰子组件，包含滚动动画效果
-- 支持点击投掷功能
-- 显示当前点数
+### 游戏配置
 
-### GameBoard.vue
-- 10x10的棋盘布局
-- 蛇形排列的格子编号
-- 显示玩家棋子位置
-- 支持格子点击交互
+在 `src/config/gameConfig.ts` 中可以修改：
 
-### PlayerPanel.vue
-- 显示所有玩家状态
-- 当前玩家高亮显示
-- 玩家进度条显示
+- 棋盘大小和布局
+- 默认工具和身体部位
+- 游戏规则和效果
 
-### GameControls.vue
-- 游戏控制按钮（开始、暂停、重置）
-- 游戏状态和回合数显示
-- 游戏结束提示
+### 样式定制
 
-## 🎨 自定义功能
-
-### 修改棋盘配置
-在 `src/services/gameService.ts` 中的 `createBoard()` 方法可以自定义：
-- 梯子位置和效果
-- 蛇的位置和效果
-- 特殊格子的类型和效果
-
-### 修改玩家配置
-在 `src/services/gameService.ts` 中的 `createPlayers()` 方法可以：
-- 修改玩家数量
-- 自定义玩家颜色
-- 修改玩家名称
-
-### 添加新的格子类型
-在 `src/types/game.ts` 中可以扩展格子类型：
-```typescript
-interface BoardCell {
-  type: 'normal' | 'ladder' | 'snake' | 'special' | 'your-new-type';
-  effect?: {
-    type: 'move' | 'skip' | 'reverse' | 'your-new-effect';
-    value: number;
-    description: string;
-  };
-}
-```
-
-## 🐛 已知问题
-
-- 暂无已知问题
+- 主样式：`src/assets/main.css`
+- 组件样式：各组件内的 `<style>` 部分
+- 响应式断点：768px 和 480px
 
 ## 🤝 贡献
 
-欢迎提交 Issue 和 Pull Request！
+欢迎提交Issue和Pull Request！
 
-## �� 许可证
+## 📄 许可证
 
 MIT License
+
+## 🔗 相关链接
+
+- [Vue 3 文档](https://vuejs.org/)
+- [Vite 文档](https://vitejs.dev/)
+- [TypeScript 文档](https://www.typescriptlang.org/)
+- [GitHub Pages 文档](https://pages.github.com/)

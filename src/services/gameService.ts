@@ -1,4 +1,4 @@
-import type { Player, BoardCell, GameState, PunishmentConfig, PunishmentAction, PunishmentTool, PunishmentBodyPart } from '../types/game';
+import type { Player, BoardCell, GameState, PunishmentConfig, PunishmentAction, PunishmentTool, PunishmentBodyPart, PunishmentPosition } from '../types/game';
 import { GAME_CONFIG } from '../config/gameConfig';
 
 export class GameService {
@@ -12,19 +12,48 @@ export class GameService {
         position: i
       };
 
-      // 检查是否为惩罚格子
-      if (i in GAME_CONFIG.PUNISHMENT_CELLS) {
+      // 检查是否为动态惩罚格子
+      if (i in GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS) {
+        cell.type = 'punishment';
+        const dynamicConfig = GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS[i as keyof typeof GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS];
+        const tool = GAME_CONFIG.DEFAULT_TOOLS.find(t => t.id === dynamicConfig.tool);
+        const bodyPart = GAME_CONFIG.DEFAULT_BODY_PARTS.find(b => b.id === dynamicConfig.bodyPart);
+        const position = GAME_CONFIG.DEFAULT_POSITIONS.find(p => p.id === dynamicConfig.position);
+        
+        if (tool && bodyPart && position) {
+          const punishment: PunishmentAction = {
+            tool,
+            bodyPart,
+            position,
+            strikes: 'strikes' in dynamicConfig ? dynamicConfig.strikes : 10,
+            description: dynamicConfig.description,
+            dynamicType: dynamicConfig.type as 'dice_multiplier' | 'previous_player' | 'next_player' | 'other_player_choice',
+            multiplier: 'multiplier' in dynamicConfig ? dynamicConfig.multiplier : undefined
+          };
+          
+          cell.effect = {
+            type: 'punishment',
+            value: 0,
+            description: dynamicConfig.description,
+            punishment
+          };
+        }
+      }
+      // 检查是否为普通惩罚格子
+      else if (i in GAME_CONFIG.PUNISHMENT_CELLS) {
         cell.type = 'punishment';
         const punishmentConfig = GAME_CONFIG.PUNISHMENT_CELLS[i as keyof typeof GAME_CONFIG.PUNISHMENT_CELLS];
         const tool = GAME_CONFIG.DEFAULT_TOOLS.find(t => t.id === punishmentConfig.tool);
         const bodyPart = GAME_CONFIG.DEFAULT_BODY_PARTS.find(b => b.id === punishmentConfig.bodyPart);
+        const position = GAME_CONFIG.DEFAULT_POSITIONS.find(p => p.id === punishmentConfig.position);
         
-        if (tool && bodyPart) {
+        if (tool && bodyPart && position) {
           const punishment: PunishmentAction = {
             tool,
             bodyPart,
+            position,
             strikes: punishmentConfig.strikes,
-            description: `用${tool.name}打${bodyPart.name}${punishmentConfig.strikes}下`
+            description: `用${tool.name}打${bodyPart.name}${punishmentConfig.strikes}下，姿势：${position.name}`
           };
           
           cell.effect = {
@@ -79,9 +108,26 @@ export class GameService {
   }
 
   static createPunishmentConfig(): PunishmentConfig {
+    // 创建默认配置，使用均等比例
+    const tools = GAME_CONFIG.DEFAULT_TOOLS.map(tool => ({
+      ...tool,
+      ratio: 100 / GAME_CONFIG.DEFAULT_TOOLS.length // 均等比例
+    }));
+    
+    const bodyParts = GAME_CONFIG.DEFAULT_BODY_PARTS.map(bodyPart => ({
+      ...bodyPart,
+      ratio: 100 / GAME_CONFIG.DEFAULT_BODY_PARTS.length // 均等比例
+    }));
+    
+    const positions = GAME_CONFIG.DEFAULT_POSITIONS.map(position => ({
+      ...position,
+      ratio: 100 / GAME_CONFIG.DEFAULT_POSITIONS.length // 均等比例
+    }));
+    
     return {
-      tools: [...GAME_CONFIG.DEFAULT_TOOLS],
-      bodyParts: [...GAME_CONFIG.DEFAULT_BODY_PARTS],
+      tools,
+      bodyParts,
+      positions,
       maxStrikes: 30
     };
   }
@@ -90,10 +136,11 @@ export class GameService {
     return Math.floor(Math.random() * (GAME_CONFIG.DICE.MAX_VALUE - GAME_CONFIG.DICE.MIN_VALUE + 1)) + GAME_CONFIG.DICE.MIN_VALUE;
   }
 
-  static movePlayer(player: Player, diceValue: number, board: BoardCell[]): { newPosition: number; effect?: string; punishment?: PunishmentAction } {
+  static movePlayer(player: Player, diceValue: number, board: BoardCell[], currentPlayerIndex: number, totalPlayers: number): { newPosition: number; effect?: string; punishment?: PunishmentAction; targetPlayerIndex?: number } {
     let newPosition = player.position + diceValue;
     let effect: string | undefined;
     let punishment: PunishmentAction | undefined;
+    let targetPlayerIndex: number | undefined;
 
     // 检查是否超出棋盘
     if (newPosition > GAME_CONFIG.BOARD.SIZE) {
@@ -114,10 +161,37 @@ export class GameService {
         if (newPosition > GAME_CONFIG.BOARD.SIZE) newPosition = GAME_CONFIG.BOARD.SIZE;
       } else if (cell.effect.type === 'punishment') {
         punishment = cell.effect.punishment;
+        
+        // 处理动态惩罚
+        if (punishment?.dynamicType) {
+          switch (punishment.dynamicType) {
+            case 'dice_multiplier':
+              if (punishment.multiplier) {
+                punishment.strikes = diceValue * punishment.multiplier;
+                punishment.description = `用${punishment.tool.name}打${punishment.bodyPart.name}${punishment.strikes}下，姿势：${punishment.position.name}（骰子点数×${punishment.multiplier}）`;
+              }
+              targetPlayerIndex = currentPlayerIndex;
+              break;
+            case 'previous_player':
+              targetPlayerIndex = (currentPlayerIndex - 1 + totalPlayers) % totalPlayers;
+              punishment.description = `上一个玩家：用${punishment.tool.name}打${punishment.bodyPart.name}${punishment.strikes}下，姿势：${punishment.position.name}`;
+              break;
+            case 'next_player':
+              targetPlayerIndex = (currentPlayerIndex + 1) % totalPlayers;
+              punishment.description = `下一个玩家：用${punishment.tool.name}打${punishment.bodyPart.name}${punishment.strikes}下，姿势：${punishment.position.name}`;
+              break;
+            case 'other_player_choice':
+              targetPlayerIndex = currentPlayerIndex; // 当前玩家挨打，但数量由其他玩家决定
+              punishment.description = `用${punishment.tool.name}打${punishment.bodyPart.name}，姿势：${punishment.position.name}（数量由其他玩家决定）`;
+              break;
+          }
+        } else {
+          targetPlayerIndex = currentPlayerIndex;
+        }
       }
     }
 
-    return { newPosition, effect, punishment };
+    return { newPosition, effect, punishment, targetPlayerIndex };
   }
 
   static checkWinner(player: Player): boolean {
@@ -172,17 +246,82 @@ export class GameService {
     return 'normal';
   }
 
-  // 生成随机惩罚
+  // 根据比例随机选择项目
+  static selectByRatio<T extends { ratio: number }>(items: T[]): T {
+    const totalRatio = items.reduce((sum, item) => sum + item.ratio, 0);
+    const random = Math.random() * totalRatio;
+    
+    let currentSum = 0;
+    for (const item of items) {
+      currentSum += item.ratio;
+      if (random <= currentSum) {
+        return item;
+      }
+    }
+    
+    // 兜底返回第一个
+    return items[0];
+  }
+
+  // 生成随机惩罚（考虑强度敏感度限制和比例）
   static generateRandomPunishment(config: PunishmentConfig): PunishmentAction {
-    const tool = config.tools[Math.floor(Math.random() * config.tools.length)];
-    const bodyPart = config.bodyParts[Math.floor(Math.random() * config.bodyParts.length)];
+    let tool: PunishmentTool;
+    let bodyPart: PunishmentBodyPart;
+    let position: PunishmentPosition;
+    
+    // 使用自定义比例
+    tool = this.selectByRatio(config.tools);
+    bodyPart = this.selectByRatio(config.bodyParts);
+    position = this.selectByRatio(config.positions);
+    
+    // 确保工具强度不超过部位耐受性（敏感度）
+    if (tool.intensity > bodyPart.sensitivity) {
+      // 重新选择工具，选择强度不超过耐受性的工具
+      const validTools = config.tools.filter(t => t.intensity <= bodyPart.sensitivity);
+      if (validTools.length > 0) {
+        tool = this.selectByRatio(validTools);
+      }
+    }
+    
     const strikes = Math.floor(Math.random() * config.maxStrikes) + 1;
     
     return {
       tool,
       bodyPart,
+      position,
       strikes,
-      description: `用${tool.name}打${bodyPart.name}${strikes}下`
+      description: `用${tool.name}打${bodyPart.name}${strikes}下，姿势：${position.name}`
     };
+  }
+
+  // 验证惩罚配置的合理性
+  static validatePunishmentConfig(config: PunishmentConfig): boolean {
+    // 检查是否有可用的工具和部位组合
+    for (const tool of config.tools) {
+      const hasValidBodyPart = config.bodyParts.some(b => b.sensitivity >= tool.intensity);
+      if (!hasValidBodyPart) {
+        return false; // 有工具没有合适的部位
+      }
+    }
+    
+    for (const bodyPart of config.bodyParts) {
+      const hasValidTool = config.tools.some(t => t.intensity <= bodyPart.sensitivity);
+      if (!hasValidTool) {
+        return false; // 有部位没有合适的工具
+      }
+    }
+    
+    return true;
+  }
+
+  // 应用均等比例
+  static applyEqualRatio(config: PunishmentConfig): void {
+    const toolRatio = 100 / config.tools.length;
+    const bodyPartRatio = 100 / config.bodyParts.length;
+    const positionRatio = 100 / config.positions.length;
+    
+    config.tools.forEach(tool => tool.ratio = toolRatio);
+    config.bodyParts.forEach(bodyPart => bodyPart.ratio = bodyPartRatio);
+    config.positions.forEach(position => position.ratio = positionRatio);
   }
 } 

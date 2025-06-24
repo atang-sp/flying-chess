@@ -2,7 +2,7 @@
   <div class="punishment-config">
     <div class="config-header">
       <h3>⚙️ 惩罚设置</h3>
-      <p>设置游戏中的工具、部位和最大次数</p>
+      <p>设置游戏中的工具、部位、姿势和比例</p>
     </div>
     
     <div class="config-sections">
@@ -11,7 +11,7 @@
         <h4>🛠️ 工具设置</h4>
         <div class="tools-list">
           <div 
-            v-for="tool in config.tools" 
+            v-for="(tool, idx) in config.tools" 
             :key="tool.id"
             class="tool-item"
           >
@@ -20,17 +20,31 @@
               <span class="tool-intensity">强度: {{ tool.intensity }}/5</span>
             </div>
             <div class="tool-controls">
-              <button 
-                @click="updateToolIntensity(tool.id, tool.intensity - 1)"
-                :disabled="tool.intensity <= 1"
-                class="btn-small"
-              >-</button>
-              <span class="intensity-value">{{ tool.intensity }}</span>
-              <button 
-                @click="updateToolIntensity(tool.id, tool.intensity + 1)"
-                :disabled="tool.intensity >= 5"
-                class="btn-small"
-              >+</button>
+              <div class="intensity-controls">
+                <button 
+                  @click="updateToolIntensity(tool.id, tool.intensity - 1)"
+                  :disabled="tool.intensity <= 1"
+                  class="btn-small"
+                >-</button>
+                <span class="intensity-value">{{ tool.intensity }}</span>
+                <button 
+                  @click="updateToolIntensity(tool.id, tool.intensity + 1)"
+                  :disabled="tool.intensity >= 5"
+                  class="btn-small"
+                >+</button>
+              </div>
+              <div class="ratio-control">
+                <label>比例: {{ Math.round(tool.ratio / 5) * 5 }}%</label>
+                <input 
+                  type="range" 
+                  :min="0" 
+                  :max="100" 
+                  step="5"
+                  v-model.number="tool.ratio"
+                  @input="onToolRatioInput(idx, Math.round(tool.ratio / 5) * 5)"
+                  class="ratio-slider"
+                />
+              </div>
               <button 
                 @click="removeTool(tool.id)"
                 class="btn-remove"
@@ -44,6 +58,7 @@
             placeholder="新工具名称"
             class="input-field"
           />
+          <input type="number" min="1" max="5" v-model.number="newToolIntensity" class="input-mini" placeholder="强度(1-5)" />
           <button 
             @click="addTool"
             :disabled="!newToolName.trim()"
@@ -57,26 +72,40 @@
         <h4>🎯 部位设置</h4>
         <div class="body-parts-list">
           <div 
-            v-for="bodyPart in config.bodyParts" 
+            v-for="(bodyPart, idx) in config.bodyParts" 
             :key="bodyPart.id"
             class="body-part-item"
           >
             <div class="body-part-info">
               <span class="body-part-name">{{ bodyPart.name }}</span>
-              <span class="body-part-sensitivity">敏感度: {{ bodyPart.sensitivity }}/5</span>
+              <span class="body-part-sensitivity">耐受度: {{ bodyPart.sensitivity }}/5</span>
             </div>
             <div class="body-part-controls">
-              <button 
-                @click="updateBodyPartSensitivity(bodyPart.id, bodyPart.sensitivity - 1)"
-                :disabled="bodyPart.sensitivity <= 1"
-                class="btn-small"
-              >-</button>
-              <span class="sensitivity-value">{{ bodyPart.sensitivity }}</span>
-              <button 
-                @click="updateBodyPartSensitivity(bodyPart.id, bodyPart.sensitivity + 1)"
-                :disabled="bodyPart.sensitivity >= 5"
-                class="btn-small"
-              >+</button>
+              <div class="sensitivity-controls">
+                <button 
+                  @click="updateBodyPartSensitivity(bodyPart.id, bodyPart.sensitivity - 1)"
+                  :disabled="bodyPart.sensitivity <= 1"
+                  class="btn-small"
+                >-</button>
+                <span class="sensitivity-value">{{ bodyPart.sensitivity }}</span>
+                <button 
+                  @click="updateBodyPartSensitivity(bodyPart.id, bodyPart.sensitivity + 1)"
+                  :disabled="bodyPart.sensitivity >= 5"
+                  class="btn-small"
+                >+</button>
+              </div>
+              <div class="ratio-control">
+                <label>比例: {{ Math.round(bodyPart.ratio / 5) * 5 }}%</label>
+                <input 
+                  type="range" 
+                  :min="0" 
+                  :max="100" 
+                  step="5"
+                  v-model.number="bodyPart.ratio"
+                  @input="onBodyPartRatioInput(idx, Math.round(bodyPart.ratio / 5) * 5)"
+                  class="ratio-slider"
+                />
+              </div>
               <button 
                 @click="removeBodyPart(bodyPart.id)"
                 class="btn-remove"
@@ -90,11 +119,73 @@
             placeholder="新部位名称"
             class="input-field"
           />
+          <input type="number" min="1" max="5" v-model.number="newBodyPartSensitivity" class="input-mini" placeholder="耐受度(1-5)" />
           <button 
             @click="addBodyPart"
             :disabled="!newBodyPartName.trim()"
             class="btn-add"
           >添加部位</button>
+        </div>
+      </div>
+      
+      <!-- 姿势设置 -->
+      <div class="config-section">
+        <h4>🧘 姿势设置</h4>
+        <div class="positions-list">
+          <div 
+            v-for="(position, idx) in config.positions" 
+            :key="position.id"
+            class="position-item"
+          >
+            <div class="position-info">
+              <span class="position-name">{{ position.name }}</span>
+              <span class="position-difficulty">难度: {{ position.difficulty }}/5</span>
+            </div>
+            <div class="position-controls">
+              <div class="difficulty-controls">
+                <button 
+                  @click="updatePositionDifficulty(position.id, position.difficulty - 1)"
+                  :disabled="position.difficulty <= 1"
+                  class="btn-small"
+                >-</button>
+                <span class="difficulty-value">{{ position.difficulty }}</span>
+                <button 
+                  @click="updatePositionDifficulty(position.id, position.difficulty + 1)"
+                  :disabled="position.difficulty >= 5"
+                  class="btn-small"
+                >+</button>
+              </div>
+              <div class="ratio-control">
+                <label>比例: {{ Math.round(position.ratio / 5) * 5 }}%</label>
+                <input 
+                  type="range" 
+                  :min="0" 
+                  :max="100" 
+                  step="5"
+                  v-model.number="position.ratio"
+                  @input="onPositionRatioInput(idx, Math.round(position.ratio / 5) * 5)"
+                  class="ratio-slider"
+                />
+              </div>
+              <button 
+                @click="removePosition(position.id)"
+                class="btn-remove"
+              >×</button>
+            </div>
+          </div>
+        </div>
+        <div class="add-item">
+          <input 
+            v-model="newPositionName" 
+            placeholder="新姿势名称"
+            class="input-field"
+          />
+          <input type="number" min="1" max="5" v-model.number="newPositionDifficulty" class="input-mini" placeholder="难度(1-5)" />
+          <button 
+            @click="addPosition"
+            :disabled="!newPositionName.trim()"
+            class="btn-add"
+          >添加姿势</button>
         </div>
       </div>
       
@@ -122,15 +213,16 @@
     
     <div class="config-actions">
       <button @click="resetToDefault" class="btn-secondary">重置默认</button>
-      <button @click="saveConfig" class="btn-primary">保存设置</button>
+      <button @click="saveConfig" class="btn-primary" :disabled="!isConfigValid">保存设置</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
-import type { PunishmentConfig, PunishmentTool, PunishmentBodyPart } from '../types/game';
+import { ref, computed } from 'vue';
+import type { PunishmentConfig, PunishmentTool, PunishmentBodyPart, PunishmentPosition } from '../types/game';
 import { GAME_CONFIG } from '../config/gameConfig';
+import { GameService } from '../services/gameService';
 
 interface Props {
   config: PunishmentConfig;
@@ -144,13 +236,63 @@ const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const newToolName = ref('');
+const newToolIntensity = ref(3);
 const newBodyPartName = ref('');
+const newBodyPartSensitivity = ref(3);
+const newPositionName = ref('');
+const newPositionDifficulty = ref(3);
+
+// 检查配置是否有效
+const isConfigValid = computed(() => {
+  return props.config.tools.length > 0 && 
+         props.config.bodyParts.length > 0 && 
+         props.config.positions.length > 0;
+});
+
+const updateConfig = () => {
+  emit('update', props.config);
+};
+
+// 比例自动分配算法
+function autoDistributeRatio(list: { ratio: number }[], changedIdx: number, newValue: number) {
+  // 前面的比例保持不变，当前项设为newValue，后面的均分剩余
+  const n = list.length;
+  let sumBefore = 0;
+  for (let i = 0; i < changedIdx; i++) sumBefore += list[i].ratio;
+  let remain = 100 - sumBefore - newValue;
+  const afterCount = n - changedIdx - 1;
+  if (afterCount > 0) {
+    const avg = Math.max(0, remain / afterCount);
+    for (let i = changedIdx + 1; i < n; i++) {
+      list[i].ratio = avg;
+    }
+  }
+  list[changedIdx].ratio = newValue;
+  // 最后做一次修正，保证总和100
+  let total = list.reduce((s, x) => s + x.ratio, 0);
+  if (total !== 100) {
+    list[n - 1].ratio += 100 - total;
+  }
+}
+
+const onToolRatioInput = (idx: number, value: number) => {
+  autoDistributeRatio(props.config.tools, idx, value);
+  updateConfig();
+};
+const onBodyPartRatioInput = (idx: number, value: number) => {
+  autoDistributeRatio(props.config.bodyParts, idx, value);
+  updateConfig();
+};
+const onPositionRatioInput = (idx: number, value: number) => {
+  autoDistributeRatio(props.config.positions, idx, value);
+  updateConfig();
+};
 
 const updateToolIntensity = (toolId: string, newIntensity: number) => {
   const tool = props.config.tools.find(t => t.id === toolId);
   if (tool && newIntensity >= 1 && newIntensity <= 5) {
     tool.intensity = newIntensity;
-    emit('update', props.config);
+    updateConfig();
   }
 };
 
@@ -158,20 +300,29 @@ const removeTool = (toolId: string) => {
   const index = props.config.tools.findIndex(t => t.id === toolId);
   if (index > -1) {
     props.config.tools.splice(index, 1);
-    emit('update', props.config);
+    // 重新分配比例
+    if (props.config.tools.length > 0) {
+      autoDistributeRatio(props.config.tools, 0, props.config.tools[0].ratio);
+    }
+    updateConfig();
   }
 };
 
 const addTool = () => {
   if (newToolName.value.trim()) {
+    const n = props.config.tools.length + 1;
+    const ratio = 100 / n;
+    props.config.tools.forEach(t => t.ratio = ratio);
     const newTool: PunishmentTool = {
       id: `tool_${Date.now()}`,
       name: newToolName.value.trim(),
-      intensity: 3
+      intensity: Math.max(1, Math.min(5, newToolIntensity.value)),
+      ratio
     };
     props.config.tools.push(newTool);
     newToolName.value = '';
-    emit('update', props.config);
+    newToolIntensity.value = 3;
+    updateConfig();
   }
 };
 
@@ -179,7 +330,7 @@ const updateBodyPartSensitivity = (bodyPartId: string, newSensitivity: number) =
   const bodyPart = props.config.bodyParts.find(b => b.id === bodyPartId);
   if (bodyPart && newSensitivity >= 1 && newSensitivity <= 5) {
     bodyPart.sensitivity = newSensitivity;
-    emit('update', props.config);
+    updateConfig();
   }
 };
 
@@ -187,39 +338,83 @@ const removeBodyPart = (bodyPartId: string) => {
   const index = props.config.bodyParts.findIndex(b => b.id === bodyPartId);
   if (index > -1) {
     props.config.bodyParts.splice(index, 1);
-    emit('update', props.config);
+    if (props.config.bodyParts.length > 0) {
+      autoDistributeRatio(props.config.bodyParts, 0, props.config.bodyParts[0].ratio);
+    }
+    updateConfig();
   }
 };
 
 const addBodyPart = () => {
   if (newBodyPartName.value.trim()) {
+    const n = props.config.bodyParts.length + 1;
+    const ratio = 100 / n;
+    props.config.bodyParts.forEach(b => b.ratio = ratio);
     const newBodyPart: PunishmentBodyPart = {
       id: `bodypart_${Date.now()}`,
       name: newBodyPartName.value.trim(),
-      sensitivity: 3
+      sensitivity: Math.max(1, Math.min(5, newBodyPartSensitivity.value)),
+      ratio
     };
     props.config.bodyParts.push(newBodyPart);
     newBodyPartName.value = '';
-    emit('update', props.config);
+    newBodyPartSensitivity.value = 3;
+    updateConfig();
+  }
+};
+
+const updatePositionDifficulty = (positionId: string, newDifficulty: number) => {
+  const position = props.config.positions.find(p => p.id === positionId);
+  if (position && newDifficulty >= 1 && newDifficulty <= 5) {
+    position.difficulty = newDifficulty;
+    updateConfig();
+  }
+};
+
+const removePosition = (positionId: string) => {
+  const index = props.config.positions.findIndex(p => p.id === positionId);
+  if (index > -1) {
+    props.config.positions.splice(index, 1);
+    if (props.config.positions.length > 0) {
+      autoDistributeRatio(props.config.positions, 0, props.config.positions[0].ratio);
+    }
+    updateConfig();
+  }
+};
+
+const addPosition = () => {
+  if (newPositionName.value.trim()) {
+    const n = props.config.positions.length + 1;
+    const ratio = 100 / n;
+    props.config.positions.forEach(p => p.ratio = ratio);
+    const newPosition: PunishmentPosition = {
+      id: `position_${Date.now()}`,
+      name: newPositionName.value.trim(),
+      difficulty: Math.max(1, Math.min(5, newPositionDifficulty.value)),
+      ratio
+    };
+    props.config.positions.push(newPosition);
+    newPositionName.value = '';
+    newPositionDifficulty.value = 3;
+    updateConfig();
   }
 };
 
 const updateMaxStrikes = (newMaxStrikes: number) => {
   if (newMaxStrikes >= 5 && newMaxStrikes <= 100) {
     props.config.maxStrikes = newMaxStrikes;
-    emit('update', props.config);
+    updateConfig();
   }
 };
 
 const resetToDefault = () => {
-  props.config.tools = [...GAME_CONFIG.DEFAULT_TOOLS];
-  props.config.bodyParts = [...GAME_CONFIG.DEFAULT_BODY_PARTS];
-  props.config.maxStrikes = 30;
-  emit('update', props.config);
+  const defaultConfig = GameService.createPunishmentConfig();
+  Object.assign(props.config, defaultConfig);
+  updateConfig();
 };
 
 const saveConfig = () => {
-  emit('update', props.config);
+  updateConfig();
 };
 </script>
 
@@ -265,52 +460,72 @@ const saveConfig = () => {
 }
 
 .tools-list,
-.body-parts-list {
+.body-parts-list,
+.positions-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1rem;
   margin-bottom: 1rem;
 }
 
 .tool-item,
-.body-part-item {
+.body-part-item,
+.position-item {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
   background: #f8f9fa;
-  border-radius: 4px;
+  border-radius: 8px;
+  border-left: 4px solid #4ecdc4;
 }
 
 .tool-info,
-.body-part-info {
+.body-part-info,
+.position-info {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .tool-name,
-.body-part-name {
+.body-part-name,
+.position-name {
   font-weight: bold;
   color: #333;
+  font-size: 1.1rem;
 }
 
 .tool-intensity,
-.body-part-sensitivity {
-  font-size: 0.8rem;
+.body-part-sensitivity,
+.position-difficulty {
+  font-size: 0.9rem;
   color: #666;
+  background: #e0e0e0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
 }
 
 .tool-controls,
-.body-part-controls {
+.body-part-controls,
+.position-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.intensity-controls,
+.sensitivity-controls,
+.difficulty-controls {
   display: flex;
   align-items: center;
   gap: 0.25rem;
 }
 
 .btn-small {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border: 1px solid #ddd;
   background: white;
   border-radius: 4px;
@@ -318,7 +533,8 @@ const saveConfig = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
+  font-weight: bold;
 }
 
 .btn-small:hover:not(:disabled) {
@@ -331,15 +547,58 @@ const saveConfig = () => {
 }
 
 .intensity-value,
-.sensitivity-value {
-  min-width: 20px;
+.sensitivity-value,
+.difficulty-value {
+  min-width: 24px;
   text-align: center;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.ratio-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 150px;
+}
+
+.ratio-control label {
+  font-size: 0.8rem;
+  color: #666;
   font-weight: bold;
 }
 
+.ratio-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #ddd;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.ratio-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #4ecdc4;
+  cursor: pointer;
+}
+
+.ratio-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #4ecdc4;
+  cursor: pointer;
+  border: none;
+}
+
 .btn-remove {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border: 1px solid #ff6b6b;
   background: #ff6b6b;
   color: white;
@@ -348,7 +607,8 @@ const saveConfig = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
+  font-size: 1rem;
+  font-weight: bold;
 }
 
 .btn-remove:hover {
@@ -366,6 +626,17 @@ const saveConfig = () => {
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 0.9rem;
+}
+
+.input-mini {
+  width: 60px;
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
+  padding: 0.4rem 0.2rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  text-align: center;
 }
 
 .btn-add {
@@ -428,9 +699,16 @@ const saveConfig = () => {
   color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(78, 205, 196, 0.3);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .btn-secondary {
@@ -448,14 +726,85 @@ const saveConfig = () => {
     grid-template-columns: 1fr;
   }
   
-  .tool-item,
-  .body-part-item {
+  .tool-controls,
+  .body-part-controls,
+  .position-controls {
     flex-direction: column;
-    gap: 0.5rem;
+    align-items: stretch;
+  }
+  
+  .ratio-control {
+    min-width: auto;
   }
   
   .add-item {
     flex-direction: column;
+  }
+  
+  .input-mini {
+    width: 100%;
+    margin: 0.5rem 0;
+  }
+  
+  .config-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .punishment-config {
+    padding: 1rem;
+  }
+  
+  .config-section {
+    padding: 0.75rem;
+  }
+  
+  .tool-item,
+  .body-part-item,
+  .position-item {
+    padding: 0.75rem;
+  }
+  
+  .tool-name,
+  .body-part-name,
+  .position-name {
+    font-size: 1rem;
+  }
+  
+  .tool-intensity,
+  .body-part-sensitivity,
+  .position-difficulty {
+    font-size: 0.8rem;
+  }
+  
+  .btn-small {
+    width: 24px;
+    height: 24px;
+    font-size: 0.8rem;
+  }
+  
+  .intensity-value,
+  .sensitivity-value,
+  .difficulty-value {
+    min-width: 20px;
+    font-size: 0.9rem;
+  }
+  
+  .ratio-control label {
+    font-size: 0.7rem;
+  }
+  
+  .input-field {
+    font-size: 0.9rem;
+    padding: 0.4rem;
   }
 }
 </style> 

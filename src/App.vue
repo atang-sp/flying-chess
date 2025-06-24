@@ -1,62 +1,91 @@
 <template>
   <div class="app">
-    <header class="app-header">
-      <h1>🎲 惩罚飞行棋</h1>
-      <p>环形棋盘游戏，支持自定义惩罚设置</p>
-    </header>
-
-    <main class="app-main">
-      <GameInstructions />
-      
-      <!-- 惩罚配置面板 -->
-      <div v-if="!gameStarted" class="config-panel">
+    <!-- 开始页面 -->
+    <IntroPage 
+      v-if="gameState.gameStatus === 'intro'"
+      @start="showInstructions"
+    />
+    
+    <!-- 游戏说明页面 -->
+    <div v-else-if="gameState.gameStatus === 'instructions'" class="instructions-page">
+      <div class="page-container">
+        <GameInstructions />
+        <div class="page-actions">
+          <button @click="showSettings" class="btn-primary">
+            <span class="btn-icon">⚙️</span>
+            <span class="btn-text">下一步：设置惩罚</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 设置页面 -->
+    <div v-else-if="gameState.gameStatus === 'settings'" class="settings-page">
+      <div class="page-container">
+        <div class="settings-header">
+          <h2>⚙️ 惩罚设置</h2>
+          <p>配置游戏中的工具、部位、姿势和比例</p>
+        </div>
+        
         <PunishmentConfigPanel 
           :config="gameState.punishmentConfig"
           @update="updatePunishmentConfig"
         />
+        
+        <div class="page-actions">
+          <button @click="showInstructions" class="btn-secondary">
+            <span class="btn-icon">⬅️</span>
+            <span class="btn-text">返回说明</span>
+          </button>
+          <button @click="startGame" class="btn-primary" :disabled="!isConfigValid">
+            <span class="btn-icon">🚀</span>
+            <span class="btn-text">开始游戏</span>
+          </button>
+        </div>
       </div>
-      
-      <GameControls
-        :gameStarted="gameStarted"
-        :gameFinished="gameFinished"
-        :gameStatus="gameState.gameStatus"
-        :turnCount="turnCount"
-        :winner="gameState.winner"
-        @start="startGame"
-        @pause="pauseGame"
-        @reset="resetGame"
+    </div>
+    
+    <!-- 游戏页面 -->
+    <div v-else class="game-page">
+      <header class="game-header">
+        <h1>🎲 惩罚飞行棋</h1>
+        <p>环形棋盘游戏，支持自定义惩罚设置</p>
+      </header>
+
+      <main class="game-main">
+        <GameControls
+          :gameStarted="gameStarted"
+          :gameFinished="gameFinished"
+          :gameStatus="gameState.gameStatus"
+          :turnCount="turnCount"
+          :winner="gameState.winner"
+          @start="startGame"
+          @pause="pauseGame"
+          @reset="resetGame"
+        />
+
+        <GameBoard
+          :board="gameState.board"
+          :players="gameState.players"
+          :currentPlayerIndex="gameState.currentPlayerIndex"
+          :lastEffect="lastEffect"
+          @cellClick="handleCellClick"
+        />
+
+        <Dice
+          :canRoll="canRollDice"
+          :value="gameState.diceValue"
+          @roll="handleDiceRoll"
+        />
+      </main>
+
+      <!-- 惩罚显示弹窗 -->
+      <PunishmentDisplay
+        :punishment="currentPunishment"
+        @confirm="confirmPunishment"
+        @skip="skipPunishment"
       />
-
-      <PlayerPanel
-        :players="gameState.players"
-        :currentPlayerIndex="gameState.currentPlayerIndex"
-      />
-
-      <GameBoard
-        :board="gameState.board"
-        :players="gameState.players"
-        :currentPlayerIndex="gameState.currentPlayerIndex"
-        :lastEffect="lastEffect"
-        @cellClick="handleCellClick"
-      />
-
-      <Dice
-        :canRoll="canRollDice"
-        :value="gameState.diceValue"
-        @roll="handleDiceRoll"
-      />
-    </main>
-
-    <!-- 惩罚显示弹窗 -->
-    <PunishmentDisplay
-      :punishment="currentPunishment"
-      @confirm="confirmPunishment"
-      @skip="skipPunishment"
-    />
-
-    <footer class="app-footer">
-      <p>使用 Vue 3 + TypeScript 构建</p>
-    </footer>
+    </div>
   </div>
 </template>
 
@@ -64,9 +93,9 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { GameService } from './services/gameService';
 import type { GameState, Player, BoardCell, PunishmentConfig, PunishmentAction } from './types/game';
+import IntroPage from './components/IntroPage.vue';
 import GameInstructions from './components/GameInstructions.vue';
 import GameControls from './components/GameControls.vue';
-import PlayerPanel from './components/PlayerPanel.vue';
 import GameBoard from './components/GameBoard.vue';
 import Dice from './components/Dice.vue';
 import PunishmentConfigPanel from './components/PunishmentConfig.vue';
@@ -77,7 +106,7 @@ const gameState = reactive<GameState>({
   players: [],
   currentPlayerIndex: 0,
   diceValue: null,
-  gameStatus: 'waiting',
+  gameStatus: 'intro', // 从开始页面开始
   winner: null,
   board: [],
   punishmentConfig: GameService.createPunishmentConfig()
@@ -100,13 +129,26 @@ const canRollDice = computed(() => {
          !currentPunishment.value;
 });
 
+const isConfigValid = computed(() => {
+  return GameService.validatePunishmentConfig(gameState.punishmentConfig);
+});
+
+// 页面导航
+const showInstructions = () => {
+  gameState.gameStatus = 'instructions';
+};
+
+const showSettings = () => {
+  gameState.gameStatus = 'settings';
+};
+
 // 初始化游戏
 const initializeGame = () => {
   gameState.players = GameService.createPlayers();
   gameState.board = GameService.createBoard();
   gameState.currentPlayerIndex = 0;
   gameState.diceValue = null;
-  gameState.gameStatus = 'waiting';
+  gameState.gameStatus = 'intro';
   gameState.winner = null;
   gameState.punishmentConfig = GameService.createPunishmentConfig();
   gameStarted.value = false;
@@ -124,8 +166,8 @@ const updatePunishmentConfig = (config: PunishmentConfig) => {
 
 // 开始游戏
 const startGame = () => {
-  gameStarted.value = true;
   gameState.gameStatus = 'waiting';
+  gameStarted.value = true;
   if (turnCount.value === 0) {
     turnCount.value = 1;
   }
@@ -165,10 +207,12 @@ const moveCurrentPlayer = async () => {
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const diceValue = gameState.diceValue!;
   
-  const { newPosition, effect, punishment } = GameService.movePlayer(
+  const { newPosition, effect, punishment, targetPlayerIndex } = GameService.movePlayer(
     currentPlayer, 
     diceValue, 
-    gameState.board
+    gameState.board,
+    gameState.currentPlayerIndex,
+    gameState.players.length
   );
 
   // 更新玩家位置
@@ -280,61 +324,188 @@ onMounted(() => {
 .app {
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 1rem;
 }
 
-.app-header {
+/* 说明页面样式 */
+.instructions-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.page-container {
+  max-width: 800px;
+  width: 100%;
+}
+
+.page-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+/* 设置页面样式 */
+.settings-page {
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.settings-header {
   text-align: center;
   color: white;
   margin-bottom: 2rem;
 }
 
-.app-header h1 {
+.settings-header h2 {
   margin: 0 0 0.5rem 0;
   font-size: 2.5rem;
   font-weight: bold;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.app-header p {
+.settings-header p {
   margin: 0;
   font-size: 1.1rem;
   opacity: 0.9;
 }
 
-.app-main {
+/* 游戏页面样式 */
+.game-page {
+  min-height: 100vh;
+  padding: 0.5rem;
+}
+
+.game-header {
+  text-align: center;
+  color: white;
+  margin-bottom: 1rem;
+}
+
+.game-header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.game-header p {
+  margin: 0;
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+.game-main {
   max-width: 1200px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
-.config-panel {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 1rem;
-  backdrop-filter: blur(10px);
-}
-
-.app-footer {
+.game-footer {
   text-align: center;
   color: white;
   margin-top: 2rem;
   opacity: 0.7;
 }
 
+/* 按钮样式 */
+.btn-primary,
+.btn-secondary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #4ecdc4, #44a08d);
+  color: white;
+  box-shadow: 0 4px 15px rgba(78, 205, 196, 0.3);
+}
+
+.btn-secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(78, 205, 196, 0.4);
+}
+
+.btn-icon {
+  font-size: 1.1rem;
+}
+
 @media (max-width: 768px) {
-  .app {
+  .instructions-page,
+  .settings-page {
     padding: 0.5rem;
   }
   
-  .app-header h1 {
-    font-size: 2rem;
+  .settings-header h2 {
+    font-size: 1.8rem;
   }
   
-  .app-header p {
-    font-size: 1rem;
+  .game-header h1 {
+    font-size: 1.6rem;
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.7rem 1.2rem;
+    font-size: 0.9rem;
+  }
+  
+  .game-page {
+    padding: 0.25rem;
+  }
+  
+  .game-main {
+    gap: 0.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .game-header h1 {
+    font-size: 1.4rem;
+  }
+  
+  .game-header p {
+    font-size: 0.9rem;
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
   }
 }
 </style>

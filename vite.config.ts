@@ -8,4 +8,17 @@ export default defineConfig({
     vue(),
     devtools(),
   ],
+  base: '/ludo-vue-demo/',
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['vue']
+        }
+      }
+    }
+  }
 }) 
