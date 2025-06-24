@@ -13,11 +13,26 @@
 
 ### 自动部署（推荐）
 
-1. 将代码推送到GitHub仓库
-2. 在仓库设置中启用GitHub Pages：
+1. **推送代码到GitHub仓库**
+   ```bash
+   git add .
+   git commit -m "Initial commit"
+   git push origin main
+   ```
+
+2. **启用GitHub Pages**：
    - 进入仓库设置 → Pages
    - Source选择 "GitHub Actions"
-3. 推送代码到main/master分支，GitHub Actions会自动构建并部署
+   - 保存设置
+
+3. **检查Actions权限**：
+   - 进入仓库设置 → Actions → General
+   - 确保"Actions permissions"设置为"Allow all actions and reusable workflows"
+   - 在"Workflow permissions"中选择"Read and write permissions"
+
+4. **推送代码触发部署**：
+   - 推送任何更改到main/master分支
+   - GitHub Actions会自动构建并部署
 
 ### 手动部署
 
@@ -38,6 +53,30 @@
    ```
 
 2. 在GitHub Pages设置中添加自定义域名
+
+## 故障排除
+
+### 权限错误 (403)
+
+如果遇到权限错误，请检查：
+
+1. **仓库设置**：
+   - Settings → Actions → General
+   - 确保"Actions permissions"为"Allow all actions"
+   - "Workflow permissions"选择"Read and write permissions"
+
+2. **分支保护**：
+   - Settings → Branches
+   - 确保main/master分支没有阻止Actions的规则
+
+3. **重新运行Actions**：
+   - 在Actions页面点击"Re-run jobs"
+
+### 构建失败
+
+1. **检查Node.js版本**：确保使用Node.js 18+
+2. **检查依赖**：确保package.json中的依赖正确
+3. **查看构建日志**：在Actions页面查看详细错误信息
 
 ## 其他部署选项
 
@@ -72,4 +111,5 @@
 
 - 确保仓库名称为`ludo-vue-demo`，否则需要修改`vite.config.ts`中的base路径
 - 首次部署可能需要几分钟时间
-- 如果遇到404错误，检查base路径配置是否正确 
+- 如果遇到404错误，检查base路径配置是否正确
+- GitHub Actions需要适当的权限才能部署到Pages 

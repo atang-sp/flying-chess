@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "./deploy.sh",
+    "deploy:manual": "npm run build && echo '✅ 构建完成，请手动上传dist文件夹到GitHub Pages'"
   },
   "dependencies": {
     "vue": "^3.5.13"
