@@ -178,7 +178,7 @@ export class GameService {
       } else if (cell.effect.type === 'punishment') {
         punishment = cell.effect.punishment;
         
-        // 处理动态惩罚
+        // 处理动态惩罚 - 所有惩罚都针对当前玩家
         if (punishment?.dynamicType) {
           switch (punishment.dynamicType) {
             case 'dice_multiplier':
@@ -189,15 +189,18 @@ export class GameService {
               targetPlayerIndex = currentPlayerIndex;
               break;
             case 'previous_player':
-              targetPlayerIndex = (currentPlayerIndex - 1 + totalPlayers) % totalPlayers;
-              punishment.description = `上一个玩家：用${punishment.tool.name}打${punishment.bodyPart.name}${punishment.strikes}下，姿势：${punishment.position.name}`;
+              // 改为当前玩家挨打
+              targetPlayerIndex = currentPlayerIndex;
+              punishment.description = `用${punishment.tool.name}打${punishment.bodyPart.name}${punishment.strikes}下，姿势：${punishment.position.name}`;
               break;
             case 'next_player':
-              targetPlayerIndex = (currentPlayerIndex + 1) % totalPlayers;
-              punishment.description = `下一个玩家：用${punishment.tool.name}打${punishment.bodyPart.name}${punishment.strikes}下，姿势：${punishment.position.name}`;
+              // 改为当前玩家挨打
+              targetPlayerIndex = currentPlayerIndex;
+              punishment.description = `用${punishment.tool.name}打${punishment.bodyPart.name}${punishment.strikes}下，姿势：${punishment.position.name}`;
               break;
             case 'other_player_choice':
-              targetPlayerIndex = currentPlayerIndex; // 当前玩家挨打，但数量由其他玩家决定
+              // 当前玩家挨打，但数量由其他玩家决定
+              targetPlayerIndex = currentPlayerIndex;
               punishment.description = `用${punishment.tool.name}打${punishment.bodyPart.name}，姿势：${punishment.position.name}（数量由其他玩家决定）`;
               break;
           }
@@ -222,11 +225,10 @@ export class GameService {
   static getPlayerDisplayPosition(position: number): { row: number; col: number } {
     if (position === 0) return { row: -1, col: -1 }; // 起始位置
     
-    // 环形布局：外圈-内圈-中心
+    // 环形布局：外圈-内圈
     const totalCells = GAME_CONFIG.BOARD.SIZE;
     const outerRing = 20; // 外圈20格
-    const innerRing = 8;  // 内圈8格
-    const center = 2;     // 中心2格
+    const innerRing = 20; // 内圈20格
     
     if (position <= outerRing) {
       // 外圈：5x4的矩形
@@ -235,15 +237,14 @@ export class GameService {
       const col = index % 5;
       return { row, col };
     } else if (position <= outerRing + innerRing) {
-      // 内圈：4x2的矩形
+      // 内圈：5x4的矩形
       const index = position - outerRing - 1;
-      const row = Math.floor(index / 4) + 1;
-      const col = (index % 4) + 1;
+      const row = Math.floor(index / 5) + 1;
+      const col = (index % 5) + 1;
       return { row, col };
     } else {
-      // 中心：2x1
-      const index = position - outerRing - innerRing - 1;
-      return { row: 2, col: 2 + index };
+      // 超出范围，返回默认位置
+      return { row: 0, col: 0 };
     }
   }
 

@@ -2,7 +2,7 @@
 export const GAME_CONFIG = {
   // 棋盘配置
   BOARD: {
-    SIZE: 60, // 增加到60格
+    SIZE: 40, // 改为40格
     GRID_SIZE: 8, // 8x8的环形布局
   },
   
@@ -51,7 +51,7 @@ export const GAME_CONFIG = {
     { id: 'kneeling', name: '跪趴', difficulty: 5, ratio: 20 },
   ],
   
-  // 惩罚格子配置
+  // 惩罚格子配置 - 调整为40格
   PUNISHMENT_CELLS: {
     3: { tool: 'hand', bodyPart: 'hands', position: 'standing', strikes: 5 },
     7: { tool: 'ruler', bodyPart: 'thighs', position: 'wall_lean', strikes: 8 },
@@ -63,13 +63,9 @@ export const GAME_CONFIG = {
     31: { tool: 'hand', bodyPart: 'hands', position: 'standing', strikes: 6 },
     35: { tool: 'ruler', bodyPart: 'thighs', position: 'wall_lean', strikes: 9 },
     39: { tool: 'wooden_board', bodyPart: 'butt', position: 'table_lean', strikes: 12 },
-    43: { tool: 'cane', bodyPart: 'butt', position: 'kneeling', strikes: 15 },
-    47: { tool: 'paddle', bodyPart: 'butt', position: 'kneeling', strikes: 18 },
-    51: { tool: 'wooden_board', bodyPart: 'thighs', position: 'table_lean', strikes: 20 },
-    55: { tool: 'cane', bodyPart: 'butt', position: 'kneeling', strikes: 25 },
   },
   
-  // 动态惩罚格子配置
+  // 动态惩罚格子配置 - 调整为40格
   DYNAMIC_PUNISHMENT_CELLS: {
     4: { 
       type: 'dice_multiplier', 
@@ -85,7 +81,7 @@ export const GAME_CONFIG = {
       bodyPart: 'thighs', 
       position: 'wall_lean', 
       strikes: 10,
-      description: '上一个玩家挨打'
+      description: '用尺子打大腿10下，手扶墙'
     },
     12: { 
       type: 'next_player', 
@@ -93,14 +89,14 @@ export const GAME_CONFIG = {
       bodyPart: 'butt', 
       position: 'table_lean', 
       strikes: 12,
-      description: '下一个玩家挨打'
+      description: '用木板打屁股12下，趴在桌子上'
     },
     16: { 
       type: 'other_player_choice', 
       tool: 'cane', 
       bodyPart: 'butt', 
       position: 'knee_grab', 
-      description: '其他玩家指定打多少下'
+      description: '用藤条打屁股，手抓膝盖，数量由其他玩家决定'
     },
     20: { 
       type: 'dice_multiplier', 
@@ -116,7 +112,7 @@ export const GAME_CONFIG = {
       bodyPart: 'thighs', 
       position: 'table_lean', 
       strikes: 15,
-      description: '上一个玩家挨打'
+      description: '用木板打大腿15下，趴在桌子上'
     },
     28: { 
       type: 'next_player', 
@@ -124,7 +120,7 @@ export const GAME_CONFIG = {
       bodyPart: 'butt', 
       position: 'kneeling', 
       strikes: 18,
-      description: '下一个玩家挨打'
+      description: '用藤条打屁股18下，跪趴'
     },
     32: { 
       type: 'dice_multiplier', 
@@ -140,50 +136,11 @@ export const GAME_CONFIG = {
       bodyPart: 'thighs', 
       position: 'wall_lean', 
       strikes: 12,
-      description: '上一个玩家挨打'
-    },
-    40: { 
-      type: 'next_player', 
-      tool: 'wooden_board', 
-      bodyPart: 'butt', 
-      position: 'table_lean', 
-      strikes: 15,
-      description: '下一个玩家挨打'
-    },
-    44: { 
-      type: 'other_player_choice', 
-      tool: 'cane', 
-      bodyPart: 'butt', 
-      position: 'kneeling', 
-      description: '其他玩家指定打多少下'
-    },
-    48: { 
-      type: 'dice_multiplier', 
-      tool: 'paddle', 
-      bodyPart: 'butt', 
-      position: 'kneeling', 
-      multiplier: 4,
-      description: '打的数量是骰子点数的4倍'
-    },
-    52: { 
-      type: 'previous_player', 
-      tool: 'wooden_board', 
-      bodyPart: 'thighs', 
-      position: 'table_lean', 
-      strikes: 20,
-      description: '上一个玩家挨打'
-    },
-    56: { 
-      type: 'next_player', 
-      tool: 'cane', 
-      bodyPart: 'butt', 
-      position: 'kneeling', 
-      strikes: 25,
-      description: '下一个玩家挨打'
+      description: '用尺子打大腿12下，手扶墙'
     },
   },
   
-  // 奖励格子配置
+  // 奖励格子配置 - 调整为40格
   BONUS_CELLS: {
     5: { type: 'move', value: 3, description: '前进3步' },
     9: { type: 'move', value: 2, description: '前进2步' },
@@ -194,14 +151,9 @@ export const GAME_CONFIG = {
     29: { type: 'move', value: 6, description: '前进6步' },
     33: { type: 'move', value: 4, description: '前进4步' },
     37: { type: 'move', value: 3, description: '前进3步' },
-    41: { type: 'move', value: 5, description: '前进5步' },
-    45: { type: 'move', value: 4, description: '前进4步' },
-    49: { type: 'move', value: 6, description: '前进6步' },
-    53: { type: 'move', value: 5, description: '前进5步' },
-    57: { type: 'move', value: 7, description: '前进7步' },
   },
   
-  // 特殊格子配置
+  // 特殊格子配置 - 调整为40格
   SPECIAL_CELLS: {
     6: { type: 'skip', value: 1, description: '跳过下一回合' },
     14: { type: 'reverse', value: 2, description: '后退2步' },
@@ -211,20 +163,14 @@ export const GAME_CONFIG = {
     30: { type: 'reverse', value: 4, description: '后退4步' },
     34: { type: 'skip', value: 1, description: '跳过下一回合' },
     38: { type: 'reverse', value: 3, description: '后退3步' },
-    42: { type: 'skip', value: 1, description: '跳过下一回合' },
-    46: { type: 'reverse', value: 5, description: '后退5步' },
-    50: { type: 'skip', value: 1, description: '跳过下一回合' },
-    54: { type: 'reverse', value: 4, description: '后退4步' },
-    58: { type: 'skip', value: 1, description: '跳过下一回合' },
   },
   
-  // 回到起点格子配置
+  // 回到起点格子配置 - 调整为40格
   RESTART_CELLS: {
     10: { description: '回到起点' },
     20: { description: '回到起点' },
     30: { description: '回到起点' },
     40: { description: '回到起点' },
-    50: { description: '回到起点' },
   },
   
   // 默认比例设置

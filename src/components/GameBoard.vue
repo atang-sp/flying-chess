@@ -1,7 +1,7 @@
 <template>
   <div class="game-board">
     <div class="board-container">
-      <!-- 60格环形棋盘布局 -->
+      <!-- 40格环形棋盘布局 -->
       <div class="board-grid">
         <!-- 外圈：20格 -->
         <div class="outer-ring">
@@ -11,6 +11,8 @@
             class="board-cell outer-cell"
             :class="getCellClass(i)"
             @click="handleCellClick(getCellByPosition(i))"
+            @mouseenter="showTooltip(getCellByPosition(i), $event)"
+            @mouseleave="hideTooltip"
           >
             <div class="cell-content">
               <div class="cell-number">{{ i }}</div>
@@ -31,14 +33,16 @@
           </div>
         </div>
         
-        <!-- 中圈：20格 -->
-        <div class="middle-ring">
+        <!-- 内圈：20格 -->
+        <div class="inner-ring">
           <div 
             v-for="i in 20" 
-            :key="`middle-${i + 20}`"
-            class="board-cell middle-cell"
+            :key="`inner-${i + 20}`"
+            class="board-cell inner-cell"
             :class="getCellClass(i + 20)"
             @click="handleCellClick(getCellByPosition(i + 20))"
+            @mouseenter="showTooltip(getCellByPosition(i + 20), $event)"
+            @mouseleave="hideTooltip"
           >
             <div class="cell-content">
               <div class="cell-number">{{ i + 20 }}</div>
@@ -58,39 +62,15 @@
             </div>
           </div>
         </div>
-        
-        <!-- 内圈：20格 -->
-        <div class="inner-ring">
-          <div 
-            v-for="i in 20" 
-            :key="`inner-${i + 40}`"
-            class="board-cell inner-cell"
-            :class="getCellClass(i + 40)"
-            @click="handleCellClick(getCellByPosition(i + 40))"
-          >
-            <div class="cell-content">
-              <div class="cell-number">{{ i + 40 }}</div>
-              <div class="cell-icon">{{ getCellIcon(i + 40) }}</div>
-              <div class="cell-effect">{{ getCellEffect(i + 40) }}</div>
-            </div>
-            <!-- 玩家标记 -->
-            <div 
-              v-for="(player, index) in players" 
-              :key="`player-${player.id}`"
-              v-show="player.position === i + 40"
-              class="player-marker"
-              :style="{ backgroundColor: player.color }"
-              :class="{ 'current-player': index === currentPlayerIndex }"
-            >
-              {{ player.name.charAt(0) }}
-            </div>
-          </div>
-        </div>
       </div>
       
       <!-- 起始位置 -->
       <div class="start-position">
-        <div class="start-cell">
+        <div 
+          class="start-cell"
+          @mouseenter="showTooltip(getCellByPosition(0), $event)"
+          @mouseleave="hideTooltip"
+        >
           <div class="cell-content">
             <div class="cell-number">START</div>
             <div class="cell-icon">🚀</div>
@@ -117,11 +97,74 @@
         <span class="effect-text">{{ lastEffect }}</span>
       </div>
     </div>
+
+    <!-- 浮窗提示 -->
+    <div 
+      v-if="tooltipVisible" 
+      class="cell-tooltip"
+      :style="tooltipStyle"
+    >
+      <div class="tooltip-content">
+        <div class="tooltip-header">
+          <span class="tooltip-number">{{ tooltipCell?.position || 0 }}</span>
+          <span class="tooltip-type">{{ getCellTypeName(tooltipCell?.type || 'normal') }}</span>
+        </div>
+        <div class="tooltip-body">
+          <div v-if="tooltipCell?.effect" class="tooltip-effect">
+            <div class="effect-title">{{ tooltipCell.effect.description }}</div>
+            <div v-if="tooltipCell.effect.type === 'punishment' && tooltipCell.effect.punishment" class="punishment-details">
+              <div class="detail-item">
+                <span class="detail-label">工具：</span>
+                <span class="detail-value">{{ tooltipCell.effect.punishment.tool.name }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">部位：</span>
+                <span class="detail-value">{{ tooltipCell.effect.punishment.bodyPart.name }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">姿势：</span>
+                <span class="detail-value">{{ tooltipCell.effect.punishment.position.name }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">数量：</span>
+                <span class="detail-value">{{ tooltipCell.effect.punishment.strikes }}下</span>
+              </div>
+            </div>
+            <div v-else-if="tooltipCell.effect.type === 'move'" class="move-details">
+              <div class="detail-item">
+                <span class="detail-label">移动：</span>
+                <span class="detail-value">{{ tooltipCell.effect.value > 0 ? '+' : '' }}{{ tooltipCell.effect.value }}步</span>
+              </div>
+            </div>
+            <div v-else-if="tooltipCell.effect.type === 'skip'" class="skip-details">
+              <div class="detail-item">
+                <span class="detail-label">跳过：</span>
+                <span class="detail-value">{{ tooltipCell.effect.value }}回合</span>
+              </div>
+            </div>
+            <div v-else-if="tooltipCell.effect.type === 'reverse'" class="reverse-details">
+              <div class="detail-item">
+                <span class="detail-label">后退：</span>
+                <span class="detail-value">{{ tooltipCell.effect.value }}步</span>
+              </div>
+            </div>
+            <div v-else-if="tooltipCell.effect.type === 'restart'" class="restart-details">
+              <div class="detail-item">
+                <span class="detail-label">回到起点</span>
+              </div>
+            </div>
+          </div>
+          <div v-else class="tooltip-normal">
+            <div class="normal-text">普通格子，无特殊效果</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { BoardCell, Player } from '../types/game';
 import { CELL_ICONS, CELL_COLORS } from '../config/gameConfig';
 
@@ -138,6 +181,14 @@ interface Emits {
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
+
+// 浮窗状态
+const tooltipVisible = ref(false);
+const tooltipCell = ref<BoardCell | null>(null);
+const tooltipStyle = ref({
+  left: '0px',
+  top: '0px'
+});
 
 const getCellByPosition = (position: number): BoardCell => {
   return props.board.find(cell => cell.position === position) || {
@@ -164,8 +215,51 @@ const getCellEffect = (position: number): string => {
   return cell.effect?.description || '';
 };
 
+const getCellTypeName = (type: string): string => {
+  const typeNames = {
+    normal: '普通格子',
+    punishment: '惩罚格子',
+    bonus: '奖励格子',
+    special: '特殊格子',
+    restart: '回到起点'
+  };
+  return typeNames[type as keyof typeof typeNames] || '未知格子';
+};
+
 const handleCellClick = (cell: BoardCell) => {
   emit('cellClick', cell);
+};
+
+const showTooltip = (cell: BoardCell, event: MouseEvent) => {
+  tooltipCell.value = cell;
+  tooltipVisible.value = true;
+  
+  // 计算浮窗位置
+  const rect = (event.target as HTMLElement).getBoundingClientRect();
+  const tooltipWidth = 250; // 预估浮窗宽度
+  const tooltipHeight = 150; // 预估浮窗高度
+  
+  let left = rect.left + rect.width / 2 - tooltipWidth / 2;
+  let top = rect.top - tooltipHeight - 10;
+  
+  // 确保浮窗不超出屏幕边界
+  if (left < 10) left = 10;
+  if (left + tooltipWidth > window.innerWidth - 10) {
+    left = window.innerWidth - tooltipWidth - 10;
+  }
+  if (top < 10) {
+    top = rect.bottom + 10;
+  }
+  
+  tooltipStyle.value = {
+    left: `${left}px`,
+    top: `${top}px`
+  };
+};
+
+const hideTooltip = () => {
+  tooltipVisible.value = false;
+  tooltipCell.value = null;
 };
 </script>
 
@@ -200,13 +294,6 @@ const handleCellClick = (cell: BoardCell) => {
 }
 
 .outer-ring {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0.5rem;
-  padding: 1rem;
-}
-
-.middle-ring {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 0.5rem;
@@ -475,7 +562,6 @@ const handleCellClick = (cell: BoardCell) => {
   }
   
   .outer-ring,
-  .middle-ring,
   .inner-ring {
     gap: 0.25rem;
     padding: 0.5rem;
@@ -524,7 +610,6 @@ const handleCellClick = (cell: BoardCell) => {
   }
   
   .outer-ring,
-  .middle-ring,
   .inner-ring {
     gap: 0.2rem;
     padding: 0.25rem;
@@ -533,6 +618,192 @@ const handleCellClick = (cell: BoardCell) => {
   .effect-display {
     padding: 0.75rem 1.5rem;
     font-size: 0.9rem;
+  }
+}
+
+/* 浮窗样式 */
+.cell-tooltip {
+  position: fixed;
+  z-index: 10000;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.9));
+  backdrop-filter: blur(15px);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  padding: 0;
+  max-width: 280px;
+  min-width: 200px;
+  pointer-events: none;
+  animation: tooltipFadeIn 0.2s ease-out;
+}
+
+.tooltip-content {
+  padding: 1rem;
+}
+
+.tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.tooltip-number {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.tooltip-type {
+  font-size: 0.8rem;
+  color: #666;
+  background: rgba(0, 0, 0, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+}
+
+.tooltip-body {
+  font-size: 0.9rem;
+}
+
+.tooltip-effect {
+  color: #333;
+}
+
+.effect-title {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: #2c3e50;
+}
+
+.punishment-details,
+.move-details,
+.skip-details,
+.reverse-details,
+.restart-details {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.detail-item:last-child {
+  margin-bottom: 0;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: #555;
+  min-width: 40px;
+}
+
+.detail-value {
+  font-weight: bold;
+  color: #2c3e50;
+  text-align: right;
+}
+
+.tooltip-normal {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+.normal-text {
+  padding: 0.5rem;
+}
+
+/* 浮窗动画 */
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 响应式浮窗 */
+@media (max-width: 768px) {
+  .cell-tooltip {
+    max-width: 240px;
+    min-width: 180px;
+  }
+  
+  .tooltip-content {
+    padding: 0.75rem;
+  }
+  
+  .tooltip-header {
+    margin-bottom: 0.5rem;
+  }
+  
+  .tooltip-number {
+    font-size: 1rem;
+  }
+  
+  .tooltip-type {
+    font-size: 0.7rem;
+  }
+  
+  .tooltip-body {
+    font-size: 0.8rem;
+  }
+  
+  .punishment-details,
+  .move-details,
+  .skip-details,
+  .reverse-details,
+  .restart-details {
+    padding: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .cell-tooltip {
+    max-width: 200px;
+    min-width: 160px;
+  }
+  
+  .tooltip-content {
+    padding: 0.5rem;
+  }
+  
+  .tooltip-number {
+    font-size: 0.9rem;
+  }
+  
+  .tooltip-type {
+    font-size: 0.6rem;
+  }
+  
+  .tooltip-body {
+    font-size: 0.75rem;
+  }
+  
+  .detail-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+  }
+  
+  .detail-label {
+    min-width: auto;
+  }
+  
+  .detail-value {
+    text-align: left;
   }
 }
 </style> 
