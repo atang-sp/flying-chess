@@ -16,7 +16,7 @@
         <div class="punishment-item">
           <span class="label">部位:</span>
           <span class="value body-part">{{ punishment.bodyPart.name }}</span>
-          <span class="sensitivity">敏感度: {{ punishment.bodyPart.sensitivity }}/5</span>
+          <span class="sensitivity">耐受度: {{ punishment.bodyPart.sensitivity }}/5</span>
         </div>
         
         <div class="punishment-item">

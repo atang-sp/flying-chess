@@ -286,7 +286,7 @@ export class GameService {
     return items[0];
   }
 
-  // 生成随机惩罚（考虑强度敏感度限制和比例）
+  // 生成随机惩罚（考虑强度耐受度限制和比例）
   static generateRandomPunishment(config: PunishmentConfig): PunishmentAction {
     let tool: PunishmentTool;
     let bodyPart: PunishmentBodyPart;
@@ -297,7 +297,7 @@ export class GameService {
     bodyPart = this.selectByRatio(config.bodyParts);
     position = this.selectByRatio(config.positions);
     
-    // 确保工具强度不超过部位耐受性（敏感度）
+    // 确保工具强度不超过部位耐受性（耐受度）
     if (tool.intensity > bodyPart.sensitivity) {
       // 重新选择工具，选择强度不超过耐受性的工具
       const validTools = config.tools.filter(t => t.intensity <= bodyPart.sensitivity);

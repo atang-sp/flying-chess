@@ -9,6 +9,7 @@
           <span class="decoration-line"></span>
         </div>
         <p class="game-subtitle">环形棋盘 · 自定义惩罚 · 刺激体验</p>
+        <p class="developer-info">开发者：阿汤 <span class="dev-id">@sp_with_py</span></p>
       </div>
       
       <div class="intro-features">
@@ -16,7 +17,7 @@
           <div class="feature-icon">🎯</div>
           <div class="feature-text">
             <h3>环形棋盘</h3>
-            <p>独特的环形设计，30格精美布局</p>
+            <p>独特的环形设计，40格精美布局</p>
           </div>
         </div>
         
@@ -159,6 +160,16 @@ const getStarStyle = (index: number) => {
   margin: 0;
   opacity: 0.9;
   font-weight: 300;
+}
+
+.developer-info {
+  font-size: 0.9rem;
+  opacity: 0.7;
+  margin: 0.5rem 0 0 0;
+}
+
+.dev-id {
+  font-weight: bold;
 }
 
 .intro-features {

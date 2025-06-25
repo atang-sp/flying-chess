@@ -25,7 +25,7 @@
                 <div class="combination-body-part">
                   <span class="label">部位:</span>
                   <span class="value">{{ combination.bodyPart.name }}</span>
-                  <span class="sensitivity">敏感度: {{ combination.bodyPart.sensitivity }}/5</span>
+                  <span class="sensitivity">耐受度: {{ combination.bodyPart.sensitivity }}/5</span>
                 </div>
                 <div class="combination-position">
                   <span class="label">姿势:</span>

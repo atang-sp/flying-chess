@@ -16,7 +16,7 @@ export interface PunishmentTool {
 export interface PunishmentBodyPart {
   id: string;
   name: string;
-  sensitivity: number; // 1-5 敏感度等级
+  sensitivity: number; // 1-5 耐受度等级
   ratio: number; // 出现比例 (0-100)
 }
 
