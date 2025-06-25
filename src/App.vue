@@ -557,19 +557,19 @@ onMounted(() => {
 .game-header {
   text-align: center;
   color: white;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 .game-header h1 {
-  margin: 0 0 0.5rem 0;
-  font-size: 2rem;
+  margin: 0 0 0.25rem 0;
+  font-size: 1.5rem;
   font-weight: bold;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .game-header p {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.8rem;
   opacity: 0.9;
 }
 
@@ -578,12 +578,12 @@ onMounted(() => {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
 .dice-section {
   text-align: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 /* 按钮样式 */
@@ -635,52 +635,65 @@ onMounted(() => {
   font-size: 1.1rem;
 }
 
+/* 移动端适配 */
 @media (max-width: 768px) {
-  .instructions-page,
-  .settings-page {
-    padding: 0.5rem;
-  }
-  
-  .settings-header h2 {
-    font-size: 1.8rem;
-  }
-  
-  .game-header h1 {
-    font-size: 1.6rem;
-  }
-  
-  .btn-primary,
-  .btn-secondary {
-    padding: 0.7rem 1.2rem;
-    font-size: 0.9rem;
-  }
-  
   .game-page {
     padding: 0.25rem;
   }
   
-  .game-main {
-    gap: 0.25rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .settings-header h2 {
-    font-size: 1.5rem;
+  .game-header {
+    margin-bottom: 0.25rem;
   }
   
   .game-header h1 {
-    font-size: 1.4rem;
+    font-size: 1.2rem;
+    margin-bottom: 0.2rem;
   }
   
   .game-header p {
-    font-size: 0.9rem;
+    font-size: 0.7rem;
+  }
+  
+  .game-main {
+    gap: 0.2rem;
+  }
+  
+  .dice-section {
+    margin-bottom: 0.25rem;
   }
   
   .btn-primary,
   .btn-secondary {
     padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .btn-icon {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-page {
+    padding: 0.15rem;
+  }
+  
+  .game-header h1 {
+    font-size: 1.1rem;
+  }
+  
+  .game-header p {
+    font-size: 0.65rem;
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.5rem 0.8rem;
     font-size: 0.85rem;
+  }
+  
+  .btn-icon {
+    font-size: 0.9rem;
   }
 }
 </style>

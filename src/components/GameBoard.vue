@@ -551,36 +551,56 @@ const hideTooltip = () => {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .board-cell {
-    width: 50px;
-    height: 50px;
+  .game-board {
+    padding: 0.5rem;
   }
   
-  .cell-content {
-    padding: 0.25rem;
+  .board-container {
+    max-width: 100%;
+    aspect-ratio: 1;
+  }
+  
+  .board-grid {
+    gap: 0.15rem;
+    padding: 0.15rem;
+  }
+  
+  .outer-ring,
+  .inner-ring {
+    gap: 0.1rem;
+    padding: 0.15rem;
+  }
+  
+  .board-cell {
+    font-size: 0.6rem;
+    min-width: 2rem;
+    min-height: 2rem;
   }
   
   .cell-number {
-    font-size: 0.6rem;
+    font-size: 0.5rem;
+    font-weight: bold;
   }
   
   .cell-icon {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
   }
   
   .cell-effect {
-    display: none;
+    font-size: 0.4rem;
   }
   
   .player-marker {
-    width: 18px;
-    height: 18px;
+    width: 1.2rem;
+    height: 1.2rem;
     font-size: 0.6rem;
+    border: 1px solid white;
   }
   
   .start-cell {
-    width: 40px;
-    height: 40px;
+    width: 3rem;
+    height: 3rem;
+    font-size: 0.5rem;
   }
   
   .start-cell .cell-number {
@@ -588,47 +608,76 @@ const hideTooltip = () => {
   }
   
   .start-cell .cell-icon {
-    font-size: 0.6rem;
+    font-size: 0.8rem;
   }
   
-  .board-grid {
-    padding: 0.5rem;
+  .effect-display {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
   }
   
-  .outer-ring,
-  .inner-ring {
-    gap: 0.25rem;
-    padding: 0.5rem;
+  .effect-content {
+    gap: 0.3rem;
+  }
+  
+  .effect-icon {
+    font-size: 0.8rem;
+  }
+  
+  .effect-text {
+    font-size: 0.8rem;
   }
 }
 
 @media (max-width: 480px) {
-  .board-cell {
-    width: 40px;
-    height: 40px;
+  .game-board {
+    padding: 0.25rem;
   }
   
-  .cell-content {
-    padding: 0.2rem;
+  .board-container {
+    aspect-ratio: 1;
+  }
+  
+  .board-grid {
+    gap: 0.1rem;
+    padding: 0.1rem;
+  }
+  
+  .outer-ring,
+  .inner-ring {
+    gap: 0.08rem;
+    padding: 0.1rem;
+  }
+  
+  .board-cell {
+    font-size: 0.5rem;
+    min-width: 1.8rem;
+    min-height: 1.8rem;
   }
   
   .cell-number {
-    font-size: 0.5rem;
+    font-size: 0.4rem;
   }
   
   .cell-icon {
-    font-size: 0.7rem;
+    font-size: 0.6rem;
+  }
+  
+  .cell-effect {
+    font-size: 0.35rem;
   }
   
   .player-marker {
-    width: 16px;
-    height: 16px;
+    width: 1rem;
+    height: 1rem;
     font-size: 0.5rem;
   }
   
   .start-cell {
-    width: 35px;
-    height: 35px;
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 0.4rem;
   }
   
   .start-cell .cell-number {
@@ -636,22 +685,25 @@ const hideTooltip = () => {
   }
   
   .start-cell .cell-icon {
-    font-size: 0.5rem;
-  }
-  
-  .board-grid {
-    padding: 0.25rem;
-  }
-  
-  .outer-ring,
-  .inner-ring {
-    gap: 0.2rem;
-    padding: 0.25rem;
+    font-size: 0.7rem;
   }
   
   .effect-display {
-    padding: 0.75rem 1.5rem;
-    font-size: 0.9rem;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.7rem;
+    margin-top: 0.4rem;
+  }
+  
+  .effect-content {
+    gap: 0.25rem;
+  }
+  
+  .effect-icon {
+    font-size: 0.7rem;
+  }
+  
+  .effect-text {
+    font-size: 0.7rem;
   }
 }
 

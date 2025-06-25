@@ -398,20 +398,77 @@ const regenerateCombinations = () => {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+  .confirmation-overlay {
+    padding: 0.5rem;
+  }
+  
   .confirmation-modal {
-    margin: 0.5rem;
+    max-width: 100%;
+    max-height: 95vh;
+    margin: 0;
+    border-radius: 12px;
+  }
+  
+  .modal-header {
+    padding: 1rem;
+  }
+  
+  .modal-header h3 {
+    font-size: 1.3rem;
+  }
+  
+  .modal-header p {
+    font-size: 0.9rem;
+  }
+  
+  .combinations-list {
+    padding: 0.75rem;
+    max-height: 60vh;
   }
   
   .combination-item {
     padding: 0.75rem;
+    margin-bottom: 0.75rem;
   }
   
   .combination-details {
-    font-size: 0.85rem;
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
   }
   
-  .combination-summary {
-    font-size: 0.9rem;
+  .combination-tool,
+  .combination-body-part,
+  .combination-position,
+  .combination-strikes {
+    font-size: 0.8rem;
+  }
+  
+  .summary-text {
+    font-size: 0.8rem;
+  }
+  
+  .btn-remove,
+  .btn-restore {
+    width: 35px;
+    height: 35px;
+    font-size: 1rem;
+  }
+  
+  .combination-stats {
+    padding: 0.75rem;
+  }
+  
+  .stat-label {
+    font-size: 0.7rem;
+  }
+  
+  .stat-value {
+    font-size: 1rem;
+  }
+  
+  .modal-actions {
+    padding: 1rem;
+    gap: 0.75rem;
   }
   
   .btn-primary,
@@ -422,9 +479,13 @@ const regenerateCombinations = () => {
 }
 
 @media (max-width: 480px) {
+  .confirmation-overlay {
+    padding: 0.25rem;
+  }
+  
   .confirmation-modal {
-    max-width: 98%;
     max-height: 98vh;
+    border-radius: 8px;
   }
   
   .modal-header {
@@ -435,69 +496,31 @@ const regenerateCombinations = () => {
     font-size: 1.2rem;
   }
   
-  .modal-header p {
-    font-size: 0.85rem;
-  }
-  
   .combinations-list {
     padding: 0.5rem;
-    max-height: 45vh;
+    max-height: 65vh;
   }
   
   .combination-item {
     padding: 0.5rem;
     margin-bottom: 0.5rem;
-    gap: 0.5rem;
+  }
+  
+  .combination-number {
+    font-size: 0.8rem;
+    min-width: 25px;
   }
   
   .combination-details {
-    gap: 0.2rem;
-  }
-  
-  .combination-tool,
-  .combination-body-part,
-  .combination-position,
-  .combination-strikes {
     font-size: 0.75rem;
   }
   
-  .label {
-    min-width: 35px;
-  }
-  
-  .intensity,
-  .sensitivity,
-  .difficulty {
-    font-size: 0.6rem;
-    padding: 0.15rem 0.3rem;
-  }
-  
-  .summary-text {
+  .combination-summary {
     font-size: 0.75rem;
-  }
-  
-  .btn-remove,
-  .btn-restore {
-    width: 30px;
-    height: 30px;
-    font-size: 0.9rem;
-  }
-  
-  .combination-stats {
-    padding: 0.5rem;
-  }
-  
-  .stat-label {
-    font-size: 0.65rem;
-  }
-  
-  .stat-value {
-    font-size: 0.9rem;
   }
   
   .modal-actions {
     padding: 0.75rem;
-    gap: 0.5rem;
   }
   
   .btn-primary,

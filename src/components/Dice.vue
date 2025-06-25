@@ -380,99 +380,17 @@ watch(() => props.value, (newValue) => {
   }
 }
 
-/* 响应式设计 */
+/* 移动端适配 */
 @media (max-width: 768px) {
   .dice-container {
-    padding: 1rem;
+    padding: 0.5rem;
+    gap: 0.5rem;
   }
   
-  .dice {
-    width: 80px;
-    height: 80px;
-  }
-  
-  .dice-result-highlight {
-    width: 50px;
-    height: 50px;
-    bottom: -15px;
-  }
-  
-  .result-number {
-    font-size: 1.3rem;
-  }
-  
-  .result-label {
-    font-size: 0.7rem;
-  }
-  
-  .dice-face {
-    font-size: 2rem;
-  }
-  
-  .dice-value {
-    font-size: 1.5rem;
-  }
-  
-  .dice-button {
-    padding: 1rem 1.5rem;
-    font-size: 1.1rem;
-    min-height: 50px;
-  }
-  
-  .dice-button:disabled {
-    padding: 0.8rem 1.2rem;
-    font-size: 1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .dice-container {
-    padding: 0.75rem;
-  }
-  
-  .dice {
-    width: 70px;
-    height: 70px;
-  }
-  
-  .dice-result-highlight {
-    width: 45px;
-    height: 45px;
-    bottom: -12px;
-  }
-  
-  .result-number {
-    font-size: 1.2rem;
-  }
-  
-  .result-label {
-    font-size: 0.6rem;
-  }
-  
-  .dice-face {
-    font-size: 1.8rem;
-  }
-  
-  .dice-value {
-    font-size: 1.3rem;
-  }
-  
-  .dice-button {
-    padding: 0.9rem 1.2rem;
-    font-size: 1rem;
-    min-height: 48px;
-  }
-  
-  .dice-button:disabled {
-    padding: 0.7rem 1rem;
-    font-size: 0.9rem;
-  }
-}
-
-@media (max-width: 360px) {
   .dice {
     width: 60px;
     height: 60px;
+    margin: 1rem 0;
   }
   
   .dice-result-highlight {
@@ -486,21 +404,99 @@ watch(() => props.value, (newValue) => {
   }
   
   .result-label {
+    font-size: 0.6rem;
+  }
+  
+  .dice-info {
+    font-size: 0.9rem;
+    gap: 0.3rem;
+  }
+  
+  .roll-button {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    gap: 0.3rem;
+  }
+  
+  .button-icon {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dice-container {
+    padding: 0.25rem;
+    gap: 0.4rem;
+  }
+  
+  .dice {
+    width: 50px;
+    height: 50px;
+    margin: 0.75rem 0;
+  }
+  
+  .dice-result-highlight {
+    width: 35px;
+    height: 35px;
+    bottom: -8px;
+  }
+  
+  .result-number {
+    font-size: 1rem;
+  }
+  
+  .result-label {
     font-size: 0.5rem;
   }
   
-  .dice-face {
-    font-size: 1.5rem;
+  .dice-info {
+    font-size: 0.8rem;
+    gap: 0.25rem;
   }
   
-  .dice-value {
-    font-size: 1.1rem;
+  .roll-button {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.85rem;
+    gap: 0.25rem;
   }
   
-  .dice-button {
-    padding: 0.8rem 1rem;
-    font-size: 0.95rem;
-    min-height: 44px;
+  .button-icon {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .dice {
+    width: 45px;
+    height: 45px;
+    margin: 0.5rem 0;
+  }
+  
+  .dice-result-highlight {
+    width: 30px;
+    height: 30px;
+    bottom: -6px;
+  }
+  
+  .result-number {
+    font-size: 0.9rem;
+  }
+  
+  .result-label {
+    font-size: 0.45rem;
+  }
+  
+  .dice-info {
+    font-size: 0.75rem;
+  }
+  
+  .roll-button {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.8rem;
+  }
+  
+  .button-icon {
+    font-size: 0.85rem;
   }
 }
 </style> 

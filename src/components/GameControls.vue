@@ -198,89 +198,98 @@ const resetGame = () => {
   50% { opacity: 0.5; }
 }
 
+/* 移动端适配 */
 @media (max-width: 768px) {
   .game-controls {
     padding: 0.75rem;
-    gap: 0.75rem;
-  }
-  
-  .control-section {
-    gap: 0.5rem;
-  }
-  
-  .control-section h3 {
-    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
   }
   
   .control-buttons {
-    flex-direction: column;
     gap: 0.5rem;
+    margin-bottom: 0.5rem;
   }
   
-  .btn-primary,
-  .btn-secondary,
-  .btn-danger {
-    width: 100%;
-    padding: 0.8rem 1rem;
-    font-size: 1rem;
-    min-height: 44px;
-  }
-  
-  .game-info {
-    flex-direction: column;
-    gap: 0.5rem;
-    text-align: center;
-  }
-  
-  .info-item {
+  .btn {
+    padding: 0.6rem 1rem;
     font-size: 0.9rem;
+    gap: 0.3rem;
   }
   
-  .winner-display {
-    padding: 1rem;
+  .game-status {
+    gap: 1rem;
+    padding: 0.75rem;
   }
   
-  .winner-display h2 {
-    font-size: 1.5rem;
+  .status-item {
+    gap: 0.2rem;
   }
   
-  .winner-display p {
+  .label {
+    font-size: 0.8rem;
+  }
+  
+  .value {
     font-size: 1rem;
+  }
+  
+  .game-over {
+    padding: 1.5rem;
+  }
+  
+  .game-over h3 {
+    font-size: 1.3rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .game-over p {
+    font-size: 1rem;
+    margin-bottom: 1rem;
   }
 }
 
 @media (max-width: 480px) {
   .game-controls {
     padding: 0.5rem;
-    gap: 0.5rem;
+    margin-bottom: 0.25rem;
   }
   
-  .control-section h3 {
-    font-size: 1rem;
+  .control-buttons {
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
   }
   
-  .btn-primary,
-  .btn-secondary,
-  .btn-danger {
-    padding: 0.7rem 0.8rem;
-    font-size: 0.95rem;
-    min-height: 42px;
-  }
-  
-  .info-item {
+  .btn {
+    padding: 0.5rem 0.8rem;
     font-size: 0.85rem;
+    gap: 0.25rem;
   }
   
-  .winner-display {
-    padding: 0.75rem;
+  .game-status {
+    gap: 0.75rem;
+    padding: 0.5rem;
   }
   
-  .winner-display h2 {
-    font-size: 1.3rem;
+  .label {
+    font-size: 0.75rem;
   }
   
-  .winner-display p {
+  .value {
     font-size: 0.9rem;
+  }
+  
+  .game-over {
+    padding: 1rem;
+  }
+  
+  .game-over h3 {
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .game-over p {
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
   }
 }
 </style> 

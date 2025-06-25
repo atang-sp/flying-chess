@@ -345,12 +345,51 @@ const handleConfirm = () => {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+  .stats-overlay {
+    padding: 0.5rem;
+  }
+  
+  .stats-modal {
+    max-width: 100%;
+    max-height: 95vh;
+    margin: 0;
+    border-radius: 12px;
+  }
+  
+  .modal-header {
+    padding: 1rem;
+  }
+  
+  .modal-header h3 {
+    font-size: 1.3rem;
+  }
+  
+  .modal-header p {
+    font-size: 0.9rem;
+  }
+  
+  .stats-content {
+    padding: 1rem;
+  }
+  
   .stats-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .stats-item {
+    padding: 1rem;
+  }
+  
+  .stats-label {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
   }
   
   .stat-bar {
     font-size: 0.8rem;
+    gap: 0.5rem;
   }
   
   .stat-name {
@@ -359,10 +398,108 @@ const handleConfirm = () => {
   
   .stat-value {
     min-width: 60px;
+    font-size: 0.75rem;
+  }
+  
+  .stats-summary {
+    padding: 1rem;
+  }
+  
+  .summary-item {
+    padding: 0.4rem 0;
+  }
+  
+  .summary-label {
+    font-size: 0.9rem;
+  }
+  
+  .summary-value {
+    font-size: 1rem;
+  }
+  
+  .modal-actions {
+    padding: 1rem;
+  }
+  
+  .btn-primary {
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-overlay {
+    padding: 0.25rem;
   }
   
   .stats-modal {
-    margin: 0.5rem;
+    max-height: 98vh;
+    border-radius: 8px;
+  }
+  
+  .modal-header {
+    padding: 0.75rem;
+  }
+  
+  .modal-header h3 {
+    font-size: 1.2rem;
+  }
+  
+  .stats-content {
+    padding: 0.75rem;
+  }
+  
+  .stats-grid {
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  
+  .stats-item {
+    padding: 0.75rem;
+  }
+  
+  .stats-label {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .stat-bar {
+    font-size: 0.75rem;
+    gap: 0.4rem;
+  }
+  
+  .stat-name {
+    min-width: 50px;
+  }
+  
+  .stat-value {
+    min-width: 50px;
+    font-size: 0.7rem;
+  }
+  
+  .stats-summary {
+    padding: 0.75rem;
+  }
+  
+  .summary-item {
+    padding: 0.3rem 0;
+  }
+  
+  .summary-label {
+    font-size: 0.8rem;
+  }
+  
+  .summary-value {
+    font-size: 0.9rem;
+  }
+  
+  .modal-actions {
+    padding: 0.75rem;
+  }
+  
+  .btn-primary {
+    padding: 0.7rem 1.2rem;
+    font-size: 0.9rem;
   }
 }
 </style> 
