@@ -37,9 +37,9 @@ export const GAME_CONFIG = {
   
   // 默认身体部位
   DEFAULT_BODY_PARTS: [
-    { id: 'butt', name: '屁股', sensitivity: 5, ratio: 33.33 }, // 耐受性最高，任何工具都可以
-    { id: 'thighs', name: '大腿', sensitivity: 3, ratio: 33.33 }, // 中等耐受性
-    { id: 'hands', name: '手心', sensitivity: 1, ratio: 33.34 }, // 最敏感，只能用手掌
+    { id: 'butt', name: '屁股', sensitivity: 5, ratio: 70 }, // 耐受性最高，任何工具都可以
+    { id: 'thighs', name: '大腿', sensitivity: 3, ratio: 15 }, // 中等耐受性
+    { id: 'hands', name: '手心', sensitivity: 1, ratio: 15 }, // 最敏感，只能用手掌
   ],
   
   // 默认受罚姿势

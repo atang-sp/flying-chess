@@ -34,7 +34,7 @@
                 >+</button>
               </div>
               <div class="ratio-control">
-                <label>比例: {{ Math.round(tool.ratio / 5) * 5 }}%</label>
+                <label>比例: {{ Math.round(tool.ratio * 10) / 10 }}%</label>
                 <input 
                   type="range" 
                   :min="0" 
@@ -95,7 +95,7 @@
                 >+</button>
               </div>
               <div class="ratio-control">
-                <label>比例: {{ Math.round(bodyPart.ratio / 5) * 5 }}%</label>
+                <label>比例: {{ Math.round(bodyPart.ratio * 10) / 10 }}%</label>
                 <input 
                   type="range" 
                   :min="0" 
@@ -156,7 +156,7 @@
                 >+</button>
               </div>
               <div class="ratio-control">
-                <label>比例: {{ Math.round(position.ratio / 5) * 5 }}%</label>
+                <label>比例: {{ Math.round(position.ratio * 10) / 10 }}%</label>
                 <input 
                   type="range" 
                   :min="0" 
@@ -255,23 +255,55 @@ const updateConfig = () => {
 
 // 比例自动分配算法
 function autoDistributeRatio(list: { ratio: number }[], changedIdx: number, newValue: number) {
-  // 前面的比例保持不变，当前项设为newValue，后面的均分剩余
   const n = list.length;
-  let sumBefore = 0;
-  for (let i = 0; i < changedIdx; i++) sumBefore += list[i].ratio;
-  let remain = 100 - sumBefore - newValue;
-  const afterCount = n - changedIdx - 1;
-  if (afterCount > 0) {
-    const avg = Math.max(0, remain / afterCount);
-    for (let i = changedIdx + 1; i < n; i++) {
-      list[i].ratio = avg;
-    }
+  if (n === 1) {
+    list[0].ratio = 100;
+    return;
   }
+  
+  // 限制新值在0~100之间
+  newValue = Math.max(0, Math.min(100, newValue));
+  
+  // 计算当前选项之前的所有选项总和（这些保持不变）
+  let sumBefore = 0;
+  for (let i = 0; i < changedIdx; i++) {
+    sumBefore += list[i].ratio;
+  }
+  
+  // 计算当前选项和后续选项可用的总比例
+  const availableRatio = 100 - sumBefore;
+  
+  // 如果新值超过可用比例，限制新值
+  if (newValue > availableRatio) {
+    newValue = availableRatio;
+  }
+  
+  // 设置当前选项的比例
   list[changedIdx].ratio = newValue;
-  // 最后做一次修正，保证总和100
-  let total = list.reduce((s, x) => s + x.ratio, 0);
-  if (total !== 100) {
-    list[n - 1].ratio += 100 - total;
+  
+  // 计算剩余比例
+  const remainingRatio = availableRatio - newValue;
+  
+  // 计算后续选项的数量
+  const afterCount = n - changedIdx - 1;
+  
+  if (afterCount > 0) {
+    // 将剩余比例分配给后续选项
+    const baseRatio = Math.floor(remainingRatio / afterCount);
+    const remainder = remainingRatio % afterCount;
+    
+    for (let i = changedIdx + 1; i < n; i++) {
+      // 前面的选项获得基础比例，最后一个选项获得基础比例加余数
+      if (i === n - 1) {
+        list[i].ratio = baseRatio + remainder;
+      } else {
+        list[i].ratio = baseRatio;
+      }
+    }
+  } else if (afterCount === 0) {
+    // 如果没有后续选项，当前选项就是最后一个
+    // 确保总和为100
+    list[changedIdx].ratio = 100 - sumBefore;
   }
 }
 
