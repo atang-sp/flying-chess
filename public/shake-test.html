@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>摇动功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            min-height: 100vh;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .dice {
+            width: 100px;
+            height: 100px;
+            background: white;
+            border-radius: 15px;
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transform-style: preserve-3d;
+            transition: transform 0.3s ease;
+        }
+        
+        .dice.rolling {
+            animation: roll 3s ease-in-out infinite;
+        }
+        
+        @keyframes roll {
+            0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1); }
+            25% { transform: rotateX(360deg) rotateY(180deg) rotateZ(90deg) scale(1.1); }
+            50% { transform: rotateX(720deg) rotateY(360deg) rotateZ(180deg) scale(1.05); }
+            75% { transform: rotateX(1080deg) rotateY(540deg) rotateZ(270deg) scale(1.15); }
+            100% { transform: rotateX(1440deg) rotateY(720deg) rotateZ(360deg) scale(1); }
+        }
+        
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(78, 205, 196, 0.4);
+        }
+        
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .shake-data {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .hint {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 4px solid #4ecdc4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎲 摇动功能测试</h1>
+        
+        <div class="dice" id="dice">🎲</div>
+        
+        <div class="status" id="status">
+            准备就绪，点击按钮或摇动手机来测试
+        </div>
+        
+        <div>
+            <button class="button" onclick="toggleShake()" id="shakeButton">
+                开启摇动检测
+            </button>
+            <button class="button" onclick="rollDice()" id="rollButton">
+                点击掷骰子
+            </button>
+        </div>
+        
+        <div class="shake-data" id="shakeData">
+            摇动数据: 等待检测...
+        </div>
+        
+        <div class="hint">
+            <h3>📱 使用说明</h3>
+            <p>1. 点击"开启摇动检测"按钮</p>
+            <p>2. 允许设备运动权限（如果提示）</p>
+            <p>3. 摇动手机来触发骰子</p>
+            <p>4. 或者点击"点击掷骰子"按钮</p>
+        </div>
+    </div>
+
+    <script>
+        let shakeEnabled = false;
+        let isRolling = false;
+        let shakeCount = 0;
+        let lastShakeTime = 0;
+        const shakeThreshold = 15;
+        const shakeCooldown = 1000;
+        
+        let lastX = null;
+        let lastY = null;
+        let lastZ = null;
+        
+        const dice = document.getElementById('dice');
+        const status = document.getElementById('status');
+        const shakeButton = document.getElementById('shakeButton');
+        const rollButton = document.getElementById('rollButton');
+        const shakeData = document.getElementById('shakeData');
+        
+        function updateStatus(message) {
+            status.textContent = message;
+        }
+        
+        function rollDice() {
+            if (isRolling) return;
+            
+            isRolling = true;
+            dice.classList.add('rolling');
+            updateStatus('骰子滚动中...');
+            
+            setTimeout(() => {
+                const result = Math.floor(Math.random() * 6) + 1;
+                dice.textContent = result;
+                dice.classList.remove('rolling');
+                updateStatus(`骰子结果: ${result} 点`);
+                isRolling = false;
+            }, 3000);
+        }
+        
+        function handleDeviceMotion(event) {
+            if (!shakeEnabled || isRolling) return;
+            
+            const currentTime = Date.now();
+            if (currentTime - lastShakeTime < shakeCooldown) return;
+            
+            const acceleration = event.accelerationIncludingGravity;
+            if (!acceleration) return;
+            
+            const { x, y, z } = acceleration;
+            
+            if (x === null || y === null || z === null) return;
+            
+            // 更新摇动数据显示
+            shakeData.textContent = `摇动数据: X=${x.toFixed(2)}, Y=${y.toFixed(2)}, Z=${z.toFixed(2)}`;
+            
+            if (lastX !== null && lastY !== null && lastZ !== null) {
+                const deltaX = Math.abs(x - lastX);
+                const deltaY = Math.abs(y - lastY);
+                const deltaZ = Math.abs(z - lastZ);
+                
+                const totalDelta = deltaX + deltaY + deltaZ;
+                
+                if (totalDelta > shakeThreshold) {
+                    shakeCount++;
+                    updateStatus(`检测到摇动 ${shakeCount}/3`);
+                    
+                    if (shakeCount >= 3) {
+                        rollDice();
+                        shakeCount = 0;
+                        lastShakeTime = currentTime;
+                    }
+                } else {
+                    shakeCount = 0;
+                }
+            }
+            
+            lastX = x;
+            lastY = y;
+            lastZ = z;
+        }
+        
+        function toggleShake() {
+            shakeEnabled = !shakeEnabled;
+            
+            if (shakeEnabled) {
+                shakeButton.textContent = '关闭摇动检测';
+                shakeButton.style.background = 'linear-gradient(135deg, #f093fb, #f5576c)';
+                updateStatus('摇动检测已开启，摇动手机来掷骰子');
+                
+                if (typeof DeviceMotionEvent !== 'undefined' && 'requestPermission' in DeviceMotionEvent) {
+                    DeviceMotionEvent.requestPermission().then((permission) => {
+                        if (permission === 'granted') {
+                            window.addEventListener('devicemotion', handleDeviceMotion);
+                        } else {
+                            shakeEnabled = false;
+                            shakeButton.textContent = '开启摇动检测';
+                            shakeButton.style.background = 'linear-gradient(135deg, #4ecdc4, #44a08d)';
+                            updateStatus('需要设备运动权限才能使用摇动功能');
+                            alert('需要设备运动权限才能使用摇动功能');
+                        }
+                    });
+                } else {
+                    window.addEventListener('devicemotion', handleDeviceMotion);
+                }
+            } else {
+                shakeButton.textContent = '开启摇动检测';
+                shakeButton.style.background = 'linear-gradient(135deg, #4ecdc4, #44a08d)';
+                updateStatus('摇动检测已关闭');
+                window.removeEventListener('devicemotion', handleDeviceMotion);
+            }
+        }
+        
+        // 检查设备支持
+        if (typeof DeviceMotionEvent !== 'undefined') {
+            console.log('设备支持摇动检测');
+        } else {
+            updateStatus('当前设备不支持摇动检测');
+            shakeButton.disabled = true;
+        }
+    </script>
+</body>
+</html> 

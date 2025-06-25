@@ -10,7 +10,7 @@ export const GAME_CONFIG = {
   DICE: {
     MIN_VALUE: 1,
     MAX_VALUE: 6,
-    ANIMATION_DURATION: 2000, // 动画持续时间(ms) - 增加到2秒
+    ANIMATION_DURATION: 3000, // 动画持续时间(ms) - 增加到3秒
   },
   
   // 玩家配置
