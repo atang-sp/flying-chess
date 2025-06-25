@@ -191,20 +191,20 @@ export class GameService {
   }
 
   static createPunishmentConfig(): PunishmentConfig {
-    // 创建默认配置，使用均等比例
+    // 创建默认配置，保留原始比例设置
     const tools = GAME_CONFIG.DEFAULT_TOOLS.map(tool => ({
-      ...tool,
-      ratio: 100 / GAME_CONFIG.DEFAULT_TOOLS.length // 均等比例
+      ...tool
+      // 保留原始比例，不重置为均等比例
     }));
     
     const bodyParts = GAME_CONFIG.DEFAULT_BODY_PARTS.map(bodyPart => ({
-      ...bodyPart,
-      ratio: 100 / GAME_CONFIG.DEFAULT_BODY_PARTS.length // 均等比例
+      ...bodyPart
+      // 保留原始比例，不重置为均等比例
     }));
     
     const positions = GAME_CONFIG.DEFAULT_POSITIONS.map(position => ({
-      ...position,
-      ratio: 100 / GAME_CONFIG.DEFAULT_POSITIONS.length // 均等比例
+      ...position
+      // 保留原始比例，不重置为均等比例
     }));
     
     return {
@@ -588,24 +588,34 @@ export class GameService {
     
     // 生成组合
     for (let i = 0; i < count; i++) {
-      // 根据分布选择工具、部位、姿势
+      // 根据分布选择工具
       const tool = this.selectByDistribution(config.tools, toolDistribution, i);
-      const bodyPart = this.selectByDistribution(config.bodyParts, bodyPartDistribution, i);
-      const position = this.selectByDistribution(config.positions, positionDistribution, i);
       
-      // 确保工具强度不超过部位耐受性
-      const finalTool = tool.intensity <= bodyPart.sensitivity ? tool : 
-        config.tools.find(t => t.intensity <= bodyPart.sensitivity) || tool;
+      // 根据工具强度选择合适的部位（考虑比例）
+      const validBodyParts = config.bodyParts.filter(b => b.sensitivity >= tool.intensity);
+      let bodyPart: PunishmentBodyPart;
+      if (validBodyParts.length > 0) {
+        // 在有效部位中按比例选择
+        bodyPart = this.selectByRatio(validBodyParts);
+      } else {
+        // 如果没有合适的部位，选择耐受度最高的部位
+        bodyPart = config.bodyParts.reduce((max, current) => 
+          current.sensitivity > max.sensitivity ? current : max
+        );
+      }
+      
+      // 根据分布选择姿势
+      const position = this.selectByDistribution(config.positions, positionDistribution, i);
       
       // 惩罚次数完全随机，与工具/部位/姿势无关
       const strikes = Math.floor(Math.random() * config.maxStrikes) + 1;
       
       const combination: PunishmentAction = {
-        tool: finalTool,
+        tool,
         bodyPart,
         position,
         strikes,
-        description: `用${finalTool.name}打${bodyPart.name}${strikes}下，姿势：${position.name}`
+        description: `用${tool.name}打${bodyPart.name}${strikes}下，姿势：${position.name}`
       };
       
       combinations.push(combination);
