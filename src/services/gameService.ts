@@ -117,7 +117,8 @@ export class GameService {
         name: GAME_CONFIG.PLAYERS.NAMES[i],
         color: GAME_CONFIG.PLAYERS.COLORS[i],
         position: 0,
-        isWinner: false
+        isWinner: false,
+        hasTakenOff: false
       });
     }
     
@@ -153,7 +154,7 @@ export class GameService {
     return Math.floor(Math.random() * (GAME_CONFIG.DICE.MAX_VALUE - GAME_CONFIG.DICE.MIN_VALUE + 1)) + GAME_CONFIG.DICE.MIN_VALUE;
   }
 
-  static movePlayer(player: Player, diceValue: number, board: BoardCell[], currentPlayerIndex: number, totalPlayers: number): { newPosition: number; effect?: string; punishment?: PunishmentAction; targetPlayerIndex?: number; cellEffect?: any } {
+  static movePlayer(player: Player, diceValue: number, board: BoardCell[], currentPlayerIndex: number, totalPlayers: number, punishmentConfig: PunishmentConfig): { newPosition: number; effect?: string; punishment?: PunishmentAction; targetPlayerIndex?: number; cellEffect?: any; canTakeOff?: boolean; executorIndex?: number } {
     // 设置移动动画状态
     player.isMoving = true;
     
@@ -162,15 +163,53 @@ export class GameService {
       player.isMoving = false;
     }, 600); // 与CSS动画时长匹配
 
-    let newPosition = player.position + diceValue;
+    let newPosition = player.position;
     let effect: string | undefined;
     let punishment: PunishmentAction | undefined;
     let targetPlayerIndex: number | undefined;
     let cellEffect: any = undefined;
+    let canTakeOff = false;
+    let executorIndex: number | undefined;
 
-    // 处理环形移动
-    if (newPosition > 40) {
-      newPosition = 40; // 到达终点
+    // 检查是否在起点且未起飞
+    if (player.position === 0 && !player.hasTakenOff) {
+      if (diceValue === 6) {
+        // 起飞成功
+        player.hasTakenOff = true;
+        newPosition = 1; // 移动到第一个格子
+        effect = '起飞成功！移动到第1格';
+        canTakeOff = true;
+      } else {
+        // 未起飞，触发惩罚
+        const tool = this.selectByRatio(punishmentConfig.tools);
+        const bodyPart = this.selectByRatio(punishmentConfig.bodyParts);
+        const position = this.selectByRatio(punishmentConfig.positions);
+        
+        // 计算惩罚执行者
+        const otherPlayersCount = totalPlayers - 1;
+        if (otherPlayersCount > 0) {
+          executorIndex = diceValue % otherPlayersCount;
+        }
+        
+        punishment = {
+          tool,
+          bodyPart,
+          position,
+          strikes: diceValue,
+          description: `未起飞，被惩罚：${tool.name} ${bodyPart.name} ${position.name} ${diceValue}下`
+        };
+        
+        effect = `未起飞！被惩罚${diceValue}下`;
+        return { newPosition, effect, punishment, targetPlayerIndex, cellEffect, canTakeOff, executorIndex };
+      }
+    } else {
+      // 已经起飞，正常移动
+      newPosition = player.position + diceValue;
+      
+      // 处理环形移动
+      if (newPosition > 40) {
+        newPosition = 40; // 到达终点
+      }
     }
 
     // 检查新位置的格子效果
@@ -203,7 +242,8 @@ export class GameService {
           
         case 'restart':
           newPosition = 0;
-          effect = '回到起点';
+          player.hasTakenOff = false; // 回到起点后需要重新起飞
+          effect = '回到起点，需要重新起飞';
           break;
           
         case 'rest':
@@ -212,7 +252,7 @@ export class GameService {
       }
     }
 
-    return { newPosition, effect, punishment, targetPlayerIndex, cellEffect };
+    return { newPosition, effect, punishment, targetPlayerIndex, cellEffect, canTakeOff, executorIndex };
   }
 
   // 处理格子效果（第二步）

@@ -25,6 +25,12 @@
             <span class="value">{{ player.position }}</span>
           </div>
           <div class="stat">
+            <span class="label">状态:</span>
+            <span class="value" :class="{ 'not-taken-off': !player.hasTakenOff }">
+              {{ player.hasTakenOff ? '已起飞' : '未起飞' }}
+            </span>
+          </div>
+          <div class="stat">
             <span class="label">进度:</span>
             <div class="progress-bar">
               <div 
@@ -142,6 +148,11 @@ defineProps<Props>();
 .value {
   font-weight: bold;
   color: #333;
+}
+
+.value.not-taken-off {
+  color: #ff6b6b;
+  font-weight: bold;
 }
 
 .progress-bar {

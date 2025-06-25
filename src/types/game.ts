@@ -5,6 +5,7 @@ export interface Player {
   position: number;
   isWinner: boolean;
   isMoving?: boolean; // 添加移动动画状态
+  hasTakenOff?: boolean; // 是否已经起飞
 }
 
 export interface PunishmentTool {

@@ -119,6 +119,15 @@
       :combinations="confirmedCombinations"
       @confirm="startGameWithStats"
     />
+
+    <!-- 起飞惩罚显示弹窗 -->
+    <TakeoffPunishmentDisplay
+      :visible="showTakeoffPunishmentDisplay"
+      :punishment="currentTakeoffPunishment!"
+      :dice-value="currentTakeoffDiceValue"
+      :executor-name="gameState.players[currentTakeoffExecutorIndex]?.name || '未知玩家'"
+      @confirm="confirmTakeoffPunishment"
+    />
   </div>
 </template>
 
@@ -137,6 +146,7 @@ import PunishmentDisplay from './components/PunishmentDisplay.vue';
 import PunishmentConfirmation from './components/PunishmentConfirmation.vue';
 import EffectDisplay from './components/EffectDisplay.vue';
 import PunishmentStats from './components/PunishmentStats.vue';
+import TakeoffPunishmentDisplay from './components/TakeoffPunishmentDisplay.vue';
 
 // 游戏状态
 const gameState = reactive<GameState>({
@@ -169,12 +179,19 @@ const effectToPosition = ref<number | undefined>(undefined);
 const showPunishmentStats = ref(false);
 const confirmedCombinations = ref<PunishmentAction[]>([]);
 
+// 起飞惩罚显示状态
+const showTakeoffPunishmentDisplay = ref(false);
+const currentTakeoffPunishment = ref<PunishmentAction | null>(null);
+const currentTakeoffDiceValue = ref(0);
+const currentTakeoffExecutorIndex = ref(0);
+
 // 计算属性
 const canRollDice = computed(() => {
   return gameStarted.value && 
          !gameFinished.value && 
          gameState.gameStatus === 'waiting' &&
-         !currentPunishment.value;
+         !currentPunishment.value &&
+         !showTakeoffPunishmentDisplay.value;
 });
 
 const isConfigValid = computed(() => {
@@ -261,26 +278,42 @@ const moveCurrentPlayer = async () => {
   const diceValue = gameState.diceValue!;
   const fromPosition = currentPlayer.position;
   
-  const { newPosition, effect, punishment, targetPlayerIndex, cellEffect } = GameService.movePlayer(
+  const { newPosition, effect, punishment, targetPlayerIndex, cellEffect, canTakeOff, executorIndex } = GameService.movePlayer(
     currentPlayer, 
     diceValue, 
     gameState.board,
     gameState.currentPlayerIndex,
-    gameState.players.length
+    gameState.players.length,
+    gameState.punishmentConfig
   );
 
   // 更新玩家位置
   currentPlayer.position = newPosition;
   
-  // 显示移动路径信息
-  const fromText = fromPosition === 0 ? '起点' : `第${fromPosition}格`;
-  const toText = newPosition === 0 ? '起点' : `第${newPosition}格`;
-  lastEffect.value = `${fromText} → ${toText}`;
+  // 显示移动路径信息或起飞信息
+  if (canTakeOff) {
+    lastEffect.value = '起飞成功！移动到第1格';
+  } else if (effect) {
+    lastEffect.value = effect;
+  } else {
+    const fromText = fromPosition === 0 ? '起点' : `第${fromPosition}格`;
+    const toText = newPosition === 0 ? '起点' : `第${newPosition}格`;
+    lastEffect.value = `${fromText} → ${toText}`;
+  }
 
   // 等待移动动画完成
   await new Promise(resolve => setTimeout(resolve, 600));
 
-  // 检查是否有惩罚
+  // 检查是否有起飞惩罚
+  if (punishment && executorIndex !== undefined) {
+    currentTakeoffPunishment.value = punishment;
+    currentTakeoffDiceValue.value = diceValue;
+    currentTakeoffExecutorIndex.value = executorIndex;
+    showTakeoffPunishmentDisplay.value = true;
+    return; // 等待用户处理起飞惩罚
+  }
+
+  // 检查是否有普通惩罚
   if (punishment) {
     currentPunishment.value = punishment;
     gameState.gameStatus = 'configuring';
@@ -476,6 +509,16 @@ const startGameWithStats = () => {
   if (turnCount.value === 0) {
     turnCount.value = 1;
   }
+};
+
+// 确认起飞惩罚
+const confirmTakeoffPunishment = async () => {
+  showTakeoffPunishmentDisplay.value = false;
+  currentTakeoffPunishment.value = null;
+  gameState.gameStatus = 'waiting';
+  
+  // 继续游戏流程
+  await continueAfterPunishment();
 };
 
 // 组件挂载时初始化游戏

@@ -1,71 +1,38 @@
 <template>
   <div class="game-board">
     <div class="board-container">
-      <!-- 40格环形棋盘布局 -->
+      <!-- 螺旋蛇形棋盘布局 -->
       <div class="board-grid">
-        <!-- 外圈：20格 -->
-        <div class="outer-ring">
-          <div 
-            v-for="i in 20" 
-            :key="`outer-${i}`"
-            class="board-cell outer-cell"
-            :class="getCellClass(i)"
-            @click="handleCellClick(getCellByPosition(i))"
-            @mouseenter="showTooltip(getCellByPosition(i), $event)"
-            @mouseleave="hideTooltip"
-          >
-            <div class="cell-content">
-              <div class="cell-number">{{ i }}</div>
-              <div class="cell-icon">{{ getCellIcon(i) }}</div>
-              <div class="cell-effect">{{ getCellEffect(i) }}</div>
-            </div>
-            <!-- 玩家标记 -->
-            <div 
-              v-for="(player, index) in players" 
-              :key="`player-${player.id}`"
-              v-show="player.position === i"
-              class="player-marker"
-              :style="{ backgroundColor: player.color }"
-              :class="{ 
-                'current-player': index === currentPlayerIndex,
-                'player-moving': player.isMoving
-              }"
-            >
-              {{ player.name.charAt(0) }}
-            </div>
-          </div>
-        </div>
-        
-        <!-- 内圈：20格 -->
-        <div class="inner-ring">
-          <div 
-            v-for="i in 20" 
-            :key="`inner-${i + 20}`"
-            class="board-cell inner-cell"
-            :class="getCellClass(i + 20)"
-            @click="handleCellClick(getCellByPosition(i + 20))"
-            @mouseenter="showTooltip(getCellByPosition(i + 20), $event)"
-            @mouseleave="hideTooltip"
-          >
-            <div class="cell-content">
-              <div class="cell-number">{{ i + 20 }}</div>
-              <div class="cell-icon">{{ getCellIcon(i + 20) }}</div>
-              <div class="cell-effect">{{ getCellEffect(i + 20) }}</div>
-            </div>
-            <!-- 玩家标记 -->
-            <div 
-              v-for="(player, index) in players" 
-              :key="`player-${player.id}`"
-              v-show="player.position === i + 20"
-              class="player-marker"
-              :style="{ backgroundColor: player.color }"
-              :class="{ 
-                'current-player': index === currentPlayerIndex,
-                'player-moving': player.isMoving
-              }"
-            >
-              {{ player.name.charAt(0) }}
-            </div>
+        <div v-for="(row, rowIdx) in spiralBoard" :key="'row-' + rowIdx" class="board-row">
+          <div v-for="cellNum in row" :key="'cell-' + cellNum">
+            <template v-if="typeof cellNum === 'number' && cellNum !== null">
+              <div class="board-cell"
+                :class="getCellClass(cellNum)"
+                @click="handleCellClick(getCellByPosition(cellNum))"
+                @mouseenter="showTooltip(getCellByPosition(cellNum), $event)"
+                @mouseleave="hideTooltip"
+              >
+                <div class="cell-content">
+                  <div class="cell-number">{{ cellNum }}</div>
+                  <div class="cell-icon">{{ getCellIcon(cellNum) }}</div>
+                  <div class="cell-effect">{{ getCellEffect(cellNum) }}</div>
+                </div>
+                <!-- 玩家标记 -->
+                <div 
+                  v-for="(player, index) in players" 
+                  :key="`player-${player.id}`"
+                  v-show="player.position === cellNum"
+                  class="player-marker"
+                  :style="{ backgroundColor: player.color }"
+                  :class="{ 
+                    'current-player': index === currentPlayerIndex,
+                    'player-moving': player.isMoving
+                  }"
+                >
+                  ✈️
+                </div>
+              </div>
+            </template>
           </div>
         </div>
       </div>
@@ -93,7 +60,7 @@
               'player-moving': player.isMoving
             }"
           >
-            {{ player.name.charAt(0) }}
+            ✈️
           </div>
         </div>
       </div>
@@ -175,7 +142,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { BoardCell, Player } from '../types/game';
-import { CELL_ICONS, CELL_COLORS } from '../config/gameConfig';
+import { CELL_ICONS, CELL_COLORS, GAME_CONFIG } from '../config/gameConfig';
 
 interface Props {
   board: BoardCell[];
@@ -197,6 +164,48 @@ const tooltipCell = ref<BoardCell | null>(null);
 const tooltipStyle = ref({
   left: '0px',
   top: '0px'
+});
+
+// 螺旋蛇形棋盘生成
+const spiralBoard = computed(() => {
+  const rows = GAME_CONFIG.BOARD.GRID_SIZE.rows;
+  const cols = GAME_CONFIG.BOARD.GRID_SIZE.cols;
+  const spiral: (number | null)[][] = Array.from({ length: rows }, () => Array(cols).fill(null));
+  
+  let num = 1;
+  let left = 0, right = cols - 1, top = 0, bottom = rows - 1;
+  
+  while (left <= right && top <= bottom && num <= GAME_CONFIG.BOARD.SIZE) {
+    // 从左到右填充顶部行
+    for (let j = left; j <= right && num <= GAME_CONFIG.BOARD.SIZE; j++) {
+      spiral[top][j] = num++;
+    }
+    top++;
+    
+    // 从上到下填充右列
+    for (let i = top; i <= bottom && num <= GAME_CONFIG.BOARD.SIZE; i++) {
+      spiral[i][right] = num++;
+    }
+    right--;
+    
+    // 从右到左填充底部行（如果还有行）
+    if (top <= bottom) {
+      for (let j = right; j >= left && num <= GAME_CONFIG.BOARD.SIZE; j--) {
+        spiral[bottom][j] = num++;
+      }
+      bottom--;
+    }
+    
+    // 从下到上填充左列（如果还有列）
+    if (left <= right) {
+      for (let i = bottom; i >= top && num <= GAME_CONFIG.BOARD.SIZE; i--) {
+        spiral[i][left] = num++;
+      }
+      left++;
+    }
+  }
+  
+  return spiral;
 });
 
 const getCellByPosition = (position: number): BoardCell => {
@@ -302,18 +311,9 @@ const hideTooltip = () => {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-.outer-ring {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
+.board-row {
+  display: flex;
   gap: 0.5rem;
-  padding: 1rem;
-}
-
-.inner-ring {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0.5rem;
-  padding: 1rem;
 }
 
 .board-cell {
@@ -474,9 +474,9 @@ const hideTooltip = () => {
 /* 起始位置 */
 .start-position {
   position: absolute;
-  top: 50%;
+  top: -40px;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   z-index: 10;
 }
 
@@ -506,6 +506,23 @@ const hideTooltip = () => {
 
 .start-cell .cell-icon {
   font-size: 1.5rem;
+}
+
+/* 蛇形路径指示器 */
+.board-grid::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  background: 
+    linear-gradient(90deg, transparent 0%, transparent 10%, rgba(78, 205, 196, 0.1) 10%, rgba(78, 205, 196, 0.1) 90%, transparent 90%, transparent 100%),
+    linear-gradient(0deg, transparent 0%, transparent 10%, rgba(78, 205, 196, 0.1) 10%, rgba(78, 205, 196, 0.1) 90%, transparent 90%, transparent 100%);
+  pointer-events: none;
+  z-index: -1;
+  border-radius: 16px;
 }
 
 /* 效果显示 */
@@ -557,24 +574,21 @@ const hideTooltip = () => {
   
   .board-container {
     max-width: 100%;
-    aspect-ratio: 1;
   }
   
   .board-grid {
-    gap: 0.15rem;
-    padding: 0.15rem;
+    gap: 0.5rem;
+    padding: 0.5rem;
   }
   
-  .outer-ring,
-  .inner-ring {
-    gap: 0.1rem;
-    padding: 0.15rem;
+  .board-row {
+    gap: 0.25rem;
   }
   
   .board-cell {
+    width: 40px;
+    height: 40px;
     font-size: 0.6rem;
-    min-width: 2rem;
-    min-height: 2rem;
   }
   
   .cell-number {
@@ -598,66 +612,36 @@ const hideTooltip = () => {
   }
   
   .start-cell {
-    width: 3rem;
-    height: 3rem;
-    font-size: 0.5rem;
+    width: 60px;
+    height: 60px;
   }
   
   .start-cell .cell-number {
-    font-size: 0.4rem;
+    font-size: 0.6rem;
   }
   
   .start-cell .cell-icon {
-    font-size: 0.8rem;
-  }
-  
-  .effect-display {
-    padding: 0.5rem 1rem;
-    font-size: 0.8rem;
-    margin-top: 0.5rem;
-  }
-  
-  .effect-content {
-    gap: 0.3rem;
-  }
-  
-  .effect-icon {
-    font-size: 0.8rem;
-  }
-  
-  .effect-text {
-    font-size: 0.8rem;
+    font-size: 1.2rem;
   }
 }
 
 @media (max-width: 480px) {
-  .game-board {
+  .board-grid {
+    gap: 0.25rem;
     padding: 0.25rem;
   }
   
-  .board-container {
-    aspect-ratio: 1;
-  }
-  
-  .board-grid {
-    gap: 0.1rem;
-    padding: 0.1rem;
-  }
-  
-  .outer-ring,
-  .inner-ring {
-    gap: 0.08rem;
-    padding: 0.1rem;
+  .board-row {
+    gap: 0.15rem;
   }
   
   .board-cell {
-    font-size: 0.5rem;
-    min-width: 1.8rem;
-    min-height: 1.8rem;
+    width: 35px;
+    height: 35px;
   }
   
   .cell-number {
-    font-size: 0.4rem;
+    font-size: 0.45rem;
   }
   
   .cell-icon {
@@ -675,35 +659,16 @@ const hideTooltip = () => {
   }
   
   .start-cell {
-    width: 2.5rem;
-    height: 2.5rem;
-    font-size: 0.4rem;
+    width: 50px;
+    height: 50px;
   }
   
   .start-cell .cell-number {
-    font-size: 0.35rem;
+    font-size: 0.5rem;
   }
   
   .start-cell .cell-icon {
-    font-size: 0.7rem;
-  }
-  
-  .effect-display {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.7rem;
-    margin-top: 0.4rem;
-  }
-  
-  .effect-content {
-    gap: 0.25rem;
-  }
-  
-  .effect-icon {
-    font-size: 0.7rem;
-  }
-  
-  .effect-text {
-    font-size: 0.7rem;
+    font-size: 1rem;
   }
 }
 

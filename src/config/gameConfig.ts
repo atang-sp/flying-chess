@@ -2,8 +2,8 @@
 export const GAME_CONFIG = {
   // 棋盘配置
   BOARD: {
-    SIZE: 40, // 改为40格
-    GRID_SIZE: 8, // 8x8的环形布局
+    SIZE: 40, // 40格
+    GRID_SIZE: { rows: 5, cols: 8 }, // 5行8列的蛇形布局
   },
   
   // 骰子配置
