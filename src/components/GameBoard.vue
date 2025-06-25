@@ -1,9 +1,9 @@
 <template>
   <div class="game-board">
     <div class="board-container">
-      <!-- 环形棋盘布局 -->
+      <!-- 60格环形棋盘布局 -->
       <div class="board-grid">
-        <!-- 外圈：5x4的矩形 -->
+        <!-- 外圈：20格 -->
         <div class="outer-ring">
           <div 
             v-for="i in 20" 
@@ -31,12 +31,12 @@
           </div>
         </div>
         
-        <!-- 内圈：4x2的矩形 -->
-        <div class="inner-ring">
+        <!-- 中圈：20格 -->
+        <div class="middle-ring">
           <div 
-            v-for="i in 8" 
-            :key="`inner-${i + 20}`"
-            class="board-cell inner-cell"
+            v-for="i in 20" 
+            :key="`middle-${i + 20}`"
+            class="board-cell middle-cell"
             :class="getCellClass(i + 20)"
             @click="handleCellClick(getCellByPosition(i + 20))"
           >
@@ -59,25 +59,25 @@
           </div>
         </div>
         
-        <!-- 中心：2x1 -->
-        <div class="center-ring">
+        <!-- 内圈：20格 -->
+        <div class="inner-ring">
           <div 
-            v-for="i in 2" 
-            :key="`center-${i + 28}`"
-            class="board-cell center-cell"
-            :class="getCellClass(i + 28)"
-            @click="handleCellClick(getCellByPosition(i + 28))"
+            v-for="i in 20" 
+            :key="`inner-${i + 40}`"
+            class="board-cell inner-cell"
+            :class="getCellClass(i + 40)"
+            @click="handleCellClick(getCellByPosition(i + 40))"
           >
             <div class="cell-content">
-              <div class="cell-number">{{ i + 28 }}</div>
-              <div class="cell-icon">{{ getCellIcon(i + 28) }}</div>
-              <div class="cell-effect">{{ getCellEffect(i + 28) }}</div>
+              <div class="cell-number">{{ i + 40 }}</div>
+              <div class="cell-icon">{{ getCellIcon(i + 40) }}</div>
+              <div class="cell-effect">{{ getCellEffect(i + 40) }}</div>
             </div>
             <!-- 玩家标记 -->
             <div 
               v-for="(player, index) in players" 
               :key="`player-${player.id}`"
-              v-show="player.position === i + 28"
+              v-show="player.position === i + 40"
               class="player-marker"
               :style="{ backgroundColor: player.color }"
               :class="{ 'current-player': index === currentPlayerIndex }"
@@ -192,9 +192,11 @@ const handleCellClick = (cell: BoardCell) => {
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+  border-radius: 16px;
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .outer-ring {
@@ -202,32 +204,26 @@ const handleCellClick = (cell: BoardCell) => {
   grid-template-columns: repeat(5, 1fr);
   gap: 0.5rem;
   padding: 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
+}
+
+.middle-ring {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+  padding: 1rem;
 }
 
 .inner-ring {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 0.5rem;
   padding: 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-}
-
-.center-ring {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
-  padding: 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
 }
 
 .board-cell {
   position: relative;
-  width: 80px;
-  height: 80px;
+  width: 60px;
+  height: 60px;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -235,43 +231,41 @@ const handleCellClick = (cell: BoardCell) => {
   align-items: center;
   justify-content: center;
   border: 2px solid transparent;
+  background: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .board-cell:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 .cell-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
+  justify-content: center;
   width: 100%;
   height: 100%;
-  padding: 0.5rem;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(5px);
+  padding: 0.25rem;
+  text-align: center;
 }
 
 .cell-number {
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   font-weight: bold;
   color: #333;
-  line-height: 1;
+  margin-bottom: 0.1rem;
 }
 
 .cell-icon {
-  font-size: 1.2rem;
-  line-height: 1;
+  font-size: 1rem;
+  margin-bottom: 0.1rem;
 }
 
 .cell-effect {
-  font-size: 0.6rem;
+  font-size: 0.5rem;
   color: #666;
-  text-align: center;
   line-height: 1;
   max-width: 100%;
   overflow: hidden;
@@ -288,34 +282,53 @@ const handleCellClick = (cell: BoardCell) => {
 .cell-punishment {
   background: linear-gradient(135deg, #ff6b6b, #ee5a52);
   border-color: #ff4757;
-  animation: pulse 2s infinite;
+  color: white;
+}
+
+.cell-punishment .cell-number,
+.cell-punishment .cell-effect {
+  color: white;
 }
 
 .cell-bonus {
   background: linear-gradient(135deg, #2ed573, #1e90ff);
   border-color: #2ed573;
-  animation: glow 2s infinite;
+  color: white;
+}
+
+.cell-bonus .cell-number,
+.cell-bonus .cell-effect {
+  color: white;
 }
 
 .cell-special {
   background: linear-gradient(135deg, #ffd93d, #ffb347);
   border-color: #ffa726;
-  animation: bounce 2s infinite;
+  color: #333;
+}
+
+.cell-restart {
+  background: linear-gradient(135deg, #ff4757, #ff3742);
+  border-color: #ff3742;
+  color: white;
+}
+
+.cell-restart .cell-number,
+.cell-restart .cell-effect {
+  color: white;
 }
 
 .cell-occupied {
-  border-color: #4ecdc4;
-  border-width: 3px;
-  box-shadow: 0 0 15px rgba(78, 205, 196, 0.5);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.8);
 }
 
 /* 玩家标记 */
 .player-marker {
   position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 24px;
-  height: 24px;
+  top: -5px;
+  right: -5px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -324,14 +337,12 @@ const handleCellClick = (cell: BoardCell) => {
   font-weight: bold;
   font-size: 0.8rem;
   border: 2px solid white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .current-player {
-  animation: pulse 1s infinite;
-  border-color: #4ecdc4;
-  box-shadow: 0 0 10px rgba(78, 205, 196, 0.8);
+  box-shadow: 0 0 0 3px #ffd93d;
+  animation: pulse 1.5s infinite;
 }
 
 /* 起始位置 */
@@ -340,88 +351,80 @@ const handleCellClick = (cell: BoardCell) => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 5;
+  z-index: 10;
 }
 
 .start-cell {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #4ecdc4, #44a08d);
-  border: 3px solid white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border: 3px solid #5a67d8;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+  color: white;
+  font-weight: bold;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 .start-cell .cell-content {
-  background: transparent;
-  color: white;
   text-align: center;
 }
 
 .start-cell .cell-number {
-  font-size: 0.6rem;
+  font-size: 0.8rem;
   color: white;
+  margin-bottom: 0.2rem;
 }
 
 .start-cell .cell-icon {
-  font-size: 1rem;
+  font-size: 1.5rem;
 }
 
 /* 效果显示 */
 .effect-display {
   position: fixed;
-  top: 50%;
+  top: 20px;
   left: 50%;
-  transform: translate(-50%, -50%);
-  background: linear-gradient(135deg, #4ecdc4, #44a08d);
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #667eea, #764ba2);
   color: white;
   padding: 1rem 2rem;
   border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   z-index: 1000;
-  animation: slideIn 0.5s ease;
+  animation: slideDown 0.5s ease-out;
 }
 
 .effect-content {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-weight: bold;
-  font-size: 1.1rem;
 }
 
 .effect-icon {
   font-size: 1.2rem;
 }
 
+.effect-text {
+  font-weight: bold;
+}
+
 /* 动画 */
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
 }
 
-@keyframes glow {
-  0%, 100% { box-shadow: 0 0 5px rgba(46, 213, 115, 0.5); }
-  50% { box-shadow: 0 0 20px rgba(46, 213, 115, 0.8); }
-}
-
-@keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
-}
-
-@keyframes slideIn {
+@keyframes slideDown {
   from {
+    transform: translateX(-50%) translateY(-100%);
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.8);
   }
   to {
+    transform: translateX(-50%) translateY(0);
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
   }
 }
 
@@ -472,8 +475,8 @@ const handleCellClick = (cell: BoardCell) => {
   }
   
   .outer-ring,
-  .inner-ring,
-  .center-ring {
+  .middle-ring,
+  .inner-ring {
     gap: 0.25rem;
     padding: 0.5rem;
   }
@@ -521,8 +524,8 @@ const handleCellClick = (cell: BoardCell) => {
   }
   
   .outer-ring,
-  .inner-ring,
-  .center-ring {
+  .middle-ring,
+  .inner-ring {
     gap: 0.2rem;
     padding: 0.25rem;
   }

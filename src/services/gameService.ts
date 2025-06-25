@@ -84,6 +84,16 @@ export class GameService {
           description: specialConfig.description
         };
       }
+      // 检查是否为回到起点格子
+      else if (i in GAME_CONFIG.RESTART_CELLS) {
+        cell.type = 'restart';
+        const restartConfig = GAME_CONFIG.RESTART_CELLS[i as keyof typeof GAME_CONFIG.RESTART_CELLS];
+        cell.effect = {
+          type: 'restart',
+          value: 0,
+          description: restartConfig.description
+        };
+      }
 
       board.push(cell);
     }
@@ -159,6 +169,12 @@ export class GameService {
         // 确保位置在有效范围内
         if (newPosition < 0) newPosition = 0;
         if (newPosition > GAME_CONFIG.BOARD.SIZE) newPosition = GAME_CONFIG.BOARD.SIZE;
+      } else if (cell.effect.type === 'reverse') {
+        newPosition -= cell.effect.value;
+        // 确保位置在有效范围内
+        if (newPosition < 0) newPosition = 0;
+      } else if (cell.effect.type === 'restart') {
+        newPosition = 0; // 回到起点
       } else if (cell.effect.type === 'punishment') {
         punishment = cell.effect.punishment;
         
@@ -239,10 +255,16 @@ export class GameService {
   }
 
   // 获取格子类型
-  static getCellType(position: number): 'normal' | 'punishment' | 'bonus' | 'special' {
-    if (position in GAME_CONFIG.PUNISHMENT_CELLS) return 'punishment';
-    if (position in GAME_CONFIG.BONUS_CELLS) return 'bonus';
-    if (position in GAME_CONFIG.SPECIAL_CELLS) return 'special';
+  static getCellType(position: number): 'normal' | 'punishment' | 'bonus' | 'special' | 'restart' {
+    if (position in GAME_CONFIG.PUNISHMENT_CELLS || position in GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS) {
+      return 'punishment';
+    } else if (position in GAME_CONFIG.BONUS_CELLS) {
+      return 'bonus';
+    } else if (position in GAME_CONFIG.SPECIAL_CELLS) {
+      return 'special';
+    } else if (position in GAME_CONFIG.RESTART_CELLS) {
+      return 'restart';
+    }
     return 'normal';
   }
 

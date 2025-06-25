@@ -47,9 +47,9 @@ export interface PunishmentAction {
 
 export interface BoardCell {
   id: number;
-  type: 'normal' | 'punishment' | 'bonus' | 'special';
+  type: 'normal' | 'punishment' | 'bonus' | 'special' | 'restart';
   effect?: {
-    type: 'punishment' | 'move' | 'skip' | 'reverse';
+    type: 'punishment' | 'move' | 'skip' | 'reverse' | 'restart';
     value: number;
     description: string;
     punishment?: PunishmentAction;
