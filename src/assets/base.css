@@ -79,7 +79,7 @@ body {
     'Droid Sans',
     'Helvetica Neue',
     sans-serif;
-  font-size: 15px;
+  font-size: clamp(12px, 2.5vw, 16px); /* 自适应字体大小 */
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -89,12 +89,8 @@ body {
   overflow-x: hidden;
 }
 
-/* 移动端基础适配 */
-@media (max-width: 768px) {
-  body {
-    font-size: 14px;
-  }
-  
+/* 自适应布局系统 */
+@media (max-width: 1023px) {
   /* 确保所有元素都能正确显示 */
   * {
     max-width: 100%;
@@ -105,6 +101,37 @@ body {
     overflow-x: hidden;
     width: 100%;
   }
+  
+  /* 自适应容器 */
+  .container {
+    width: 100%;
+    padding: clamp(0.5rem, 2vw, 2rem);
+    margin: 0 auto;
+  }
+  
+  /* 自适应网格 */
+  .grid {
+    display: grid;
+    gap: clamp(0.5rem, 2vw, 2rem);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  }
+  
+  /* 自适应按钮 */
+  .btn {
+    padding: clamp(0.5rem, 2vw, 1rem) clamp(1rem, 4vw, 2rem);
+    font-size: clamp(0.8rem, 2.5vw, 1rem);
+    border-radius: clamp(4px, 1vw, 8px);
+  }
+  
+  /* 自适应标题 */
+  h1 { font-size: clamp(1.5rem, 6vw, 3rem); }
+  h2 { font-size: clamp(1.2rem, 5vw, 2.5rem); }
+  h3 { font-size: clamp(1rem, 4vw, 2rem); }
+  h4 { font-size: clamp(0.9rem, 3.5vw, 1.5rem); }
+  
+  /* 自适应文本 */
+  p { font-size: clamp(0.8rem, 2.5vw, 1rem); }
+  span { font-size: clamp(0.7rem, 2vw, 0.9rem); }
 }
 
 @media (max-width: 480px) {

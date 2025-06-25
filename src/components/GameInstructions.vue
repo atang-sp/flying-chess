@@ -50,140 +50,55 @@
 
 <style scoped>
 .game-instructions {
-  padding: 2rem 1rem;
+  padding: clamp(1rem, 4vw, 2rem) clamp(0.5rem, 2vw, 1rem);
   color: #333;
   background: rgba(255,255,255,0.85);
-  border-radius: 12px;
-  max-width: 500px;
+  border-radius: clamp(8px, 2vw, 12px);
+  max-width: min(500px, 90vw);
   margin: 0 auto;
   box-shadow: 0 4px 24px rgba(0,0,0,0.08);
 }
 .instructions-list {
   list-style: decimal inside;
   padding: 0;
-  margin: 1rem 0 0 0;
-  font-size: 1.1rem;
+  margin: clamp(0.5rem, 2vw, 1rem) 0 0 0;
+  font-size: clamp(0.9rem, 2.5vw, 1.1rem);
 }
 .instructions-list li {
-  margin-bottom: 1rem;
+  margin-bottom: clamp(0.6rem, 2vw, 1rem);
   line-height: 1.7;
 }
 .custom-config {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
+  margin-top: clamp(1.5rem, 4vw, 2rem);
+  padding-top: clamp(1rem, 3vw, 1.5rem);
   border-top: 2px solid #667eea;
 }
 .custom-config h3 {
-  margin: 0 0 1rem 0;
+  margin: 0 0 clamp(0.5rem, 2vw, 1rem) 0;
   color: #667eea;
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 3vw, 1.2rem);
 }
 .config-items {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: clamp(0.5rem, 1.5vw, 0.75rem);
 }
 .config-item {
-  padding: 0.75rem;
+  padding: clamp(0.5rem, 2vw, 0.75rem);
   background: rgba(102, 126, 234, 0.1);
-  border-radius: 8px;
+  border-radius: clamp(4px, 1vw, 8px);
   border-left: 4px solid #667eea;
-  font-size: 1rem;
+  font-size: clamp(0.85rem, 2.5vw, 1rem);
   line-height: 1.5;
 }
 .config-item strong {
   color: #667eea;
 }
 
-/* 移动端适配 */
-@media (max-width: 768px) {
+/* 自适应布局 - 移除固定断点，使用相对单位 */
+@media (max-width: 1023px) {
   .game-instructions {
-    padding: 1.5rem 0.75rem;
-    margin: 0 0.5rem;
-  }
-  
-  .game-instructions h2 {
-    font-size: 1.5rem;
-  }
-  
-  .game-instructions h3 {
-    font-size: 1.2rem;
-  }
-  
-  .instructions-list {
-    font-size: 1rem;
-  }
-  
-  .instructions-list li {
-    margin-bottom: 0.8rem;
-    line-height: 1.6;
-  }
-  
-  .config-item {
-    padding: 0.6rem;
-    font-size: 0.95rem;
-  }
-  
-  .custom-config {
-    margin-top: 1.5rem;
-    padding-top: 1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .game-instructions {
-    padding: 1rem 0.5rem;
-    margin: 0 0.25rem;
-  }
-  
-  .game-instructions h2 {
-    font-size: 1.3rem;
-  }
-  
-  .game-instructions h3 {
-    font-size: 1.1rem;
-  }
-  
-  .instructions-list {
-    font-size: 0.9rem;
-  }
-  
-  .instructions-list li {
-    margin-bottom: 0.6rem;
-    line-height: 1.5;
-  }
-  
-  .config-item {
-    padding: 0.5rem;
-    font-size: 0.9rem;
-  }
-  
-  .custom-config {
-    margin-top: 1rem;
-    padding-top: 0.8rem;
-  }
-}
-
-@media (max-width: 360px) {
-  .game-instructions {
-    padding: 0.8rem 0.4rem;
-  }
-  
-  .game-instructions h2 {
-    font-size: 1.2rem;
-  }
-  
-  .game-instructions h3 {
-    font-size: 1rem;
-  }
-  
-  .instructions-list {
-    font-size: 0.85rem;
-  }
-  
-  .config-item {
-    padding: 0.4rem;
-    font-size: 0.85rem;
+    margin: 0 clamp(0.25rem, 1vw, 0.5rem);
   }
 }
 </style> 

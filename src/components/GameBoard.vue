@@ -578,9 +578,9 @@ const hideTooltip = () => {
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
+@media (max-width: 1023px) {
   .game-board {
-    padding: 0.5rem;
+    padding: clamp(0.25rem, 1vw, 0.5rem);
   }
   
   .board-container {
@@ -588,98 +588,51 @@ const hideTooltip = () => {
   }
   
   .board-grid {
-    gap: 0.5rem;
-    padding: 0.5rem;
+    gap: clamp(0.25rem, 1vw, 0.5rem);
+    padding: clamp(0.25rem, 1vw, 0.5rem);
   }
   
   .board-row {
-    gap: 0.25rem;
+    gap: clamp(0.15rem, 0.5vw, 0.25rem);
   }
   
   .board-cell {
-    width: 40px;
-    height: 40px;
-    font-size: 0.6rem;
+    width: clamp(35px, 8vw, 40px);
+    height: clamp(35px, 8vw, 40px);
+    font-size: clamp(0.5rem, 1.5vw, 0.6rem);
   }
   
   .cell-number {
-    font-size: 0.5rem;
+    font-size: clamp(0.45rem, 1.2vw, 0.5rem);
     font-weight: bold;
   }
   
   .cell-icon {
-    font-size: 0.7rem;
+    font-size: clamp(0.6rem, 1.8vw, 0.7rem);
   }
   
   .cell-effect {
-    font-size: 0.4rem;
+    font-size: clamp(0.35rem, 1vw, 0.4rem);
   }
   
   .player-marker {
-    width: 1.2rem;
-    height: 1.2rem;
-    font-size: 0.6rem;
+    width: clamp(1rem, 2.5vw, 1.2rem);
+    height: clamp(1rem, 2.5vw, 1.2rem);
+    font-size: clamp(0.5rem, 1.5vw, 0.6rem);
     border: 1px solid white;
   }
   
   .start-cell {
-    width: 60px;
-    height: 60px;
+    width: clamp(50px, 12vw, 60px);
+    height: clamp(50px, 12vw, 60px);
   }
   
   .start-cell .cell-number {
-    font-size: 0.6rem;
+    font-size: clamp(0.5rem, 1.5vw, 0.6rem);
   }
   
   .start-cell .cell-icon {
-    font-size: 1.2rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .board-grid {
-    gap: 0.25rem;
-    padding: 0.25rem;
-  }
-  
-  .board-row {
-    gap: 0.15rem;
-  }
-  
-  .board-cell {
-    width: 35px;
-    height: 35px;
-  }
-  
-  .cell-number {
-    font-size: 0.45rem;
-  }
-  
-  .cell-icon {
-    font-size: 0.6rem;
-  }
-  
-  .cell-effect {
-    font-size: 0.35rem;
-  }
-  
-  .player-marker {
-    width: 1rem;
-    height: 1rem;
-    font-size: 0.5rem;
-  }
-  
-  .start-cell {
-    width: 50px;
-    height: 50px;
-  }
-  
-  .start-cell .cell-number {
-    font-size: 0.5rem;
-  }
-  
-  .start-cell .cell-icon {
-    font-size: 1rem;
+    font-size: clamp(1rem, 3vw, 1.2rem);
   }
 }
 

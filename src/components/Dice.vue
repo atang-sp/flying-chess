@@ -594,145 +594,56 @@ onUnmounted(() => {
 }
 
 /* 移动端适配 */
-@media (max-width: 768px) {
+@media (max-width: 1023px) {
   .dice-container {
-    padding: 0.5rem;
-    gap: 0.5rem;
+    padding: clamp(0.25rem, 1vw, 0.5rem);
+    gap: clamp(0.4rem, 1vw, 0.5rem);
   }
   
   .dice {
-    width: 60px;
-    height: 60px;
-    margin: 1rem 0;
+    width: clamp(45px, 12vw, 60px);
+    height: clamp(45px, 12vw, 60px);
+    margin: clamp(0.5rem, 2vw, 1rem) 0;
   }
   
   .dice-result-highlight {
-    width: 40px;
-    height: 40px;
-    bottom: -10px;
+    width: clamp(30px, 8vw, 40px);
+    height: clamp(30px, 8vw, 40px);
+    bottom: clamp(-6px, -1.5vw, -10px);
   }
   
   .result-number {
-    font-size: 1.1rem;
+    font-size: clamp(0.9rem, 2.5vw, 1.1rem);
   }
   
   .result-label {
-    font-size: 0.6rem;
+    font-size: clamp(0.45rem, 1.2vw, 0.6rem);
   }
   
   .dice-info {
-    font-size: 0.9rem;
-    gap: 0.3rem;
+    font-size: clamp(0.75rem, 2.5vw, 0.9rem);
+    gap: clamp(0.25rem, 0.8vw, 0.3rem);
   }
   
   .dice-controls {
     flex-direction: column;
-    gap: 0.5rem;
+    gap: clamp(0.4rem, 1vw, 0.5rem);
   }
   
   .roll-button,
   .shake-toggle-button {
-    padding: 0.6rem 1rem;
-    font-size: 0.9rem;
-    gap: 0.3rem;
+    padding: clamp(0.4rem, 1.5vw, 0.6rem) clamp(0.7rem, 2.5vw, 1rem);
+    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+    gap: clamp(0.25rem, 0.8vw, 0.3rem);
   }
   
   .button-icon {
-    font-size: 1rem;
+    font-size: clamp(0.85rem, 2.5vw, 1rem);
   }
   
   .shake-hint {
-    font-size: 0.8rem;
-    padding: 0.4rem 0.8rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .dice-container {
-    padding: 0.25rem;
-    gap: 0.4rem;
-  }
-  
-  .dice {
-    width: 50px;
-    height: 50px;
-    margin: 0.75rem 0;
-  }
-  
-  .dice-result-highlight {
-    width: 35px;
-    height: 35px;
-    bottom: -8px;
-  }
-  
-  .result-number {
-    font-size: 1rem;
-  }
-  
-  .result-label {
-    font-size: 0.5rem;
-  }
-  
-  .dice-info {
-    font-size: 0.8rem;
-    gap: 0.25rem;
-  }
-  
-  .roll-button,
-  .shake-toggle-button {
-    padding: 0.5rem 0.8rem;
-    font-size: 0.85rem;
-    gap: 0.25rem;
-  }
-  
-  .button-icon {
-    font-size: 0.9rem;
-  }
-  
-  .shake-hint {
-    font-size: 0.75rem;
-    padding: 0.3rem 0.6rem;
-  }
-}
-
-@media (max-width: 360px) {
-  .dice {
-    width: 45px;
-    height: 45px;
-    margin: 0.5rem 0;
-  }
-  
-  .dice-result-highlight {
-    width: 30px;
-    height: 30px;
-    bottom: -6px;
-  }
-  
-  .result-number {
-    font-size: 0.9rem;
-  }
-  
-  .result-label {
-    font-size: 0.45rem;
-  }
-  
-  .dice-info {
-    font-size: 0.75rem;
-  }
-  
-  .roll-button,
-  .shake-toggle-button {
-    padding: 0.4rem 0.7rem;
-    font-size: 0.8rem;
-  }
-  
-  .button-icon {
-    font-size: 0.85rem;
-  }
-  
-  .shake-hint {
-    font-size: 0.7rem;
-    padding: 0.25rem 0.5rem;
+    font-size: clamp(0.7rem, 2.5vw, 0.8rem);
+    padding: clamp(0.25rem, 1vw, 0.4rem) clamp(0.5rem, 2vw, 0.8rem);
   }
 }
 </style> 

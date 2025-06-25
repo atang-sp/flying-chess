@@ -608,97 +608,98 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: clamp(1rem, 4vw, 2rem);
 }
 
 .page-container {
-  max-width: 800px;
+  max-width: min(800px, 90vw);
   width: 100%;
 }
 
 .page-actions {
   display: flex;
   justify-content: center;
-  margin-top: 2rem;
-  gap: 1rem;
+  margin-top: clamp(1rem, 4vw, 2rem);
+  gap: clamp(0.5rem, 2vw, 1rem);
   flex-wrap: wrap;
 }
 
 .combinations-info {
   text-align: center;
   color: white;
-  margin: 1rem 0;
-  padding: 1rem;
+  margin: clamp(0.5rem, 2vw, 1rem) 0;
+  padding: clamp(0.5rem, 2vw, 1rem);
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  border-radius: clamp(4px, 1vw, 8px);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: clamp(0.8rem, 2.5vw, 1rem);
 }
 
 /* 设置页面样式 */
 .settings-page {
   min-height: 100vh;
-  padding: 1rem;
+  padding: clamp(0.5rem, 3vw, 1rem);
   width: 100%;
 }
 
 .settings-header {
   text-align: center;
   color: white;
-  margin-bottom: 1.5rem;
+  margin-bottom: clamp(1rem, 4vw, 1.5rem);
 }
 
 .settings-header h2 {
-  margin: 0 0 0.5rem 0;
-  font-size: 2rem;
+  margin: 0 0 clamp(0.25rem, 1vw, 0.5rem) 0;
+  font-size: clamp(1.5rem, 6vw, 2rem);
   font-weight: bold;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .settings-header p {
   margin: 0;
-  font-size: 1rem;
+  font-size: clamp(0.8rem, 2.5vw, 1rem);
   opacity: 0.9;
 }
 
 /* 游戏页面样式 */
 .game-page {
   min-height: 100vh;
-  padding: 0.25rem;
+  padding: clamp(0.15rem, 1vw, 0.25rem);
   width: 100%;
 }
 
 .game-header {
   text-align: center;
   color: white;
-  margin-bottom: 0.5rem;
+  margin-bottom: clamp(0.25rem, 1vw, 0.5rem);
 }
 
 .game-header h1 {
-  margin: 0 0 0.25rem 0;
-  font-size: 1.5rem;
+  margin: 0 0 clamp(0.15rem, 0.5vw, 0.25rem) 0;
+  font-size: clamp(1.1rem, 4vw, 1.5rem);
   font-weight: bold;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .game-header p {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: clamp(0.65rem, 2vw, 0.8rem);
   opacity: 0.9;
 }
 
 .game-main {
-  max-width: 1200px;
+  max-width: min(1200px, 95vw);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: clamp(0.15rem, 0.5vw, 0.25rem);
   width: 100%;
 }
 
 .dice-section {
   text-align: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: clamp(0.25rem, 1vw, 0.5rem);
 }
 
 /* 按钮样式 */
@@ -706,15 +707,16 @@ onMounted(() => {
 .btn-secondary {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.8rem 1.5rem;
-  font-size: 1rem;
+  gap: clamp(0.25rem, 1vw, 0.5rem);
+  padding: clamp(0.5rem, 2vw, 0.8rem) clamp(1rem, 3vw, 1.5rem);
+  font-size: clamp(0.85rem, 2.5vw, 1rem);
   font-weight: bold;
   border: none;
-  border-radius: 8px;
+  border-radius: clamp(4px, 1vw, 8px);
   cursor: pointer;
   transition: all 0.3s ease;
   text-decoration: none;
+  min-height: clamp(36px, 8vw, 44px);
 }
 
 .btn-primary {
@@ -747,141 +749,21 @@ onMounted(() => {
 }
 
 .btn-icon {
-  font-size: 1.1rem;
+  font-size: clamp(0.9rem, 2.5vw, 1.1rem);
 }
 
-/* 移动端适配 */
-@media (max-width: 768px) {
-  .settings-page {
-    padding: 0.5rem;
-  }
-  
-  .settings-header h2 {
-    font-size: 1.8rem;
-  }
-  
-  .settings-header p {
-    font-size: 0.9rem;
-  }
-  
-  .game-page {
-    padding: 0.25rem;
-  }
-  
-  .game-header {
-    margin-bottom: 0.25rem;
-  }
-  
-  .game-header h1 {
-    font-size: 1.2rem;
-    margin-bottom: 0.2rem;
-  }
-  
-  .game-header p {
-    font-size: 0.7rem;
-  }
-  
-  .game-main {
-    gap: 0.2rem;
-  }
-  
-  .dice-section {
-    margin-bottom: 0.25rem;
-  }
-  
-  .btn-primary,
-  .btn-secondary {
-    padding: 0.6rem 1rem;
-    font-size: 0.9rem;
-  }
-  
-  .btn-icon {
-    font-size: 1rem;
-  }
-  
-  .page-container {
-    max-width: 100%;
-    padding: 0 0.5rem;
-  }
-  
-  .page-actions {
-    margin-top: 1rem;
-    gap: 0.5rem;
-  }
-  
-  .combinations-info {
-    margin: 0.5rem 0;
-    padding: 0.8rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .settings-page {
-    padding: 0.25rem;
-  }
-  
-  .settings-header h2 {
-    font-size: 1.5rem;
-  }
-  
-  .settings-header p {
-    font-size: 0.8rem;
-  }
-  
-  .game-page {
-    padding: 0.15rem;
-  }
-  
-  .game-header h1 {
-    font-size: 1.1rem;
-  }
-  
-  .game-header p {
-    font-size: 0.65rem;
-  }
-  
-  .btn-primary,
-  .btn-secondary {
-    padding: 0.5rem 0.8rem;
-    font-size: 0.85rem;
-  }
-  
-  .btn-icon {
-    font-size: 0.9rem;
-  }
-  
-  .page-container {
-    padding: 0 0.25rem;
-  }
-  
+/* 自适应布局 - 移除固定断点，使用相对单位 */
+@media (max-width: 1023px) {
   .page-actions {
     flex-direction: column;
     align-items: center;
   }
   
-  .combinations-info {
-    padding: 0.6rem;
-    font-size: 0.9rem;
-  }
-}
-
-@media (max-width: 360px) {
-  .settings-header h2 {
-    font-size: 1.3rem;
-  }
-  
-  .game-header h1 {
-    font-size: 1rem;
-  }
-  
   .btn-primary,
   .btn-secondary {
-    padding: 0.4rem 0.6rem;
-    font-size: 0.8rem;
-  }
-  
-  .page-container {
-    padding: 0 0.15rem;
+    width: 100%;
+    max-width: min(300px, 80vw);
+    justify-content: center;
   }
 }
 </style>

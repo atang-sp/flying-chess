@@ -120,18 +120,18 @@ const getStarStyle = (index: number) => {
   text-align: center;
   color: white;
   z-index: 10;
-  max-width: 800px;
-  padding: 2rem;
+  max-width: min(800px, 90vw);
+  padding: clamp(1rem, 4vw, 2rem);
 }
 
 .intro-header {
-  margin-bottom: 3rem;
+  margin-bottom: clamp(2rem, 6vw, 3rem);
 }
 
 .game-title {
-  font-size: 4rem;
+  font-size: clamp(2rem, 8vw, 4rem);
   font-weight: bold;
-  margin: 0 0 1rem 0;
+  margin: 0 0 clamp(0.5rem, 2vw, 1rem) 0;
   text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.3);
   animation: titleGlow 2s ease-in-out infinite alternate;
 }
@@ -140,32 +140,32 @@ const getStarStyle = (index: number) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: clamp(0.5rem, 2vw, 1rem);
+  margin-bottom: clamp(0.5rem, 2vw, 1rem);
 }
 
 .decoration-line {
-  width: 100px;
+  width: clamp(60px, 15vw, 100px);
   height: 2px;
   background: linear-gradient(90deg, transparent, white, transparent);
 }
 
 .decoration-star {
-  font-size: 1.5rem;
+  font-size: clamp(1rem, 3vw, 1.5rem);
   animation: starTwinkle 1.5s ease-in-out infinite;
 }
 
 .game-subtitle {
-  font-size: 1.3rem;
+  font-size: clamp(1rem, 3vw, 1.3rem);
   margin: 0;
   opacity: 0.9;
   font-weight: 300;
 }
 
 .developer-info {
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 2vw, 0.9rem);
   opacity: 0.7;
-  margin: 0.5rem 0 0 0;
+  margin: clamp(0.25rem, 1vw, 0.5rem) 0 0 0;
 }
 
 .dev-id {
@@ -174,18 +174,18 @@ const getStarStyle = (index: number) => {
 
 .intro-features {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 2rem;
-  margin-bottom: 3rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(250px, 80vw), 1fr));
+  gap: clamp(1rem, 3vw, 2rem);
+  margin-bottom: clamp(2rem, 6vw, 3rem);
 }
 
 .feature-item {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1.5rem;
+  gap: clamp(0.8rem, 2vw, 1rem);
+  padding: clamp(1rem, 3vw, 1.5rem);
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  border-radius: clamp(8px, 2vw, 12px);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   transition: all 0.3s ease;
@@ -198,43 +198,44 @@ const getStarStyle = (index: number) => {
 }
 
 .feature-icon {
-  font-size: 2.5rem;
-  min-width: 60px;
+  font-size: clamp(1.8rem, 5vw, 2.5rem);
+  min-width: clamp(40px, 10vw, 60px);
 }
 
 .feature-text h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.2rem;
+  margin: 0 0 clamp(0.25rem, 1vw, 0.5rem) 0;
+  font-size: clamp(1rem, 3vw, 1.2rem);
   font-weight: bold;
 }
 
 .feature-text p {
   margin: 0;
   opacity: 0.8;
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 2.5vw, 0.9rem);
 }
 
 .intro-actions {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2rem;
+  gap: clamp(1.5rem, 4vw, 2rem);
 }
 
 .start-btn {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1.5rem 3rem;
-  font-size: 1.3rem;
+  gap: clamp(0.8rem, 2vw, 1rem);
+  padding: clamp(1rem, 3vw, 1.5rem) clamp(2rem, 6vw, 3rem);
+  font-size: clamp(1rem, 3vw, 1.3rem);
   font-weight: bold;
   background: linear-gradient(135deg, #ff6b6b, #ee5a52);
   color: white;
   border: none;
-  border-radius: 50px;
+  border-radius: clamp(25px, 8vw, 50px);
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+  min-height: clamp(44px, 10vw, 60px);
 }
 
 .start-btn:hover {
@@ -248,16 +249,16 @@ const getStarStyle = (index: number) => {
 }
 
 .btn-icon {
-  font-size: 1.5rem;
+  font-size: clamp(1.3rem, 3.5vw, 1.5rem);
 }
 
 .game-info {
   opacity: 0.7;
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 2.5vw, 0.9rem);
 }
 
 .game-info p {
-  margin: 0.25rem 0;
+  margin: clamp(0.15rem, 0.5vw, 0.25rem) 0;
 }
 
 .background-decoration {
@@ -272,7 +273,7 @@ const getStarStyle = (index: number) => {
 .floating-dice,
 .floating-star {
   position: absolute;
-  font-size: 2rem;
+  font-size: clamp(1.5rem, 4vw, 2rem);
   animation: float 6s ease-in-out infinite;
   opacity: 0.3;
 }
@@ -310,127 +311,21 @@ const getStarStyle = (index: number) => {
   50% { transform: translateY(-10px); }
 }
 
-@media (max-width: 768px) {
-  .intro-content {
-    padding: 1rem;
-    max-width: 100%;
-  }
-  
-  .game-title {
-    font-size: 2.5rem;
-  }
-  
-  .game-subtitle {
-    font-size: 1.1rem;
-  }
-  
+/* 自适应布局 - 移除固定断点，使用相对单位 */
+@media (max-width: 1023px) {
   .intro-features {
     grid-template-columns: 1fr;
-    gap: 1rem;
-    margin-bottom: 2rem;
+    gap: clamp(0.8rem, 2.5vw, 1rem);
   }
   
   .feature-item {
-    padding: 1rem;
-  }
-  
-  .feature-icon {
-    font-size: 2rem;
-    min-width: 50px;
+    padding: clamp(0.8rem, 2.5vw, 1rem);
   }
   
   .start-btn {
-    padding: 1.2rem 2.5rem;
-    font-size: 1.1rem;
-  }
-  
-  .intro-header {
-    margin-bottom: 2rem;
-  }
-  
-  .title-decoration {
-    gap: 0.5rem;
-  }
-  
-  .decoration-line {
-    width: 60px;
-  }
-}
-
-@media (max-width: 480px) {
-  .intro-content {
-    padding: 0.5rem;
-  }
-  
-  .game-title {
-    font-size: 2rem;
-  }
-  
-  .game-subtitle {
-    font-size: 1rem;
-  }
-  
-  .developer-info {
-    font-size: 0.8rem;
-  }
-  
-  .feature-item {
-    padding: 0.8rem;
-    gap: 0.8rem;
-  }
-  
-  .feature-icon {
-    font-size: 1.8rem;
-    min-width: 40px;
-  }
-  
-  .feature-text h3 {
-    font-size: 1.1rem;
-  }
-  
-  .feature-text p {
-    font-size: 0.8rem;
-  }
-  
-  .start-btn {
-    padding: 1rem 2rem;
-    font-size: 1rem;
-  }
-  
-  .btn-icon {
-    font-size: 1.3rem;
-  }
-  
-  .game-info {
-    font-size: 0.8rem;
-  }
-  
-  .intro-actions {
-    gap: 1.5rem;
-  }
-}
-
-@media (max-width: 360px) {
-  .game-title {
-    font-size: 1.8rem;
-  }
-  
-  .game-subtitle {
-    font-size: 0.9rem;
-  }
-  
-  .feature-item {
-    padding: 0.6rem;
-  }
-  
-  .feature-icon {
-    font-size: 1.5rem;
-    min-width: 35px;
-  }
-  
-  .start-btn {
-    padding: 0.8rem 1.5rem;
-    font-size: 0.9rem;
+    width: 100%;
+    max-width: min(300px, 80vw);
+    justify-content: center;
   }
 }
 </style> 

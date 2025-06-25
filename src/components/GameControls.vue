@@ -94,16 +94,17 @@ const resetGame = () => {
 }
 
 .btn {
-  padding: 0.75rem 1.5rem;
+  padding: clamp(0.6rem, 2vw, 0.75rem) clamp(1.2rem, 3vw, 1.5rem);
   border: none;
-  border-radius: 6px;
-  font-size: 1rem;
+  border-radius: clamp(4px, 1vw, 6px);
+  font-size: clamp(0.9rem, 2.5vw, 1rem);
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: clamp(0.4rem, 1vw, 0.5rem);
+  min-height: clamp(36px, 8vw, 44px);
 }
 
 .btn:hover {
@@ -129,27 +130,27 @@ const resetGame = () => {
 .game-status {
   display: flex;
   justify-content: space-around;
-  gap: 2rem;
-  padding: 1rem;
+  gap: clamp(1rem, 4vw, 2rem);
+  padding: clamp(0.8rem, 2.5vw, 1rem);
   background: #f8f9fa;
-  border-radius: 6px;
+  border-radius: clamp(4px, 1vw, 6px);
 }
 
 .status-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
+  gap: clamp(0.2rem, 0.5vw, 0.25rem);
 }
 
 .label {
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 2.5vw, 0.9rem);
   color: #666;
 }
 
 .value {
   font-weight: bold;
-  font-size: 1.1rem;
+  font-size: clamp(1rem, 3vw, 1.1rem);
 }
 
 .status-waiting {
@@ -176,20 +177,21 @@ const resetGame = () => {
 
 .game-over {
   text-align: center;
-  padding: 2rem;
+  padding: clamp(1.5rem, 4vw, 2rem);
   background: linear-gradient(135deg, #fff8e1, #fffde7);
-  border-radius: 8px;
+  border-radius: clamp(6px, 1.5vw, 8px);
   border: 2px solid #ffd700;
 }
 
 .game-over h3 {
-  margin: 0 0 1rem 0;
+  margin: 0 0 clamp(0.8rem, 2.5vw, 1rem) 0;
   color: #333;
+  font-size: clamp(1.2rem, 4vw, 1.5rem);
 }
 
 .game-over p {
-  margin: 0 0 1.5rem 0;
-  font-size: 1.2rem;
+  margin: 0 0 clamp(1.2rem, 3vw, 1.5rem) 0;
+  font-size: clamp(1rem, 3vw, 1.2rem);
   color: #666;
 }
 
@@ -199,97 +201,36 @@ const resetGame = () => {
 }
 
 /* 移动端适配 */
-@media (max-width: 768px) {
+@media (max-width: 1023px) {
   .game-controls {
-    padding: 0.75rem;
-    margin-bottom: 0.5rem;
+    padding: clamp(0.5rem, 2vw, 0.75rem);
+    margin-bottom: clamp(0.25rem, 1vw, 0.5rem);
   }
   
   .control-buttons {
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-  }
-  
-  .btn {
-    padding: 0.6rem 1rem;
-    font-size: 0.9rem;
-    gap: 0.3rem;
+    gap: clamp(0.4rem, 1vw, 0.5rem);
+    margin-bottom: clamp(0.4rem, 1vw, 0.5rem);
   }
   
   .game-status {
-    gap: 1rem;
-    padding: 0.75rem;
+    gap: clamp(0.75rem, 2vw, 1rem);
+    padding: clamp(0.5rem, 2vw, 0.75rem);
   }
   
   .status-item {
-    gap: 0.2rem;
-  }
-  
-  .label {
-    font-size: 0.8rem;
-  }
-  
-  .value {
-    font-size: 1rem;
+    gap: clamp(0.15rem, 0.5vw, 0.2rem);
   }
   
   .game-over {
-    padding: 1.5rem;
+    padding: clamp(1rem, 3vw, 1.5rem);
   }
   
   .game-over h3 {
-    font-size: 1.3rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: clamp(0.5rem, 1.5vw, 0.75rem);
   }
   
   .game-over p {
-    font-size: 1rem;
-    margin-bottom: 1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .game-controls {
-    padding: 0.5rem;
-    margin-bottom: 0.25rem;
-  }
-  
-  .control-buttons {
-    gap: 0.4rem;
-    margin-bottom: 0.4rem;
-  }
-  
-  .btn {
-    padding: 0.5rem 0.8rem;
-    font-size: 0.85rem;
-    gap: 0.25rem;
-  }
-  
-  .game-status {
-    gap: 0.75rem;
-    padding: 0.5rem;
-  }
-  
-  .label {
-    font-size: 0.75rem;
-  }
-  
-  .value {
-    font-size: 0.9rem;
-  }
-  
-  .game-over {
-    padding: 1rem;
-  }
-  
-  .game-over h3 {
-    font-size: 1.2rem;
-    margin-bottom: 0.5rem;
-  }
-  
-  .game-over p {
-    font-size: 0.9rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: clamp(0.75rem, 2vw, 1rem);
   }
 }
 </style> 

@@ -453,42 +453,45 @@ const saveConfig = () => {
 <style scoped>
 .punishment-config {
   background: white;
-  border-radius: 8px;
-  padding: 1.5rem;
+  border-radius: clamp(6px, 1.5vw, 8px);
+  padding: clamp(1rem, 3vw, 1.5rem);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 1rem;
+  margin-bottom: clamp(0.5rem, 2vw, 1rem);
 }
 
 .config-header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: clamp(1.5rem, 4vw, 2rem);
 }
 
 .config-header h3 {
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 clamp(0.25rem, 1vw, 0.5rem) 0;
   color: #333;
+  font-size: clamp(1.2rem, 4vw, 1.5rem);
 }
 
 .config-header p {
   margin: 0;
   color: #666;
+  font-size: clamp(0.8rem, 2.5vw, 1rem);
 }
 
 .config-sections {
   display: grid;
-  gap: 2rem;
-  margin-bottom: 2rem;
+  gap: clamp(1.5rem, 4vw, 2rem);
+  margin-bottom: clamp(1.5rem, 4vw, 2rem);
 }
 
 .config-section {
   border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  padding: 1rem;
+  border-radius: clamp(4px, 1vw, 6px);
+  padding: clamp(0.8rem, 2.5vw, 1rem);
 }
 
 .config-section h4 {
-  margin: 0 0 1rem 0;
+  margin: 0 0 clamp(0.8rem, 2.5vw, 1rem) 0;
   color: #333;
+  font-size: clamp(1rem, 3vw, 1.2rem);
 }
 
 .tools-list,
@@ -496,8 +499,8 @@ const saveConfig = () => {
 .positions-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: clamp(0.8rem, 2.5vw, 1rem);
+  margin-bottom: clamp(0.8rem, 2.5vw, 1rem);
 }
 
 .tool-item,
@@ -505,10 +508,10 @@ const saveConfig = () => {
 .position-item {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 1rem;
+  gap: clamp(0.8rem, 2.5vw, 1rem);
+  padding: clamp(0.8rem, 2.5vw, 1rem);
   background: #f8f9fa;
-  border-radius: 8px;
+  border-radius: clamp(6px, 1.5vw, 8px);
   border-left: 4px solid #4ecdc4;
 }
 
@@ -525,17 +528,17 @@ const saveConfig = () => {
 .position-name {
   font-weight: bold;
   color: #333;
-  font-size: 1.1rem;
+  font-size: clamp(1rem, 3vw, 1.1rem);
 }
 
 .tool-intensity,
 .body-part-sensitivity,
 .position-difficulty {
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 2.5vw, 0.9rem);
   color: #666;
   background: #e0e0e0;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
+  padding: clamp(0.2rem, 0.5vw, 0.25rem) clamp(0.4rem, 1vw, 0.5rem);
+  border-radius: clamp(3px, 0.8vw, 4px);
 }
 
 .tool-controls,
@@ -543,7 +546,7 @@ const saveConfig = () => {
 .position-controls {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: clamp(0.8rem, 2.5vw, 1rem);
   flex-wrap: wrap;
 }
 
@@ -552,20 +555,20 @@ const saveConfig = () => {
 .difficulty-controls {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: clamp(0.2rem, 0.5vw, 0.25rem);
 }
 
 .btn-small {
-  width: 28px;
-  height: 28px;
+  width: clamp(24px, 6vw, 28px);
+  height: clamp(24px, 6vw, 28px);
   border: 1px solid #ddd;
   background: white;
-  border-radius: 4px;
+  border-radius: clamp(3px, 0.8vw, 4px);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 2.5vw, 0.9rem);
   font-weight: bold;
 }
 
@@ -581,29 +584,28 @@ const saveConfig = () => {
 .intensity-value,
 .sensitivity-value,
 .difficulty-value {
-  min-width: 24px;
+  min-width: clamp(20px, 5vw, 24px);
   text-align: center;
   font-weight: bold;
-  font-size: 1rem;
+  font-size: clamp(0.9rem, 2.5vw, 1rem);
 }
 
 .ratio-control {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  min-width: 150px;
+  gap: clamp(0.2rem, 0.5vw, 0.25rem);
+  min-width: clamp(120px, 30vw, 150px);
 }
 
 .ratio-control label {
-  font-size: 0.8rem;
+  font-size: clamp(0.7rem, 2vw, 0.8rem);
   color: #666;
-  font-weight: bold;
 }
 
 .ratio-slider {
   width: 100%;
-  height: 6px;
-  border-radius: 3px;
+  height: clamp(4px, 1vw, 6px);
+  border-radius: clamp(2px, 0.5vw, 3px);
   background: #ddd;
   outline: none;
   -webkit-appearance: none;
@@ -612,16 +614,16 @@ const saveConfig = () => {
 .ratio-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: clamp(16px, 4vw, 18px);
+  height: clamp(16px, 4vw, 18px);
   border-radius: 50%;
   background: #4ecdc4;
   cursor: pointer;
 }
 
 .ratio-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
+  width: clamp(16px, 4vw, 18px);
+  height: clamp(16px, 4vw, 18px);
   border-radius: 50%;
   background: #4ecdc4;
   cursor: pointer;
@@ -629,17 +631,17 @@ const saveConfig = () => {
 }
 
 .btn-remove {
-  width: 28px;
-  height: 28px;
+  width: clamp(24px, 6vw, 28px);
+  height: clamp(24px, 6vw, 28px);
   border: 1px solid #ff6b6b;
   background: #ff6b6b;
   color: white;
-  border-radius: 4px;
+  border-radius: clamp(3px, 0.8vw, 4px);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: clamp(0.9rem, 2.5vw, 1rem);
   font-weight: bold;
 }
 
@@ -649,36 +651,36 @@ const saveConfig = () => {
 
 .add-item {
   display: flex;
-  gap: 0.5rem;
+  gap: clamp(0.4rem, 1vw, 0.5rem);
 }
 
 .input-field {
   flex: 1;
-  padding: 0.5rem;
+  padding: clamp(0.4rem, 1vw, 0.5rem);
   border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.9rem;
+  border-radius: clamp(3px, 0.8vw, 4px);
+  font-size: clamp(0.8rem, 2.5vw, 0.9rem);
 }
 
 .input-mini {
-  width: 60px;
-  margin-left: 0.5rem;
-  margin-right: 0.5rem;
-  padding: 0.4rem 0.2rem;
+  width: clamp(50px, 12vw, 60px);
+  margin-left: clamp(0.4rem, 1vw, 0.5rem);
+  margin-right: clamp(0.4rem, 1vw, 0.5rem);
+  padding: clamp(0.3rem, 0.8vw, 0.4rem) clamp(0.15rem, 0.4vw, 0.2rem);
   border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.9rem;
+  border-radius: clamp(3px, 0.8vw, 4px);
+  font-size: clamp(0.8rem, 2.5vw, 0.9rem);
   text-align: center;
 }
 
 .btn-add {
-  padding: 0.5rem 1rem;
+  padding: clamp(0.4rem, 1vw, 0.5rem) clamp(0.8rem, 2vw, 1rem);
   border: 1px solid #4ecdc4;
   background: #4ecdc4;
   color: white;
-  border-radius: 4px;
+  border-radius: clamp(3px, 0.8vw, 4px);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 2.5vw, 0.9rem);
 }
 
 .btn-add:hover:not(:disabled) {
@@ -693,37 +695,38 @@ const saveConfig = () => {
 .max-strikes-control {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: clamp(0.8rem, 2.5vw, 1rem);
 }
 
 .strikes-controls {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: clamp(0.4rem, 1vw, 0.5rem);
 }
 
 .strikes-value {
-  min-width: 40px;
+  min-width: clamp(35px, 8vw, 40px);
   text-align: center;
   font-weight: bold;
-  font-size: 1.1rem;
+  font-size: clamp(1rem, 3vw, 1.1rem);
 }
 
 .config-actions {
   display: flex;
-  gap: 1rem;
+  gap: clamp(0.8rem, 2.5vw, 1rem);
   justify-content: center;
 }
 
 .btn-primary,
 .btn-secondary {
-  padding: 0.75rem 1.5rem;
+  padding: clamp(0.6rem, 2vw, 0.75rem) clamp(1.2rem, 3vw, 1.5rem);
   border: none;
-  border-radius: 6px;
-  font-size: 1rem;
+  border-radius: clamp(4px, 1vw, 6px);
+  font-size: clamp(0.9rem, 2.5vw, 1rem);
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
+  min-height: clamp(36px, 8vw, 44px);
 }
 
 .btn-primary {
@@ -753,10 +756,11 @@ const saveConfig = () => {
   box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
 }
 
-@media (max-width: 768px) {
+/* 自适应布局 - 移除固定断点，使用相对单位 */
+@media (max-width: 1023px) {
   .config-sections {
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: clamp(0.8rem, 2.5vw, 1rem);
   }
   
   .tool-controls,
@@ -772,198 +776,24 @@ const saveConfig = () => {
   
   .add-item {
     flex-direction: column;
-    gap: 0.5rem;
+    gap: clamp(0.4rem, 1vw, 0.5rem);
   }
   
   .input-mini {
     width: 100%;
-    margin: 0.5rem 0;
+    margin: clamp(0.4rem, 1vw, 0.5rem) 0;
   }
   
   .config-actions {
     flex-direction: column;
-    gap: 0.5rem;
+    gap: clamp(0.4rem, 1vw, 0.5rem);
   }
   
   .btn-primary,
   .btn-secondary {
     width: 100%;
+    max-width: min(300px, 80vw);
     justify-content: center;
-    min-height: 44px;
-  }
-  
-  .punishment-config {
-    padding: 1rem;
-  }
-  
-  .config-section {
-    padding: 1rem;
-  }
-  
-  .config-section h3 {
-    font-size: 1.2rem;
-  }
-  
-  .tool-item,
-  .body-part-item,
-  .position-item {
-    padding: 0.75rem;
-  }
-  
-  .tool-name,
-  .body-part-name,
-  .position-name {
-    font-size: 1rem;
-  }
-  
-  .tool-intensity,
-  .body-part-sensitivity,
-  .position-difficulty {
-    font-size: 0.8rem;
-  }
-  
-  .btn-small {
-    width: 28px;
-    height: 28px;
-    font-size: 0.9rem;
-  }
-  
-  .intensity-value,
-  .sensitivity-value,
-  .difficulty-value {
-    min-width: 24px;
-    font-size: 0.9rem;
-  }
-  
-  .ratio-control label {
-    font-size: 0.8rem;
-  }
-  
-  .input-field {
-    font-size: 0.9rem;
-    padding: 0.5rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .punishment-config {
-    padding: 0.75rem;
-  }
-  
-  .config-section {
-    padding: 0.75rem;
-  }
-  
-  .config-section h3 {
-    font-size: 1.1rem;
-  }
-  
-  .tool-item,
-  .body-part-item,
-  .position-item {
-    padding: 0.6rem;
-  }
-  
-  .tool-name,
-  .body-part-name,
-  .position-name {
-    font-size: 0.95rem;
-  }
-  
-  .tool-intensity,
-  .body-part-sensitivity,
-  .position-difficulty {
-    font-size: 0.75rem;
-  }
-  
-  .btn-small {
-    width: 26px;
-    height: 26px;
-    font-size: 0.8rem;
-  }
-  
-  .intensity-value,
-  .sensitivity-value,
-  .difficulty-value {
-    min-width: 22px;
-    font-size: 0.85rem;
-  }
-  
-  .ratio-control label {
-    font-size: 0.75rem;
-  }
-  
-  .input-field {
-    font-size: 0.85rem;
-    padding: 0.4rem;
-  }
-  
-  .btn-primary,
-  .btn-secondary {
-    padding: 0.8rem 1rem;
-    font-size: 0.95rem;
-    min-height: 42px;
-  }
-}
-
-@media (max-width: 360px) {
-  .punishment-config {
-    padding: 0.5rem;
-  }
-  
-  .config-section {
-    padding: 0.5rem;
-  }
-  
-  .config-section h3 {
-    font-size: 1rem;
-  }
-  
-  .tool-item,
-  .body-part-item,
-  .position-item {
-    padding: 0.5rem;
-  }
-  
-  .tool-name,
-  .body-part-name,
-  .position-name {
-    font-size: 0.9rem;
-  }
-  
-  .tool-intensity,
-  .body-part-sensitivity,
-  .position-difficulty {
-    font-size: 0.7rem;
-  }
-  
-  .btn-small {
-    width: 24px;
-    height: 24px;
-    font-size: 0.75rem;
-  }
-  
-  .intensity-value,
-  .sensitivity-value,
-  .difficulty-value {
-    min-width: 20px;
-    font-size: 0.8rem;
-  }
-  
-  .ratio-control label {
-    font-size: 0.7rem;
-  }
-  
-  .input-field {
-    font-size: 0.8rem;
-    padding: 0.35rem;
-  }
-  
-  .btn-primary,
-  .btn-secondary {
-    padding: 0.7rem 0.8rem;
-    font-size: 0.9rem;
-    min-height: 40px;
   }
 }
 </style> 

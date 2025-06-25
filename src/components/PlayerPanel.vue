@@ -62,28 +62,29 @@ defineProps<Props>();
 <style scoped>
 .player-panel {
   background: white;
-  border-radius: 8px;
-  padding: 1rem;
+  border-radius: clamp(6px, 1.5vw, 8px);
+  padding: clamp(0.8rem, 2.5vw, 1rem);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 1rem;
+  margin-bottom: clamp(0.8rem, 2.5vw, 1rem);
 }
 
 .player-panel h3 {
-  margin: 0 0 1rem 0;
+  margin: 0 0 clamp(0.8rem, 2.5vw, 1rem) 0;
   color: #333;
   text-align: center;
+  font-size: clamp(1.1rem, 3vw, 1.3rem);
 }
 
 .players-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 80vw), 1fr));
+  gap: clamp(0.8rem, 2.5vw, 1rem);
 }
 
 .player-card {
   border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 1rem;
+  border-radius: clamp(6px, 1.5vw, 8px);
+  padding: clamp(0.8rem, 2.5vw, 1rem);
   transition: all 0.3s ease;
   background: #fafafa;
 }
@@ -104,13 +105,13 @@ defineProps<Props>();
 .player-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  gap: clamp(0.4rem, 1vw, 0.5rem);
+  margin-bottom: clamp(0.4rem, 1vw, 0.5rem);
 }
 
 .player-color {
-  width: 20px;
-  height: 20px;
+  width: clamp(16px, 4vw, 20px);
+  height: clamp(16px, 4vw, 20px);
   border-radius: 50%;
   border: 2px solid white;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
@@ -120,34 +121,36 @@ defineProps<Props>();
   font-weight: bold;
   color: #333;
   flex: 1;
+  font-size: clamp(0.9rem, 2.5vw, 1rem);
 }
 
 .winner-badge {
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 3vw, 1.2rem);
   animation: bounce 1s infinite;
 }
 
 .player-stats {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: clamp(0.4rem, 1vw, 0.5rem);
 }
 
 .stat {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: clamp(0.4rem, 1vw, 0.5rem);
 }
 
 .label {
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 2.5vw, 0.9rem);
   color: #666;
-  min-width: 40px;
+  min-width: clamp(35px, 8vw, 40px);
 }
 
 .value {
   font-weight: bold;
   color: #333;
+  font-size: clamp(0.8rem, 2.5vw, 0.9rem);
 }
 
 .value.not-taken-off {
@@ -157,16 +160,16 @@ defineProps<Props>();
 
 .progress-bar {
   flex: 1;
-  height: 8px;
+  height: clamp(6px, 1.5vw, 8px);
   background: #e0e0e0;
-  border-radius: 4px;
+  border-radius: clamp(3px, 0.8vw, 4px);
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
   transition: width 0.5s ease;
-  border-radius: 4px;
+  border-radius: clamp(3px, 0.8vw, 4px);
 }
 
 @keyframes bounce {
@@ -175,13 +178,10 @@ defineProps<Props>();
   60% { transform: translateY(-3px); }
 }
 
-@media (max-width: 768px) {
+/* 自适应布局 - 移除固定断点，使用相对单位 */
+@media (max-width: 1023px) {
   .players-grid {
     grid-template-columns: 1fr;
-  }
-  
-  .player-card {
-    padding: 0.75rem;
   }
 }
 </style> 
