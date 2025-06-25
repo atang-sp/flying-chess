@@ -37,7 +37,15 @@
             <span class="btn-icon">⬅️</span>
             <span class="btn-text">返回说明</span>
           </button>
-          <button @click="startGame" class="btn-primary" :disabled="!isConfigValid">
+          <button @click="generatePunishmentCombinations" class="btn-primary" :disabled="!isConfigValid">
+            <span class="btn-icon">🎯</span>
+            <span class="btn-text">生成惩罚组合</span>
+          </button>
+        </div>
+        
+        <div v-if="punishmentCombinations.length > 0" class="page-actions">
+          <p class="combinations-info">已生成 {{ punishmentCombinations.length }} 个惩罚组合，点击开始游戏继续</p>
+          <button @click="startGame" class="btn-primary">
             <span class="btn-icon">🚀</span>
             <span class="btn-text">开始游戏</span>
           </button>
@@ -86,12 +94,21 @@
         @skip="skipPunishment"
       />
     </div>
+    
+    <!-- 惩罚组合确认弹窗 -->
+    <PunishmentConfirmation
+      :show="showPunishmentConfirmation"
+      :combinations="punishmentCombinations"
+      @confirm="confirmPunishmentCombinations"
+      @regenerate="generatePunishmentCombinations"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
 import { GameService } from './services/gameService';
+import { GAME_CONFIG } from './config/gameConfig';
 import type { GameState, Player, BoardCell, PunishmentConfig, PunishmentAction } from './types/game';
 import IntroPage from './components/IntroPage.vue';
 import GameInstructions from './components/GameInstructions.vue';
@@ -100,6 +117,7 @@ import GameBoard from './components/GameBoard.vue';
 import Dice from './components/Dice.vue';
 import PunishmentConfigPanel from './components/PunishmentConfig.vue';
 import PunishmentDisplay from './components/PunishmentDisplay.vue';
+import PunishmentConfirmation from './components/PunishmentConfirmation.vue';
 
 // 游戏状态
 const gameState = reactive<GameState>({
@@ -119,6 +137,10 @@ const turnCount = ref(0);
 const lastEffect = ref<string>('');
 const isPaused = ref(false);
 const currentPunishment = ref<PunishmentAction | null>(null);
+
+// 惩罚组合确认状态
+const showPunishmentConfirmation = ref(false);
+const punishmentCombinations = ref<PunishmentAction[]>([]);
 
 // 计算属性
 const canRollDice = computed(() => {
@@ -157,6 +179,10 @@ const initializeGame = () => {
   lastEffect.value = '';
   isPaused.value = false;
   currentPunishment.value = null;
+  
+  // 清除惩罚组合确认状态
+  showPunishmentConfirmation.value = false;
+  punishmentCombinations.value = [];
 };
 
 // 更新惩罚配置
@@ -166,6 +192,13 @@ const updatePunishmentConfig = (config: PunishmentConfig) => {
 
 // 开始游戏
 const startGame = () => {
+  // 检查是否已生成惩罚组合
+  if (gameState.gameStatus === 'settings') {
+    // 如果还在设置页面，先生成惩罚组合
+    generatePunishmentCombinations();
+    return;
+  }
+  
   gameState.gameStatus = 'waiting';
   gameStarted.value = true;
   if (turnCount.value === 0) {
@@ -314,6 +347,32 @@ const handleCellClick = (cell: BoardCell) => {
   // 可以在这里添加查看格子详情的功能
 };
 
+// 生成惩罚组合
+const generatePunishmentCombinations = () => {
+  // 计算需要的惩罚组合数量：普通惩罚格子 + 动态惩罚格子
+  const punishmentCellCount = Object.keys(GAME_CONFIG.PUNISHMENT_CELLS).length;
+  const dynamicPunishmentCellCount = Object.keys(GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS).length;
+  const totalPunishmentCells = punishmentCellCount + dynamicPunishmentCellCount;
+  
+  punishmentCombinations.value = GameService.generatePunishmentCombinations(gameState.punishmentConfig, totalPunishmentCells);
+  showPunishmentConfirmation.value = true;
+};
+
+// 确认惩罚组合
+const confirmPunishmentCombinations = (combinations: PunishmentAction[]) => {
+  showPunishmentConfirmation.value = false;
+  
+  // 根据确认的组合更新棋盘
+  gameState.board = GameService.updateBoardWithConfirmedCombinations(gameState.board, combinations);
+  
+  // 直接开始游戏流程
+  gameState.gameStatus = 'waiting';
+  gameStarted.value = true;
+  if (turnCount.value === 0) {
+    turnCount.value = 1;
+  }
+};
+
 // 组件挂载时初始化游戏
 onMounted(() => {
   initializeGame();
@@ -344,6 +403,19 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   margin-top: 2rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.combinations-info {
+  text-align: center;
+  color: white;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 /* 设置页面样式 */

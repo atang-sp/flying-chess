@@ -346,4 +346,69 @@ export class GameService {
     config.bodyParts.forEach(bodyPart => bodyPart.ratio = bodyPartRatio);
     config.positions.forEach(position => position.ratio = positionRatio);
   }
+
+  // 生成多个惩罚组合供玩家确认
+  static generatePunishmentCombinations(config: PunishmentConfig, count: number = 10): PunishmentAction[] {
+    const combinations: PunishmentAction[] = [];
+    
+    for (let i = 0; i < count; i++) {
+      const combination = this.generateRandomPunishment(config);
+      combinations.push(combination);
+    }
+    
+    return combinations;
+  }
+
+  // 根据确认的组合更新棋盘
+  static updateBoardWithConfirmedCombinations(board: BoardCell[], combinations: PunishmentAction[]): BoardCell[] {
+    const updatedBoard = [...board];
+    
+    // 获取所有惩罚格子的位置
+    const punishmentPositions = [
+      ...Object.keys(GAME_CONFIG.PUNISHMENT_CELLS).map(Number),
+      ...Object.keys(GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS).map(Number)
+    ];
+    
+    // 为每个惩罚格子分配一个确认的组合
+    punishmentPositions.forEach((position, index) => {
+      const cell = updatedBoard.find(c => c.position === position);
+      if (cell && index < combinations.length) {
+        const combination = combinations[index];
+        
+        // 检查是否为动态惩罚格子
+        if (position in GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS) {
+          const dynamicConfig = GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS[position as keyof typeof GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS];
+          combination.dynamicType = dynamicConfig.type as 'dice_multiplier' | 'previous_player' | 'next_player' | 'other_player_choice';
+          combination.multiplier = 'multiplier' in dynamicConfig ? dynamicConfig.multiplier : undefined;
+          
+          // 更新描述
+          switch (combination.dynamicType) {
+            case 'dice_multiplier':
+              if (combination.multiplier) {
+                combination.description = `用${combination.tool.name}打${combination.bodyPart.name}，姿势：${combination.position.name}（骰子点数×${combination.multiplier}）`;
+              }
+              break;
+            case 'previous_player':
+              combination.description = `上一个玩家：用${combination.tool.name}打${combination.bodyPart.name}${combination.strikes}下，姿势：${combination.position.name}`;
+              break;
+            case 'next_player':
+              combination.description = `下一个玩家：用${combination.tool.name}打${combination.bodyPart.name}${combination.strikes}下，姿势：${combination.position.name}`;
+              break;
+            case 'other_player_choice':
+              combination.description = `用${combination.tool.name}打${combination.bodyPart.name}，姿势：${combination.position.name}（数量由其他玩家决定）`;
+              break;
+          }
+        }
+        
+        cell.effect = {
+          type: 'punishment',
+          value: 0,
+          description: combination.description,
+          punishment: combination
+        };
+      }
+    });
+    
+    return updatedBoard;
+  }
 } 

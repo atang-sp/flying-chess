@@ -54,7 +54,7 @@ import type { Player } from '../types/game';
 interface Props {
   gameStarted: boolean;
   gameFinished: boolean;
-  gameStatus: 'waiting' | 'rolling' | 'moving' | 'finished';
+  gameStatus: 'waiting' | 'rolling' | 'moving' | 'finished' | 'configuring';
   turnCount: number;
   winner: Player | null;
 }
@@ -74,6 +74,7 @@ const gameStatusText = computed(() => {
     case 'rolling': return '骰子滚动中';
     case 'moving': return '棋子移动中';
     case 'finished': return '游戏结束';
+    case 'configuring': return '配置中';
     default: return '未知状态';
   }
 });
