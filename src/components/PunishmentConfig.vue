@@ -724,6 +724,7 @@ const saveConfig = () => {
 @media (max-width: 768px) {
   .config-sections {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
   
   .tool-controls,
@@ -739,6 +740,7 @@ const saveConfig = () => {
   
   .add-item {
     flex-direction: column;
+    gap: 0.5rem;
   }
   
   .input-mini {
@@ -755,16 +757,19 @@ const saveConfig = () => {
   .btn-secondary {
     width: 100%;
     justify-content: center;
+    min-height: 44px;
   }
-}
-
-@media (max-width: 480px) {
+  
   .punishment-config {
     padding: 1rem;
   }
   
   .config-section {
-    padding: 0.75rem;
+    padding: 1rem;
+  }
+  
+  .config-section h3 {
+    font-size: 1.2rem;
   }
   
   .tool-item,
@@ -786,16 +791,131 @@ const saveConfig = () => {
   }
   
   .btn-small {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
+    font-size: 0.9rem;
+  }
+  
+  .intensity-value,
+  .sensitivity-value,
+  .difficulty-value {
+    min-width: 24px;
+    font-size: 0.9rem;
+  }
+  
+  .ratio-control label {
+    font-size: 0.8rem;
+  }
+  
+  .input-field {
+    font-size: 0.9rem;
+    padding: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .punishment-config {
+    padding: 0.75rem;
+  }
+  
+  .config-section {
+    padding: 0.75rem;
+  }
+  
+  .config-section h3 {
+    font-size: 1.1rem;
+  }
+  
+  .tool-item,
+  .body-part-item,
+  .position-item {
+    padding: 0.6rem;
+  }
+  
+  .tool-name,
+  .body-part-name,
+  .position-name {
+    font-size: 0.95rem;
+  }
+  
+  .tool-intensity,
+  .body-part-sensitivity,
+  .position-difficulty {
+    font-size: 0.75rem;
+  }
+  
+  .btn-small {
+    width: 26px;
+    height: 26px;
     font-size: 0.8rem;
   }
   
   .intensity-value,
   .sensitivity-value,
   .difficulty-value {
-    min-width: 20px;
+    min-width: 22px;
+    font-size: 0.85rem;
+  }
+  
+  .ratio-control label {
+    font-size: 0.75rem;
+  }
+  
+  .input-field {
+    font-size: 0.85rem;
+    padding: 0.4rem;
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.8rem 1rem;
+    font-size: 0.95rem;
+    min-height: 42px;
+  }
+}
+
+@media (max-width: 360px) {
+  .punishment-config {
+    padding: 0.5rem;
+  }
+  
+  .config-section {
+    padding: 0.5rem;
+  }
+  
+  .config-section h3 {
+    font-size: 1rem;
+  }
+  
+  .tool-item,
+  .body-part-item,
+  .position-item {
+    padding: 0.5rem;
+  }
+  
+  .tool-name,
+  .body-part-name,
+  .position-name {
     font-size: 0.9rem;
+  }
+  
+  .tool-intensity,
+  .body-part-sensitivity,
+  .position-difficulty {
+    font-size: 0.7rem;
+  }
+  
+  .btn-small {
+    width: 24px;
+    height: 24px;
+    font-size: 0.75rem;
+  }
+  
+  .intensity-value,
+  .sensitivity-value,
+  .difficulty-value {
+    min-width: 20px;
+    font-size: 0.8rem;
   }
   
   .ratio-control label {
@@ -803,8 +923,15 @@ const saveConfig = () => {
   }
   
   .input-field {
+    font-size: 0.8rem;
+    padding: 0.35rem;
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.7rem 0.8rem;
     font-size: 0.9rem;
-    padding: 0.4rem;
+    min-height: 40px;
   }
 }
 </style> 

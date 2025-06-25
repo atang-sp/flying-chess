@@ -334,72 +334,83 @@ watch(() => props.value, (newValue) => {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+  .dice-container {
+    padding: 1rem;
+  }
+  
+  .dice {
+    width: 80px;
+    height: 80px;
+  }
+  
+  .dice-face {
+    font-size: 2rem;
+  }
+  
+  .dice-value {
+    font-size: 1.5rem;
+  }
+  
+  .dice-button {
+    padding: 1rem 1.5rem;
+    font-size: 1.1rem;
+    min-height: 50px;
+  }
+  
+  .dice-button:disabled {
+    padding: 0.8rem 1.2rem;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dice-container {
+    padding: 0.75rem;
+  }
+  
+  .dice {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .dice-face {
+    font-size: 1.8rem;
+  }
+  
+  .dice-value {
+    font-size: 1.3rem;
+  }
+  
+  .dice-button {
+    padding: 0.9rem 1.2rem;
+    font-size: 1rem;
+    min-height: 48px;
+  }
+  
+  .dice-button:disabled {
+    padding: 0.7rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 360px) {
   .dice {
     width: 60px;
     height: 60px;
   }
   
   .dice-face {
-    border-radius: 8px;
+    font-size: 1.5rem;
   }
   
-  .dot {
-    width: 8px;
-    height: 8px;
+  .dice-value {
+    font-size: 1.1rem;
   }
   
-  .dots {
-    gap: 2px;
-    padding: 6px;
-  }
-  
-  .front  { transform: rotateY(0deg) translateZ(30px); }
-  .back   { transform: rotateY(180deg) translateZ(30px); }
-  .right  { transform: rotateY(90deg) translateZ(30px); }
-  .left   { transform: rotateY(-90deg) translateZ(30px); }
-  .top    { transform: rotateX(90deg) translateZ(30px); }
-  .bottom { transform: rotateX(-90deg) translateZ(30px); }
-  
-  .dice-info {
-    font-size: 1rem;
-  }
-  
-  .roll-button {
-    padding: 0.6rem 1.2rem;
-    font-size: 0.9rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .dice {
-    width: 50px;
-    height: 50px;
-  }
-  
-  .dot {
-    width: 6px;
-    height: 6px;
-  }
-  
-  .dots {
-    gap: 1px;
-    padding: 4px;
-  }
-  
-  .front  { transform: rotateY(0deg) translateZ(25px); }
-  .back   { transform: rotateY(180deg) translateZ(25px); }
-  .right  { transform: rotateY(90deg) translateZ(25px); }
-  .left   { transform: rotateY(-90deg) translateZ(25px); }
-  .top    { transform: rotateX(90deg) translateZ(25px); }
-  .bottom { transform: rotateX(-90deg) translateZ(25px); }
-  
-  .dice-info {
-    font-size: 0.9rem;
-  }
-  
-  .roll-button {
-    padding: 0.5rem 1rem;
-    font-size: 0.8rem;
+  .dice-button {
+    padding: 0.8rem 1rem;
+    font-size: 0.95rem;
+    min-height: 44px;
   }
 }
 </style> 

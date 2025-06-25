@@ -86,6 +86,8 @@ const skipPunishment = () => {
   width: 90%;
   z-index: 1000;
   border: 3px solid #ff6b6b;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .punishment-header {
@@ -188,6 +190,7 @@ const skipPunishment = () => {
   display: flex;
   gap: 1rem;
   justify-content: center;
+  margin-top: 1rem;
 }
 
 .btn-confirm,
@@ -202,6 +205,7 @@ const skipPunishment = () => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-height: 44px;
 }
 
 .btn-confirm {
@@ -224,19 +228,174 @@ const skipPunishment = () => {
   box-shadow: 0 4px 12px rgba(255, 167, 38, 0.3);
 }
 
+/* 移动端适配 */
 @media (max-width: 768px) {
   .punishment-display {
-    padding: 1.5rem;
+    padding: 1rem;
+    width: 95%;
+    max-height: 95vh;
+    margin: 1rem;
+  }
+  
+  .punishment-header h3 {
+    font-size: 1.3rem;
+  }
+  
+  .punishment-header p {
+    font-size: 1rem;
   }
   
   .punishment-item {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
+    padding: 0.75rem;
+  }
+  
+  .label {
+    min-width: auto;
+    font-size: 0.9rem;
+  }
+  
+  .value {
+    font-size: 1rem;
+  }
+  
+  .intensity,
+  .sensitivity,
+  .difficulty {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+  }
+  
+  .punishment-summary {
+    padding: 0.75rem;
+  }
+  
+  .punishment-summary h4 {
+    font-size: 1.1rem;
+  }
+  
+  .summary-text {
+    font-size: 1rem;
   }
   
   .punishment-actions {
     flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+  
+  .btn-confirm,
+  .btn-skip {
+    width: 100%;
+    justify-content: center;
+    padding: 1rem 1.5rem;
+    font-size: 1.1rem;
+    min-height: 50px;
+  }
+}
+
+/* 小屏幕手机适配 */
+@media (max-width: 480px) {
+  .punishment-display {
+    padding: 0.75rem;
+    width: 98%;
+    max-height: 98vh;
+  }
+  
+  .punishment-header {
+    margin-bottom: 1.5rem;
+  }
+  
+  .punishment-header h3 {
+    font-size: 1.2rem;
+  }
+  
+  .punishment-header p {
+    font-size: 0.9rem;
+  }
+  
+  .punishment-content {
+    gap: 1rem;
+  }
+  
+  .punishment-item {
+    padding: 0.5rem;
+    gap: 0.25rem;
+  }
+  
+  .label {
+    font-size: 0.85rem;
+  }
+  
+  .value {
+    font-size: 0.95rem;
+  }
+  
+  .intensity,
+  .sensitivity,
+  .difficulty {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.3rem;
+  }
+  
+  .punishment-summary {
+    padding: 0.5rem;
+  }
+  
+  .punishment-summary h4 {
+    font-size: 1rem;
+  }
+  
+  .summary-text {
+    font-size: 0.9rem;
+  }
+  
+  .punishment-actions {
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+  
+  .btn-confirm,
+  .btn-skip {
+    padding: 0.9rem 1rem;
+    font-size: 1rem;
+    min-height: 48px;
+  }
+}
+
+/* 超小屏幕适配 */
+@media (max-width: 360px) {
+  .punishment-display {
+    padding: 0.5rem;
+  }
+  
+  .punishment-header h3 {
+    font-size: 1.1rem;
+  }
+  
+  .punishment-header p {
+    font-size: 0.85rem;
+  }
+  
+  .punishment-item {
+    padding: 0.4rem;
+  }
+  
+  .label {
+    font-size: 0.8rem;
+  }
+  
+  .value {
+    font-size: 0.9rem;
+  }
+  
+  .btn-confirm,
+  .btn-skip {
+    padding: 0.8rem 0.8rem;
+    font-size: 0.95rem;
+    min-height: 44px;
   }
 }
 </style> 

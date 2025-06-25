@@ -213,13 +213,88 @@ const resetGame = () => {
 }
 
 @media (max-width: 768px) {
-  .control-buttons {
-    flex-direction: column;
+  .game-controls {
+    padding: 0.75rem;
+    gap: 0.75rem;
   }
   
-  .game-status {
+  .control-section {
+    gap: 0.5rem;
+  }
+  
+  .control-section h3 {
+    font-size: 1.1rem;
+  }
+  
+  .control-buttons {
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.5rem;
+  }
+  
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    font-size: 1rem;
+    min-height: 44px;
+  }
+  
+  .game-info {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+  
+  .info-item {
+    font-size: 0.9rem;
+  }
+  
+  .winner-display {
+    padding: 1rem;
+  }
+  
+  .winner-display h2 {
+    font-size: 1.5rem;
+  }
+  
+  .winner-display p {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-controls {
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+  
+  .control-section h3 {
+    font-size: 1rem;
+  }
+  
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    padding: 0.7rem 0.8rem;
+    font-size: 0.95rem;
+    min-height: 42px;
+  }
+  
+  .info-item {
+    font-size: 0.85rem;
+  }
+  
+  .winner-display {
+    padding: 0.75rem;
+  }
+  
+  .winner-display h2 {
+    font-size: 1.3rem;
+  }
+  
+  .winner-display p {
+    font-size: 0.9rem;
   }
 }
 </style> 
