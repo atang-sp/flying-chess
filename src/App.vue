@@ -304,6 +304,15 @@ const moveCurrentPlayer = async () => {
   // 等待移动动画完成
   await new Promise(resolve => setTimeout(resolve, 600));
 
+  // 检查是否到达终点（第40格）
+  if (newPosition === 40) {
+    currentPlayer.isWinner = true;
+    gameState.winner = currentPlayer;
+    gameState.gameStatus = 'finished';
+    gameFinished.value = true;
+    return;
+  }
+
   // 检查是否有起飞惩罚
   if (punishment && executorIndex !== undefined) {
     currentTakeoffPunishment.value = punishment;
@@ -322,10 +331,30 @@ const moveCurrentPlayer = async () => {
 
   // 检查是否有需要显示效果的非惩罚格子
   if (cellEffect && (cellEffect.type === 'move' || cellEffect.type === 'reverse' || cellEffect.type === 'restart')) {
+    // 如果到达第1格（飞机场），不显示效果确认弹窗
+    if (newPosition === 1) {
+      // 直接继续游戏流程
+      await continueAfterMove();
+      return;
+    }
+    
     gameState.pendingEffect = cellEffect;
     // 设置效果显示的起始和结束位置
-    effectFromPosition.value = fromPosition;
-    effectToPosition.value = newPosition;
+    effectFromPosition.value = fromPosition; // 原始位置（骰子移动前）
+    effectToPosition.value = newPosition;    // 骰子移动后的位置
+    
+    // 计算最终位置用于显示三段路径
+    const finalPosition = newPosition + (cellEffect.type === 'move' ? cellEffect.value : 
+                                        cellEffect.type === 'reverse' ? -cellEffect.value : 
+                                        cellEffect.type === 'restart' ? -newPosition : 0);
+    
+    // 创建包含三段路径信息的effect对象
+    const effectWithPath = {
+      ...cellEffect,
+      description: getThreeStepMoveDescription(fromPosition, newPosition, finalPosition, cellEffect.type)
+    };
+    gameState.pendingEffect = effectWithPath;
+    
     gameState.gameStatus = 'showing_effect';
     return; // 等待用户确认效果
   }
@@ -340,29 +369,45 @@ const confirmEffect = async () => {
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   
+  // 保存效果类型，因为后面会清除pendingEffect
+  const effectType = gameState.pendingEffect.type;
+  
+  // 记录三段路径的位置
+  const originalPosition = effectFromPosition.value; // 原始位置（骰子移动前）
+  const diceMovePosition = effectToPosition.value;   // 骰子移动后的位置
+  const finalPosition = currentPlayer.position + (effectType === 'move' ? gameState.pendingEffect.value : 
+                                                 effectType === 'reverse' ? -gameState.pendingEffect.value : 
+                                                 effectType === 'restart' ? -currentPlayer.position : 0);
+  
   // 处理格子效果
   const { newPosition, effect, fromPosition, toPosition } = GameService.processCellEffect(currentPlayer, gameState.pendingEffect);
 
-  // 记录路径
-  effectFromPosition.value = fromPosition;
-  effectToPosition.value = toPosition;
-  
   // 更新玩家位置
   currentPlayer.position = newPosition;
   
-  // 显示移动路径信息
-  if (gameState.pendingEffect.type === 'move' || gameState.pendingEffect.type === 'reverse' || gameState.pendingEffect.type === 'restart' || gameState.pendingEffect.type === 'rest') {
-    const moveDescription = getMoveDescription(fromPosition, toPosition, gameState.pendingEffect.type);
+  // 立即清除待处理效果和状态，避免显示多余的弹窗
+  gameState.pendingEffect = null;
+  effectFromPosition.value = undefined;
+  effectToPosition.value = undefined;
+  gameState.gameStatus = 'waiting';
+  
+  // 显示三段移动路径信息
+  if (effectType === 'move' || effectType === 'reverse' || effectType === 'restart' || effectType === 'rest') {
+    const moveDescription = getThreeStepMoveDescription(originalPosition, diceMovePosition, newPosition, effectType);
     lastEffect.value = moveDescription;
   }
 
   // 等待移动动画完成
   await new Promise(resolve => setTimeout(resolve, 600));
-
-  // 清除待处理效果
-  gameState.pendingEffect = null;
-  effectFromPosition.value = undefined;
-  effectToPosition.value = undefined;
+  
+  // 检查是否到达终点（第40格）
+  if (newPosition === 40) {
+    currentPlayer.isWinner = true;
+    gameState.winner = currentPlayer;
+    gameState.gameStatus = 'finished';
+    gameFinished.value = true;
+    return;
+  }
   
   // 继续游戏流程
   await continueAfterMove();
@@ -384,6 +429,30 @@ const getMoveDescription = (fromPosition: number, toPosition: number, effectType
       return `在${fromText}休息一回合`;
     default:
       return `${fromText} → ${toText}`;
+  }
+};
+
+// 生成三段移动路径描述
+const getThreeStepMoveDescription = (originalPosition: number | undefined, diceMovePosition: number | undefined, finalPosition: number, effectType: string): string => {
+  if (originalPosition === undefined || diceMovePosition === undefined) {
+    return getMoveDescription(originalPosition || 0, finalPosition, effectType);
+  }
+  
+  const originalText = originalPosition === 0 ? '起点' : `第${originalPosition}格`;
+  const diceMoveText = diceMovePosition === 0 ? '起点' : `第${diceMovePosition}格`;
+  const finalText = finalPosition === 0 ? '起点' : `第${finalPosition}格`;
+  
+  switch (effectType) {
+    case 'move':
+      return `${originalText} → ${diceMoveText} → ${finalText}`;
+    case 'reverse':
+      return `${originalText} → ${diceMoveText} → ${finalText}`;
+    case 'restart':
+      return `${originalText} → ${diceMoveText} → 起点`;
+    case 'rest':
+      return `${originalText} → ${diceMoveText} (休息一回合)`;
+    default:
+      return `${originalText} → ${diceMoveText} → ${finalText}`;
   }
 };
 

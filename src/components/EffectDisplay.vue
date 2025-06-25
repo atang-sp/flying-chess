@@ -16,6 +16,8 @@
             <span class="from-position">{{ getFromPositionText() }}</span>
             <span class="path-arrow">→</span>
             <span class="to-position">{{ getToPositionText() }}</span>
+            <span v-if="hasThirdStep" class="path-arrow">→</span>
+            <span v-if="hasThirdStep" class="final-position">{{ getFinalPositionText() }}</span>
           </div>
         </div>
         
@@ -80,6 +82,10 @@ const showMovePath = computed(() => {
   return props.effect && (props.effect.type === 'move' || props.effect.type === 'reverse' || props.effect.type === 'restart' || props.effect.type === 'rest');
 });
 
+const hasThirdStep = computed(() => {
+  return props.effect && (props.effect.type === 'move' || props.effect.type === 'reverse' || props.effect.type === 'restart');
+});
+
 const getFromPositionText = (): string => {
   if (props.fromPosition === undefined || props.fromPosition === null) return '当前位置';
   return props.fromPosition === 0 ? '起点' : `第${props.fromPosition}格`;
@@ -88,6 +94,17 @@ const getFromPositionText = (): string => {
 const getToPositionText = (): string => {
   if (props.toPosition === undefined || props.toPosition === null) return '目标位置';
   return props.toPosition === 0 ? '起点' : `第${props.toPosition}格`;
+};
+
+const getFinalPositionText = (): string => {
+  if (!props.effect?.description) return '';
+  
+  const description = props.effect.description;
+  const parts = description.split(' → ');
+  if (parts.length >= 3) {
+    return parts[2];
+  }
+  return '';
 };
 
 const getEffectIcon = (): string => {
@@ -220,6 +237,13 @@ const handleConfirm = () => {
 }
 
 .to-position {
+  color: #2ed573;
+  background: rgba(46, 213, 115, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.final-position {
   color: #2ed573;
   background: rgba(46, 213, 115, 0.1);
   padding: 0.25rem 0.5rem;

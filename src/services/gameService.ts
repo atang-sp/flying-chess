@@ -9,15 +9,35 @@ export class GameService {
     const config = punishmentConfig || this.createPunishmentConfig();
     
     for (let i = 1; i <= GAME_CONFIG.BOARD.SIZE; i++) {
-      const cell: BoardCell = {
-        id: i,
-        type: 'normal',
-        position: i
-      };
+      let cell: BoardCell | null = null;
 
+      // 第1格是飞机场，第40格是终点，不应该有惩罚
+      if (i === 1) {
+        cell = {
+          id: i,
+          type: 'bonus', // 设置为奖励格子类型，但没有效果
+          position: i
+        };
+        // 不设置effect，避免触发效果显示
+      } else if (i === 40) {
+        cell = {
+          id: i,
+          type: 'bonus', // 设置为奖励格子类型，但没有效果
+          position: i
+        };
+        cell.effect = {
+          type: 'move',
+          value: 0,
+          description: '终点 - 游戏胜利'
+        };
+      }
       // 检查是否为动态惩罚格子
-      if (i in GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS) {
-        cell.type = 'punishment';
+      else if (i in GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS) {
+        cell = {
+          id: i,
+          type: 'punishment',
+          position: i
+        };
         const dynamicConfig = GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS[i as keyof typeof GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS];
         
         // 使用用户配置中的工具、部位、姿势
@@ -46,7 +66,11 @@ export class GameService {
       }
       // 检查是否为普通惩罚格子
       else if (i in GAME_CONFIG.PUNISHMENT_CELLS) {
-        cell.type = 'punishment';
+        cell = {
+          id: i,
+          type: 'punishment',
+          position: i
+        };
         const punishmentConfig = GAME_CONFIG.PUNISHMENT_CELLS[i as keyof typeof GAME_CONFIG.PUNISHMENT_CELLS];
         
         // 使用用户配置中的工具、部位、姿势
@@ -73,7 +97,11 @@ export class GameService {
       }
       // 检查是否为奖励格子
       else if (i in GAME_CONFIG.BONUS_CELLS) {
-        cell.type = 'bonus';
+        cell = {
+          id: i,
+          type: 'bonus',
+          position: i
+        };
         const bonusConfig = GAME_CONFIG.BONUS_CELLS[i as keyof typeof GAME_CONFIG.BONUS_CELLS];
         cell.effect = {
           type: 'move',
@@ -83,7 +111,11 @@ export class GameService {
       }
       // 检查是否为特殊格子
       else if (i in GAME_CONFIG.SPECIAL_CELLS) {
-        cell.type = 'special';
+        cell = {
+          id: i,
+          type: 'special',
+          position: i
+        };
         const specialConfig = GAME_CONFIG.SPECIAL_CELLS[i as keyof typeof GAME_CONFIG.SPECIAL_CELLS];
         cell.effect = {
           type: specialConfig.type as 'move' | 'rest' | 'reverse',
@@ -93,12 +125,45 @@ export class GameService {
       }
       // 检查是否为回到起点格子
       else if (i in GAME_CONFIG.RESTART_CELLS) {
-        cell.type = 'restart';
+        cell = {
+          id: i,
+          type: 'restart',
+          position: i
+        };
         const restartConfig = GAME_CONFIG.RESTART_CELLS[i as keyof typeof GAME_CONFIG.RESTART_CELLS];
         cell.effect = {
           type: 'restart',
           value: 0,
           description: restartConfig.description
+        };
+      }
+
+      // 如果格子没有特殊效果，设置为惩罚格子（确保没有普通格子）
+      if (!cell) {
+        cell = {
+          id: i,
+          type: 'punishment',
+          position: i
+        };
+        
+        // 随机选择工具、部位、姿势
+        const tool = this.selectByRatio(config.tools);
+        const bodyPart = this.selectByRatio(config.bodyParts);
+        const position = this.selectByRatio(config.positions);
+        
+        const punishment: PunishmentAction = {
+          tool,
+          bodyPart,
+          position,
+          strikes: Math.floor(Math.random() * 10) + 5, // 5-15下随机
+          description: `用${tool.name}打${bodyPart.name}，姿势：${position.name}`
+        };
+        
+        cell.effect = {
+          type: 'punishment',
+          value: 0,
+          description: punishment.description,
+          punishment
         };
       }
 
@@ -215,6 +280,18 @@ export class GameService {
     // 检查新位置的格子效果
     const targetCell = board.find(cell => cell.position === newPosition);
     if (targetCell && targetCell.effect) {
+      // 如果到达第40格（终点），不触发任何格子效果
+      if (newPosition === 40) {
+        effect = '到达终点！游戏胜利！';
+        return { newPosition, effect, punishment, targetPlayerIndex, cellEffect, canTakeOff, executorIndex };
+      }
+      
+      // 如果到达第1格（飞机场），不触发任何格子效果
+      if (newPosition === 1) {
+        effect = '到达飞机场！安全区域';
+        return { newPosition, effect, punishment, targetPlayerIndex, cellEffect, canTakeOff, executorIndex };
+      }
+      
       cellEffect = targetCell.effect;
       
       switch (targetCell.effect.type) {
@@ -226,28 +303,22 @@ export class GameService {
           break;
           
         case 'move':
-          const moveSteps = targetCell.effect.value;
-          newPosition += moveSteps;
-          if (newPosition > 40) newPosition = 40;
-          if (newPosition < 0) newPosition = 0;
-          effect = `移动${moveSteps > 0 ? '+' : ''}${moveSteps}步`;
+          // 不在这里应用移动效果，只返回效果信息
+          effect = `移动到第${newPosition}格，触发前进${targetCell.effect.value}步效果`;
           break;
           
         case 'reverse':
-          const reverseSteps = targetCell.effect.value;
-          newPosition -= reverseSteps;
-          if (newPosition < 0) newPosition = 0;
-          effect = `后退${reverseSteps}步`;
+          // 不在这里应用后退效果，只返回效果信息
+          effect = `移动到第${newPosition}格，触发后退${targetCell.effect.value}步效果`;
           break;
           
         case 'restart':
-          newPosition = 0;
-          player.hasTakenOff = false; // 回到起点后需要重新起飞
-          effect = '回到起点，需要重新起飞';
+          // 不在这里应用回到起点效果，只返回效果信息
+          effect = `移动到第${newPosition}格，触发回到起点效果`;
           break;
           
         case 'rest':
-          effect = `休息${targetCell.effect.value}回合`;
+          effect = `移动到第${newPosition}格，休息${targetCell.effect.value}回合`;
           break;
       }
     }
@@ -272,9 +343,13 @@ export class GameService {
     switch (cellEffect.type) {
       case 'move':
         newPosition += cellEffect.value;
-        if (newPosition > 40) newPosition = 40;
+        if (newPosition > 40) {
+          newPosition = 40; // 到达终点
+          effect = `移动${cellEffect.value > 0 ? '+' : ''}${cellEffect.value}步，到达终点！`;
+        } else {
+          effect = `移动${cellEffect.value > 0 ? '+' : ''}${cellEffect.value}步`;
+        }
         if (newPosition < 0) newPosition = 0;
-        effect = `移动${cellEffect.value > 0 ? '+' : ''}${cellEffect.value}步`;
         break;
         
       case 'reverse':
@@ -285,7 +360,8 @@ export class GameService {
         
       case 'restart':
         newPosition = 0;
-        effect = '回到起点';
+        player.hasTakenOff = false; // 回到起点后需要重新起飞
+        effect = '回到起点，需要重新起飞';
         break;
         
       case 'rest':
@@ -339,7 +415,7 @@ export class GameService {
   }
 
   // 获取格子类型
-  static getCellType(position: number): 'normal' | 'punishment' | 'bonus' | 'special' | 'restart' {
+  static getCellType(position: number): 'punishment' | 'bonus' | 'special' | 'restart' {
     if (position in GAME_CONFIG.PUNISHMENT_CELLS || position in GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS) {
       return 'punishment';
     } else if (position in GAME_CONFIG.BONUS_CELLS) {
@@ -349,7 +425,7 @@ export class GameService {
     } else if (position in GAME_CONFIG.RESTART_CELLS) {
       return 'restart';
     }
-    return 'normal';
+    return 'punishment'; // 默认返回惩罚格子
   }
 
   // 根据比例随机选择项目

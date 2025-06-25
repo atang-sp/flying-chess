@@ -83,7 +83,7 @@
       <div class="tooltip-content">
         <div class="tooltip-header">
           <span class="tooltip-number">{{ tooltipCell?.position || 0 }}</span>
-          <span class="tooltip-type">{{ getCellTypeName(tooltipCell?.type || 'normal') }}</span>
+          <span class="tooltip-type">{{ getCellTypeName(tooltipCell?.type || 'punishment') }}</span>
         </div>
         <div class="tooltip-body">
           <div v-if="tooltipCell?.effect" class="tooltip-effect">
@@ -211,7 +211,7 @@ const spiralBoard = computed(() => {
 const getCellByPosition = (position: number): BoardCell => {
   return props.board.find(cell => cell.position === position) || {
     id: position,
-    type: 'normal',
+    type: 'punishment',
     position
   };
 };
@@ -225,6 +225,12 @@ const getCellClass = (position: number): string => {
 
 const getCellIcon = (position: number): string => {
   const cell = getCellByPosition(position);
+  
+  // 特殊处理休息格子
+  if (cell.effect?.type === 'rest') {
+    return '😴';
+  }
+  
   return CELL_ICONS[cell.type] || '';
 };
 
@@ -235,13 +241,18 @@ const getCellEffect = (position: number): string => {
 
 const getCellTypeName = (type: string): string => {
   const typeNames = {
-    normal: '普通格子',
     punishment: '惩罚格子',
-    bonus: '奖励格子',
-    special: '特殊格子',
+    bonus: '前进格子',
+    special: '后退格子',
     restart: '回到起点'
   };
-  return typeNames[type as keyof typeof typeNames] || '未知格子';
+  
+  // 特殊处理休息格子
+  if (type === 'special' && tooltipCell.value?.effect?.type === 'rest') {
+    return '休息格子';
+  }
+  
+  return typeNames[type as keyof typeof typeNames] || '惩罚格子';
 };
 
 const handleCellClick = (cell: BoardCell) => {
@@ -370,11 +381,6 @@ const hideTooltip = () => {
 }
 
 /* 格子类型样式 */
-.cell-normal {
-  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-  border-color: #dee2e6;
-}
-
 .cell-punishment {
   background: linear-gradient(135deg, #ff6b6b, #ee5a52);
   border-color: #ff4757;
@@ -398,14 +404,19 @@ const hideTooltip = () => {
 }
 
 .cell-special {
-  background: linear-gradient(135deg, #ffd93d, #ffb347);
-  border-color: #ffa726;
-  color: #333;
+  background: linear-gradient(135deg, #ffa726, #ff9800);
+  border-color: #ff7043;
+  color: white;
+}
+
+.cell-special .cell-number,
+.cell-special .cell-effect {
+  color: white;
 }
 
 .cell-restart {
-  background: linear-gradient(135deg, #ff4757, #ff3742);
-  border-color: #ff3742;
+  background: linear-gradient(135deg, #ab47bc, #8e44ad);
+  border-color: #9b59b6;
   color: white;
 }
 

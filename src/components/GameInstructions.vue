@@ -12,6 +12,15 @@
       <li>获胜者可对其他所有人执行 <b>5下</b> 任意部位、任意工具的惩罚。</li>
     </ul>
     
+    <h3>棋盘格子类型</h3>
+    <ul class="instructions-list">
+      <li><strong>惩罚格子（红色⚡）：</strong>大部分格子都是惩罚格子，踩到后需要接受惩罚。</li>
+      <li><strong>前进格子（绿色🎁）：</strong>踩到后可以前进2-3步，共2个。</li>
+      <li><strong>后退格子（橙色⬅️）：</strong>踩到后需要后退2-3步，共2个。</li>
+      <li><strong>休息格子（橙色😴）：</strong>踩到后需要休息一回合，共2个。</li>
+      <li><strong>回到起点格子（紫色🔄）：</strong>踩到后需要回到起点重新开始，共3个。</li>
+    </ul>
+    
     <div class="custom-config">
       <h3>自定义配置</h3>
       <div class="config-items">

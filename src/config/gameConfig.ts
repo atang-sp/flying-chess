@@ -82,36 +82,12 @@ export const GAME_CONFIG = {
       multiplier: 2,
       description: '打的数量是骰子点数的2倍'
     },
-    8: { 
-      type: 'previous_player', 
-      tool: 'ruler', 
-      bodyPart: 'thighs', 
-      position: 'wall_lean', 
-      strikes: 10,
-      description: '用尺子打大腿10下，手扶墙'
-    },
-    12: { 
-      type: 'next_player', 
-      tool: 'wooden_board', 
-      bodyPart: 'butt', 
-      position: 'table_lean', 
-      strikes: 12,
-      description: '用木板打屁股12下，趴在桌子上'
-    },
     16: { 
       type: 'other_player_choice', 
       tool: 'cane', 
       bodyPart: 'butt', 
       position: 'knee_grab', 
       description: '用藤条打屁股，手抓膝盖，数量由其他玩家决定'
-    },
-    20: { 
-      type: 'dice_multiplier', 
-      tool: 'paddle', 
-      bodyPart: 'butt', 
-      position: 'kneeling', 
-      multiplier: 3,
-      description: '打的数量是骰子点数的3倍'
     },
     24: { 
       type: 'previous_player', 
@@ -128,14 +104,6 @@ export const GAME_CONFIG = {
       position: 'kneeling', 
       strikes: 18,
       description: '用藤条打屁股18下，跪趴'
-    },
-    32: { 
-      type: 'dice_multiplier', 
-      tool: 'hand', 
-      bodyPart: 'butt', 
-      position: 'standing', 
-      multiplier: 2,
-      description: '打的数量是骰子点数的2倍'
     },
     34: { 
       type: 'previous_player', 
@@ -154,26 +122,25 @@ export const GAME_CONFIG = {
     },
   },
   
-  // 奖励格子配置 - 减少为原来的一半
+  // 奖励格子配置 - 前进格子，最多3步
   BONUS_CELLS: {
-    5: { type: 'move', value: 3, description: '前进3步' },
-    13: { type: 'move', value: 4, description: '前进4步' },
-    22: { type: 'move', value: 5, description: '前进5步' },
-    30: { type: 'move', value: 6, description: '前进6步' },
+    5: { type: 'move', value: 2, description: '前进2步' },
+    25: { type: 'move', value: 3, description: '前进3步' },
   },
   
-  // 特殊格子配置 - 减少为原来的一半
+  // 特殊格子配置 - 后退格子和休息格子
   SPECIAL_CELLS: {
-    6: { type: 'rest', value: 1, description: '休息一回合' },
-    18: { type: 'rest', value: 1, description: '休息一回合' },
-    28: { type: 'rest', value: 1, description: '休息一回合' },
+    8: { type: 'reverse', value: 2, description: '后退2步' },
+    18: { type: 'reverse', value: 3, description: '后退3步' },
+    12: { type: 'rest', value: 1, description: '休息一回合' },
+    32: { type: 'rest', value: 1, description: '休息一回合' },
   },
   
-  // 回到起点格子配置 - 调整位置避免冲突
+  // 回到起点格子配置
   RESTART_CELLS: {
     10: { description: '回到起点' },
-    14: { description: '回到起点' },
-    38: { description: '回到起点' },
+    20: { description: '回到起点' },
+    30: { description: '回到起点' },
   },
   
   // 默认比例设置
@@ -188,9 +155,8 @@ export const GAME_CONFIG = {
 export const CELL_ICONS = {
   punishment: '⚡',
   bonus: '🎁',
-  special: '⭐',
-  restart: '🔄',
-  normal: ''
+  special: '⬅️',
+  restart: '🔄'
 };
 
 // 格子类型颜色映射
@@ -210,9 +176,5 @@ export const CELL_COLORS = {
   restart: {
     background: 'linear-gradient(135deg, #ab47bc, #8e44ad)',
     border: '#9b59b6'
-  },
-  normal: {
-    background: 'linear-gradient(135deg, #ecf0f1, #bdc3c7)',
-    border: '#95a5a6'
   }
 }; 
