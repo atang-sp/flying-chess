@@ -173,7 +173,7 @@ watch(() => props.value, (newValue) => {
 /* 突出显示骰子点数 */
 .dice-result-highlight {
   position: absolute;
-  top: -20px;
+  bottom: -20px;
   left: 50%;
   transform: translateX(-50%);
   background: linear-gradient(135deg, #ff6b6b, #ee5a52);
@@ -394,7 +394,7 @@ watch(() => props.value, (newValue) => {
   .dice-result-highlight {
     width: 50px;
     height: 50px;
-    top: -15px;
+    bottom: -15px;
   }
   
   .result-number {
@@ -438,7 +438,7 @@ watch(() => props.value, (newValue) => {
   .dice-result-highlight {
     width: 45px;
     height: 45px;
-    top: -12px;
+    bottom: -12px;
   }
   
   .result-number {
@@ -478,7 +478,7 @@ watch(() => props.value, (newValue) => {
   .dice-result-highlight {
     width: 40px;
     height: 40px;
-    top: -10px;
+    bottom: -10px;
   }
   
   .result-number {

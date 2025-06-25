@@ -399,70 +399,19 @@ const regenerateCombinations = () => {
 /* 响应式设计 */
 @media (max-width: 768px) {
   .confirmation-modal {
-    max-width: 95%;
-    max-height: 95vh;
-  }
-  
-  .modal-header {
-    padding: 1rem;
-  }
-  
-  .modal-header h3 {
-    font-size: 1.3rem;
-  }
-  
-  .modal-header p {
-    font-size: 0.9rem;
-  }
-  
-  .combinations-list {
-    padding: 0.75rem;
-    max-height: 50vh;
+    margin: 0.5rem;
   }
   
   .combination-item {
     padding: 0.75rem;
-    margin-bottom: 0.75rem;
   }
   
   .combination-details {
-    grid-template-columns: 1fr;
-    gap: 0.25rem;
+    font-size: 0.85rem;
   }
   
-  .combination-tool,
-  .combination-body-part,
-  .combination-position,
-  .combination-strikes {
-    font-size: 0.8rem;
-  }
-  
-  .summary-text {
-    font-size: 0.8rem;
-  }
-  
-  .btn-remove,
-  .btn-restore {
-    width: 35px;
-    height: 35px;
-    font-size: 1rem;
-  }
-  
-  .combination-stats {
-    padding: 0.75rem;
-  }
-  
-  .stat-label {
-    font-size: 0.7rem;
-  }
-  
-  .stat-value {
-    font-size: 1rem;
-  }
-  
-  .modal-actions {
-    padding: 1rem;
-    gap: 0.75rem;
+  .combination-summary {
+    font-size: 0.9rem;
   }
   
   .btn-primary,
@@ -557,4 +506,6 @@ const regenerateCombinations = () => {
     font-size: 0.85rem;
   }
 }
+
+/* 响应式设计 */
 </style> 

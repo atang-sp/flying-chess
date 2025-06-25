@@ -2,8 +2,11 @@ import type { Player, BoardCell, GameState, PunishmentConfig, PunishmentAction, 
 import { GAME_CONFIG } from '../config/gameConfig';
 
 export class GameService {
-  static createBoard(): BoardCell[] {
+  static createBoard(punishmentConfig?: PunishmentConfig): BoardCell[] {
     const board: BoardCell[] = [];
+    
+    // 使用用户配置或默认配置
+    const config = punishmentConfig || this.createPunishmentConfig();
     
     for (let i = 1; i <= GAME_CONFIG.BOARD.SIZE; i++) {
       const cell: BoardCell = {
@@ -16,9 +19,11 @@ export class GameService {
       if (i in GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS) {
         cell.type = 'punishment';
         const dynamicConfig = GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS[i as keyof typeof GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS];
-        const tool = GAME_CONFIG.DEFAULT_TOOLS.find(t => t.id === dynamicConfig.tool);
-        const bodyPart = GAME_CONFIG.DEFAULT_BODY_PARTS.find(b => b.id === dynamicConfig.bodyPart);
-        const position = GAME_CONFIG.DEFAULT_POSITIONS.find(p => p.id === dynamicConfig.position);
+        
+        // 使用用户配置中的工具、部位、姿势
+        const tool = config.tools.find(t => t.id === dynamicConfig.tool) || config.tools[0];
+        const bodyPart = config.bodyParts.find(b => b.id === dynamicConfig.bodyPart) || config.bodyParts[0];
+        const position = config.positions.find(p => p.id === dynamicConfig.position) || config.positions[0];
         
         if (tool && bodyPart && position) {
           const punishment: PunishmentAction = {
@@ -43,9 +48,11 @@ export class GameService {
       else if (i in GAME_CONFIG.PUNISHMENT_CELLS) {
         cell.type = 'punishment';
         const punishmentConfig = GAME_CONFIG.PUNISHMENT_CELLS[i as keyof typeof GAME_CONFIG.PUNISHMENT_CELLS];
-        const tool = GAME_CONFIG.DEFAULT_TOOLS.find(t => t.id === punishmentConfig.tool);
-        const bodyPart = GAME_CONFIG.DEFAULT_BODY_PARTS.find(b => b.id === punishmentConfig.bodyPart);
-        const position = GAME_CONFIG.DEFAULT_POSITIONS.find(p => p.id === punishmentConfig.position);
+        
+        // 使用用户配置中的工具、部位、姿势
+        const tool = config.tools.find(t => t.id === punishmentConfig.tool) || config.tools[0];
+        const bodyPart = config.bodyParts.find(b => b.id === punishmentConfig.bodyPart) || config.bodyParts[0];
+        const position = config.positions.find(p => p.id === punishmentConfig.position) || config.positions[0];
         
         if (tool && bodyPart && position) {
           const punishment: PunishmentAction = {
@@ -328,20 +335,25 @@ export class GameService {
     let bodyPart: PunishmentBodyPart;
     let position: PunishmentPosition;
     
-    // 使用自定义比例
+    // 使用自定义比例选择工具
     tool = this.selectByRatio(config.tools);
-    bodyPart = this.selectByRatio(config.bodyParts);
-    position = this.selectByRatio(config.positions);
     
-    // 确保工具强度不超过部位耐受性（耐受度）
-    if (tool.intensity > bodyPart.sensitivity) {
-      // 重新选择工具，选择强度不超过耐受性的工具
-      const validTools = config.tools.filter(t => t.intensity <= bodyPart.sensitivity);
-      if (validTools.length > 0) {
-        tool = this.selectByRatio(validTools);
-      }
+    // 根据工具强度选择合适的部位（考虑比例）
+    const validBodyParts = config.bodyParts.filter(b => b.sensitivity >= tool.intensity);
+    if (validBodyParts.length > 0) {
+      // 在有效部位中按比例选择
+      bodyPart = this.selectByRatio(validBodyParts);
+    } else {
+      // 如果没有合适的部位，选择耐受度最高的部位
+      bodyPart = config.bodyParts.reduce((max, current) => 
+        current.sensitivity > max.sensitivity ? current : max
+      );
     }
     
+    // 使用自定义比例选择姿势
+    position = this.selectByRatio(config.positions);
+    
+    // 惩罚次数完全随机，与工具/部位/姿势无关
     const strikes = Math.floor(Math.random() * config.maxStrikes) + 1;
     
     return {
@@ -447,5 +459,93 @@ export class GameService {
     });
     
     return updatedBoard;
+  }
+
+  // 生成更符合用户偏好的惩罚组合
+  static generateBalancedPunishmentCombinations(config: PunishmentConfig, count: number = 10): PunishmentAction[] {
+    const combinations: PunishmentAction[] = [];
+    
+    // 确保工具、部位、姿势的分布符合用户设置的比例
+    const toolDistribution = this.calculateDistribution(config.tools, count);
+    const bodyPartDistribution = this.calculateDistribution(config.bodyParts, count);
+    const positionDistribution = this.calculateDistribution(config.positions, count);
+    
+    // 生成组合
+    for (let i = 0; i < count; i++) {
+      // 根据分布选择工具、部位、姿势
+      const tool = this.selectByDistribution(config.tools, toolDistribution, i);
+      const bodyPart = this.selectByDistribution(config.bodyParts, bodyPartDistribution, i);
+      const position = this.selectByDistribution(config.positions, positionDistribution, i);
+      
+      // 确保工具强度不超过部位耐受性
+      const finalTool = tool.intensity <= bodyPart.sensitivity ? tool : 
+        config.tools.find(t => t.intensity <= bodyPart.sensitivity) || tool;
+      
+      // 惩罚次数完全随机，与工具/部位/姿势无关
+      const strikes = Math.floor(Math.random() * config.maxStrikes) + 1;
+      
+      const combination: PunishmentAction = {
+        tool: finalTool,
+        bodyPart,
+        position,
+        strikes,
+        description: `用${finalTool.name}打${bodyPart.name}${strikes}下，姿势：${position.name}`
+      };
+      
+      combinations.push(combination);
+    }
+    
+    return combinations;
+  }
+
+  // 计算分布
+  private static calculateDistribution<T extends { ratio: number }>(items: T[], totalCount: number): number[] {
+    const distribution: number[] = [];
+    
+    // 如果只有一个选项，直接分配所有数量
+    if (items.length === 1) {
+      distribution.push(totalCount);
+      return distribution;
+    }
+    
+    let remainingCount = totalCount;
+    
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const count = Math.round((item.ratio / 100) * totalCount);
+      const actualCount = Math.min(count, remainingCount);
+      distribution.push(actualCount);
+      remainingCount -= actualCount;
+    }
+    
+    // 如果还有剩余，分配给比例最高的项目
+    while (remainingCount > 0) {
+      const maxRatioIndex = items.reduce((maxIndex, item, index) => 
+        item.ratio > items[maxIndex].ratio ? index : maxIndex, 0
+      );
+      distribution[maxRatioIndex]++;
+      remainingCount--;
+    }
+    
+    return distribution;
+  }
+
+  // 根据分布选择项目
+  private static selectByDistribution<T extends { ratio: number }>(
+    items: T[], 
+    distribution: number[], 
+    currentIndex: number
+  ): T {
+    let cumulativeCount = 0;
+    
+    for (let i = 0; i < items.length; i++) {
+      cumulativeCount += distribution[i];
+      if (currentIndex < cumulativeCount) {
+        return items[i];
+      }
+    }
+    
+    // 兜底返回第一个
+    return items[0];
   }
 } 

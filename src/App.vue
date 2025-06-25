@@ -112,6 +112,13 @@
       @confirm="confirmPunishmentCombinations"
       @regenerate="generatePunishmentCombinations"
     />
+
+    <!-- 惩罚统计弹窗 -->
+    <PunishmentStats
+      :show="showPunishmentStats"
+      :combinations="confirmedCombinations"
+      @confirm="startGameWithStats"
+    />
   </div>
 </template>
 
@@ -129,6 +136,7 @@ import PunishmentConfigPanel from './components/PunishmentConfig.vue';
 import PunishmentDisplay from './components/PunishmentDisplay.vue';
 import PunishmentConfirmation from './components/PunishmentConfirmation.vue';
 import EffectDisplay from './components/EffectDisplay.vue';
+import PunishmentStats from './components/PunishmentStats.vue';
 
 // 游戏状态
 const gameState = reactive<GameState>({
@@ -157,6 +165,10 @@ const punishmentCombinations = ref<PunishmentAction[]>([]);
 const effectFromPosition = ref<number | undefined>(undefined);
 const effectToPosition = ref<number | undefined>(undefined);
 
+// 惩罚统计状态
+const showPunishmentStats = ref(false);
+const confirmedCombinations = ref<PunishmentAction[]>([]);
+
 // 计算属性
 const canRollDice = computed(() => {
   return gameStarted.value && 
@@ -181,7 +193,7 @@ const showSettings = () => {
 // 初始化游戏
 const initializeGame = () => {
   gameState.players = GameService.createPlayers();
-  gameState.board = GameService.createBoard();
+  gameState.board = GameService.createBoard(gameState.punishmentConfig);
   gameState.currentPlayerIndex = 0;
   gameState.diceValue = null;
   gameState.gameStatus = 'intro';
@@ -202,6 +214,8 @@ const initializeGame = () => {
 // 更新惩罚配置
 const updatePunishmentConfig = (config: PunishmentConfig) => {
   gameState.punishmentConfig = config;
+  // 重新创建棋盘以应用新的惩罚配置
+  gameState.board = GameService.createBoard(config);
 };
 
 // 开始游戏
@@ -276,6 +290,9 @@ const moveCurrentPlayer = async () => {
   // 检查是否有需要显示效果的非惩罚格子
   if (cellEffect && (cellEffect.type === 'move' || cellEffect.type === 'reverse' || cellEffect.type === 'restart')) {
     gameState.pendingEffect = cellEffect;
+    // 设置效果显示的起始和结束位置
+    effectFromPosition.value = fromPosition;
+    effectToPosition.value = newPosition;
     gameState.gameStatus = 'showing_effect';
     return; // 等待用户确认效果
   }
@@ -432,7 +449,8 @@ const generatePunishmentCombinations = () => {
   const dynamicPunishmentCellCount = Object.keys(GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS).length;
   const totalPunishmentCells = punishmentCellCount + dynamicPunishmentCellCount;
   
-  punishmentCombinations.value = GameService.generatePunishmentCombinations(gameState.punishmentConfig, totalPunishmentCells);
+  // 使用新的平衡生成方法，确保符合用户设置的比例
+  punishmentCombinations.value = GameService.generateBalancedPunishmentCombinations(gameState.punishmentConfig, totalPunishmentCells);
   showPunishmentConfirmation.value = true;
 };
 
@@ -442,6 +460,15 @@ const confirmPunishmentCombinations = (combinations: PunishmentAction[]) => {
   
   // 根据确认的组合更新棋盘
   gameState.board = GameService.updateBoardWithConfirmedCombinations(gameState.board, combinations);
+  
+  // 显示惩罚统计信息
+  confirmedCombinations.value = combinations;
+  showPunishmentStats.value = true;
+};
+
+// 从统计页面开始游戏
+const startGameWithStats = () => {
+  showPunishmentStats.value = false;
   
   // 直接开始游戏流程
   gameState.gameStatus = 'waiting';
