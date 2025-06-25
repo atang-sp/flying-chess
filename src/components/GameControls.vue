@@ -8,22 +8,6 @@
       >
         🎮 开始游戏
       </button>
-      
-      <button 
-        v-if="gameStarted && !gameFinished"
-        @click="pauseGame"
-        class="btn btn-secondary"
-      >
-        ⏸️ 暂停游戏
-      </button>
-      
-      <button 
-        v-if="gameStarted"
-        @click="resetGame"
-        class="btn btn-danger"
-      >
-        🔄 重新开始
-      </button>
     </div>
     
     <div v-if="gameStarted" class="game-status">
@@ -54,14 +38,13 @@ import type { Player } from '../types/game';
 interface Props {
   gameStarted: boolean;
   gameFinished: boolean;
-  gameStatus: 'waiting' | 'rolling' | 'moving' | 'finished' | 'configuring';
+  gameStatus: 'waiting' | 'rolling' | 'moving' | 'showing_effect' | 'finished' | 'configuring';
   turnCount: number;
   winner: Player | null;
 }
 
 interface Emits {
   (e: 'start'): void;
-  (e: 'pause'): void;
   (e: 'reset'): void;
 }
 
@@ -73,6 +56,7 @@ const gameStatusText = computed(() => {
     case 'waiting': return '等待玩家操作';
     case 'rolling': return '骰子滚动中';
     case 'moving': return '棋子移动中';
+    case 'showing_effect': return '显示效果中';
     case 'finished': return '游戏结束';
     case 'configuring': return '配置中';
     default: return '未知状态';
@@ -85,10 +69,6 @@ const gameStatusClass = computed(() => {
 
 const startGame = () => {
   emit('start');
-};
-
-const pauseGame = () => {
-  emit('pause');
 };
 
 const resetGame = () => {
@@ -183,6 +163,11 @@ const resetGame = () => {
 
 .status-moving {
   color: #45b7d1;
+}
+
+.status-showing_effect {
+  color: #ab47bc;
+  animation: pulse 1s infinite;
 }
 
 .status-finished {

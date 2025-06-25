@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "./deploy.sh",
+    "deploy:docs": "npm run build && rm -rf docs && cp -r dist docs && echo '✅ 已复制到docs文件夹，请提交并推送'",
     "deploy:manual": "npm run build && echo '✅ 构建完成，请手动上传dist文件夹到GitHub Pages'"
   },
   "dependencies": {

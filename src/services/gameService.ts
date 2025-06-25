@@ -79,7 +79,7 @@ export class GameService {
         cell.type = 'special';
         const specialConfig = GAME_CONFIG.SPECIAL_CELLS[i as keyof typeof GAME_CONFIG.SPECIAL_CELLS];
         cell.effect = {
-          type: specialConfig.type as 'move' | 'skip' | 'reverse',
+          type: specialConfig.type as 'move' | 'rest' | 'reverse',
           value: specialConfig.value,
           description: specialConfig.description
         };
@@ -146,71 +146,107 @@ export class GameService {
     return Math.floor(Math.random() * (GAME_CONFIG.DICE.MAX_VALUE - GAME_CONFIG.DICE.MIN_VALUE + 1)) + GAME_CONFIG.DICE.MIN_VALUE;
   }
 
-  static movePlayer(player: Player, diceValue: number, board: BoardCell[], currentPlayerIndex: number, totalPlayers: number): { newPosition: number; effect?: string; punishment?: PunishmentAction; targetPlayerIndex?: number } {
+  static movePlayer(player: Player, diceValue: number, board: BoardCell[], currentPlayerIndex: number, totalPlayers: number): { newPosition: number; effect?: string; punishment?: PunishmentAction; targetPlayerIndex?: number; cellEffect?: any } {
+    // 设置移动动画状态
+    player.isMoving = true;
+    
+    // 延迟清除移动动画状态
+    setTimeout(() => {
+      player.isMoving = false;
+    }, 600); // 与CSS动画时长匹配
+
     let newPosition = player.position + diceValue;
     let effect: string | undefined;
     let punishment: PunishmentAction | undefined;
     let targetPlayerIndex: number | undefined;
+    let cellEffect: any = undefined;
 
-    // 检查是否超出棋盘
-    if (newPosition > GAME_CONFIG.BOARD.SIZE) {
-      newPosition = player.position; // 不移动
-      effect = '超出终点，原地不动';
-      return { newPosition, effect };
+    // 处理环形移动
+    if (newPosition > 40) {
+      newPosition = 40; // 到达终点
     }
 
-    // 检查格子效果
-    const cell = board.find(c => c.position === newPosition);
-    if (cell?.effect) {
-      effect = cell.effect.description;
+    // 检查新位置的格子效果
+    const targetCell = board.find(cell => cell.position === newPosition);
+    if (targetCell && targetCell.effect) {
+      cellEffect = targetCell.effect;
       
-      if (cell.effect.type === 'move') {
-        newPosition += cell.effect.value;
-        // 确保位置在有效范围内
-        if (newPosition < 0) newPosition = 0;
-        if (newPosition > GAME_CONFIG.BOARD.SIZE) newPosition = GAME_CONFIG.BOARD.SIZE;
-      } else if (cell.effect.type === 'reverse') {
-        newPosition -= cell.effect.value;
-        // 确保位置在有效范围内
-        if (newPosition < 0) newPosition = 0;
-      } else if (cell.effect.type === 'restart') {
-        newPosition = 0; // 回到起点
-      } else if (cell.effect.type === 'punishment') {
-        punishment = cell.effect.punishment;
-        
-        // 处理动态惩罚 - 所有惩罚都针对当前玩家
-        if (punishment?.dynamicType) {
-          switch (punishment.dynamicType) {
-            case 'dice_multiplier':
-              if (punishment.multiplier) {
-                punishment.strikes = diceValue * punishment.multiplier;
-                punishment.description = `用${punishment.tool.name}打${punishment.bodyPart.name}${punishment.strikes}下，姿势：${punishment.position.name}（骰子点数×${punishment.multiplier}）`;
-              }
-              targetPlayerIndex = currentPlayerIndex;
-              break;
-            case 'previous_player':
-              // 改为当前玩家挨打
-              targetPlayerIndex = currentPlayerIndex;
-              punishment.description = `用${punishment.tool.name}打${punishment.bodyPart.name}${punishment.strikes}下，姿势：${punishment.position.name}`;
-              break;
-            case 'next_player':
-              // 改为当前玩家挨打
-              targetPlayerIndex = currentPlayerIndex;
-              punishment.description = `用${punishment.tool.name}打${punishment.bodyPart.name}${punishment.strikes}下，姿势：${punishment.position.name}`;
-              break;
-            case 'other_player_choice':
-              // 当前玩家挨打，但数量由其他玩家决定
-              targetPlayerIndex = currentPlayerIndex;
-              punishment.description = `用${punishment.tool.name}打${punishment.bodyPart.name}，姿势：${punishment.position.name}（数量由其他玩家决定）`;
-              break;
+      switch (targetCell.effect.type) {
+        case 'punishment':
+          if (targetCell.effect.punishment) {
+            punishment = targetCell.effect.punishment;
+            effect = `触发惩罚：${targetCell.effect.punishment.tool.name} ${targetCell.effect.punishment.bodyPart.name} ${targetCell.effect.punishment.position.name} ${targetCell.effect.punishment.strikes}下`;
           }
-        } else {
-          targetPlayerIndex = currentPlayerIndex;
-        }
+          break;
+          
+        case 'move':
+          const moveSteps = targetCell.effect.value;
+          newPosition += moveSteps;
+          if (newPosition > 40) newPosition = 40;
+          if (newPosition < 0) newPosition = 0;
+          effect = `移动${moveSteps > 0 ? '+' : ''}${moveSteps}步`;
+          break;
+          
+        case 'reverse':
+          const reverseSteps = targetCell.effect.value;
+          newPosition -= reverseSteps;
+          if (newPosition < 0) newPosition = 0;
+          effect = `后退${reverseSteps}步`;
+          break;
+          
+        case 'restart':
+          newPosition = 0;
+          effect = '回到起点';
+          break;
+          
+        case 'rest':
+          effect = `休息${targetCell.effect.value}回合`;
+          break;
       }
     }
 
-    return { newPosition, effect, punishment, targetPlayerIndex };
+    return { newPosition, effect, punishment, targetPlayerIndex, cellEffect };
+  }
+
+  // 处理格子效果（第二步）
+  static processCellEffect(player: Player, cellEffect: any): { newPosition: number; effect: string; fromPosition: number; toPosition: number } {
+    // 设置移动动画状态
+    player.isMoving = true;
+    
+    // 延迟清除移动动画状态
+    setTimeout(() => {
+      player.isMoving = false;
+    }, 600); // 与CSS动画时长匹配
+
+    const fromPosition = player.position;
+    let newPosition = player.position;
+    let effect = '';
+
+    switch (cellEffect.type) {
+      case 'move':
+        newPosition += cellEffect.value;
+        if (newPosition > 40) newPosition = 40;
+        if (newPosition < 0) newPosition = 0;
+        effect = `移动${cellEffect.value > 0 ? '+' : ''}${cellEffect.value}步`;
+        break;
+        
+      case 'reverse':
+        newPosition -= cellEffect.value;
+        if (newPosition < 0) newPosition = 0;
+        effect = `后退${cellEffect.value}步`;
+        break;
+        
+      case 'restart':
+        newPosition = 0;
+        effect = '回到起点';
+        break;
+        
+      case 'rest':
+        effect = `休息${cellEffect.value}回合`;
+        break;
+    }
+
+    return { newPosition, effect, fromPosition, toPosition: newPosition };
   }
 
   static checkWinner(player: Player): boolean {

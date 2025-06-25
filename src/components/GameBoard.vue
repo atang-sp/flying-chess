@@ -26,7 +26,10 @@
               v-show="player.position === i"
               class="player-marker"
               :style="{ backgroundColor: player.color }"
-              :class="{ 'current-player': index === currentPlayerIndex }"
+              :class="{ 
+                'current-player': index === currentPlayerIndex,
+                'player-moving': player.isMoving
+              }"
             >
               {{ player.name.charAt(0) }}
             </div>
@@ -56,7 +59,10 @@
               v-show="player.position === i + 20"
               class="player-marker"
               :style="{ backgroundColor: player.color }"
-              :class="{ 'current-player': index === currentPlayerIndex }"
+              :class="{ 
+                'current-player': index === currentPlayerIndex,
+                'player-moving': player.isMoving
+              }"
             >
               {{ player.name.charAt(0) }}
             </div>
@@ -82,7 +88,10 @@
             v-show="player.position === 0"
             class="player-marker"
             :style="{ backgroundColor: player.color }"
-            :class="{ 'current-player': index === currentPlayerIndex }"
+            :class="{ 
+              'current-player': index === currentPlayerIndex,
+              'player-moving': player.isMoving
+            }"
           >
             {{ player.name.charAt(0) }}
           </div>
@@ -136,9 +145,9 @@
                 <span class="detail-value">{{ tooltipCell.effect.value > 0 ? '+' : '' }}{{ tooltipCell.effect.value }}步</span>
               </div>
             </div>
-            <div v-else-if="tooltipCell.effect.type === 'skip'" class="skip-details">
+            <div v-else-if="tooltipCell.effect.type === 'rest'" class="rest-details">
               <div class="detail-item">
-                <span class="detail-label">跳过：</span>
+                <span class="detail-label">休息：</span>
                 <span class="detail-value">{{ tooltipCell.effect.value }}回合</span>
               </div>
             </div>
@@ -412,24 +421,54 @@ const hideTooltip = () => {
 /* 玩家标记 */
 .player-marker {
   position: absolute;
-  top: -5px;
-  right: -5px;
-  width: 20px;
-  height: 20px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: bold;
-  font-size: 0.8rem;
-  border: 2px solid white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  font-size: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  z-index: 10;
 }
 
-.current-player {
-  box-shadow: 0 0 0 3px #ffd93d;
-  animation: pulse 1.5s infinite;
+.player-marker.current-player {
+  border-color: #ffd700;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+  animation: pulse 2s infinite;
+}
+
+.player-marker.player-moving {
+  animation: moveAnimation 0.6s ease-in-out;
+  transform: translate(-50%, -50%) scale(1.2);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+  }
+}
+
+@keyframes moveAnimation {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.3);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 /* 起始位置 */
@@ -499,11 +538,6 @@ const hideTooltip = () => {
 }
 
 /* 动画 */
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-}
-
 @keyframes slideDown {
   from {
     transform: translateX(-50%) translateY(-100%);
@@ -680,7 +714,7 @@ const hideTooltip = () => {
 
 .punishment-details,
 .move-details,
-.skip-details,
+.rest-details,
 .reverse-details,
 .restart-details {
   background: rgba(0, 0, 0, 0.05);
@@ -763,7 +797,7 @@ const hideTooltip = () => {
   
   .punishment-details,
   .move-details,
-  .skip-details,
+  .rest-details,
   .reverse-details,
   .restart-details {
     padding: 0.5rem;

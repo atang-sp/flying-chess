@@ -61,6 +61,15 @@
       </header>
 
       <main class="game-main">
+        <!-- 骰子区域 - 移到顶部 -->
+        <div class="dice-section">
+          <Dice
+            :canRoll="canRollDice"
+            :value="gameState.diceValue"
+            @roll="handleDiceRoll"
+          />
+        </div>
+
         <GameControls
           :gameStarted="gameStarted"
           :gameFinished="gameFinished"
@@ -68,8 +77,6 @@
           :turnCount="turnCount"
           :winner="gameState.winner"
           @start="startGame"
-          @pause="pauseGame"
-          @reset="resetGame"
         />
 
         <GameBoard
@@ -79,12 +86,6 @@
           :lastEffect="lastEffect"
           @cellClick="handleCellClick"
         />
-
-        <Dice
-          :canRoll="canRollDice"
-          :value="gameState.diceValue"
-          @roll="handleDiceRoll"
-        />
       </main>
 
       <!-- 惩罚显示弹窗 -->
@@ -92,6 +93,15 @@
         :punishment="currentPunishment"
         @confirm="confirmPunishment"
         @skip="skipPunishment"
+      />
+
+      <!-- 效果显示弹窗 -->
+      <EffectDisplay
+        :visible="gameState.gameStatus === 'showing_effect'"
+        :effect="gameState.pendingEffect"
+        :fromPosition="effectFromPosition"
+        :toPosition="effectToPosition"
+        @confirm="confirmEffect"
       />
     </div>
     
@@ -109,7 +119,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { GameService } from './services/gameService';
 import { GAME_CONFIG } from './config/gameConfig';
-import type { GameState, Player, BoardCell, PunishmentConfig, PunishmentAction } from './types/game';
+import type { GameState, Player, BoardCell, PunishmentConfig, PunishmentAction, CellEffect } from './types/game';
 import IntroPage from './components/IntroPage.vue';
 import GameInstructions from './components/GameInstructions.vue';
 import GameControls from './components/GameControls.vue';
@@ -118,6 +128,7 @@ import Dice from './components/Dice.vue';
 import PunishmentConfigPanel from './components/PunishmentConfig.vue';
 import PunishmentDisplay from './components/PunishmentDisplay.vue';
 import PunishmentConfirmation from './components/PunishmentConfirmation.vue';
+import EffectDisplay from './components/EffectDisplay.vue';
 
 // 游戏状态
 const gameState = reactive<GameState>({
@@ -127,7 +138,8 @@ const gameState = reactive<GameState>({
   gameStatus: 'intro', // 从开始页面开始
   winner: null,
   board: [],
-  punishmentConfig: GameService.createPunishmentConfig()
+  punishmentConfig: GameService.createPunishmentConfig(),
+  pendingEffect: null
 });
 
 // 游戏控制状态
@@ -135,18 +147,20 @@ const gameStarted = ref(false);
 const gameFinished = ref(false);
 const turnCount = ref(0);
 const lastEffect = ref<string>('');
-const isPaused = ref(false);
 const currentPunishment = ref<PunishmentAction | null>(null);
 
 // 惩罚组合确认状态
 const showPunishmentConfirmation = ref(false);
 const punishmentCombinations = ref<PunishmentAction[]>([]);
 
+// 新增效果位置状态
+const effectFromPosition = ref<number | undefined>(undefined);
+const effectToPosition = ref<number | undefined>(undefined);
+
 // 计算属性
 const canRollDice = computed(() => {
   return gameStarted.value && 
          !gameFinished.value && 
-         !isPaused.value && 
          gameState.gameStatus === 'waiting' &&
          !currentPunishment.value;
 });
@@ -173,11 +187,11 @@ const initializeGame = () => {
   gameState.gameStatus = 'intro';
   gameState.winner = null;
   gameState.punishmentConfig = GameService.createPunishmentConfig();
+  gameState.pendingEffect = null;
   gameStarted.value = false;
   gameFinished.value = false;
   turnCount.value = 0;
   lastEffect.value = '';
-  isPaused.value = false;
   currentPunishment.value = null;
   
   // 清除惩罚组合确认状态
@@ -206,14 +220,6 @@ const startGame = () => {
   }
 };
 
-// 暂停游戏
-const pauseGame = () => {
-  isPaused.value = !isPaused.value;
-  if (isPaused.value) {
-    gameState.gameStatus = 'waiting';
-  }
-};
-
 // 重置游戏
 const resetGame = () => {
   initializeGame();
@@ -235,12 +241,13 @@ const handleDiceRoll = async () => {
   await moveCurrentPlayer();
 };
 
-// 移动当前玩家
+// 移动当前玩家（第一步：基本移动）
 const moveCurrentPlayer = async () => {
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const diceValue = gameState.diceValue!;
+  const fromPosition = currentPlayer.position;
   
-  const { newPosition, effect, punishment, targetPlayerIndex } = GameService.movePlayer(
+  const { newPosition, effect, punishment, targetPlayerIndex, cellEffect } = GameService.movePlayer(
     currentPlayer, 
     diceValue, 
     gameState.board,
@@ -251,10 +258,13 @@ const moveCurrentPlayer = async () => {
   // 更新玩家位置
   currentPlayer.position = newPosition;
   
-  // 显示效果信息
-  if (effect) {
-    lastEffect.value = effect;
-  }
+  // 显示移动路径信息
+  const fromText = fromPosition === 0 ? '起点' : `第${fromPosition}格`;
+  const toText = newPosition === 0 ? '起点' : `第${newPosition}格`;
+  lastEffect.value = `${fromText} → ${toText}`;
+
+  // 等待移动动画完成
+  await new Promise(resolve => setTimeout(resolve, 600));
 
   // 检查是否有惩罚
   if (punishment) {
@@ -263,6 +273,74 @@ const moveCurrentPlayer = async () => {
     return; // 等待用户处理惩罚
   }
 
+  // 检查是否有需要显示效果的非惩罚格子
+  if (cellEffect && (cellEffect.type === 'move' || cellEffect.type === 'reverse' || cellEffect.type === 'restart')) {
+    gameState.pendingEffect = cellEffect;
+    gameState.gameStatus = 'showing_effect';
+    return; // 等待用户确认效果
+  }
+
+  // 如果没有特殊效果，直接继续
+  await continueAfterMove();
+};
+
+// 确认效果（第二步：处理格子效果）
+const confirmEffect = async () => {
+  if (!gameState.pendingEffect) return;
+
+  const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  
+  // 处理格子效果
+  const { newPosition, effect, fromPosition, toPosition } = GameService.processCellEffect(currentPlayer, gameState.pendingEffect);
+
+  // 记录路径
+  effectFromPosition.value = fromPosition;
+  effectToPosition.value = toPosition;
+  
+  // 更新玩家位置
+  currentPlayer.position = newPosition;
+  
+  // 显示移动路径信息
+  if (gameState.pendingEffect.type === 'move' || gameState.pendingEffect.type === 'reverse' || gameState.pendingEffect.type === 'restart' || gameState.pendingEffect.type === 'rest') {
+    const moveDescription = getMoveDescription(fromPosition, toPosition, gameState.pendingEffect.type);
+    lastEffect.value = moveDescription;
+  }
+
+  // 等待移动动画完成
+  await new Promise(resolve => setTimeout(resolve, 600));
+
+  // 清除待处理效果
+  gameState.pendingEffect = null;
+  effectFromPosition.value = undefined;
+  effectToPosition.value = undefined;
+  
+  // 继续游戏流程
+  await continueAfterMove();
+};
+
+// 生成移动路径描述
+const getMoveDescription = (fromPosition: number, toPosition: number, effectType: string): string => {
+  const fromText = fromPosition === 0 ? '起点' : `第${fromPosition}格`;
+  const toText = toPosition === 0 ? '起点' : `第${toPosition}格`;
+  
+  switch (effectType) {
+    case 'move':
+      return `${fromText} → ${toText}`;
+    case 'reverse':
+      return `${fromText} → ${toText}`;
+    case 'restart':
+      return `${fromText} → 起点`;
+    case 'rest':
+      return `在${fromText}休息一回合`;
+    default:
+      return `${fromText} → ${toText}`;
+  }
+};
+
+// 移动后的继续流程
+const continueAfterMove = async () => {
+  const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  
   // 检查是否获胜
   if (GameService.checkWinner(currentPlayer)) {
     currentPlayer.isWinner = true;
@@ -476,11 +554,9 @@ onMounted(() => {
   gap: 0.5rem;
 }
 
-.game-footer {
+.dice-section {
   text-align: center;
-  color: white;
-  margin-top: 2rem;
-  opacity: 0.7;
+  margin-bottom: 1rem;
 }
 
 /* 按钮样式 */

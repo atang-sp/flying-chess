@@ -41,6 +41,12 @@
       </div>
     </div>
     
+    <!-- 突出显示骰子点数 -->
+    <div v-if="value !== null && !isRolling" class="dice-result-highlight">
+      <div class="result-number">{{ value }}</div>
+      <div class="result-label">点</div>
+    </div>
+    
     <div class="dice-info">
       <div v-if="isRolling" class="rolling-text">
         <span class="rolling-icon">🎲</span>
@@ -90,17 +96,17 @@ const isRolling = ref(false);
 const rollCount = ref(0);
 
 // 骰子点数对应的点阵布局
-const dotPatterns = {
-  1: [[4]],
-  2: [[0, 8]],
-  3: [[0, 4, 8]],
-  4: [[0, 2, 6, 8]],
-  5: [[0, 2, 4, 6, 8]],
-  6: [[0, 2, 3, 5, 6, 8]]
+const dotPatterns: Record<number, number[]> = {
+  1: [4],
+  2: [0, 8],
+  3: [0, 4, 8],
+  4: [0, 2, 6, 8],
+  5: [0, 2, 4, 6, 8],
+  6: [0, 2, 3, 5, 6, 8]
 };
 
 const getDots = (value: number): number[] => {
-  return dotPatterns[value as keyof typeof dotPatterns] || dotPatterns[1];
+  return dotPatterns[value] || dotPatterns[1];
 };
 
 const handleRoll = () => {
@@ -162,6 +168,48 @@ watch(() => props.value, (newValue) => {
 
 .dice.rolled {
   animation: settle 0.5s ease-out;
+}
+
+/* 突出显示骰子点数 */
+.dice-result-highlight {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+  color: white;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+  animation: highlightPulse 2s ease-in-out infinite;
+  z-index: 10;
+}
+
+.result-number {
+  font-size: 1.5rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.result-label {
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+@keyframes highlightPulse {
+  0%, 100% {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.1);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.6);
+  }
 }
 
 .dice-face {
@@ -343,6 +391,20 @@ watch(() => props.value, (newValue) => {
     height: 80px;
   }
   
+  .dice-result-highlight {
+    width: 50px;
+    height: 50px;
+    top: -15px;
+  }
+  
+  .result-number {
+    font-size: 1.3rem;
+  }
+  
+  .result-label {
+    font-size: 0.7rem;
+  }
+  
   .dice-face {
     font-size: 2rem;
   }
@@ -373,6 +435,20 @@ watch(() => props.value, (newValue) => {
     height: 70px;
   }
   
+  .dice-result-highlight {
+    width: 45px;
+    height: 45px;
+    top: -12px;
+  }
+  
+  .result-number {
+    font-size: 1.2rem;
+  }
+  
+  .result-label {
+    font-size: 0.6rem;
+  }
+  
   .dice-face {
     font-size: 1.8rem;
   }
@@ -397,6 +473,20 @@ watch(() => props.value, (newValue) => {
   .dice {
     width: 60px;
     height: 60px;
+  }
+  
+  .dice-result-highlight {
+    width: 40px;
+    height: 40px;
+    top: -10px;
+  }
+  
+  .result-number {
+    font-size: 1.1rem;
+  }
+  
+  .result-label {
+    font-size: 0.5rem;
   }
   
   .dice-face {

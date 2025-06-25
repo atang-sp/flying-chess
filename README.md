@@ -60,22 +60,34 @@ src/
 
 ## 🌐 部署
 
-### GitHub Pages 自动部署
-
-1. **推送代码**：将代码推送到GitHub仓库
-2. **启用Pages**：在仓库设置中启用GitHub Pages
-3. **选择分支**：选择 `gh-pages` 分支作为部署源
-4. **自动构建**：GitHub Actions会自动构建并部署
-
-### 手动部署
+### 方法一：GitHub Pages（推荐）
 
 ```bash
-# 构建项目
-npm run build
+# 构建并复制到docs文件夹
+npm run deploy:docs
 
-# 使用部署脚本
-npm run deploy
+# 提交并推送
+git add docs/
+git commit -m "Deploy to GitHub Pages"
+git push origin main
 ```
+
+然后在GitHub仓库设置中：
+1. 进入 Settings > Pages
+2. Source 选择 "Deploy from a branch"
+3. Branch 选择 "main"
+4. Folder 选择 "/docs"
+5. 保存设置
+
+### 方法二：GitHub Actions
+
+推送代码后，GitHub Actions会自动构建并部署到gh-pages分支。
+
+### 方法三：Vercel/Netlify
+
+1. 连接GitHub仓库
+2. 构建命令：`npm run build`
+3. 输出目录：`dist`
 
 ## �� 许可证
 
