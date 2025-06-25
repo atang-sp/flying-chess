@@ -11,6 +11,21 @@
 
 ## 部署到GitHub Pages
 
+### 重要：仓库名称配置
+
+**在部署之前，请确保 `vite.config.ts` 中的 base 路径与您的仓库名称一致：**
+
+```typescript
+// 如果您的仓库名称是 flying-chess
+base: '/flying-chess/',
+
+// 如果您的仓库名称是 ludo-vue-demo  
+base: '/ludo-vue-demo/',
+
+// 如果使用自定义域名
+base: '/',
+```
+
 ### 自动部署（推荐）
 
 1. **推送代码到GitHub仓库**
@@ -55,6 +70,24 @@
 2. 在GitHub Pages设置中添加自定义域名
 
 ## 故障排除
+
+### 白屏和404错误
+
+如果部署后出现白屏，控制台显示404错误：
+
+1. **检查base路径**：
+   - 确保 `vite.config.ts` 中的 base 路径与仓库名称一致
+   - 重新构建并部署
+
+2. **检查构建文件**：
+   ```bash
+   npm run build
+   # 检查 dist/index.html 中的资源路径是否正确
+   ```
+
+3. **清除缓存**：
+   - 清除浏览器缓存
+   - 强制刷新页面 (Ctrl+F5)
 
 ### 权限错误 (403)
 
@@ -109,7 +142,7 @@
 
 ## 注意事项
 
-- 确保仓库名称为`ludo-vue-demo`，否则需要修改`vite.config.ts`中的base路径
+- **重要**：确保仓库名称与 `vite.config.ts` 中的 base 路径一致
 - 首次部署可能需要几分钟时间
 - 如果遇到404错误，检查base路径配置是否正确
 - GitHub Actions需要适当的权限才能部署到Pages 

@@ -8,7 +8,7 @@ export default defineConfig({
     vue(),
     devtools(),
   ],
-  base: '/ludo-vue-demo/',
+  base: '/flying-chess/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

@@ -2,6 +2,30 @@
 
 ## GitHub Actions 部署问题
 
+### Pages未启用错误
+
+**错误信息：**
+```
+Get Pages site failed. Please verify that the repository has Pages enabled and configured to build using GitHub Actions
+Error: HttpError: Not Found
+```
+
+**解决方案：**
+
+1. **手动启用GitHub Pages**：
+   - 进入 GitHub 仓库 → Settings → Pages
+   - Source 选择 "GitHub Actions"
+   - 保存设置
+
+2. **检查仓库权限**：
+   - Settings → Actions → General
+   - "Actions permissions" → "Allow all actions and reusable workflows"
+   - "Workflow permissions" → "Read and write permissions"
+
+3. **使用备用工作流**：
+   - 如果主工作流失败，可以启用 `deploy-simple.yml`
+   - 这个工作流使用第三方action，兼容性更好
+
 ### 权限错误 (403)
 
 **错误信息：**
