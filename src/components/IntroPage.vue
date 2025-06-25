@@ -313,6 +313,7 @@ const getStarStyle = (index: number) => {
 @media (max-width: 768px) {
   .intro-content {
     padding: 1rem;
+    max-width: 100%;
   }
   
   .game-title {
@@ -326,6 +327,7 @@ const getStarStyle = (index: number) => {
   .intro-features {
     grid-template-columns: 1fr;
     gap: 1rem;
+    margin-bottom: 2rem;
   }
   
   .feature-item {
@@ -340,6 +342,95 @@ const getStarStyle = (index: number) => {
   .start-btn {
     padding: 1.2rem 2.5rem;
     font-size: 1.1rem;
+  }
+  
+  .intro-header {
+    margin-bottom: 2rem;
+  }
+  
+  .title-decoration {
+    gap: 0.5rem;
+  }
+  
+  .decoration-line {
+    width: 60px;
+  }
+}
+
+@media (max-width: 480px) {
+  .intro-content {
+    padding: 0.5rem;
+  }
+  
+  .game-title {
+    font-size: 2rem;
+  }
+  
+  .game-subtitle {
+    font-size: 1rem;
+  }
+  
+  .developer-info {
+    font-size: 0.8rem;
+  }
+  
+  .feature-item {
+    padding: 0.8rem;
+    gap: 0.8rem;
+  }
+  
+  .feature-icon {
+    font-size: 1.8rem;
+    min-width: 40px;
+  }
+  
+  .feature-text h3 {
+    font-size: 1.1rem;
+  }
+  
+  .feature-text p {
+    font-size: 0.8rem;
+  }
+  
+  .start-btn {
+    padding: 1rem 2rem;
+    font-size: 1rem;
+  }
+  
+  .btn-icon {
+    font-size: 1.3rem;
+  }
+  
+  .game-info {
+    font-size: 0.8rem;
+  }
+  
+  .intro-actions {
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .game-title {
+    font-size: 1.8rem;
+  }
+  
+  .game-subtitle {
+    font-size: 0.9rem;
+  }
+  
+  .feature-item {
+    padding: 0.6rem;
+  }
+  
+  .feature-icon {
+    font-size: 1.5rem;
+    min-width: 35px;
+  }
+  
+  .start-btn {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.9rem;
   }
 }
 </style> 

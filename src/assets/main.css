@@ -1,9 +1,9 @@
 @import './base.css';
 
 #app {
-  max-width: 1280px;
+  width: 100%;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 0;
   font-weight: normal;
 }
 
@@ -31,5 +31,15 @@ a,
     display: grid;
     grid-template-columns: 1fr 1fr;
     padding: 0 2rem;
+    max-width: 1280px;
+  }
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  #app {
+    padding: 0;
+    width: 100%;
+    max-width: none;
   }
 }

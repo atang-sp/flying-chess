@@ -638,32 +638,34 @@ onMounted(() => {
 /* 设置页面样式 */
 .settings-page {
   min-height: 100vh;
-  padding: 2rem;
+  padding: 1rem;
+  width: 100%;
 }
 
 .settings-header {
   text-align: center;
   color: white;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .settings-header h2 {
   margin: 0 0 0.5rem 0;
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: bold;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .settings-header p {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1rem;
   opacity: 0.9;
 }
 
 /* 游戏页面样式 */
 .game-page {
   min-height: 100vh;
-  padding: 0.5rem;
+  padding: 0.25rem;
+  width: 100%;
 }
 
 .game-header {
@@ -691,6 +693,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  width: 100%;
 }
 
 .dice-section {
@@ -749,6 +752,18 @@ onMounted(() => {
 
 /* 移动端适配 */
 @media (max-width: 768px) {
+  .settings-page {
+    padding: 0.5rem;
+  }
+  
+  .settings-header h2 {
+    font-size: 1.8rem;
+  }
+  
+  .settings-header p {
+    font-size: 0.9rem;
+  }
+  
   .game-page {
     padding: 0.25rem;
   }
@@ -783,9 +798,36 @@ onMounted(() => {
   .btn-icon {
     font-size: 1rem;
   }
+  
+  .page-container {
+    max-width: 100%;
+    padding: 0 0.5rem;
+  }
+  
+  .page-actions {
+    margin-top: 1rem;
+    gap: 0.5rem;
+  }
+  
+  .combinations-info {
+    margin: 0.5rem 0;
+    padding: 0.8rem;
+  }
 }
 
 @media (max-width: 480px) {
+  .settings-page {
+    padding: 0.25rem;
+  }
+  
+  .settings-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .settings-header p {
+    font-size: 0.8rem;
+  }
+  
   .game-page {
     padding: 0.15rem;
   }
@@ -806,6 +848,40 @@ onMounted(() => {
   
   .btn-icon {
     font-size: 0.9rem;
+  }
+  
+  .page-container {
+    padding: 0 0.25rem;
+  }
+  
+  .page-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .combinations-info {
+    padding: 0.6rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .settings-header h2 {
+    font-size: 1.3rem;
+  }
+  
+  .game-header h1 {
+    font-size: 1rem;
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+  }
+  
+  .page-container {
+    padding: 0 0.15rem;
   }
 }
 </style>

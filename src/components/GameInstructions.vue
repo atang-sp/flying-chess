@@ -94,4 +94,96 @@
 .config-item strong {
   color: #667eea;
 }
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .game-instructions {
+    padding: 1.5rem 0.75rem;
+    margin: 0 0.5rem;
+  }
+  
+  .game-instructions h2 {
+    font-size: 1.5rem;
+  }
+  
+  .game-instructions h3 {
+    font-size: 1.2rem;
+  }
+  
+  .instructions-list {
+    font-size: 1rem;
+  }
+  
+  .instructions-list li {
+    margin-bottom: 0.8rem;
+    line-height: 1.6;
+  }
+  
+  .config-item {
+    padding: 0.6rem;
+    font-size: 0.95rem;
+  }
+  
+  .custom-config {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-instructions {
+    padding: 1rem 0.5rem;
+    margin: 0 0.25rem;
+  }
+  
+  .game-instructions h2 {
+    font-size: 1.3rem;
+  }
+  
+  .game-instructions h3 {
+    font-size: 1.1rem;
+  }
+  
+  .instructions-list {
+    font-size: 0.9rem;
+  }
+  
+  .instructions-list li {
+    margin-bottom: 0.6rem;
+    line-height: 1.5;
+  }
+  
+  .config-item {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+  
+  .custom-config {
+    margin-top: 1rem;
+    padding-top: 0.8rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .game-instructions {
+    padding: 0.8rem 0.4rem;
+  }
+  
+  .game-instructions h2 {
+    font-size: 1.2rem;
+  }
+  
+  .game-instructions h3 {
+    font-size: 1rem;
+  }
+  
+  .instructions-list {
+    font-size: 0.85rem;
+  }
+  
+  .config-item {
+    padding: 0.4rem;
+    font-size: 0.85rem;
+  }
+}
 </style> 
