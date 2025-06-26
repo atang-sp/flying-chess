@@ -211,8 +211,8 @@ export class GameService {
       tools,
       bodyParts,
       positions,
-      minStrikes: 5,
-      maxStrikes: 20
+      minStrikes: 10,
+      maxStrikes: 30
     };
   }
 

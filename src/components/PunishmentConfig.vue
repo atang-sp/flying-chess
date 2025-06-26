@@ -197,32 +197,32 @@
             <label>最小惩罚次数:</label>
             <div class="strikes-controls">
               <button 
-                @click="updateMinStrikes(config.minStrikes - 1)"
-                :disabled="config.minStrikes <= 1"
+                @click="updateMinStrikes(config.minStrikes - 5)"
+                :disabled="config.minStrikes <= 5"
                 class="btn-small"
-              >-</button>
+              >-5</button>
               <span class="strikes-value">{{ config.minStrikes }}</span>
               <button 
-                @click="updateMinStrikes(config.minStrikes + 1)"
-                :disabled="config.minStrikes >= config.maxStrikes - 1"
+                @click="updateMinStrikes(config.minStrikes + 5)"
+                :disabled="config.minStrikes >= config.maxStrikes - 5"
                 class="btn-small"
-              >+</button>
+              >+5</button>
             </div>
           </div>
           <div class="strikes-control-group">
             <label>最大惩罚次数:</label>
             <div class="strikes-controls">
               <button 
-                @click="updateMaxStrikes(config.maxStrikes - 1)"
-                :disabled="config.maxStrikes <= config.minStrikes + 1"
+                @click="updateMaxStrikes(config.maxStrikes - 5)"
+                :disabled="config.maxStrikes <= config.minStrikes + 5"
                 class="btn-small"
-              >-</button>
+              >-5</button>
               <span class="strikes-value">{{ config.maxStrikes }}</span>
               <button 
-                @click="updateMaxStrikes(config.maxStrikes + 1)"
+                @click="updateMaxStrikes(config.maxStrikes + 5)"
                 :disabled="config.maxStrikes >= 100"
                 class="btn-small"
-              >+</button>
+              >+5</button>
             </div>
           </div>
         </div>
@@ -451,7 +451,7 @@ const addPosition = () => {
 };
 
 const updateMinStrikes = (newMinStrikes: number) => {
-  if (newMinStrikes >= 1 && newMinStrikes < props.config.maxStrikes) {
+  if (newMinStrikes >= 5 && newMinStrikes < props.config.maxStrikes) {
     props.config.minStrikes = newMinStrikes;
     updateConfig();
   }
