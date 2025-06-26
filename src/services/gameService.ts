@@ -50,7 +50,7 @@ export class GameService {
             tool,
             bodyPart,
             position,
-            strikes: 'strikes' in dynamicConfig ? dynamicConfig.strikes : 10,
+            strikes: Math.floor(Math.random() * (config.maxStrikes - config.minStrikes + 1)) + config.minStrikes,
             description: dynamicConfig.description,
             dynamicType: dynamicConfig.type as 'dice_multiplier' | 'previous_player' | 'next_player' | 'other_player_choice',
             multiplier: 'multiplier' in dynamicConfig ? dynamicConfig.multiplier : undefined
@@ -155,7 +155,7 @@ export class GameService {
           tool,
           bodyPart,
           position,
-          strikes: Math.floor(Math.random() * 10) + 5, // 5-15下随机
+          strikes: Math.floor(Math.random() * (config.maxStrikes - config.minStrikes + 1)) + config.minStrikes,
           description: `用${tool.name}打${bodyPart.name}，姿势：${position.name}`
         };
         
@@ -211,7 +211,8 @@ export class GameService {
       tools,
       bodyParts,
       positions,
-      maxStrikes: 30
+      minStrikes: 5,
+      maxStrikes: 20
     };
   }
 
@@ -470,7 +471,7 @@ export class GameService {
     position = this.selectByRatio(config.positions);
     
     // 惩罚次数完全随机，与工具/部位/姿势无关
-    const strikes = Math.floor(Math.random() * config.maxStrikes) + 1;
+    const strikes = Math.floor(Math.random() * (config.maxStrikes - config.minStrikes + 1)) + config.minStrikes;
     
     return {
       tool,
@@ -608,7 +609,7 @@ export class GameService {
       const position = this.selectByDistribution(config.positions, positionDistribution, i);
       
       // 惩罚次数完全随机，与工具/部位/姿势无关
-      const strikes = Math.floor(Math.random() * config.maxStrikes) + 1;
+      const strikes = Math.floor(Math.random() * (config.maxStrikes - config.minStrikes + 1)) + config.minStrikes;
       
       const combination: PunishmentAction = {
         tool,

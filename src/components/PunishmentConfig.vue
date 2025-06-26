@@ -189,23 +189,41 @@
         </div>
       </div>
       
-      <!-- 最大次数设置 -->
+      <!-- 惩罚次数范围设置 -->
       <div class="config-section">
-        <h4>🔢 最大次数设置</h4>
-        <div class="max-strikes-control">
-          <label>最大惩罚次数:</label>
-          <div class="strikes-controls">
-            <button 
-              @click="updateMaxStrikes(config.maxStrikes - 5)"
-              :disabled="config.maxStrikes <= 5"
-              class="btn-small"
-            >-5</button>
-            <span class="strikes-value">{{ config.maxStrikes }}</span>
-            <button 
-              @click="updateMaxStrikes(config.maxStrikes + 5)"
-              :disabled="config.maxStrikes >= 100"
-              class="btn-small"
-            >+5</button>
+        <h4>🔢 惩罚次数范围设置</h4>
+        <div class="strikes-range-control">
+          <div class="strikes-control-group">
+            <label>最小惩罚次数:</label>
+            <div class="strikes-controls">
+              <button 
+                @click="updateMinStrikes(config.minStrikes - 1)"
+                :disabled="config.minStrikes <= 1"
+                class="btn-small"
+              >-</button>
+              <span class="strikes-value">{{ config.minStrikes }}</span>
+              <button 
+                @click="updateMinStrikes(config.minStrikes + 1)"
+                :disabled="config.minStrikes >= config.maxStrikes - 1"
+                class="btn-small"
+              >+</button>
+            </div>
+          </div>
+          <div class="strikes-control-group">
+            <label>最大惩罚次数:</label>
+            <div class="strikes-controls">
+              <button 
+                @click="updateMaxStrikes(config.maxStrikes - 1)"
+                :disabled="config.maxStrikes <= config.minStrikes + 1"
+                class="btn-small"
+              >-</button>
+              <span class="strikes-value">{{ config.maxStrikes }}</span>
+              <button 
+                @click="updateMaxStrikes(config.maxStrikes + 1)"
+                :disabled="config.maxStrikes >= 100"
+                class="btn-small"
+              >+</button>
+            </div>
           </div>
         </div>
       </div>
@@ -432,8 +450,15 @@ const addPosition = () => {
   }
 };
 
+const updateMinStrikes = (newMinStrikes: number) => {
+  if (newMinStrikes >= 1 && newMinStrikes < props.config.maxStrikes) {
+    props.config.minStrikes = newMinStrikes;
+    updateConfig();
+  }
+};
+
 const updateMaxStrikes = (newMaxStrikes: number) => {
-  if (newMaxStrikes >= 5 && newMaxStrikes <= 100) {
+  if (newMaxStrikes >= props.config.minStrikes && newMaxStrikes <= 100) {
     props.config.maxStrikes = newMaxStrikes;
     updateConfig();
   }
@@ -692,10 +717,23 @@ const saveConfig = () => {
   cursor: not-allowed;
 }
 
-.max-strikes-control {
+.strikes-range-control {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1rem, 3vw, 1.5rem);
+}
+
+.strikes-control-group {
   display: flex;
   align-items: center;
   gap: clamp(0.8rem, 2.5vw, 1rem);
+}
+
+.strikes-control-group label {
+  min-width: clamp(100px, 25vw, 120px);
+  font-size: clamp(0.9rem, 2.5vw, 1rem);
+  color: #333;
+  font-weight: 500;
 }
 
 .strikes-controls {
@@ -782,6 +820,17 @@ const saveConfig = () => {
   .input-mini {
     width: 100%;
     margin: clamp(0.4rem, 1vw, 0.5rem) 0;
+  }
+  
+  .strikes-control-group {
+    flex-direction: column;
+    align-items: stretch;
+    gap: clamp(0.4rem, 1vw, 0.5rem);
+  }
+  
+  .strikes-control-group label {
+    min-width: auto;
+    text-align: center;
   }
   
   .config-actions {

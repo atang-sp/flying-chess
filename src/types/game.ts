@@ -33,6 +33,7 @@ export interface PunishmentConfig {
   tools: PunishmentTool[];
   bodyParts: PunishmentBodyPart[];
   positions: PunishmentPosition[];
+  minStrikes: number;
   maxStrikes: number;
 }
 
