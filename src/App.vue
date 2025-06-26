@@ -128,6 +128,9 @@
       :executor-name="gameState.players[currentTakeoffExecutorIndex]?.name || '未知玩家'"
       @confirm="confirmTakeoffPunishment"
     />
+
+    <!-- 版本显示组件 -->
+    <VersionDisplay />
   </div>
 </template>
 
@@ -147,6 +150,7 @@ import PunishmentConfirmation from './components/PunishmentConfirmation.vue';
 import EffectDisplay from './components/EffectDisplay.vue';
 import PunishmentStats from './components/PunishmentStats.vue';
 import TakeoffPunishmentDisplay from './components/TakeoffPunishmentDisplay.vue';
+import VersionDisplay from './components/VersionDisplay.vue';
 
 // 游戏状态
 const gameState = reactive<GameState>({
