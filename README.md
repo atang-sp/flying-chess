@@ -72,7 +72,7 @@
 # 更新 package.json 中的版本号
 npm version patch  # 0.0.0 -> 0.0.1
 npm version minor  # 0.0.1 -> 0.1.0
-npm version major  # 0.1.0 -> 1.0.0
+npm version major  # 1.0.0 -> 1.1.0
 
 # 构建项目
 npm run build
@@ -172,6 +172,11 @@ npm run preview
 - 修改棋盘布局
 - 调整惩罚内容
 - 自定义特殊格子效果
+
+## 📚 相关文档
+
+- **[🗺️ 开发路线图](ROADMAP.md)** - 查看未来功能规划
+- **[📝 版本更新日志](RELEASE_NOTES.md)** - 查看版本更新历史
 
 ## 📄 许可证
 
