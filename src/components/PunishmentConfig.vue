@@ -262,36 +262,45 @@
       <h3>⚙️ 惩罚设置</h3>
     </div>
 
-    <div class="config-sections compact">
+    <div class="config-sections">
       <!-- 工具设置 -->
       <div class="config-section">
-        <h4>🛠️ 工具设置</h4>
-        <div class="tools-list">
-          <div v-for="(tool, idx) in config.tools" :key="tool.id" class="tool-item">
-            <div class="tool-info">
-              <span class="tool-name">{{ tool.name }}</span>
-              <span class="tool-intensity">强度: {{ tool.intensity }}/5</span>
+        <div class="section-header">
+          <h4>🛠️ 工具设置</h4>
+          <div class="section-summary">{{ config.tools.length }}个工具</div>
+        </div>
+
+        <div class="items-grid">
+          <div v-for="(tool, idx) in config.tools" :key="tool.id" class="item-card">
+            <div class="item-header">
+              <span class="item-name">{{ tool.name }}</span>
+              <button class="btn-remove" @click="removeTool(tool.id)">×</button>
             </div>
-            <div class="tool-controls">
-              <div class="intensity-controls">
-                <button
-                  :disabled="tool.intensity <= 1"
-                  class="btn-small"
-                  @click="updateToolIntensity(tool.id, tool.intensity - 1)"
-                >
-                  -
-                </button>
-                <span class="intensity-value">{{ tool.intensity }}</span>
-                <button
-                  :disabled="tool.intensity >= 5"
-                  class="btn-small"
-                  @click="updateToolIntensity(tool.id, tool.intensity + 1)"
-                >
-                  +
-                </button>
+
+            <div class="item-stats">
+              <div class="stat-item">
+                <span class="stat-label">强度</span>
+                <div class="stat-controls">
+                  <button
+                    :disabled="tool.intensity <= 1"
+                    class="btn-stat"
+                    @click="updateToolIntensity(tool.id, tool.intensity - 1)"
+                  >
+                    -
+                  </button>
+                  <span class="stat-value">{{ tool.intensity }}/5</span>
+                  <button
+                    :disabled="tool.intensity >= 5"
+                    class="btn-stat"
+                    @click="updateToolIntensity(tool.id, tool.intensity + 1)"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
-              <div class="ratio-control">
-                <label>比例: {{ Math.round(tool.ratio * 10) / 10 }}%</label>
+
+              <div class="stat-item">
+                <span class="stat-label">比例 {{ Math.round(tool.ratio * 10) / 10 }}%</span>
                 <input
                   v-model.number="tool.ratio"
                   type="range"
@@ -302,57 +311,66 @@
                   @input="onToolRatioInput(idx, Math.round(tool.ratio / 5) * 5)"
                 />
               </div>
-              <button class="btn-remove" @click="removeTool(tool.id)">×</button>
             </div>
           </div>
         </div>
-        <div class="add-item">
-          <input v-model="newToolName" placeholder="新工具名称" class="input-field" />
-          <input
-            v-model.number="newToolIntensity"
-            type="number"
-            min="1"
-            max="5"
-            class="input-mini"
-            placeholder="强度(1-5)"
-          />
-          <button :disabled="!newToolName.trim()" class="btn-add" @click="addTool">添加工具</button>
+
+        <div class="add-item-form">
+          <div class="form-row">
+            <input v-model="newToolName" placeholder="新工具名称" class="input-field" />
+            <input
+              v-model.number="newToolIntensity"
+              type="number"
+              min="1"
+              max="5"
+              class="input-mini"
+              placeholder="强度"
+            />
+          </div>
+          <button :disabled="!newToolName.trim()" class="btn-add" @click="addTool">
+            + 添加工具
+          </button>
         </div>
       </div>
 
       <!-- 部位设置 -->
       <div class="config-section">
-        <h4>🎯 部位设置</h4>
-        <div class="body-parts-list">
-          <div
-            v-for="(bodyPart, idx) in config.bodyParts"
-            :key="bodyPart.id"
-            class="body-part-item"
-          >
-            <div class="body-part-info">
-              <span class="body-part-name">{{ bodyPart.name }}</span>
-              <span class="body-part-sensitivity">耐受度: {{ bodyPart.sensitivity }}/5</span>
+        <div class="section-header">
+          <h4>🎯 部位设置</h4>
+          <div class="section-summary">{{ config.bodyParts.length }}个部位</div>
+        </div>
+
+        <div class="items-grid">
+          <div v-for="(bodyPart, idx) in config.bodyParts" :key="bodyPart.id" class="item-card">
+            <div class="item-header">
+              <span class="item-name">{{ bodyPart.name }}</span>
+              <button class="btn-remove" @click="removeBodyPart(bodyPart.id)">×</button>
             </div>
-            <div class="body-part-controls">
-              <div class="sensitivity-controls">
-                <button
-                  :disabled="bodyPart.sensitivity <= 1"
-                  class="btn-small"
-                  @click="updateBodyPartSensitivity(bodyPart.id, bodyPart.sensitivity - 1)"
-                >
-                  -
-                </button>
-                <span class="sensitivity-value">{{ bodyPart.sensitivity }}</span>
-                <button
-                  :disabled="bodyPart.sensitivity >= 5"
-                  class="btn-small"
-                  @click="updateBodyPartSensitivity(bodyPart.id, bodyPart.sensitivity + 1)"
-                >
-                  +
-                </button>
+
+            <div class="item-stats">
+              <div class="stat-item">
+                <span class="stat-label">耐受度</span>
+                <div class="stat-controls">
+                  <button
+                    :disabled="bodyPart.sensitivity <= 1"
+                    class="btn-stat"
+                    @click="updateBodyPartSensitivity(bodyPart.id, bodyPart.sensitivity - 1)"
+                  >
+                    -
+                  </button>
+                  <span class="stat-value">{{ bodyPart.sensitivity }}/5</span>
+                  <button
+                    :disabled="bodyPart.sensitivity >= 5"
+                    class="btn-stat"
+                    @click="updateBodyPartSensitivity(bodyPart.id, bodyPart.sensitivity + 1)"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
-              <div class="ratio-control">
-                <label>比例: {{ Math.round(bodyPart.ratio * 10) / 10 }}%</label>
+
+              <div class="stat-item">
+                <span class="stat-label">比例 {{ Math.round(bodyPart.ratio * 10) / 10 }}%</span>
                 <input
                   v-model.number="bodyPart.ratio"
                   type="range"
@@ -363,55 +381,66 @@
                   @input="onBodyPartRatioInput(idx, Math.round(bodyPart.ratio / 5) * 5)"
                 />
               </div>
-              <button class="btn-remove" @click="removeBodyPart(bodyPart.id)">×</button>
             </div>
           </div>
         </div>
-        <div class="add-item">
-          <input v-model="newBodyPartName" placeholder="新部位名称" class="input-field" />
-          <input
-            v-model.number="newBodyPartSensitivity"
-            type="number"
-            min="1"
-            max="5"
-            class="input-mini"
-            placeholder="耐受度(1-5)"
-          />
+
+        <div class="add-item-form">
+          <div class="form-row">
+            <input v-model="newBodyPartName" placeholder="新部位名称" class="input-field" />
+            <input
+              v-model.number="newBodyPartSensitivity"
+              type="number"
+              min="1"
+              max="5"
+              class="input-mini"
+              placeholder="耐受度"
+            />
+          </div>
           <button :disabled="!newBodyPartName.trim()" class="btn-add" @click="addBodyPart">
-            添加部位
+            + 添加部位
           </button>
         </div>
       </div>
 
       <!-- 姿势设置 -->
       <div class="config-section">
-        <h4>🧘 姿势设置</h4>
-        <div class="positions-list">
-          <div v-for="(position, idx) in config.positions" :key="position.id" class="position-item">
-            <div class="position-info">
-              <span class="position-name">{{ position.name }}</span>
-              <span class="position-difficulty">难度: {{ position.difficulty }}/5</span>
+        <div class="section-header">
+          <h4>🧘 姿势设置</h4>
+          <div class="section-summary">{{ config.positions.length }}个姿势</div>
+        </div>
+
+        <div class="items-grid">
+          <div v-for="(position, idx) in config.positions" :key="position.id" class="item-card">
+            <div class="item-header">
+              <span class="item-name">{{ position.name }}</span>
+              <button class="btn-remove" @click="removePosition(position.id)">×</button>
             </div>
-            <div class="position-controls">
-              <div class="difficulty-controls">
-                <button
-                  :disabled="position.difficulty <= 1"
-                  class="btn-small"
-                  @click="updatePositionDifficulty(position.id, position.difficulty - 1)"
-                >
-                  -
-                </button>
-                <span class="difficulty-value">{{ position.difficulty }}</span>
-                <button
-                  :disabled="position.difficulty >= 5"
-                  class="btn-small"
-                  @click="updatePositionDifficulty(position.id, position.difficulty + 1)"
-                >
-                  +
-                </button>
+
+            <div class="item-stats">
+              <div class="stat-item">
+                <span class="stat-label">难度</span>
+                <div class="stat-controls">
+                  <button
+                    :disabled="position.difficulty <= 1"
+                    class="btn-stat"
+                    @click="updatePositionDifficulty(position.id, position.difficulty - 1)"
+                  >
+                    -
+                  </button>
+                  <span class="stat-value">{{ position.difficulty }}/5</span>
+                  <button
+                    :disabled="position.difficulty >= 5"
+                    class="btn-stat"
+                    @click="updatePositionDifficulty(position.id, position.difficulty + 1)"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
-              <div class="ratio-control">
-                <label>比例: {{ Math.round(position.ratio * 10) / 10 }}%</label>
+
+              <div class="stat-item">
+                <span class="stat-label">比例 {{ Math.round(position.ratio * 10) / 10 }}%</span>
                 <input
                   v-model.number="position.ratio"
                   type="range"
@@ -422,36 +451,41 @@
                   @input="onPositionRatioInput(idx, Math.round(position.ratio / 5) * 5)"
                 />
               </div>
-              <button class="btn-remove" @click="removePosition(position.id)">×</button>
             </div>
           </div>
         </div>
-        <div class="add-item">
-          <input v-model="newPositionName" placeholder="新姿势名称" class="input-field" />
-          <input
-            v-model.number="newPositionDifficulty"
-            type="number"
-            min="1"
-            max="5"
-            class="input-mini"
-            placeholder="难度(1-5)"
-          />
+
+        <div class="add-item-form">
+          <div class="form-row">
+            <input v-model="newPositionName" placeholder="新姿势名称" class="input-field" />
+            <input
+              v-model.number="newPositionDifficulty"
+              type="number"
+              min="1"
+              max="5"
+              class="input-mini"
+              placeholder="难度"
+            />
+          </div>
           <button :disabled="!newPositionName.trim()" class="btn-add" @click="addPosition">
-            添加姿势
+            + 添加姿势
           </button>
         </div>
       </div>
 
       <!-- 惩罚数量设置 -->
       <div class="config-section">
-        <h4>🔢 惩罚数量设置</h4>
+        <div class="section-header">
+          <h4>🔢 惩罚数量设置</h4>
+        </div>
+
         <div class="strikes-config">
           <div class="strikes-item">
-            <label class="strikes-label">最小惩罚次数</label>
+            <span class="strikes-label">最小次数</span>
             <div class="strikes-controls">
               <button
                 :disabled="config.minStrikes <= 5"
-                class="btn-small"
+                class="btn-stat"
                 @click="updateMinStrikes(config.minStrikes - 5)"
               >
                 -
@@ -459,19 +493,20 @@
               <span class="strikes-value">{{ config.minStrikes }}</span>
               <button
                 :disabled="config.minStrikes >= config.maxStrikes"
-                class="btn-small"
+                class="btn-stat"
                 @click="updateMinStrikes(config.minStrikes + 5)"
               >
                 +
               </button>
             </div>
           </div>
+
           <div class="strikes-item">
-            <label class="strikes-label">最大惩罚次数</label>
+            <span class="strikes-label">最大次数</span>
             <div class="strikes-controls">
               <button
                 :disabled="config.maxStrikes <= config.minStrikes"
-                class="btn-small"
+                class="btn-stat"
                 @click="updateMaxStrikes(config.maxStrikes - 5)"
               >
                 -
@@ -479,15 +514,16 @@
               <span class="strikes-value">{{ config.maxStrikes }}</span>
               <button
                 :disabled="config.maxStrikes >= 100"
-                class="btn-small"
+                class="btn-stat"
                 @click="updateMaxStrikes(config.maxStrikes + 5)"
               >
                 +
               </button>
             </div>
           </div>
+
           <div class="strikes-description">
-            惩罚次数将在 {{ config.minStrikes }} - {{ config.maxStrikes }} 之间随机生成
+            {{ config.minStrikes }} - {{ config.maxStrikes }} 次随机
           </div>
         </div>
       </div>
@@ -503,195 +539,168 @@
 <style scoped>
   .punishment-config {
     background: white;
-    border-radius: clamp(6px, 1.5vw, 8px);
-    padding: clamp(1rem, 3vw, 1.5rem);
+    border-radius: 8px;
+    padding: 1rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    margin-bottom: clamp(0.5rem, 2vw, 1rem);
+    margin-bottom: 1rem;
   }
 
   .config-header {
     text-align: center;
-    margin-bottom: clamp(1.5rem, 4vw, 2rem);
+    margin-bottom: 1.5rem;
   }
 
   .config-header h3 {
-    margin: 0 0 clamp(0.25rem, 1vw, 0.5rem) 0;
-    color: #333;
-    font-size: clamp(1.2rem, 4vw, 1.5rem);
-  }
-
-  .config-header p {
     margin: 0;
-    color: #666;
-    font-size: clamp(0.8rem, 2.5vw, 1rem);
+    color: #333;
+    font-size: 1.3rem;
+    font-weight: 600;
   }
 
   .config-sections {
-    display: grid;
-    gap: clamp(1.5rem, 4vw, 2rem);
-    margin-bottom: clamp(1.5rem, 4vw, 2rem);
-  }
-
-  .config-sections.compact {
-    gap: clamp(0.8rem, 2vw, 1.2rem);
-    margin-bottom: clamp(0.8rem, 2vw, 1.2rem);
-  }
-
-  .config-sections.compact .config-section {
-    padding: clamp(0.6rem, 1.5vw, 0.8rem);
-  }
-
-  .config-sections.compact .config-section h4 {
-    margin-bottom: clamp(0.6rem, 1.5vw, 0.8rem);
-    font-size: clamp(0.9rem, 2.5vw, 1rem);
-  }
-
-  .config-sections.compact .tool-item,
-  .config-sections.compact .body-part-item,
-  .config-sections.compact .position-item {
-    padding: clamp(0.5rem, 1.2vw, 0.7rem);
-    gap: clamp(0.5rem, 1.2vw, 0.7rem);
-  }
-
-  .config-sections.compact .strikes-item {
-    padding: clamp(0.5rem, 1.2vw, 0.7rem);
-  }
-
-  .config-sections.compact .strikes-config {
-    gap: clamp(0.5rem, 1.2vw, 0.7rem);
-  }
-
-  .config-sections.compact .tools-list,
-  .config-sections.compact .body-parts-list,
-  .config-sections.compact .positions-list {
-    gap: clamp(0.5rem, 1.2vw, 0.7rem);
-    margin-bottom: clamp(0.5rem, 1.2vw, 0.7rem);
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    margin-bottom: 1.5rem;
   }
 
   .config-section {
     border: 1px solid #e0e0e0;
-    border-radius: clamp(4px, 1vw, 6px);
-    padding: clamp(0.8rem, 2.5vw, 1rem);
+    border-radius: 8px;
+    padding: 1rem;
+    background: #fafafa;
   }
 
-  .config-section h4 {
-    margin: 0 0 clamp(0.8rem, 2.5vw, 1rem) 0;
-    color: #333;
-    font-size: clamp(1rem, 3vw, 1.2rem);
-  }
-
-  .tools-list,
-  .body-parts-list,
-  .positions-list {
-    display: flex;
-    flex-direction: column;
-    gap: clamp(0.8rem, 2.5vw, 1rem);
-    margin-bottom: clamp(0.8rem, 2.5vw, 1rem);
-  }
-
-  .tool-item,
-  .body-part-item,
-  .position-item {
-    display: flex;
-    flex-direction: column;
-    gap: clamp(0.8rem, 2.5vw, 1rem);
-    padding: clamp(0.8rem, 2.5vw, 1rem);
-    background: #f8f9fa;
-    border-radius: clamp(6px, 1.5vw, 8px);
-    border-left: 4px solid #4ecdc4;
-  }
-
-  .tool-info,
-  .body-part-info,
-  .position-info {
+  .section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e0e0e0;
   }
 
-  .tool-name,
-  .body-part-name,
-  .position-name {
-    font-weight: bold;
+  .section-header h4 {
+    margin: 0;
     color: #333;
-    font-size: clamp(1rem, 3vw, 1.1rem);
+    font-size: 1.1rem;
+    font-weight: 600;
   }
 
-  .tool-intensity,
-  .body-part-sensitivity,
-  .position-difficulty {
-    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+  .section-summary {
+    font-size: 0.8rem;
     color: #666;
     background: #e0e0e0;
-    padding: clamp(0.2rem, 0.5vw, 0.25rem) clamp(0.4rem, 1vw, 0.5rem);
-    border-radius: clamp(3px, 0.8vw, 4px);
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
   }
 
-  .tool-controls,
-  .body-part-controls,
-  .position-controls {
-    display: flex;
-    align-items: center;
-    gap: clamp(0.8rem, 2.5vw, 1rem);
-    flex-wrap: wrap;
+  .items-grid {
+    display: grid;
+    gap: 0.8rem;
+    margin-bottom: 1rem;
   }
 
-  .intensity-controls,
-  .sensitivity-controls,
-  .difficulty-controls {
-    display: flex;
-    align-items: center;
-    gap: clamp(0.2rem, 0.5vw, 0.25rem);
-  }
-
-  .btn-small {
-    width: clamp(24px, 6vw, 28px);
-    height: clamp(24px, 6vw, 28px);
-    border: 1px solid #ddd;
+  .item-card {
     background: white;
-    border-radius: clamp(3px, 0.8vw, 4px);
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 0.8rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.8rem;
+  }
+
+  .item-name {
+    font-weight: 600;
+    color: #333;
+    font-size: 1rem;
+  }
+
+  .btn-remove {
+    width: 24px;
+    height: 24px;
+    border: 1px solid #ff6b6b;
+    background: #ff6b6b;
+    color: white;
+    border-radius: 4px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+    font-size: 0.9rem;
     font-weight: bold;
   }
 
-  .btn-small:hover:not(:disabled) {
+  .btn-remove:hover {
+    background: #ff4757;
+  }
+
+  .item-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .stat-label {
+    font-size: 0.85rem;
+    color: #666;
+    min-width: 60px;
+  }
+
+  .stat-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .btn-stat {
+    width: 24px;
+    height: 24px;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: bold;
+  }
+
+  .btn-stat:hover:not(:disabled) {
     background: #f0f0f0;
   }
 
-  .btn-small:disabled {
+  .btn-stat:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
 
-  .intensity-value,
-  .sensitivity-value,
-  .difficulty-value {
-    min-width: clamp(20px, 5vw, 24px);
+  .stat-value {
+    min-width: 30px;
     text-align: center;
-    font-weight: bold;
-    font-size: clamp(0.9rem, 2.5vw, 1rem);
-  }
-
-  .ratio-control {
-    display: flex;
-    flex-direction: column;
-    gap: clamp(0.2rem, 0.5vw, 0.25rem);
-    min-width: clamp(120px, 30vw, 150px);
-  }
-
-  .ratio-control label {
-    font-size: clamp(0.7rem, 2vw, 0.8rem);
-    color: #666;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #333;
   }
 
   .ratio-slider {
-    width: 100%;
-    height: clamp(4px, 1vw, 6px);
-    border-radius: clamp(2px, 0.5vw, 3px);
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
     background: #ddd;
     outline: none;
     -webkit-appearance: none;
@@ -700,119 +709,60 @@
   .ratio-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: clamp(16px, 4vw, 18px);
-    height: clamp(16px, 4vw, 18px);
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     background: #4ecdc4;
     cursor: pointer;
   }
 
   .ratio-slider::-moz-range-thumb {
-    width: clamp(16px, 4vw, 18px);
-    height: clamp(16px, 4vw, 18px);
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     background: #4ecdc4;
     cursor: pointer;
     border: none;
   }
 
-  .btn-remove {
-    width: clamp(24px, 6vw, 28px);
-    height: clamp(24px, 6vw, 28px);
-    border: 1px solid #ff6b6b;
-    background: #ff6b6b;
-    color: white;
-    border-radius: clamp(3px, 0.8vw, 4px);
-    cursor: pointer;
+  .add-item-form {
+    border-top: 1px solid #e0e0e0;
+    padding-top: 0.8rem;
+  }
+
+  .form-row {
     display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .strikes-config {
-    display: flex;
-    flex-direction: column;
-    gap: clamp(1rem, 2.5vw, 1.5rem);
-  }
-
-  .strikes-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: clamp(0.8rem, 2vw, 1rem);
-    background: #f8f9fa;
-    border-radius: clamp(6px, 1.5vw, 8px);
-    border-left: 4px solid #ffa726;
-  }
-
-  .strikes-label {
-    font-weight: bold;
-    color: #333;
-    font-size: clamp(1rem, 3vw, 1.1rem);
-  }
-
-  .strikes-controls {
-    display: flex;
-    align-items: center;
-    gap: clamp(0.5rem, 1.5vw, 0.8rem);
-  }
-
-  .strikes-value {
-    min-width: clamp(40px, 10vw, 50px);
-    text-align: center;
-    font-weight: bold;
-    font-size: clamp(1rem, 3vw, 1.2rem);
-    color: #ffa726;
-  }
-
-  .strikes-description {
-    text-align: center;
-    padding: clamp(0.8rem, 2vw, 1rem);
-    background: #fff3e0;
-    border-radius: clamp(6px, 1.5vw, 8px);
-    color: #e65100;
-    font-size: clamp(0.85rem, 2.5vw, 0.95rem);
-    border: 1px solid #ffcc80;
-    font-size: clamp(0.9rem, 2.5vw, 1rem);
-    font-weight: bold;
-  }
-
-  .btn-remove:hover {
-    background: #ff4757;
-  }
-
-  .add-item {
-    display: flex;
-    gap: clamp(0.4rem, 1vw, 0.5rem);
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
   }
 
   .input-field {
     flex: 1;
-    padding: clamp(0.4rem, 1vw, 0.5rem);
+    padding: 0.5rem;
     border: 1px solid #ddd;
-    border-radius: clamp(3px, 0.8vw, 4px);
-    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+    border-radius: 4px;
+    font-size: 0.9rem;
   }
 
   .input-mini {
-    width: clamp(50px, 12vw, 60px);
-    margin-left: clamp(0.4rem, 1vw, 0.5rem);
-    margin-right: clamp(0.4rem, 1vw, 0.5rem);
-    padding: clamp(0.3rem, 0.8vw, 0.4rem) clamp(0.15rem, 0.4vw, 0.2rem);
+    width: 60px;
+    padding: 0.5rem;
     border: 1px solid #ddd;
-    border-radius: clamp(3px, 0.8vw, 4px);
-    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+    border-radius: 4px;
+    font-size: 0.9rem;
     text-align: center;
   }
 
   .btn-add {
-    padding: clamp(0.4rem, 1vw, 0.5rem) clamp(0.8rem, 2vw, 1rem);
+    width: 100%;
+    padding: 0.6rem;
     border: 1px solid #4ecdc4;
     background: #4ecdc4;
     color: white;
-    border-radius: clamp(3px, 0.8vw, 4px);
+    border-radius: 4px;
     cursor: pointer;
-    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+    font-size: 0.9rem;
+    font-weight: 600;
   }
 
   .btn-add:hover:not(:disabled) {
@@ -824,22 +774,69 @@
     cursor: not-allowed;
   }
 
+  .strikes-config {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+
+  .strikes-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+  }
+
+  .strikes-label {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.95rem;
+  }
+
+  .strikes-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .strikes-value {
+    min-width: 40px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 1rem;
+    color: #ffa726;
+  }
+
+  .strikes-description {
+    text-align: center;
+    padding: 0.6rem;
+    background: #fff3e0;
+    border-radius: 6px;
+    color: #e65100;
+    font-size: 0.85rem;
+    border: 1px solid #ffcc80;
+    font-weight: 600;
+  }
+
   .config-actions {
     display: flex;
-    gap: clamp(0.8rem, 2.5vw, 1rem);
+    gap: 1rem;
     justify-content: center;
   }
 
   .btn-primary,
   .btn-secondary {
-    padding: clamp(0.6rem, 2vw, 0.75rem) clamp(1.2rem, 3vw, 1.5rem);
+    padding: 0.8rem 1.5rem;
     border: none;
-    border-radius: clamp(4px, 1vw, 6px);
-    font-size: clamp(0.9rem, 2.5vw, 1rem);
-    font-weight: bold;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    min-height: clamp(36px, 8vw, 44px);
+    min-width: 120px;
   }
 
   .btn-primary {
@@ -869,202 +866,270 @@
     box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
   }
 
-  /* 自适应布局 - 移除固定断点，使用相对单位 */
-  @media (max-width: 1023px) {
+  /* 移动端优化 */
+  @media (max-width: 768px) {
+    .punishment-config {
+      padding: 0.8rem;
+      margin: 0.5rem;
+    }
+
+    .config-header h3 {
+      font-size: 1.2rem;
+    }
+
     .config-sections {
-      grid-template-columns: 1fr;
-      gap: clamp(0.8rem, 2.5vw, 1rem);
+      gap: 1rem;
     }
 
-    .tool-controls,
-    .body-part-controls,
-    .position-controls {
-      flex-direction: column;
-      align-items: stretch;
+    .config-section {
+      padding: 0.8rem;
     }
 
-    .ratio-control {
-      min-width: auto;
+    .section-header h4 {
+      font-size: 1rem;
     }
 
-    .add-item {
-      flex-direction: column;
-      gap: clamp(0.4rem, 1vw, 0.5rem);
+    .section-summary {
+      font-size: 0.75rem;
+      padding: 0.15rem 0.4rem;
+    }
+
+    .items-grid {
+      gap: 0.6rem;
+    }
+
+    .item-card {
+      padding: 0.6rem;
+    }
+
+    .item-name {
+      font-size: 0.95rem;
+    }
+
+    .btn-remove {
+      width: 22px;
+      height: 22px;
+      font-size: 0.8rem;
+    }
+
+    .stat-item {
+      gap: 0.4rem;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      min-width: 50px;
+    }
+
+    .btn-stat {
+      width: 22px;
+      height: 22px;
+      font-size: 0.75rem;
+    }
+
+    .stat-value {
+      min-width: 25px;
+      font-size: 0.85rem;
+    }
+
+    .ratio-slider {
+      height: 3px;
+    }
+
+    .ratio-slider::-webkit-slider-thumb,
+    .ratio-slider::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+    }
+
+    .form-row {
+      gap: 0.4rem;
+    }
+
+    .input-field,
+    .input-mini {
+      padding: 0.4rem;
+      font-size: 0.85rem;
     }
 
     .input-mini {
-      width: 100%;
-      margin: clamp(0.4rem, 1vw, 0.5rem) 0;
+      width: 50px;
     }
 
-    .strikes-control-group {
-      flex-direction: column;
-      align-items: stretch;
-      gap: clamp(0.4rem, 1vw, 0.5rem);
+    .btn-add {
+      padding: 0.5rem;
+      font-size: 0.85rem;
     }
 
-    .strikes-control-group label {
-      min-width: auto;
-      text-align: center;
+    .strikes-item {
+      padding: 0.6rem;
+    }
+
+    .strikes-label {
+      font-size: 0.9rem;
+    }
+
+    .strikes-value {
+      min-width: 35px;
+      font-size: 0.95rem;
+    }
+
+    .strikes-description {
+      padding: 0.5rem;
+      font-size: 0.8rem;
     }
 
     .config-actions {
       flex-direction: column;
-      gap: clamp(0.4rem, 1vw, 0.5rem);
+      gap: 0.8rem;
     }
 
     .btn-primary,
     .btn-secondary {
       width: 100%;
-      max-width: min(300px, 80vw);
-      justify-content: center;
+      padding: 0.7rem;
+      font-size: 0.95rem;
+      min-width: auto;
     }
   }
 
-  /* 移动端极致紧凑优化 */
-  @media (max-width: 767px) {
+  /* 超小屏幕优化 */
+  @media (max-width: 480px) {
     .punishment-config {
-      padding: 0.3rem !important;
+      padding: 0.6rem;
+      margin: 0.3rem;
     }
-    .config-header {
-      margin-bottom: 0.3rem !important;
-    }
+
     .config-header h3 {
-      font-size: 0.95rem !important;
-      margin-bottom: 0.1rem !important;
+      font-size: 1.1rem;
     }
+
     .config-sections {
-      gap: 0.3rem !important;
-      margin-bottom: 0.3rem !important;
+      gap: 0.8rem;
     }
+
     .config-section {
-      padding: 0.2rem !important;
-      border-radius: 2px !important;
+      padding: 0.6rem;
     }
-    .config-section h4 {
-      font-size: 0.75rem !important;
-      margin-bottom: 0.15rem !important;
+
+    .section-header {
+      margin-bottom: 0.8rem;
     }
-    .tools-list,
-    .body-parts-list,
-    .positions-list {
-      gap: 0.15rem !important;
-      margin-bottom: 0.15rem !important;
+
+    .section-header h4 {
+      font-size: 0.95rem;
     }
-    .tool-item,
-    .body-part-item,
-    .position-item {
-      padding: 0.15rem !important;
-      gap: 0.15rem !important;
-      border-radius: 2px !important;
+
+    .section-summary {
+      font-size: 0.7rem;
+      padding: 0.1rem 0.3rem;
     }
-    .tool-name,
-    .body-part-name,
-    .position-name {
-      font-size: 0.8rem !important;
+
+    .items-grid {
+      gap: 0.5rem;
     }
-    .tool-intensity,
-    .body-part-sensitivity,
-    .position-difficulty {
-      font-size: 0.6rem !important;
-      padding: 0.05rem 0.1rem !important;
-      border-radius: 1px !important;
+
+    .item-card {
+      padding: 0.5rem;
     }
-    .tool-controls,
-    .body-part-controls,
-    .position-controls {
-      gap: 0.15rem !important;
+
+    .item-header {
+      margin-bottom: 0.6rem;
     }
-    .intensity-controls,
-    .sensitivity-controls,
-    .difficulty-controls {
-      gap: 0.05rem !important;
+
+    .item-name {
+      font-size: 0.9rem;
     }
-    .btn-small {
-      width: 18px !important;
-      height: 18px !important;
-      font-size: 0.6rem !important;
-      border-radius: 1px !important;
+
+    .btn-remove {
+      width: 20px;
+      height: 20px;
+      font-size: 0.75rem;
     }
-    .intensity-value,
-    .sensitivity-value,
-    .difficulty-value {
-      min-width: 12px !important;
-      font-size: 0.7rem !important;
+
+    .item-stats {
+      gap: 0.5rem;
     }
-    .ratio-control {
-      min-width: 60px !important;
-      gap: 0.05rem !important;
+
+    .stat-item {
+      gap: 0.3rem;
     }
-    .ratio-control label {
-      font-size: 0.55rem !important;
+
+    .stat-label {
+      font-size: 0.75rem;
+      min-width: 45px;
     }
+
+    .btn-stat {
+      width: 20px;
+      height: 20px;
+      font-size: 0.7rem;
+    }
+
+    .stat-value {
+      min-width: 22px;
+      font-size: 0.8rem;
+    }
+
     .ratio-slider {
-      height: 2px !important;
+      height: 2px;
     }
+
     .ratio-slider::-webkit-slider-thumb,
     .ratio-slider::-moz-range-thumb {
-      width: 8px !important;
-      height: 8px !important;
+      width: 12px;
+      height: 12px;
     }
-    .btn-remove {
-      width: 18px !important;
-      height: 18px !important;
-      border-radius: 1px !important;
-      font-size: 0.7rem !important;
+
+    .form-row {
+      gap: 0.3rem;
     }
-    .add-item {
-      gap: 0.1rem !important;
-    }
-    .input-field {
-      padding: 0.1rem !important;
-      font-size: 0.7rem !important;
-      border-radius: 1px !important;
-    }
+
+    .input-field,
     .input-mini {
-      width: 30px !important;
-      margin: 0 0.1rem !important;
-      padding: 0.08rem 0.05rem !important;
-      font-size: 0.7rem !important;
-      border-radius: 1px !important;
+      padding: 0.3rem;
+      font-size: 0.8rem;
     }
+
+    .input-mini {
+      width: 45px;
+    }
+
     .btn-add {
-      padding: 0.1rem 0.3rem !important;
-      font-size: 0.7rem !important;
-      border-radius: 1px !important;
+      padding: 0.4rem;
+      font-size: 0.8rem;
     }
-    .strikes-config {
-      gap: 0.15rem !important;
-    }
+
     .strikes-item {
-      padding: 0.15rem !important;
-      border-radius: 2px !important;
+      padding: 0.5rem;
     }
+
     .strikes-label {
-      font-size: 0.7rem !important;
+      font-size: 0.85rem;
     }
+
     .strikes-controls {
-      gap: 0.1rem !important;
+      gap: 0.4rem;
     }
+
     .strikes-value {
-      min-width: 18px !important;
-      font-size: 0.7rem !important;
+      min-width: 30px;
+      font-size: 0.9rem;
     }
+
     .strikes-description {
-      padding: 0.1rem !important;
-      font-size: 0.7rem !important;
-      border-radius: 2px !important;
+      padding: 0.4rem;
+      font-size: 0.75rem;
     }
+
     .config-actions {
-      gap: 0.1rem !important;
+      gap: 0.6rem;
     }
+
     .btn-primary,
     .btn-secondary {
-      padding: 0.15rem 0.4rem !important;
-      font-size: 0.7rem !important;
-      min-height: 24px !important;
-      border-radius: 1px !important;
-      max-width: 100% !important;
+      padding: 0.6rem;
+      font-size: 0.9rem;
     }
   }
 </style>

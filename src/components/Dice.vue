@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+  import { ref, computed, watch, onMounted } from 'vue'
   import { GAME_CONFIG } from '../config/gameConfig'
 
   interface Props {
@@ -16,17 +16,6 @@
 
   const isRolling = ref(false)
   const rollCount = ref(0)
-  const shakeEnabled = ref(false)
-  const shakeThreshold = 15 // 摇动阈值
-  const shakeTimeout = ref<number | null>(null)
-  const lastShakeTime = ref(0)
-  const shakeCooldown = 1000 // 摇动冷却时间(ms)
-
-  // 摇动检测相关变量
-  let lastX: number | null = null
-  let lastY: number | null = null
-  let lastZ: number | null = null
-  let shakeCount = 0
 
   // 骰子点数对应的点阵布局
   const dotPatterns: Record<number, number[]> = {
@@ -57,72 +46,6 @@
     }, GAME_CONFIG.DICE.ANIMATION_DURATION)
   }
 
-  // 摇动检测函数
-  const handleDeviceMotion = (event: DeviceMotionEvent) => {
-    if (!shakeEnabled.value || isRolling.value || !props.canRoll) return
-
-    const currentTime = Date.now()
-    if (currentTime - lastShakeTime.value < shakeCooldown) return
-
-    const acceleration = event.accelerationIncludingGravity
-    if (!acceleration) return
-
-    const { x, y, z } = acceleration
-
-    // 检查坐标值是否有效
-    if (x === null || y === null || z === null) return
-
-    if (lastX !== null && lastY !== null && lastZ !== null) {
-      const deltaX = Math.abs(x - lastX)
-      const deltaY = Math.abs(y - lastY)
-      const deltaZ = Math.abs(z - lastZ)
-
-      const totalDelta = deltaX + deltaY + deltaZ
-
-      if (totalDelta > shakeThreshold) {
-        shakeCount++
-
-        if (shakeCount >= 3) {
-          // 需要连续摇动3次才触发
-          handleRoll()
-          shakeCount = 0
-          lastShakeTime.value = currentTime
-        }
-      } else {
-        // 重置摇动计数
-        shakeCount = 0
-      }
-    }
-
-    lastX = x
-    lastY = y
-    lastZ = z
-  }
-
-  // 切换摇动功能
-  const toggleShake = () => {
-    shakeEnabled.value = !shakeEnabled.value
-
-    if (shakeEnabled.value) {
-      // 请求设备运动权限
-      if (typeof DeviceMotionEvent !== 'undefined' && 'requestPermission' in DeviceMotionEvent) {
-        ;(DeviceMotionEvent as any).requestPermission().then((permission: string) => {
-          if (permission === 'granted') {
-            window.addEventListener('devicemotion', handleDeviceMotion)
-          } else {
-            shakeEnabled.value = false
-            alert('需要设备运动权限才能使用摇动功能')
-          }
-        })
-      } else {
-        // 对于不支持权限请求的设备，直接添加监听器
-        window.addEventListener('devicemotion', handleDeviceMotion)
-      }
-    } else {
-      window.removeEventListener('devicemotion', handleDeviceMotion)
-    }
-  }
-
   // 监听value变化，重置滚动状态
   watch(
     () => props.value,
@@ -135,19 +58,6 @@
       }
     }
   )
-
-  // 组件挂载时初始化
-  onMounted(() => {
-    // 检查设备是否支持摇动功能
-    if (typeof DeviceMotionEvent !== 'undefined') {
-      console.log('设备支持摇动检测')
-    }
-  })
-
-  // 组件卸载时清理
-  onUnmounted(() => {
-    window.removeEventListener('devicemotion', handleDeviceMotion)
-  })
 </script>
 
 <template>
@@ -158,7 +68,6 @@
         rolling: isRolling,
         'can-roll': canRoll && !isRolling,
         rolled: !canRoll && !isRolling && value !== null,
-        'shake-enabled': shakeEnabled,
       }"
       @click="handleRoll"
     >
@@ -211,7 +120,7 @@
       </div>
       <div v-else class="roll-prompt">
         <span class="prompt-icon">👆</span>
-        <span>{{ shakeEnabled ? '摇动手机或点击骰子' : '点击骰子开始' }}</span>
+        <span>点击骰子开始</span>
       </div>
     </div>
 
@@ -225,23 +134,6 @@
         <span class="button-icon">🎲</span>
         <span class="button-text">{{ isRolling ? '滚动中...' : '投骰子' }}</span>
       </button>
-
-      <!-- 摇动功能开关 -->
-      <button
-        class="shake-toggle-button"
-        :class="{ active: shakeEnabled }"
-        title="开启/关闭摇动手机掷骰子"
-        @click="toggleShake"
-      >
-        <span class="button-icon">{{ shakeEnabled ? '📱' : '📱' }}</span>
-        <span class="button-text">{{ shakeEnabled ? '摇动已开启' : '开启摇动' }}</span>
-      </button>
-    </div>
-
-    <!-- 摇动提示 -->
-    <div v-if="shakeEnabled && !isRolling && canRoll" class="shake-hint">
-      <span class="hint-icon">📱</span>
-      <span>摇动手机来掷骰子</span>
     </div>
   </div>
 </template>
@@ -280,10 +172,6 @@
 
   .dice.rolled {
     animation: settle 0.8s ease-out;
-  }
-
-  .dice.shake-enabled {
-    animation: shakeHint 2s ease-in-out infinite;
   }
 
   /* 突出显示骰子点数 */
@@ -484,8 +372,7 @@
     justify-content: center;
   }
 
-  .roll-button,
-  .shake-toggle-button {
+  .roll-button {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -516,45 +403,8 @@
     box-shadow: none;
   }
 
-  .shake-toggle-button {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-  }
-
-  .shake-toggle-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
-  }
-
-  .shake-toggle-button.active {
-    background: linear-gradient(135deg, #f093fb, #f5576c);
-    box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3);
-  }
-
-  .shake-toggle-button.active:hover {
-    box-shadow: 0 6px 16px rgba(240, 147, 251, 0.4);
-  }
-
   .button-icon {
     font-size: 1.1rem;
-  }
-
-  .shake-hint {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    color: white;
-    font-size: 0.9rem;
-    backdrop-filter: blur(10px);
-    animation: shakeHint 2s ease-in-out infinite;
-  }
-
-  .hint-icon {
-    font-size: 1rem;
   }
 
   /* 动画 */
@@ -619,19 +469,6 @@
     }
     100% {
       transform: scale(1) rotateX(0deg) rotateY(0deg);
-    }
-  }
-
-  @keyframes shakeHint {
-    0%,
-    100% {
-      transform: translateX(0);
-    }
-    25% {
-      transform: translateX(-2px);
-    }
-    75% {
-      transform: translateX(2px);
     }
   }
 
@@ -711,8 +548,7 @@
       max-width: 200px;
     }
 
-    .roll-button,
-    .shake-toggle-button {
+    .roll-button {
       padding: clamp(0.5rem, 2vw, 0.6rem) clamp(1rem, 3vw, 1.2rem);
       font-size: clamp(0.8rem, 2.2vw, 0.9rem);
       border-radius: 6px;
@@ -726,17 +562,6 @@
 
     .button-text {
       font-size: clamp(0.75rem, 2vw, 0.8rem);
-    }
-
-    .shake-hint {
-      padding: clamp(0.4rem, 1.5vw, 0.5rem);
-      border-radius: 6px;
-      font-size: clamp(0.7rem, 2vw, 0.8rem);
-      gap: 0.3rem;
-    }
-
-    .hint-icon {
-      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
     }
   }
 
@@ -799,8 +624,7 @@
       max-width: 180px;
     }
 
-    .roll-button,
-    .shake-toggle-button {
+    .roll-button {
       padding: clamp(0.4rem, 1.8vw, 0.5rem) clamp(0.8rem, 2.5vw, 1rem);
       font-size: clamp(0.75rem, 2vw, 0.8rem);
       min-height: clamp(32px, 7vw, 36px);
@@ -813,16 +637,6 @@
 
     .button-text {
       font-size: clamp(0.7rem, 1.8vw, 0.75rem);
-    }
-
-    .shake-hint {
-      padding: clamp(0.3rem, 1.2vw, 0.4rem);
-      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
-      gap: 0.25rem;
-    }
-
-    .hint-icon {
-      font-size: clamp(0.75rem, 2vw, 0.8rem);
     }
   }
 
@@ -885,8 +699,7 @@
       max-width: 160px;
     }
 
-    .roll-button,
-    .shake-toggle-button {
+    .roll-button {
       padding: clamp(0.35rem, 1.5vw, 0.4rem) clamp(0.7rem, 2vw, 0.8rem);
       font-size: clamp(0.7rem, 1.8vw, 0.75rem);
       min-height: clamp(28px, 6vw, 32px);
@@ -899,16 +712,6 @@
 
     .button-text {
       font-size: clamp(0.65rem, 1.5vw, 0.7rem);
-    }
-
-    .shake-hint {
-      padding: clamp(0.25rem, 1vw, 0.3rem);
-      font-size: clamp(0.6rem, 1.5vw, 0.65rem);
-      gap: 0.2rem;
-    }
-
-    .hint-icon {
-      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
     }
   }
 
@@ -971,8 +774,7 @@
       max-width: 160px;
     }
 
-    .roll-button,
-    .shake-toggle-button {
+    .roll-button {
       padding: clamp(0.35rem, 1.5vw, 0.4rem) clamp(0.7rem, 2vw, 0.8rem);
       font-size: clamp(0.7rem, 1.8vw, 0.75rem);
       min-height: clamp(28px, 6vw, 32px);
@@ -985,16 +787,6 @@
 
     .button-text {
       font-size: clamp(0.65rem, 1.5vw, 0.7rem);
-    }
-
-    .shake-hint {
-      padding: clamp(0.25rem, 1vw, 0.3rem);
-      font-size: clamp(0.6rem, 1.5vw, 0.65rem);
-      gap: 0.2rem;
-    }
-
-    .hint-icon {
-      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
     }
   }
 </style>
