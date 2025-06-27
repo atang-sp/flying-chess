@@ -9,6 +9,8 @@
 
   interface Emits {
     (e: 'confirm'): void
+    (e: 'back'): void
+    (e: 'regenerate'): void
   }
 
   const props = defineProps<Props>()
@@ -76,6 +78,14 @@
 
   const handleConfirm = () => {
     emit('confirm')
+  }
+
+  const handleBack = () => {
+    emit('back')
+  }
+
+  const handleRegenerate = () => {
+    emit('regenerate')
   }
 </script>
 
@@ -147,7 +157,15 @@
         </div>
 
         <div class="modal-actions">
-          <button class="btn-primary" @click="handleConfirm">✅ 开始游戏</button>
+          <button class="btn-secondary" @click="handleBack">
+            ⬅️ 返回上一级
+          </button>
+          <button class="btn-secondary" @click="handleRegenerate">
+            🔄 重新生成
+          </button>
+          <button class="btn-primary" @click="handleConfirm">
+            ✅ 开始游戏
+          </button>
         </div>
       </div>
     </div>
@@ -309,9 +327,11 @@
   .modal-actions {
     display: flex;
     justify-content: center;
+    gap: 1rem;
     padding: 1.5rem;
     background: #f8f9fa;
     border-top: 1px solid #e9ecef;
+    flex-wrap: wrap;
   }
 
   .btn-primary {
@@ -332,6 +352,23 @@
   .btn-primary:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  }
+
+  .btn-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .btn-secondary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
   }
 
   /* 响应式设计 */
@@ -416,6 +453,11 @@
       padding: 0.8rem 1.5rem;
       font-size: 1rem;
     }
+
+    .btn-secondary {
+      padding: 0.75rem 1.2rem;
+      font-size: 0.9rem;
+    }
   }
 
   @media (max-width: 480px) {
@@ -489,6 +531,11 @@
     }
 
     .btn-primary {
+      padding: 0.7rem 1.2rem;
+      font-size: 0.9rem;
+    }
+
+    .btn-secondary {
       padding: 0.7rem 1.2rem;
       font-size: 0.9rem;
     }
