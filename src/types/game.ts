@@ -33,6 +33,8 @@ export interface PunishmentConfig {
   tools: PunishmentTool[]
   bodyParts: PunishmentBodyPart[]
   positions: PunishmentPosition[]
+  minStrikes: number // 最小惩罚次数
+  maxStrikes: number // 最大惩罚次数
 }
 
 export interface PunishmentAction {
@@ -54,6 +56,8 @@ export interface BoardCell {
     value: number
     description: string
     punishment?: PunishmentAction
+    dynamicType?: 'dice_multiplier' | 'previous_player' | 'next_player' | 'other_player_choice'
+    multiplier?: number
   }
   position: number
 }
@@ -62,6 +66,15 @@ export interface CellEffect {
   type: 'move' | 'rest' | 'reverse' | 'restart'
   value: number
   description: string
+}
+
+export interface BoardConfig {
+  punishmentCells: number // 惩罚格子数量
+  bonusCells: number // 奖励格子数量
+  reverseCells: number // 后退格子数量
+  restCells: number // 休息格子数量
+  restartCells: number // 回到起点格子数量
+  totalCells: number // 总格子数量
 }
 
 export interface GameState {
@@ -77,10 +90,12 @@ export interface GameState {
     | 'configuring'
     | 'intro'
     | 'instructions'
+    | 'board_settings'
     | 'settings'
   winner: Player | null
   board: BoardCell[]
   punishmentConfig: PunishmentConfig
+  boardConfig: BoardConfig
   pendingEffect: CellEffect | null
 }
 

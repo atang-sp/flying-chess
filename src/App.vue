@@ -9,12 +9,14 @@
     PunishmentConfig,
     PunishmentAction,
     CellEffect,
+    BoardConfig,
   } from './types/game'
   import IntroPage from './components/IntroPage.vue'
   import GameInstructions from './components/GameInstructions.vue'
   import GameControls from './components/GameControls.vue'
   import GameBoard from './components/GameBoard.vue'
   import Dice from './components/Dice.vue'
+  import BoardConfigPanel from './components/BoardConfig.vue'
   import PunishmentConfigPanel from './components/PunishmentConfig.vue'
   import PunishmentDisplay from './components/PunishmentDisplay.vue'
   import PunishmentConfirmation from './components/PunishmentConfirmation.vue'
@@ -32,6 +34,7 @@
     winner: null,
     board: [],
     punishmentConfig: GameService.createPunishmentConfig(),
+    boardConfig: GameService.createBoardConfig(),
     pendingEffect: null,
   })
 
@@ -75,9 +78,17 @@
     return GameService.validatePunishmentConfig(gameState.punishmentConfig)
   })
 
+  const isBoardConfigValid = computed(() => {
+    return GameService.validateBoardConfig(gameState.boardConfig)
+  })
+
   // 页面导航
   const showInstructions = () => {
     gameState.gameStatus = 'instructions'
+  }
+
+  const showBoardSettings = () => {
+    gameState.gameStatus = 'board_settings'
   }
 
   const showSettings = () => {
@@ -87,12 +98,13 @@
   // 初始化游戏
   const initializeGame = () => {
     gameState.players = GameService.createPlayers()
-    gameState.board = GameService.createBoard(gameState.punishmentConfig)
+    gameState.board = GameService.createBoard(gameState.punishmentConfig, gameState.boardConfig)
     gameState.currentPlayerIndex = 0
     gameState.diceValue = null
     gameState.gameStatus = 'intro'
     gameState.winner = null
     gameState.punishmentConfig = GameService.createPunishmentConfig()
+    gameState.boardConfig = GameService.createBoardConfig()
     gameState.pendingEffect = null
     gameStarted.value = false
     gameFinished.value = false
@@ -109,7 +121,14 @@
   const updatePunishmentConfig = (config: PunishmentConfig) => {
     gameState.punishmentConfig = config
     // 重新创建棋盘以应用新的惩罚配置
-    gameState.board = GameService.createBoard(config)
+    gameState.board = GameService.createBoard(config, gameState.boardConfig)
+  }
+
+  // 更新棋盘配置
+  const updateBoardConfig = (config: BoardConfig) => {
+    gameState.boardConfig = config
+    // 重新创建棋盘以应用新的棋盘配置
+    gameState.board = GameService.createBoard(gameState.punishmentConfig, config)
   }
 
   // 开始游戏
@@ -152,7 +171,9 @@
   // 移动当前玩家（第一步：基本移动）
   const moveCurrentPlayer = async () => {
     const currentPlayer = gameState.players[gameState.currentPlayerIndex]
-    const diceValue = gameState.diceValue!
+    const diceValue = gameState.diceValue
+    if (!diceValue) return
+
     const fromPosition = currentPlayer.position
 
     const {
@@ -189,8 +210,9 @@
     // 等待移动动画完成
     await new Promise(resolve => setTimeout(resolve, 600))
 
-    // 检查是否到达终点（第40格）
-    if (newPosition === 40) {
+    // 检查是否到达终点
+    const boardSize = gameState.board.length
+    if (newPosition === boardSize) {
       currentPlayer.isWinner = true
       gameState.winner = currentPlayer
       gameState.gameStatus = 'finished'
@@ -285,9 +307,11 @@
             : 0)
 
     // 处理格子效果
+    const currentBoardSize = gameState.board.length
     const { newPosition, effect, fromPosition, toPosition } = GameService.processCellEffect(
       currentPlayer,
-      gameState.pendingEffect
+      gameState.pendingEffect,
+      currentBoardSize
     )
 
     // 更新玩家位置
@@ -318,8 +342,9 @@
     // 等待移动动画完成
     await new Promise(resolve => setTimeout(resolve, 600))
 
-    // 检查是否到达终点（第40格）
-    if (newPosition === 40) {
+    // 检查是否到达终点
+    const boardSize = gameState.board.length
+    if (newPosition === boardSize) {
       currentPlayer.isWinner = true
       gameState.winner = currentPlayer
       gameState.gameStatus = 'finished'
@@ -388,7 +413,7 @@
     const currentPlayer = gameState.players[gameState.currentPlayerIndex]
 
     // 检查是否获胜
-    if (GameService.checkWinner(currentPlayer)) {
+    if (GameService.checkWinner(currentPlayer, gameState.board.length)) {
       currentPlayer.isWinner = true
       gameState.winner = currentPlayer
       gameState.gameStatus = 'finished'
@@ -438,7 +463,7 @@
     const currentPlayer = gameState.players[gameState.currentPlayerIndex]
 
     // 检查是否获胜
-    if (GameService.checkWinner(currentPlayer)) {
+    if (GameService.checkWinner(currentPlayer, gameState.board.length)) {
       currentPlayer.isWinner = true
       gameState.winner = currentPlayer
       gameState.gameStatus = 'finished'
@@ -473,10 +498,9 @@
 
   // 生成惩罚组合
   const generatePunishmentCombinations = () => {
-    // 计算需要的惩罚组合数量：普通惩罚格子 + 动态惩罚格子
-    const punishmentCellCount = Object.keys(GAME_CONFIG.PUNISHMENT_CELLS).length
-    const dynamicPunishmentCellCount = Object.keys(GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS).length
-    const totalPunishmentCells = punishmentCellCount + dynamicPunishmentCellCount
+    // 计算需要的惩罚组合数量：基于实际棋盘中的惩罚格子数量
+    const punishmentCells = gameState.board.filter(cell => cell.type === 'punishment')
+    const totalPunishmentCells = punishmentCells.length
 
     // 使用新的平衡生成方法，确保符合用户设置的比例
     punishmentCombinations.value = GameService.generateBalancedPunishmentCombinations(
@@ -545,9 +569,32 @@
       <div class="page-container">
         <GameInstructions />
         <div class="page-actions">
-          <button class="btn-primary" @click="showSettings">
+          <button class="btn-primary" @click="showBoardSettings">
+            <span class="btn-icon">🎯</span>
+            <span class="btn-text">下一步：棋盘设置</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 棋盘设置页面 -->
+    <div v-else-if="gameState.gameStatus === 'board_settings'" class="settings-page">
+      <div class="page-container">
+        <div class="settings-header">
+          <h2>🎯 棋盘设置</h2>
+          <p>配置游戏中各种类型格子的数量</p>
+        </div>
+
+        <BoardConfigPanel :config="gameState.boardConfig" @update="updateBoardConfig" />
+
+        <div class="page-actions">
+          <button class="btn-secondary" @click="showInstructions">
+            <span class="btn-icon">⬅️</span>
+            <span class="btn-text">返回说明</span>
+          </button>
+          <button class="btn-primary" :disabled="!isBoardConfigValid" @click="showSettings">
             <span class="btn-icon">⚙️</span>
-            <span class="btn-text">下一步：设置惩罚</span>
+            <span class="btn-text">下一步：惩罚设置</span>
           </button>
         </div>
       </div>
@@ -567,9 +614,9 @@
         />
 
         <div class="page-actions">
-          <button class="btn-secondary" @click="showInstructions">
+          <button class="btn-secondary" @click="showBoardSettings">
             <span class="btn-icon">⬅️</span>
-            <span class="btn-text">返回说明</span>
+            <span class="btn-text">返回棋盘设置</span>
           </button>
           <button
             class="btn-primary"

@@ -5,7 +5,17 @@
   interface Props {
     gameStarted: boolean
     gameFinished: boolean
-    gameStatus: 'waiting' | 'rolling' | 'moving' | 'showing_effect' | 'finished' | 'configuring'
+    gameStatus:
+      | 'waiting'
+      | 'rolling'
+      | 'moving'
+      | 'showing_effect'
+      | 'finished'
+      | 'configuring'
+      | 'intro'
+      | 'instructions'
+      | 'board_settings'
+      | 'settings'
     turnCount: number
     winner: Player | null
   }
@@ -32,6 +42,14 @@
         return '游戏结束'
       case 'configuring':
         return '配置中'
+      case 'intro':
+        return '开始页面'
+      case 'instructions':
+        return '游戏说明'
+      case 'board_settings':
+        return '棋盘设置'
+      case 'settings':
+        return '惩罚设置'
       default:
         return '未知状态'
     }

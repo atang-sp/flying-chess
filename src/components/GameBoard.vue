@@ -27,8 +27,14 @@
 
   // 螺旋蛇形棋盘生成
   const spiralBoard = computed(() => {
-    const rows = GAME_CONFIG.BOARD.GRID_SIZE.rows
-    const cols = GAME_CONFIG.BOARD.GRID_SIZE.cols
+    const totalCells = props.board.length
+
+    // 动态计算网格大小，确保能容纳所有格子
+    // 使用黄金比例来优化布局
+    const aspectRatio = 1.6 // 宽高比
+    const cols = Math.ceil(Math.sqrt(totalCells * aspectRatio))
+    const rows = Math.ceil(totalCells / cols)
+
     const spiral: (number | null)[][] = Array.from({ length: rows }, () => Array(cols).fill(null))
 
     let num = 1
@@ -37,22 +43,22 @@
       top = 0,
       bottom = rows - 1
 
-    while (left <= right && top <= bottom && num <= GAME_CONFIG.BOARD.SIZE) {
+    while (left <= right && top <= bottom && num <= totalCells) {
       // 从左到右填充顶部行
-      for (let j = left; j <= right && num <= GAME_CONFIG.BOARD.SIZE; j++) {
+      for (let j = left; j <= right && num <= totalCells; j++) {
         spiral[top][j] = num++
       }
       top++
 
       // 从上到下填充右列
-      for (let i = top; i <= bottom && num <= GAME_CONFIG.BOARD.SIZE; i++) {
+      for (let i = top; i <= bottom && num <= totalCells; i++) {
         spiral[i][right] = num++
       }
       right--
 
       // 从右到左填充底部行（如果还有行）
       if (top <= bottom) {
-        for (let j = right; j >= left && num <= GAME_CONFIG.BOARD.SIZE; j--) {
+        for (let j = right; j >= left && num <= totalCells; j--) {
           spiral[bottom][j] = num++
         }
         bottom--
@@ -60,7 +66,7 @@
 
       // 从下到上填充左列（如果还有列）
       if (left <= right) {
-        for (let i = bottom; i >= top && num <= GAME_CONFIG.BOARD.SIZE; i--) {
+        for (let i = bottom; i >= top && num <= totalCells; i--) {
           spiral[i][left] = num++
         }
         left++
@@ -71,13 +77,23 @@
   })
 
   const getCellByPosition = (position: number): BoardCell => {
-    return (
-      props.board.find(cell => cell.position === position) || {
-        id: position,
-        type: 'punishment',
-        position,
-      }
-    )
+    const foundCell = props.board.find(cell => cell.position === position)
+    if (foundCell) {
+      return foundCell
+    }
+
+    // 如果找不到格子，返回一个安全的默认格子
+    console.warn(`位置 ${position} 的格子未找到，使用默认格子`)
+    return {
+      id: position,
+      type: 'bonus',
+      position,
+      effect: {
+        type: 'move',
+        value: 0,
+        description: '安全格子',
+      },
+    }
   }
 
   const getCellClass = (position: number): string => {

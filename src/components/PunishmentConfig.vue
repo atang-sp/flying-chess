@@ -239,16 +239,30 @@
   const saveConfig = () => {
     emit('update', props.config)
   }
+
+  const updateMinStrikes = (newValue: number) => {
+    const newConfig = { ...props.config }
+    newConfig.minStrikes = Math.max(5, newValue)
+    if (newConfig.minStrikes > newConfig.maxStrikes) {
+      newConfig.maxStrikes = newConfig.minStrikes
+    }
+    emit('update', newConfig)
+  }
+
+  const updateMaxStrikes = (newValue: number) => {
+    const newConfig = { ...props.config }
+    newConfig.maxStrikes = Math.max(newConfig.minStrikes, newValue)
+    emit('update', newConfig)
+  }
 </script>
 
 <template>
   <div class="punishment-config">
     <div class="config-header">
       <h3>⚙️ 惩罚设置</h3>
-      <p>设置游戏中的工具、部位、姿势和比例</p>
     </div>
 
-    <div class="config-sections">
+    <div class="config-sections compact">
       <!-- 工具设置 -->
       <div class="config-section">
         <h4>🛠️ 工具设置</h4>
@@ -427,6 +441,56 @@
           </button>
         </div>
       </div>
+
+      <!-- 惩罚数量设置 -->
+      <div class="config-section">
+        <h4>🔢 惩罚数量设置</h4>
+        <div class="strikes-config">
+          <div class="strikes-item">
+            <label class="strikes-label">最小惩罚次数</label>
+            <div class="strikes-controls">
+              <button
+                :disabled="config.minStrikes <= 5"
+                class="btn-small"
+                @click="updateMinStrikes(config.minStrikes - 5)"
+              >
+                -
+              </button>
+              <span class="strikes-value">{{ config.minStrikes }}</span>
+              <button
+                :disabled="config.minStrikes >= config.maxStrikes"
+                class="btn-small"
+                @click="updateMinStrikes(config.minStrikes + 5)"
+              >
+                +
+              </button>
+            </div>
+          </div>
+          <div class="strikes-item">
+            <label class="strikes-label">最大惩罚次数</label>
+            <div class="strikes-controls">
+              <button
+                :disabled="config.maxStrikes <= config.minStrikes"
+                class="btn-small"
+                @click="updateMaxStrikes(config.maxStrikes - 5)"
+              >
+                -
+              </button>
+              <span class="strikes-value">{{ config.maxStrikes }}</span>
+              <button
+                :disabled="config.maxStrikes >= 100"
+                class="btn-small"
+                @click="updateMaxStrikes(config.maxStrikes + 5)"
+              >
+                +
+              </button>
+            </div>
+          </div>
+          <div class="strikes-description">
+            惩罚次数将在 {{ config.minStrikes }} - {{ config.maxStrikes }} 之间随机生成
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="config-actions">
@@ -466,6 +530,42 @@
     display: grid;
     gap: clamp(1.5rem, 4vw, 2rem);
     margin-bottom: clamp(1.5rem, 4vw, 2rem);
+  }
+
+  .config-sections.compact {
+    gap: clamp(0.8rem, 2vw, 1.2rem);
+    margin-bottom: clamp(0.8rem, 2vw, 1.2rem);
+  }
+
+  .config-sections.compact .config-section {
+    padding: clamp(0.6rem, 1.5vw, 0.8rem);
+  }
+
+  .config-sections.compact .config-section h4 {
+    margin-bottom: clamp(0.6rem, 1.5vw, 0.8rem);
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
+  }
+
+  .config-sections.compact .tool-item,
+  .config-sections.compact .body-part-item,
+  .config-sections.compact .position-item {
+    padding: clamp(0.5rem, 1.2vw, 0.7rem);
+    gap: clamp(0.5rem, 1.2vw, 0.7rem);
+  }
+
+  .config-sections.compact .strikes-item {
+    padding: clamp(0.5rem, 1.2vw, 0.7rem);
+  }
+
+  .config-sections.compact .strikes-config {
+    gap: clamp(0.5rem, 1.2vw, 0.7rem);
+  }
+
+  .config-sections.compact .tools-list,
+  .config-sections.compact .body-parts-list,
+  .config-sections.compact .positions-list {
+    gap: clamp(0.5rem, 1.2vw, 0.7rem);
+    margin-bottom: clamp(0.5rem, 1.2vw, 0.7rem);
   }
 
   .config-section {
@@ -627,6 +727,52 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .strikes-config {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(1rem, 2.5vw, 1.5rem);
+  }
+
+  .strikes-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: clamp(0.8rem, 2vw, 1rem);
+    background: #f8f9fa;
+    border-radius: clamp(6px, 1.5vw, 8px);
+    border-left: 4px solid #ffa726;
+  }
+
+  .strikes-label {
+    font-weight: bold;
+    color: #333;
+    font-size: clamp(1rem, 3vw, 1.1rem);
+  }
+
+  .strikes-controls {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.5rem, 1.5vw, 0.8rem);
+  }
+
+  .strikes-value {
+    min-width: clamp(40px, 10vw, 50px);
+    text-align: center;
+    font-weight: bold;
+    font-size: clamp(1rem, 3vw, 1.2rem);
+    color: #ffa726;
+  }
+
+  .strikes-description {
+    text-align: center;
+    padding: clamp(0.8rem, 2vw, 1rem);
+    background: #fff3e0;
+    border-radius: clamp(6px, 1.5vw, 8px);
+    color: #e65100;
+    font-size: clamp(0.85rem, 2.5vw, 0.95rem);
+    border: 1px solid #ffcc80;
     font-size: clamp(0.9rem, 2.5vw, 1rem);
     font-weight: bold;
   }

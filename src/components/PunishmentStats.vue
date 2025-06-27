@@ -152,12 +152,8 @@
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" @click="handleRegenerate">
-            🔄 重新生成
-          </button>
-          <button class="btn-primary" @click="handleConfirm">
-            ✅ 开始游戏
-          </button>
+          <button class="btn-secondary" @click="handleRegenerate">🔄 重新生成</button>
+          <button class="btn-primary" @click="handleConfirm">✅ 开始游戏</button>
         </div>
       </div>
     </div>

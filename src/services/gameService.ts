@@ -4,159 +4,402 @@ import type {
   PunishmentConfig,
   PunishmentAction,
   PunishmentBodyPart,
+  PunishmentTool,
+  PunishmentPosition,
+  BoardConfig,
 } from '../types/game'
 import { GAME_CONFIG } from '../config/gameConfig'
 
 export class GameService {
-  static createBoard(punishmentConfig?: PunishmentConfig): BoardCell[] {
-    const board: BoardCell[] = []
-
-    // 使用用户配置或默认配置
+  static createBoard(punishmentConfig?: PunishmentConfig, boardConfig?: BoardConfig): BoardCell[] {
+    // 1. 读取配置
     const config = punishmentConfig || this.createPunishmentConfig()
+    const boardConf = boardConfig || GAME_CONFIG.DEFAULT_BOARD_CONFIG
+    const totalCells = boardConf.totalCells
 
-    for (let i = 1; i <= GAME_CONFIG.BOARD.SIZE; i++) {
-      let cell: BoardCell | null = null
+    // 判断是否为默认棋盘配置（与GAME_CONFIG.DEFAULT_BOARD_CONFIG完全一致）
+    const isDefaultConfig =
+      boardConf.totalCells === GAME_CONFIG.DEFAULT_BOARD_CONFIG.totalCells &&
+      boardConf.punishmentCells === GAME_CONFIG.DEFAULT_BOARD_CONFIG.punishmentCells &&
+      boardConf.bonusCells === GAME_CONFIG.DEFAULT_BOARD_CONFIG.bonusCells &&
+      boardConf.reverseCells === GAME_CONFIG.DEFAULT_BOARD_CONFIG.reverseCells &&
+      boardConf.restCells === GAME_CONFIG.DEFAULT_BOARD_CONFIG.restCells &&
+      boardConf.restartCells === GAME_CONFIG.DEFAULT_BOARD_CONFIG.restartCells
 
-      // 第1格是飞机场，第40格是终点，不应该有惩罚
-      if (i === 1) {
-        cell = {
-          id: i,
-          type: 'bonus', // 设置为奖励格子类型，但没有效果
-          position: i,
-        }
-        // 不设置effect，避免触发效果显示
-      } else if (i === 40) {
-        cell = {
-          id: i,
-          type: 'bonus', // 设置为奖励格子类型，但没有效果
-          position: i,
-        }
-        cell.effect = {
-          type: 'move',
-          value: 0,
-          description: '终点 - 游戏胜利',
-        }
-      }
-      // 检查是否为动态惩罚格子
-      else if (i in GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS) {
-        cell = {
-          id: i,
-          type: 'punishment',
-          position: i,
-        }
-        const dynamicConfig =
-          GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS[
-            i as keyof typeof GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS
-          ]
+    // 如果不是默认配置，使用随机分配逻辑
+    if (!isDefaultConfig) {
+      return this.createBoardRandom(config, boardConf)
+    }
 
-        // 使用用户配置中的工具、部位、姿势
-        const tool = config.tools.find(t => t.id === dynamicConfig.tool) || config.tools[0]
+    // ---------------- 默认配置：使用预定义格子 ----------------
+    // 创建一个映射来存储格子，稍后组装为数组
+    const cellMap = new Map<number, BoardCell>()
+
+    // 3. 基于预定义配置创建格子
+    // 起点
+    cellMap.set(1, {
+      id: 1,
+      type: 'bonus',
+      position: 1,
+      effect: {
+        type: 'move',
+        value: 0,
+        description: '起点',
+      },
+    })
+
+    // 终点
+    cellMap.set(totalCells, {
+      id: totalCells,
+      type: 'bonus',
+      position: totalCells,
+      effect: {
+        type: 'move',
+        value: 0,
+        description: '终点 - 游戏胜利',
+      },
+    })
+
+    // 预定义的惩罚格子
+    Object.entries(GAME_CONFIG.PUNISHMENT_CELLS).forEach(([positionStr, cellConfig]) => {
+      const position = parseInt(positionStr)
+      if (position <= totalCells) {
+        const tool = config.tools.find(t => t.id === cellConfig.tool) || config.tools[0]
         const bodyPart =
-          config.bodyParts.find(b => b.id === dynamicConfig.bodyPart) || config.bodyParts[0]
-        const position =
-          config.positions.find(p => p.id === dynamicConfig.position) || config.positions[0]
+          config.bodyParts.find(b => b.id === cellConfig.bodyPart) || config.bodyParts[0]
+        const pos = config.positions.find(p => p.id === cellConfig.position) || config.positions[0]
 
-        if (tool && bodyPart && position) {
-          const punishment: PunishmentAction = {
-            tool,
-            bodyPart,
-            position,
-            description: `用${tool.name}打${bodyPart.name}，姿势：${position.name}`,
-          }
+        const punishment: PunishmentAction = {
+          tool,
+          bodyPart,
+          position: pos,
+          description: `用${tool.name}打${bodyPart.name}，姿势：${pos.name}`,
+        }
 
-          cell.effect = {
+        cellMap.set(position, {
+          id: position,
+          type: 'punishment',
+          position,
+          effect: {
             type: 'punishment',
             value: 0,
             description: punishment.description,
             punishment,
-          }
-        }
+          },
+        })
       }
-      // 检查是否为普通惩罚格子
-      else if (i in GAME_CONFIG.PUNISHMENT_CELLS) {
-        cell = {
-          id: i,
-          type: 'punishment',
-          position: i,
-        }
-        const punishmentConfig =
-          GAME_CONFIG.PUNISHMENT_CELLS[i as keyof typeof GAME_CONFIG.PUNISHMENT_CELLS]
+    })
 
-        // 使用用户配置中的工具、部位、姿势
-        const tool = config.tools.find(t => t.id === punishmentConfig.tool) || config.tools[0]
+    // 动态惩罚格子
+    Object.entries(GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS).forEach(([positionStr, cellConfig]) => {
+      const position = parseInt(positionStr)
+      if (position <= totalCells) {
+        const tool = config.tools.find(t => t.id === cellConfig.tool) || config.tools[0]
         const bodyPart =
-          config.bodyParts.find(b => b.id === punishmentConfig.bodyPart) || config.bodyParts[0]
-        const position =
-          config.positions.find(p => p.id === punishmentConfig.position) || config.positions[0]
+          config.bodyParts.find(b => b.id === cellConfig.bodyPart) || config.bodyParts[0]
+        const pos = config.positions.find(p => p.id === cellConfig.position) || config.positions[0]
 
-        if (tool && bodyPart && position) {
-          const punishment: PunishmentAction = {
-            tool,
-            bodyPart,
-            position,
-            description: `用${tool.name}打${bodyPart.name}，姿势：${position.name}`,
-          }
+        const punishment: PunishmentAction = {
+          tool,
+          bodyPart,
+          position: pos,
+          description: cellConfig.description,
+        }
 
-          cell.effect = {
+        cellMap.set(position, {
+          id: position,
+          type: 'punishment',
+          position,
+          effect: {
             type: 'punishment',
             value: 0,
             description: punishment.description,
             punishment,
-          }
-        }
+            dynamicType: cellConfig.type as
+              | 'dice_multiplier'
+              | 'previous_player'
+              | 'next_player'
+              | 'other_player_choice',
+            multiplier: (cellConfig as { multiplier?: number }).multiplier,
+          },
+        })
       }
-      // 检查是否为奖励格子
-      else if (i in GAME_CONFIG.BONUS_CELLS) {
-        cell = {
+    })
+
+    // 奖励格子
+    Object.entries(GAME_CONFIG.BONUS_CELLS).forEach(([positionStr, cellConfig]) => {
+      const position = parseInt(positionStr)
+      if (position <= totalCells) {
+        cellMap.set(position, {
+          id: position,
+          type: 'bonus',
+          position,
+          effect: {
+            type: 'move',
+            value: cellConfig.value,
+            description: cellConfig.description,
+          },
+        })
+      }
+    })
+
+    // 后退格子
+    Object.entries(GAME_CONFIG.REVERSE_CELLS).forEach(([positionStr, cellConfig]) => {
+      const position = parseInt(positionStr)
+      if (position <= totalCells) {
+        cellMap.set(position, {
+          id: position,
+          type: 'special',
+          position,
+          effect: {
+            type: cellConfig.type as 'reverse',
+            value: cellConfig.value,
+            description: cellConfig.description,
+          },
+        })
+      }
+    })
+
+    // 休息格子
+    Object.entries(GAME_CONFIG.REST_CELLS).forEach(([positionStr, cellConfig]) => {
+      const position = parseInt(positionStr)
+      if (position <= totalCells) {
+        cellMap.set(position, {
+          id: position,
+          type: 'special',
+          position,
+          effect: {
+            type: cellConfig.type as 'rest',
+            value: cellConfig.value,
+            description: cellConfig.description,
+          },
+        })
+      }
+    })
+
+    // 回到起点格子
+    Object.entries(GAME_CONFIG.RESTART_CELLS).forEach(([positionStr, cellConfig]) => {
+      const position = parseInt(positionStr)
+      if (position <= totalCells) {
+        cellMap.set(position, {
+          id: position,
+          type: 'restart',
+          position,
+          effect: {
+            type: 'restart',
+            value: 0,
+            description: cellConfig.description,
+          },
+        })
+      }
+    })
+
+    // 4. 为剩余的空位置创建普通格子（非惩罚格子）
+    for (let i = 1; i <= totalCells; i++) {
+      if (!cellMap.has(i)) {
+        cellMap.set(i, {
           id: i,
           type: 'bonus',
           position: i,
-        }
-        const bonusConfig = GAME_CONFIG.BONUS_CELLS[i as keyof typeof GAME_CONFIG.BONUS_CELLS]
-        cell.effect = {
+          effect: {
+            type: 'move',
+            value: 0,
+            description: '安全格子',
+          },
+        })
+      }
+    }
+
+    const boardDefault: BoardCell[] = []
+    for (let i = 1; i <= totalCells; i++) {
+      const cell = cellMap.get(i)
+      if (cell) {
+        boardDefault.push(cell)
+      }
+    }
+
+    // 调试信息（默认棋盘）
+    this.logBoardStats(boardDefault, '默认棋盘分配信息')
+
+    return boardDefault
+  }
+
+  // 随机分配棋盘（自定义配置）
+  private static createBoardRandom(config: PunishmentConfig, boardConf: BoardConfig): BoardCell[] {
+    const totalCells = boardConf.totalCells
+
+    const startPosition = 1
+    const endPosition = totalCells
+
+    // 所有位置
+    const allPositions = Array.from({ length: totalCells }, (_, i) => i + 1)
+    const availablePositions = allPositions.filter(
+      pos => pos !== startPosition && pos !== endPosition
+    )
+
+    // 随机打乱
+    for (let i = availablePositions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[availablePositions[i], availablePositions[j]] = [
+        availablePositions[j],
+        availablePositions[i],
+      ]
+    }
+
+    const cellMap = new Map<number, BoardCell>()
+
+    // 起点
+    cellMap.set(startPosition, {
+      id: startPosition,
+      type: 'bonus',
+      position: startPosition,
+      effect: {
+        type: 'move',
+        value: 0,
+        description: '起点',
+      },
+    })
+
+    // 终点
+    cellMap.set(endPosition, {
+      id: endPosition,
+      type: 'bonus',
+      position: endPosition,
+      effect: {
+        type: 'move',
+        value: 0,
+        description: '终点 - 游戏胜利',
+      },
+    })
+
+    const availableCount = totalCells - 2
+    let currentIndex = 0
+
+    // 惩罚格子
+    const punishmentCount = Math.min(boardConf.punishmentCells, availableCount - currentIndex)
+    const punishmentPositions = availablePositions.slice(
+      currentIndex,
+      currentIndex + punishmentCount
+    )
+    currentIndex += punishmentCount
+
+    // 奖励格子
+    const bonusCount = Math.min(boardConf.bonusCells, availableCount - currentIndex)
+    const bonusPositions = availablePositions.slice(currentIndex, currentIndex + bonusCount)
+    currentIndex += bonusCount
+
+    // 后退格子
+    const reverseCount = Math.min(boardConf.reverseCells, availableCount - currentIndex)
+    const reversePositions = availablePositions.slice(currentIndex, currentIndex + reverseCount)
+    currentIndex += reverseCount
+
+    // 休息格子
+    const restCount = Math.min(boardConf.restCells, availableCount - currentIndex)
+    const restPositions = availablePositions.slice(currentIndex, currentIndex + restCount)
+    currentIndex += restCount
+
+    // 回到起点格子
+    const restartCount = Math.min(boardConf.restartCells, availableCount - currentIndex)
+    const restartPositions = availablePositions.slice(currentIndex, currentIndex + restartCount)
+    currentIndex += restartCount
+
+    // 填充惩罚格子
+    punishmentPositions.forEach(pos => {
+      const tool = this.selectByRatio(config.tools)
+      const bodyPart = this.selectByRatio(config.bodyParts)
+      const position = this.selectByRatio(config.positions)
+
+      const punishment: PunishmentAction = {
+        tool,
+        bodyPart,
+        position,
+        description: `用${tool.name}打${bodyPart.name}，姿势：${position.name}`,
+      }
+
+      cellMap.set(pos, {
+        id: pos,
+        type: 'punishment',
+        position: pos,
+        effect: {
+          type: 'punishment',
+          value: 0,
+          description: punishment.description,
+          punishment,
+        },
+      })
+    })
+
+    // 奖励格子
+    bonusPositions.forEach(pos => {
+      const bonusTypes = [
+        { value: 2, description: '前进2步' },
+        { value: 3, description: '前进3步' },
+      ]
+      const randomBonus = bonusTypes[Math.floor(Math.random() * bonusTypes.length)]
+
+      cellMap.set(pos, {
+        id: pos,
+        type: 'bonus',
+        position: pos,
+        effect: {
           type: 'move',
-          value: bonusConfig.value,
-          description: bonusConfig.description,
-        }
-      }
-      // 检查是否为特殊格子
-      else if (i in GAME_CONFIG.SPECIAL_CELLS) {
-        cell = {
-          id: i,
-          type: 'special',
-          position: i,
-        }
-        const specialConfig = GAME_CONFIG.SPECIAL_CELLS[i as keyof typeof GAME_CONFIG.SPECIAL_CELLS]
-        cell.effect = {
-          type: specialConfig.type as 'move' | 'rest' | 'reverse',
-          value: specialConfig.value,
-          description: specialConfig.description,
-        }
-      }
-      // 检查是否为回到起点格子
-      else if (i in GAME_CONFIG.RESTART_CELLS) {
-        cell = {
-          id: i,
-          type: 'restart',
-          position: i,
-        }
-        const restartConfig = GAME_CONFIG.RESTART_CELLS[i as keyof typeof GAME_CONFIG.RESTART_CELLS]
-        cell.effect = {
+          value: randomBonus.value,
+          description: randomBonus.description,
+        },
+      })
+    })
+
+    // 后退格子
+    reversePositions.forEach(pos => {
+      const reverseTypes = [
+        { type: 'reverse', value: 2, description: '后退2步' },
+        { type: 'reverse', value: 3, description: '后退3步' },
+      ]
+      const randomReverse = reverseTypes[Math.floor(Math.random() * reverseTypes.length)]
+
+      cellMap.set(pos, {
+        id: pos,
+        type: 'special',
+        position: pos,
+        effect: {
+          type: randomReverse.type as 'reverse',
+          value: randomReverse.value,
+          description: randomReverse.description,
+        },
+      })
+    })
+
+    // 休息格子
+    restPositions.forEach(pos => {
+      cellMap.set(pos, {
+        id: pos,
+        type: 'special',
+        position: pos,
+        effect: {
+          type: 'rest',
+          value: 1,
+          description: '休息1回合',
+        },
+      })
+    })
+
+    // 回到起点格子
+    restartPositions.forEach(pos => {
+      cellMap.set(pos, {
+        id: pos,
+        type: 'restart',
+        position: pos,
+        effect: {
           type: 'restart',
           value: 0,
-          description: restartConfig.description,
-        }
-      }
+          description: '回到起点',
+        },
+      })
+    })
 
-      // 如果格子没有特殊效果，设置为惩罚格子（确保没有普通格子）
-      if (!cell) {
-        cell = {
-          id: i,
-          type: 'punishment',
-          position: i,
-        }
-
-        // 随机选择工具、部位、姿势
+    // 剩余位置全部填充惩罚格子
+    for (let i = 1; i <= totalCells; i++) {
+      if (!cellMap.has(i)) {
         const tool = this.selectByRatio(config.tools)
         const bodyPart = this.selectByRatio(config.bodyParts)
         const position = this.selectByRatio(config.positions)
@@ -168,18 +411,57 @@ export class GameService {
           description: `用${tool.name}打${bodyPart.name}，姿势：${position.name}`,
         }
 
-        cell.effect = {
+        cellMap.set(i, {
+          id: i,
           type: 'punishment',
-          value: 0,
-          description: punishment.description,
-          punishment,
-        }
+          position: i,
+          effect: {
+            type: 'punishment',
+            value: 0,
+            description: punishment.description,
+            punishment,
+          },
+        })
       }
-
-      board.push(cell)
     }
 
-    return board
+    const randomBoard: BoardCell[] = []
+    for (let i = 1; i <= totalCells; i++) {
+      const cell = cellMap.get(i)
+      if (cell) {
+        randomBoard.push(cell)
+      }
+    }
+
+    this.logBoardStats(randomBoard, '自定义棋盘分配信息')
+
+    return randomBoard
+  }
+
+  // 打印棋盘统计信息
+  private static logBoardStats(board: BoardCell[], title: string): void {
+    const punishmentCount = board.filter(c => c.type === 'punishment').length
+    const bonusCount = board.filter(c => c.type === 'bonus').length
+    const reverseCount = board.filter(
+      c => c.type === 'special' && c.effect?.type === 'reverse'
+    ).length
+    const restCount = board.filter(c => c.type === 'special' && c.effect?.type === 'rest').length
+    const restartCount = board.filter(c => c.type === 'restart').length
+
+    console.log(title, {
+      totalCells: board.length,
+      punishmentCount,
+      bonusCount,
+      reverseCount,
+      restCount,
+      restartCount,
+      totalAssigned: punishmentCount + bonusCount + reverseCount + restCount + restartCount,
+    })
+
+    // 输出每个格子
+    board.forEach(cell => {
+      console.log(`位置 ${cell.position}: ${cell.type} - ${cell.effect?.description || '无效果'}`)
+    })
   }
 
   static createPlayers(): Player[] {
@@ -200,27 +482,36 @@ export class GameService {
   }
 
   static createPunishmentConfig(): PunishmentConfig {
-    // 创建默认配置，保留原始比例设置
-    const tools = GAME_CONFIG.DEFAULT_TOOLS.map(tool => ({
-      ...tool,
-      // 保留原始比例，不重置为均等比例
-    }))
-
-    const bodyParts = GAME_CONFIG.DEFAULT_BODY_PARTS.map(bodyPart => ({
-      ...bodyPart,
-      // 保留原始比例，不重置为均等比例
-    }))
-
-    const positions = GAME_CONFIG.DEFAULT_POSITIONS.map(position => ({
-      ...position,
-      // 保留原始比例，不重置为均等比例
-    }))
-
     return {
-      tools,
-      bodyParts,
-      positions,
+      tools: [...GAME_CONFIG.DEFAULT_TOOLS],
+      bodyParts: [...GAME_CONFIG.DEFAULT_BODY_PARTS],
+      positions: [...GAME_CONFIG.DEFAULT_POSITIONS],
+      minStrikes: GAME_CONFIG.DEFAULT_PUNISHMENT_STRIKES.min,
+      maxStrikes: GAME_CONFIG.DEFAULT_PUNISHMENT_STRIKES.max,
     }
+  }
+
+  static createBoardConfig(): BoardConfig {
+    return { ...GAME_CONFIG.DEFAULT_BOARD_CONFIG }
+  }
+
+  static validateBoardConfig(config: BoardConfig): boolean {
+    const totalUsed =
+      config.punishmentCells +
+      config.bonusCells +
+      config.reverseCells +
+      config.restCells +
+      config.restartCells
+
+    return (
+      totalUsed <= config.totalCells &&
+      config.punishmentCells >= 0 &&
+      config.bonusCells >= 0 &&
+      config.reverseCells >= 0 &&
+      config.restCells >= 0 &&
+      config.restartCells >= 0 &&
+      config.totalCells >= 20
+    )
   }
 
   static rollDice(): number {
@@ -242,7 +533,7 @@ export class GameService {
     effect?: string
     punishment?: PunishmentAction
     targetPlayerIndex?: number
-    cellEffect?: any
+    cellEffect?: BoardCell['effect']
     canTakeOff?: boolean
     executorIndex?: number
   } {
@@ -258,9 +549,12 @@ export class GameService {
     let effect: string | undefined
     let punishment: PunishmentAction | undefined
     let targetPlayerIndex: number | undefined
-    let cellEffect: any = undefined
+    let cellEffect: BoardCell['effect'] = undefined
     let canTakeOff = false
     let executorIndex: number | undefined
+
+    // 获取棋盘大小
+    const boardSize = board.length
 
     // 检查是否在起点且未起飞
     if (player.position === 0 && !player.hasTakenOff) {
@@ -305,16 +599,16 @@ export class GameService {
       newPosition = player.position + diceValue
 
       // 处理环形移动
-      if (newPosition > 40) {
-        newPosition = 40 // 到达终点
+      if (newPosition > boardSize) {
+        newPosition = boardSize // 到达终点
       }
     }
 
     // 检查新位置的格子效果
     const targetCell = board.find(cell => cell.position === newPosition)
     if (targetCell && targetCell.effect) {
-      // 如果到达第40格（终点），不触发任何格子效果
-      if (newPosition === 40) {
+      // 如果到达终点，不触发任何格子效果
+      if (newPosition === boardSize) {
         effect = '到达终点！游戏胜利！'
         return {
           newPosition,
@@ -386,15 +680,17 @@ export class GameService {
   // 处理格子效果（第二步）
   static processCellEffect(
     player: Player,
-    cellEffect: any
+    cellEffect: BoardCell['effect'],
+    boardSize: number = 40
   ): { newPosition: number; effect: string; fromPosition: number; toPosition: number } {
-    // 设置移动动画状态
-    player.isMoving = true
-
-    // 延迟清除移动动画状态
-    setTimeout(() => {
-      player.isMoving = false
-    }, 600) // 与CSS动画时长匹配
+    if (!cellEffect) {
+      return {
+        newPosition: player.position,
+        effect: '无效果',
+        fromPosition: player.position,
+        toPosition: player.position,
+      }
+    }
 
     const fromPosition = player.position
     let newPosition = player.position
@@ -402,38 +698,40 @@ export class GameService {
 
     switch (cellEffect.type) {
       case 'move':
-        newPosition += cellEffect.value
-        if (newPosition > 40) {
-          newPosition = 40 // 到达终点
-          effect = `移动${cellEffect.value > 0 ? '+' : ''}${cellEffect.value}步，到达终点！`
-        } else {
-          effect = `移动${cellEffect.value > 0 ? '+' : ''}${cellEffect.value}步`
-        }
-        if (newPosition < 0) newPosition = 0
+        newPosition = Math.min(player.position + cellEffect.value, boardSize)
+        effect = cellEffect.description || `前进${cellEffect.value}步`
         break
-
       case 'reverse':
-        newPosition -= cellEffect.value
-        if (newPosition < 0) newPosition = 0
-        effect = `后退${cellEffect.value}步`
+        newPosition = Math.max(player.position - cellEffect.value, 1)
+        effect = cellEffect.description || `后退${cellEffect.value}步`
         break
-
-      case 'restart':
-        newPosition = 0
-        player.hasTakenOff = false // 回到起点后需要重新起飞
-        effect = '回到起点，需要重新起飞'
-        break
-
       case 'rest':
-        effect = `休息${cellEffect.value}回合`
+        newPosition = player.position
+        effect = cellEffect.description || `休息${cellEffect.value}回合`
         break
+      case 'restart':
+        newPosition = 1
+        effect = cellEffect.description || '回到起点'
+        break
+      case 'punishment':
+        newPosition = player.position
+        effect = cellEffect.description || '接受惩罚'
+        break
+      default:
+        newPosition = player.position
+        effect = '未知效果'
     }
 
-    return { newPosition, effect, fromPosition, toPosition: newPosition }
+    return {
+      newPosition,
+      effect,
+      fromPosition,
+      toPosition: newPosition,
+    }
   }
 
-  static checkWinner(player: Player): boolean {
-    return player.position >= GAME_CONFIG.BOARD.SIZE
+  static checkWinner(player: Player, boardSize: number = 40): boolean {
+    return player.position >= boardSize
   }
 
   static getNextPlayer(currentIndex: number, totalPlayers: number): number {
@@ -471,7 +769,8 @@ export class GameService {
     return (
       position in GAME_CONFIG.PUNISHMENT_CELLS ||
       position in GAME_CONFIG.BONUS_CELLS ||
-      position in GAME_CONFIG.SPECIAL_CELLS
+      position in GAME_CONFIG.REVERSE_CELLS ||
+      position in GAME_CONFIG.REST_CELLS
     )
   }
 
@@ -484,7 +783,7 @@ export class GameService {
       return 'punishment'
     } else if (position in GAME_CONFIG.BONUS_CELLS) {
       return 'bonus'
-    } else if (position in GAME_CONFIG.SPECIAL_CELLS) {
+    } else if (position in GAME_CONFIG.REVERSE_CELLS || position in GAME_CONFIG.REST_CELLS) {
       return 'special'
     } else if (position in GAME_CONFIG.RESTART_CELLS) {
       return 'restart'
@@ -494,19 +793,40 @@ export class GameService {
 
   // 根据比例随机选择项目
   static selectByRatio<T extends { ratio: number }>(items: T[]): T {
-    const totalRatio = items.reduce((sum, item) => sum + item.ratio, 0)
+    const validItems = items.filter(it => it.ratio > 0)
+    const list = validItems.length > 0 ? validItems : items
+    const totalRatio = list.reduce((sum, item) => sum + item.ratio, 0)
+    if (totalRatio === 0) return list[0]
     const random = Math.random() * totalRatio
-
     let currentSum = 0
-    for (const item of items) {
+    for (const item of list) {
       currentSum += item.ratio
       if (random <= currentSum) {
         return item
       }
     }
+    return list[0]
+  }
 
-    // 兜底返回第一个
-    return items[0]
+  // 生成带随机惩罚次数的组合
+  private static createPunishmentCombination(
+    tool: PunishmentTool,
+    bodyPart: PunishmentBodyPart,
+    position: PunishmentPosition,
+    config: PunishmentConfig
+  ): PunishmentAction {
+    // 在配置的范围内随机生成惩罚次数
+    const minStrikes = Math.max(1, config.minStrikes || 10)
+    const maxStrikes = Math.max(minStrikes, config.maxStrikes || 30)
+    const strikes = Math.floor(Math.random() * (maxStrikes - minStrikes + 1)) + minStrikes
+
+    return {
+      tool,
+      bodyPart,
+      position,
+      strikes,
+      description: `用${tool.name}打${bodyPart.name}${strikes}下，姿势：${position.name}`,
+    }
   }
 
   // 生成随机惩罚组合
@@ -529,11 +849,17 @@ export class GameService {
     // 随机选择姿势
     const position = this.selectByRatio(config.positions)
 
+    // 在配置的范围内随机生成惩罚次数
+    const minStrikes = Math.max(1, config.minStrikes || 10)
+    const maxStrikes = Math.max(minStrikes, config.maxStrikes || 30)
+    const strikes = Math.floor(Math.random() * (maxStrikes - minStrikes + 1)) + minStrikes
+
     return {
       tool,
       bodyPart,
       position,
-      description: `用${tool.name}打${bodyPart.name}，姿势：${position.name}`,
+      strikes,
+      description: `用${tool.name}打${bodyPart.name}${strikes}下，姿势：${position.name}`,
     }
   }
 
@@ -576,42 +902,47 @@ export class GameService {
     const combinations: PunishmentAction[] = []
     const usedCombinations = new Set<string>() // 用于去重的集合
 
-    // 首先尝试生成所有可能的有效组合
+    // 获取有效的配置项（ratio > 0）
+    const validTools = config.tools.filter(tool => tool.ratio > 0)
+    const validBodyParts = config.bodyParts.filter(bodyPart => bodyPart.ratio > 0)
+    const validPositions = config.positions.filter(position => position.ratio > 0)
+
+    // 如果任何一类没有有效配置，返回空数组
+    if (validTools.length === 0 || validBodyParts.length === 0 || validPositions.length === 0) {
+      return []
+    }
+
+    // 生成所有可能的有效组合（优先考虑强度限制）
     const allPossibleCombinations: PunishmentAction[] = []
 
-    for (const tool of config.tools) {
-      for (const bodyPart of config.bodyParts) {
+    for (const tool of validTools) {
+      for (const bodyPart of validBodyParts) {
         // 检查工具强度是否适合部位耐受度
         if (tool.intensity <= bodyPart.sensitivity) {
-          for (const position of config.positions) {
-            const combination: PunishmentAction = {
-              tool,
-              bodyPart,
-              position,
-              description: `用${tool.name}打${bodyPart.name}，姿势：${position.name}`,
-            }
+          for (const position of validPositions) {
+            const combination = this.createPunishmentCombination(tool, bodyPart, position, config)
             allPossibleCombinations.push(combination)
           }
         }
       }
     }
 
-    // 如果可能的组合数量不足，放宽强度限制
+    // 如果严格限制下的组合数量不足，放宽强度限制（但仍然只使用有效配置）
     if (allPossibleCombinations.length < count) {
       allPossibleCombinations.length = 0 // 清空数组
-      for (const tool of config.tools) {
-        for (const bodyPart of config.bodyParts) {
-          for (const position of config.positions) {
-            const combination: PunishmentAction = {
-              tool,
-              bodyPart,
-              position,
-              description: `用${tool.name}打${bodyPart.name}，姿势：${position.name}`,
-            }
+      for (const tool of validTools) {
+        for (const bodyPart of validBodyParts) {
+          for (const position of validPositions) {
+            const combination = this.createPunishmentCombination(tool, bodyPart, position, config)
             allPossibleCombinations.push(combination)
           }
         }
       }
+    }
+
+    // 如果还是没有组合，返回空数组
+    if (allPossibleCombinations.length === 0) {
+      return []
     }
 
     // 随机打乱所有可能的组合
@@ -629,7 +960,7 @@ export class GameService {
       }
     }
 
-    // 如果还是不够，允许重复（但尽量避免）
+    // 如果还是不够，允许重复（但仍然只使用有效配置）
     if (combinations.length < count) {
       const remainingCount = count - combinations.length
       for (let i = 0; i < remainingCount; i++) {
@@ -649,19 +980,19 @@ export class GameService {
   ): BoardCell[] {
     const updatedBoard = [...board]
 
-    // 获取所有惩罚格子的位置
-    const punishmentPositions = [
-      ...Object.keys(GAME_CONFIG.PUNISHMENT_CELLS).map(Number),
-      ...Object.keys(GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS).map(Number),
-    ]
+    // 获取所有惩罚格子的位置（基于实际棋盘）
+    const punishmentCells = updatedBoard.filter(cell => cell.type === 'punishment')
+    const punishmentPositions = punishmentCells.map(cell => cell.position)
 
-    // 为每个惩罚格子分配一个确认的组合
+    // 为每个惩罚格子分配一个确认的组合（组合可以重复使用）
     punishmentPositions.forEach((position, index) => {
       const cell = updatedBoard.find(c => c.position === position)
-      if (cell && index < combinations.length) {
-        const combination = combinations[index]
+      if (cell && combinations.length > 0) {
+        // 如果组合数量少于格子数量，循环使用组合
+        const combinationIndex = index % combinations.length
+        const combination = combinations[combinationIndex]
 
-        // 检查是否为动态惩罚格子
+        // 检查是否为动态惩罚格子（基于预定义配置）
         if (position in GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS) {
           const dynamicConfig =
             GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS[
@@ -699,6 +1030,8 @@ export class GameService {
           value: 0,
           description: combination.description,
           punishment: combination,
+          dynamicType: combination.dynamicType,
+          multiplier: combination.multiplier,
         }
       }
     })
@@ -714,38 +1047,38 @@ export class GameService {
     const combinations: PunishmentAction[] = []
     const usedCombinations = new Set<string>() // 用于去重的集合
 
-    // 首先尝试生成所有可能的有效组合
+    // 获取有效的配置项（ratio > 0）
+    const validTools = config.tools.filter(tool => tool.ratio > 0)
+    const validBodyParts = config.bodyParts.filter(bodyPart => bodyPart.ratio > 0)
+    const validPositions = config.positions.filter(position => position.ratio > 0)
+
+    // 如果任何一类没有有效配置，返回空数组
+    if (validTools.length === 0 || validBodyParts.length === 0 || validPositions.length === 0) {
+      return []
+    }
+
+    // 生成所有可能的有效组合（优先考虑强度限制）
     const allPossibleCombinations: PunishmentAction[] = []
 
-    for (const tool of config.tools) {
-      for (const bodyPart of config.bodyParts) {
+    for (const tool of validTools) {
+      for (const bodyPart of validBodyParts) {
         // 检查工具强度是否适合部位耐受度
         if (tool.intensity <= bodyPart.sensitivity) {
-          for (const position of config.positions) {
-            const combination: PunishmentAction = {
-              tool,
-              bodyPart,
-              position,
-              description: `用${tool.name}打${bodyPart.name}，姿势：${position.name}`,
-            }
+          for (const position of validPositions) {
+            const combination = this.createPunishmentCombination(tool, bodyPart, position, config)
             allPossibleCombinations.push(combination)
           }
         }
       }
     }
 
-    // 如果可能的组合数量不足，放宽强度限制
+    // 如果严格限制下的组合数量不足，放宽强度限制（但仍然只使用有效配置）
     if (allPossibleCombinations.length < count) {
       allPossibleCombinations.length = 0 // 清空数组
-      for (const tool of config.tools) {
-        for (const bodyPart of config.bodyParts) {
-          for (const position of config.positions) {
-            const combination: PunishmentAction = {
-              tool,
-              bodyPart,
-              position,
-              description: `用${tool.name}打${bodyPart.name}，姿势：${position.name}`,
-            }
+      for (const tool of validTools) {
+        for (const bodyPart of validBodyParts) {
+          for (const position of validPositions) {
+            const combination = this.createPunishmentCombination(tool, bodyPart, position, config)
             allPossibleCombinations.push(combination)
           }
         }
@@ -757,9 +1090,9 @@ export class GameService {
       return allPossibleCombinations
     }
 
-    // 确保工具、部位、姿势的分布符合用户设置的比例
-    const toolDistribution = this.calculateDistribution(config.tools, count)
-    const positionDistribution = this.calculateDistribution(config.positions, count)
+    // 确保工具、部位、姿势的分布符合用户设置的比例（仅使用有效配置）
+    const toolDistribution = this.calculateDistribution(validTools, count)
+    const positionDistribution = this.calculateDistribution(validPositions, count)
 
     // 按比例选择组合
     let attempts = 0
@@ -767,24 +1100,24 @@ export class GameService {
 
     while (combinations.length < count && attempts < maxAttempts) {
       // 根据分布选择工具
-      const tool = this.selectByDistribution(config.tools, toolDistribution, combinations.length)
+      const tool = this.selectByDistribution(validTools, toolDistribution, combinations.length)
 
-      // 根据工具强度选择合适的部位（考虑比例）
-      const validBodyParts = config.bodyParts.filter(b => b.sensitivity >= tool.intensity)
+      // 根据工具强度选择合适的部位（考虑比例，但仅在有效部位中选择）
+      const validBodyPartsForTool = validBodyParts.filter(b => b.sensitivity >= tool.intensity)
       let bodyPart: PunishmentBodyPart
-      if (validBodyParts.length > 0) {
+      if (validBodyPartsForTool.length > 0) {
         // 在有效部位中按比例选择
-        bodyPart = this.selectByRatio(validBodyParts)
+        bodyPart = this.selectByRatio(validBodyPartsForTool)
       } else {
-        // 如果没有合适的部位，选择耐受度最高的部位
-        bodyPart = config.bodyParts.reduce((max, current) =>
+        // 如果没有合适的部位，选择耐受度最高的有效部位
+        bodyPart = validBodyParts.reduce((max, current) =>
           current.sensitivity > max.sensitivity ? current : max
         )
       }
 
       // 根据分布选择姿势
       const position = this.selectByDistribution(
-        config.positions,
+        validPositions,
         positionDistribution,
         combinations.length
       )
@@ -796,12 +1129,7 @@ export class GameService {
       if (!usedCombinations.has(combinationKey)) {
         usedCombinations.add(combinationKey)
 
-        const combination: PunishmentAction = {
-          tool,
-          bodyPart,
-          position,
-          description: `用${tool.name}打${bodyPart.name}，姿势：${position.name}`,
-        }
+        const combination = this.createPunishmentCombination(tool, bodyPart, position, config)
 
         combinations.push(combination)
       }

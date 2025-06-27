@@ -62,7 +62,6 @@ export const GAME_CONFIG = {
     19: { tool: 'paddle', bodyPart: 'butt', position: 'kneeling' },
     21: { tool: 'hand', bodyPart: 'thighs', position: 'standing' },
     23: { tool: 'wooden_board', bodyPart: 'thighs', position: 'table_lean' },
-    25: { tool: 'cane', bodyPart: 'butt', position: 'kneeling' },
     27: { tool: 'ruler', bodyPart: 'hands', position: 'table_lean' },
     29: { tool: 'paddle', bodyPart: 'thighs', position: 'knee_grab' },
     31: { tool: 'hand', bodyPart: 'hands', position: 'standing' },
@@ -125,10 +124,14 @@ export const GAME_CONFIG = {
     25: { type: 'move', value: 3, description: '前进3步' },
   },
 
-  // 特殊格子配置 - 后退格子和休息格子
-  SPECIAL_CELLS: {
+  // 后退格子配置
+  REVERSE_CELLS: {
     8: { type: 'reverse', value: 2, description: '后退2步' },
     18: { type: 'reverse', value: 3, description: '后退3步' },
+  },
+
+  // 休息格子配置
+  REST_CELLS: {
     12: { type: 'rest', value: 1, description: '休息一回合' },
     32: { type: 'rest', value: 1, description: '休息一回合' },
   },
@@ -145,6 +148,23 @@ export const GAME_CONFIG = {
     bodyPartRatio: 60, // 部位比例60%
     toolRatio: 25, // 工具比例25%
     positionRatio: 15, // 姿势比例15%
+  },
+
+  // 默认惩罚数量配置
+  DEFAULT_PUNISHMENT_STRIKES: {
+    min: 10, // 最小惩罚次数
+    max: 30, // 最大惩罚次数
+    step: 5, // 调整步长
+  },
+
+  // 默认棋盘配置
+  DEFAULT_BOARD_CONFIG: {
+    punishmentCells: 31, // 惩罚格子数量（31 + 2 + 2 + 2 + 3 = 40）
+    bonusCells: 2, // 奖励格子数量
+    reverseCells: 2, // 后退格子数量
+    restCells: 2, // 休息格子数量
+    restartCells: 3, // 回到起点格子数量
+    totalCells: 40, // 总格子数量
   },
 }
 
