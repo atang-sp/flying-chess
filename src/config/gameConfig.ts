@@ -28,18 +28,27 @@ export const GAME_CONFIG = {
 
   // 默认惩罚工具
   DEFAULT_TOOLS: [
-    { id: 'hand', name: '手掌', intensity: 1, ratio: 20 },
-    { id: 'ruler', name: '尺子', intensity: 2, ratio: 20 },
-    { id: 'wooden_board', name: '木板', intensity: 3, ratio: 20 },
-    { id: 'cane', name: '藤条', intensity: 4, ratio: 20 },
-    { id: 'paddle', name: '拍子', intensity: 5, ratio: 20 },
+    { id: 'hand', name: '手掌', intensity: 1, ratio: 8 },
+    { id: 'ruler', name: '尺子', intensity: 2, ratio: 8 },
+    { id: 'wooden_board', name: '木板', intensity: 3, ratio: 8 },
+    { id: 'cane', name: '藤条', intensity: 4, ratio: 8 },
+    { id: 'discipline_ruler', name: '戒尺', intensity: 3, ratio: 8 },
+    { id: 'little_red', name: '小红', intensity: 4, ratio: 8 },
+    { id: 'little_green', name: '小绿', intensity: 4, ratio: 8 },
+    { id: 'hot_glue', name: '热熔胶', intensity: 5, ratio: 6 },
+    { id: 'data_cable', name: '数据线', intensity: 5, ratio: 8 },
+    { id: 'hair_brush', name: '发刷', intensity: 3, ratio: 8 },
+    { id: 'leather_paddle', name: '皮拍', intensity: 4, ratio: 8 },
+    { id: 'acrylic_board', name: '亚克力板', intensity: 4, ratio: 6 },
   ],
 
   // 默认身体部位
   DEFAULT_BODY_PARTS: [
     { id: 'butt', name: '屁股', sensitivity: 5, ratio: 80 }, // 耐受性最高，任何工具都可以
-    { id: 'thighs', name: '大腿', sensitivity: 3, ratio: 12 }, // 中等耐受性
-    { id: 'hands', name: '手心', sensitivity: 1, ratio: 8 }, // 最敏感，只能用手掌
+    { id: 'back', name: '后背', sensitivity: 4, ratio: 5 }, // 中等耐受性
+    { id: 'thighs', name: '大腿', sensitivity: 3, ratio: 5 }, // 中等耐受性
+    { id: 'butt_crack', name: '臀缝', sensitivity: 1, ratio: 5 }, // 最敏感，只能用手掌
+    { id: 'hands', name: '手心', sensitivity: 1, ratio: 5 }, // 最敏感，只能用手掌
   ],
 
   // 默认受罚姿势
