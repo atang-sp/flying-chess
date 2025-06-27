@@ -324,10 +324,13 @@ export class GameService {
     // 设置移动动画状态
     player.isMoving = true
 
-    // 延迟清除移动动画状态
-    setTimeout(() => {
+    // 延迟清除移动动画状态 - 使用更可靠的方式
+    const clearMovingState = () => {
       player.isMoving = false
-    }, 600) // 与CSS动画时长匹配
+    }
+
+    // 设置定时器清除移动状态
+    const movingTimer = setTimeout(clearMovingState, 600) // 与CSS动画时长匹配
 
     let newPosition = player.position
     let effect: string | undefined
@@ -368,6 +371,11 @@ export class GameService {
         }
 
         effect = `未起飞！被惩罚`
+
+        // 确保清除移动状态
+        clearTimeout(movingTimer)
+        clearMovingState()
+
         return {
           newPosition,
           effect,
@@ -394,6 +402,11 @@ export class GameService {
       // 如果到达终点，不触发任何格子效果
       if (newPosition === boardSize) {
         effect = '到达终点！游戏胜利！'
+
+        // 确保清除移动状态
+        clearTimeout(movingTimer)
+        clearMovingState()
+
         return {
           newPosition,
           effect,
@@ -408,6 +421,11 @@ export class GameService {
       // 如果到达第1格（飞机场），不触发任何格子效果
       if (newPosition === 1) {
         effect = '到达飞机场！安全区域'
+
+        // 确保清除移动状态
+        clearTimeout(movingTimer)
+        clearMovingState()
+
         return {
           newPosition,
           effect,
@@ -449,6 +467,10 @@ export class GameService {
           break
       }
     }
+
+    // 确保清除移动状态
+    clearTimeout(movingTimer)
+    clearMovingState()
 
     return {
       newPosition,

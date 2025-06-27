@@ -94,6 +94,86 @@
     gameState.gameStatus = 'intro'
   }
 
+  // 全局错误恢复函数
+  const resetGameStateOnError = () => {
+    console.warn('检测到游戏状态异常，正在重置状态...')
+
+    // 重置游戏状态
+    gameState.gameStatus = 'waiting'
+    gameState.diceValue = null
+    gameState.pendingEffect = null
+
+    // 清除所有玩家移动状态
+    gameState.players.forEach(player => {
+      player.isMoving = false
+    })
+
+    // 清除其他状态
+    currentPunishment.value = null
+    showTakeoffPunishmentDisplay.value = false
+    currentTakeoffPunishment.value = null
+    effectFromPosition.value = undefined
+    effectToPosition.value = undefined
+
+    console.log('游戏状态已重置')
+  }
+
+  // 状态检查机制
+  const checkGameStateHealth = () => {
+    // 检查是否卡在moving状态超过5秒
+    if (gameState.gameStatus === 'moving') {
+      const movingStartTime = Date.now()
+
+      // 设置一个检查定时器
+      const checkTimer = setInterval(() => {
+        if (gameState.gameStatus === 'moving') {
+          const elapsed = Date.now() - movingStartTime
+          if (elapsed > 5000) {
+            // 5秒后仍然在moving状态
+            console.warn('检测到游戏卡在moving状态超过5秒，正在重置...')
+            clearInterval(checkTimer)
+            resetGameStateOnError()
+          }
+        } else {
+          // 状态已恢复正常，清除检查定时器
+          clearInterval(checkTimer)
+        }
+      }, 1000) // 每秒检查一次
+    }
+
+    // 检查玩家移动状态是否异常
+    const stuckPlayers = gameState.players.filter(player => player.isMoving)
+    if (stuckPlayers.length > 0) {
+      // 如果玩家移动状态持续超过3秒，清除移动状态
+      setTimeout(() => {
+        stuckPlayers.forEach(player => {
+          if (player.isMoving) {
+            console.warn(`玩家 ${player.name} 的移动状态异常，正在清除...`)
+            player.isMoving = false
+          }
+        })
+      }, 3000)
+    }
+  }
+
+  // 添加全局错误监听
+  onMounted(() => {
+    // 监听未捕获的Promise错误
+    window.addEventListener('unhandledrejection', event => {
+      console.error('未处理的Promise错误:', event.reason)
+      resetGameStateOnError()
+    })
+
+    // 监听全局错误
+    window.addEventListener('error', event => {
+      console.error('全局错误:', event.error)
+      resetGameStateOnError()
+    })
+
+    // 定期检查游戏状态健康度
+    setInterval(checkGameStateHealth, 2000) // 每2秒检查一次
+  })
+
   // 初始化游戏
   const initializeGame = () => {
     gameState.players = GameService.createPlayers()
@@ -169,190 +249,235 @@
 
   // 移动当前玩家（第一步：基本移动）
   const moveCurrentPlayer = async () => {
-    const currentPlayer = gameState.players[gameState.currentPlayerIndex]
-    const diceValue = gameState.diceValue
-    if (!diceValue) return
-
-    const fromPosition = currentPlayer.position
-
-    const {
-      newPosition,
-      effect,
-      punishment,
-      targetPlayerIndex,
-      cellEffect,
-      canTakeOff,
-      executorIndex,
-    } = GameService.movePlayer(
-      currentPlayer,
-      diceValue,
-      gameState.board,
-      gameState.currentPlayerIndex,
-      gameState.players.length,
-      gameState.punishmentConfig
-    )
-
-    // 更新玩家位置
-    currentPlayer.position = newPosition
-
-    // 显示移动路径信息或起飞信息
-    if (canTakeOff) {
-      lastEffect.value = '起飞成功！移动到第1格'
-    } else if (effect) {
-      lastEffect.value = effect
-    } else {
-      const fromText = fromPosition === 0 ? '起点' : `第${fromPosition}格`
-      const toText = newPosition === 0 ? '起点' : `第${newPosition}格`
-      lastEffect.value = `${fromText} → ${toText}`
-    }
-
-    // 等待移动动画完成
-    await new Promise(resolve => setTimeout(resolve, 600))
-
-    // 检查是否到达终点
-    const boardSize = gameState.board.length
-    if (newPosition === boardSize) {
-      currentPlayer.isWinner = true
-      gameState.winner = currentPlayer
-      gameState.gameStatus = 'finished'
-      gameFinished.value = true
-      return
-    }
-
-    // 检查是否有起飞惩罚
-    if (punishment && executorIndex !== undefined) {
-      currentTakeoffPunishment.value = punishment
-      currentTakeoffDiceValue.value = diceValue
-      currentTakeoffExecutorIndex.value = executorIndex
-      showTakeoffPunishmentDisplay.value = true
-      return // 等待用户处理起飞惩罚
-    }
-
-    // 检查是否有普通惩罚
-    if (punishment) {
-      currentPunishment.value = punishment
-      gameState.gameStatus = 'configuring'
-      return // 等待用户处理惩罚
-    }
-
-    // 检查是否有需要显示效果的非惩罚格子
-    if (
-      cellEffect &&
-      (cellEffect.type === 'move' || cellEffect.type === 'reverse' || cellEffect.type === 'restart')
-    ) {
-      // 如果到达第1格（飞机场），不显示效果确认弹窗
-      if (newPosition === 1) {
-        // 直接继续游戏流程
-        await continueAfterMove()
+    try {
+      const currentPlayer = gameState.players[gameState.currentPlayerIndex]
+      const diceValue = gameState.diceValue
+      if (!diceValue) {
+        // 如果没有骰子值，重置状态并返回
+        gameState.gameStatus = 'waiting'
         return
       }
 
-      gameState.pendingEffect = cellEffect
-      // 设置效果显示的起始和结束位置
-      effectFromPosition.value = fromPosition // 原始位置（骰子移动前）
-      effectToPosition.value = newPosition // 骰子移动后的位置
+      const fromPosition = currentPlayer.position
 
-      // 计算最终位置用于显示三段路径
-      const finalPosition =
-        newPosition +
-        (cellEffect.type === 'move'
-          ? cellEffect.value
-          : cellEffect.type === 'reverse'
-            ? -cellEffect.value
-            : cellEffect.type === 'restart'
-              ? -newPosition
-              : 0)
+      const {
+        newPosition,
+        effect,
+        punishment,
+        targetPlayerIndex,
+        cellEffect,
+        canTakeOff,
+        executorIndex,
+      } = GameService.movePlayer(
+        currentPlayer,
+        diceValue,
+        gameState.board,
+        gameState.currentPlayerIndex,
+        gameState.players.length,
+        gameState.punishmentConfig
+      )
 
-      // 创建包含三段路径信息的effect对象
-      const effectWithPath = {
-        ...cellEffect,
-        description: getThreeStepMoveDescription(
-          fromPosition,
-          newPosition,
-          finalPosition,
-          cellEffect.type
-        ),
+      // 更新玩家位置
+      currentPlayer.position = newPosition
+
+      // 显示移动路径信息或起飞信息
+      if (canTakeOff) {
+        lastEffect.value = '起飞成功！移动到第1格'
+      } else if (effect) {
+        lastEffect.value = effect
+      } else {
+        const fromText = fromPosition === 0 ? '起点' : `第${fromPosition}格`
+        const toText = newPosition === 0 ? '起点' : `第${newPosition}格`
+        lastEffect.value = `${fromText} → ${toText}`
       }
-      gameState.pendingEffect = effectWithPath
 
-      gameState.gameStatus = 'showing_effect'
-      return // 等待用户确认效果
+      // 等待移动动画完成
+      await new Promise(resolve => setTimeout(resolve, 600))
+
+      // 检查是否到达终点
+      const boardSize = gameState.board.length
+      if (newPosition === boardSize) {
+        currentPlayer.isWinner = true
+        gameState.winner = currentPlayer
+        gameState.gameStatus = 'finished'
+        gameFinished.value = true
+        return
+      }
+
+      // 检查是否有起飞惩罚
+      if (punishment && executorIndex !== undefined) {
+        currentTakeoffPunishment.value = punishment
+        currentTakeoffDiceValue.value = diceValue
+        currentTakeoffExecutorIndex.value = executorIndex
+        showTakeoffPunishmentDisplay.value = true
+        // 保持moving状态，等待用户处理起飞惩罚
+        return
+      }
+
+      // 检查是否有普通惩罚
+      if (punishment) {
+        currentPunishment.value = punishment
+        gameState.gameStatus = 'configuring'
+        return // 等待用户处理惩罚
+      }
+
+      // 检查是否有需要显示效果的非惩罚格子
+      if (
+        cellEffect &&
+        cellEffect.type !== 'punishment' &&
+        (cellEffect.type === 'move' ||
+          cellEffect.type === 'reverse' ||
+          cellEffect.type === 'restart')
+      ) {
+        // 如果到达第1格（飞机场），不显示效果确认弹窗
+        if (newPosition === 1) {
+          // 直接继续游戏流程
+          await continueAfterMove()
+          return
+        }
+
+        // 创建符合CellEffect类型的对象
+        const cellEffectForPending: CellEffect = {
+          type: cellEffect.type as 'move' | 'reverse' | 'restart',
+          value: cellEffect.value,
+          description: cellEffect.description,
+        }
+
+        gameState.pendingEffect = cellEffectForPending
+        // 设置效果显示的起始和结束位置
+        effectFromPosition.value = fromPosition // 原始位置（骰子移动前）
+        effectToPosition.value = newPosition // 骰子移动后的位置
+
+        // 计算最终位置用于显示三段路径
+        const finalPosition =
+          newPosition +
+          (cellEffect.type === 'move'
+            ? cellEffect.value
+            : cellEffect.type === 'reverse'
+              ? -cellEffect.value
+              : cellEffect.type === 'restart'
+                ? -newPosition
+                : 0)
+
+        // 创建包含三段路径信息的effect对象
+        const effectWithPath: CellEffect = {
+          type: cellEffect.type as 'move' | 'reverse' | 'restart',
+          value: cellEffect.value,
+          description: getThreeStepMoveDescription(
+            fromPosition,
+            newPosition,
+            finalPosition,
+            cellEffect.type
+          ),
+        }
+        gameState.pendingEffect = effectWithPath
+
+        gameState.gameStatus = 'showing_effect'
+        return // 等待用户确认效果
+      }
+
+      // 如果没有特殊效果，直接继续
+      await continueAfterMove()
+    } catch (error) {
+      console.error('移动玩家时发生错误:', error)
+      // 确保在发生错误时重置游戏状态
+      gameState.gameStatus = 'waiting'
+      // 清除玩家移动状态
+      const currentPlayer = gameState.players[gameState.currentPlayerIndex]
+      if (currentPlayer) {
+        currentPlayer.isMoving = false
+      }
     }
-
-    // 如果没有特殊效果，直接继续
-    await continueAfterMove()
   }
 
   // 确认效果（第二步：处理格子效果）
   const confirmEffect = async () => {
-    if (!gameState.pendingEffect) return
+    try {
+      if (!gameState.pendingEffect) {
+        // 如果没有待处理效果，重置状态并返回
+        gameState.gameStatus = 'waiting'
+        return
+      }
 
-    const currentPlayer = gameState.players[gameState.currentPlayerIndex]
+      const currentPlayer = gameState.players[gameState.currentPlayerIndex]
 
-    // 保存效果类型，因为后面会清除pendingEffect
-    const effectType = gameState.pendingEffect.type
+      // 保存效果类型，因为后面会清除pendingEffect
+      const effectType = gameState.pendingEffect.type
 
-    // 记录三段路径的位置
-    const originalPosition = effectFromPosition.value // 原始位置（骰子移动前）
-    const diceMovePosition = effectToPosition.value // 骰子移动后的位置
-    const finalPosition =
-      currentPlayer.position +
-      (effectType === 'move'
-        ? gameState.pendingEffect.value
-        : effectType === 'reverse'
-          ? -gameState.pendingEffect.value
-          : effectType === 'restart'
-            ? -currentPlayer.position
-            : 0)
+      // 记录三段路径的位置
+      const originalPosition = effectFromPosition.value // 原始位置（骰子移动前）
+      const diceMovePosition = effectToPosition.value // 骰子移动后的位置
+      const finalPosition =
+        currentPlayer.position +
+        (effectType === 'move'
+          ? gameState.pendingEffect.value
+          : effectType === 'reverse'
+            ? -gameState.pendingEffect.value
+            : effectType === 'restart'
+              ? -currentPlayer.position
+              : 0)
 
-    // 处理格子效果
-    const currentBoardSize = gameState.board.length
-    const { newPosition, effect, fromPosition, toPosition } = GameService.processCellEffect(
-      currentPlayer,
-      gameState.pendingEffect,
-      currentBoardSize
-    )
-
-    // 更新玩家位置
-    currentPlayer.position = newPosition
-
-    // 立即清除待处理效果和状态，避免显示多余的弹窗
-    gameState.pendingEffect = null
-    effectFromPosition.value = undefined
-    effectToPosition.value = undefined
-    gameState.gameStatus = 'waiting'
-
-    // 显示三段移动路径信息
-    if (
-      effectType === 'move' ||
-      effectType === 'reverse' ||
-      effectType === 'restart' ||
-      effectType === 'rest'
-    ) {
-      const moveDescription = getThreeStepMoveDescription(
-        originalPosition,
-        diceMovePosition,
-        newPosition,
-        effectType
+      // 处理格子效果
+      const currentBoardSize = gameState.board.length
+      const { newPosition, effect, fromPosition, toPosition } = GameService.processCellEffect(
+        currentPlayer,
+        gameState.pendingEffect,
+        currentBoardSize
       )
-      lastEffect.value = moveDescription
+
+      // 更新玩家位置
+      currentPlayer.position = newPosition
+
+      // 立即清除待处理效果和状态，避免显示多余的弹窗
+      gameState.pendingEffect = null
+      effectFromPosition.value = undefined
+      effectToPosition.value = undefined
+      gameState.gameStatus = 'waiting'
+
+      // 显示三段移动路径信息
+      if (
+        effectType === 'move' ||
+        effectType === 'reverse' ||
+        effectType === 'restart' ||
+        effectType === 'rest'
+      ) {
+        const moveDescription = getThreeStepMoveDescription(
+          originalPosition,
+          diceMovePosition,
+          newPosition,
+          effectType
+        )
+        lastEffect.value = moveDescription
+      }
+
+      // 等待移动动画完成
+      await new Promise(resolve => setTimeout(resolve, 600))
+
+      // 检查是否到达终点
+      const boardSize = gameState.board.length
+      if (newPosition === boardSize) {
+        currentPlayer.isWinner = true
+        gameState.winner = currentPlayer
+        gameState.gameStatus = 'finished'
+        gameFinished.value = true
+        return
+      }
+
+      // 继续游戏流程
+      await continueAfterMove()
+    } catch (error) {
+      console.error('确认效果时发生错误:', error)
+      // 确保在发生错误时重置游戏状态
+      gameState.gameStatus = 'waiting'
+      gameState.pendingEffect = null
+      effectFromPosition.value = undefined
+      effectToPosition.value = undefined
+      // 清除玩家移动状态
+      const currentPlayer = gameState.players[gameState.currentPlayerIndex]
+      if (currentPlayer) {
+        currentPlayer.isMoving = false
+      }
     }
-
-    // 等待移动动画完成
-    await new Promise(resolve => setTimeout(resolve, 600))
-
-    // 检查是否到达终点
-    const boardSize = gameState.board.length
-    if (newPosition === boardSize) {
-      currentPlayer.isWinner = true
-      gameState.winner = currentPlayer
-      gameState.gameStatus = 'finished'
-      gameFinished.value = true
-      return
-    }
-
-    // 继续游戏流程
-    await continueAfterMove()
   }
 
   // 生成移动路径描述
@@ -409,84 +534,122 @@
 
   // 移动后的继续流程
   const continueAfterMove = async () => {
-    const currentPlayer = gameState.players[gameState.currentPlayerIndex]
+    try {
+      const currentPlayer = gameState.players[gameState.currentPlayerIndex]
 
-    // 检查是否获胜
-    if (GameService.checkWinner(currentPlayer, gameState.board.length)) {
-      currentPlayer.isWinner = true
-      gameState.winner = currentPlayer
-      gameState.gameStatus = 'finished'
-      gameFinished.value = true
-      return
+      // 检查是否获胜
+      if (GameService.checkWinner(currentPlayer, gameState.board.length)) {
+        currentPlayer.isWinner = true
+        gameState.winner = currentPlayer
+        gameState.gameStatus = 'finished'
+        gameFinished.value = true
+        return
+      }
+
+      // 等待移动动画完成
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // 切换到下一个玩家
+      gameState.currentPlayerIndex = GameService.getNextPlayer(
+        gameState.currentPlayerIndex,
+        gameState.players.length
+      )
+
+      turnCount.value++
+      gameState.diceValue = null
+      gameState.gameStatus = 'waiting'
+
+      // 清除上一步效果
+      setTimeout(() => {
+        lastEffect.value = ''
+      }, 2000)
+    } catch (error) {
+      console.error('继续游戏流程时发生错误:', error)
+      // 确保在发生错误时重置游戏状态
+      gameState.gameStatus = 'waiting'
+      gameState.diceValue = null
+      // 清除玩家移动状态
+      const currentPlayer = gameState.players[gameState.currentPlayerIndex]
+      if (currentPlayer) {
+        currentPlayer.isMoving = false
+      }
     }
-
-    // 等待移动动画完成
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    // 切换到下一个玩家
-    gameState.currentPlayerIndex = GameService.getNextPlayer(
-      gameState.currentPlayerIndex,
-      gameState.players.length
-    )
-
-    turnCount.value++
-    gameState.diceValue = null
-    gameState.gameStatus = 'waiting'
-
-    // 清除上一步效果
-    setTimeout(() => {
-      lastEffect.value = ''
-    }, 2000)
   }
 
   // 确认惩罚
   const confirmPunishment = async () => {
-    currentPunishment.value = null
-    gameState.gameStatus = 'waiting'
+    try {
+      currentPunishment.value = null
+      gameState.gameStatus = 'waiting'
 
-    // 继续游戏流程
-    await continueAfterPunishment()
+      // 继续游戏流程
+      await continueAfterPunishment()
+    } catch (error) {
+      console.error('确认惩罚时发生错误:', error)
+      // 确保在发生错误时重置游戏状态
+      gameState.gameStatus = 'waiting'
+      currentPunishment.value = null
+    }
   }
 
   // 跳过惩罚
   const skipPunishment = async () => {
-    currentPunishment.value = null
-    gameState.gameStatus = 'waiting'
+    try {
+      currentPunishment.value = null
+      gameState.gameStatus = 'waiting'
 
-    // 继续游戏流程
-    await continueAfterPunishment()
+      // 继续游戏流程
+      await continueAfterPunishment()
+    } catch (error) {
+      console.error('跳过惩罚时发生错误:', error)
+      // 确保在发生错误时重置游戏状态
+      gameState.gameStatus = 'waiting'
+      currentPunishment.value = null
+    }
   }
 
   // 惩罚后的继续流程
   const continueAfterPunishment = async () => {
-    const currentPlayer = gameState.players[gameState.currentPlayerIndex]
+    try {
+      const currentPlayer = gameState.players[gameState.currentPlayerIndex]
 
-    // 检查是否获胜
-    if (GameService.checkWinner(currentPlayer, gameState.board.length)) {
-      currentPlayer.isWinner = true
-      gameState.winner = currentPlayer
-      gameState.gameStatus = 'finished'
-      gameFinished.value = true
-      return
+      // 检查是否获胜
+      if (GameService.checkWinner(currentPlayer, gameState.board.length)) {
+        currentPlayer.isWinner = true
+        gameState.winner = currentPlayer
+        gameState.gameStatus = 'finished'
+        gameFinished.value = true
+        return
+      }
+
+      // 等待移动动画完成
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // 切换到下一个玩家
+      gameState.currentPlayerIndex = GameService.getNextPlayer(
+        gameState.currentPlayerIndex,
+        gameState.players.length
+      )
+
+      turnCount.value++
+      gameState.diceValue = null
+      gameState.gameStatus = 'waiting'
+
+      // 清除上一步效果
+      setTimeout(() => {
+        lastEffect.value = ''
+      }, 2000)
+    } catch (error) {
+      console.error('惩罚后继续游戏流程时发生错误:', error)
+      // 确保在发生错误时重置游戏状态
+      gameState.gameStatus = 'waiting'
+      gameState.diceValue = null
+      // 清除玩家移动状态
+      const currentPlayer = gameState.players[gameState.currentPlayerIndex]
+      if (currentPlayer) {
+        currentPlayer.isMoving = false
+      }
     }
-
-    // 等待移动动画完成
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    // 切换到下一个玩家
-    gameState.currentPlayerIndex = GameService.getNextPlayer(
-      gameState.currentPlayerIndex,
-      gameState.players.length
-    )
-
-    turnCount.value++
-    gameState.diceValue = null
-    gameState.gameStatus = 'waiting'
-
-    // 清除上一步效果
-    setTimeout(() => {
-      lastEffect.value = ''
-    }, 2000)
   }
 
   // 处理格子点击（可选功能）
@@ -652,6 +815,7 @@
           :turn-count="turnCount"
           :winner="gameState.winner"
           @start="startGame"
+          @reset="resetGame"
         />
 
         <GameBoard
