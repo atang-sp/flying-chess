@@ -9,7 +9,6 @@
 
   interface Emits {
     (e: 'confirm'): void
-    (e: 'back'): void
     (e: 'regenerate'): void
   }
 
@@ -78,10 +77,6 @@
 
   const handleConfirm = () => {
     emit('confirm')
-  }
-
-  const handleBack = () => {
-    emit('back')
   }
 
   const handleRegenerate = () => {
@@ -157,9 +152,6 @@
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" @click="handleBack">
-            ⬅️ 返回上一级
-          </button>
           <button class="btn-secondary" @click="handleRegenerate">
             🔄 重新生成
           </button>

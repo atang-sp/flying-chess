@@ -513,12 +513,6 @@
     }
   }
 
-  // 从统计页面返回设置页面
-  const handleStatsBack = () => {
-    showPunishmentStats.value = false
-    showPunishmentConfirmation.value = true
-  }
-
   // 从统计页面重新生成组合
   const handleStatsRegenerate = () => {
     showPunishmentStats.value = false
@@ -660,7 +654,6 @@
       :show="showPunishmentStats"
       :combinations="confirmedCombinations"
       @confirm="startGameWithStats"
-      @back="handleStatsBack"
       @regenerate="handleStatsRegenerate"
     />
 
