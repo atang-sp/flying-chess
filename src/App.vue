@@ -12,7 +12,6 @@
     BoardConfig,
   } from './types/game'
   import IntroPage from './components/IntroPage.vue'
-  import GameInstructions from './components/GameInstructions.vue'
   import GameControls from './components/GameControls.vue'
   import GameBoard from './components/GameBoard.vue'
   import Dice from './components/Dice.vue'
@@ -83,16 +82,16 @@
   })
 
   // 页面导航
-  const showInstructions = () => {
-    gameState.gameStatus = 'instructions'
-  }
-
   const showBoardSettings = () => {
     gameState.gameStatus = 'board_settings'
   }
 
   const showSettings = () => {
     gameState.gameStatus = 'settings'
+  }
+
+  const showIntro = () => {
+    gameState.gameStatus = 'intro'
   }
 
   // 初始化游戏
@@ -553,6 +552,12 @@
     await continueAfterPunishment()
   }
 
+  // 在setup中添加handleBackToPunishmentSettings方法
+  const handleBackToPunishmentSettings = () => {
+    showPunishmentConfirmation.value = false
+    gameState.gameStatus = 'settings'
+  }
+
   // 组件挂载时初始化游戏
   onMounted(() => {
     initializeGame()
@@ -562,20 +567,7 @@
 <template>
   <div class="app">
     <!-- 开始页面 -->
-    <IntroPage v-if="gameState.gameStatus === 'intro'" @start="showInstructions" />
-
-    <!-- 游戏说明页面 -->
-    <div v-else-if="gameState.gameStatus === 'instructions'" class="instructions-page">
-      <div class="page-container">
-        <GameInstructions />
-        <div class="page-actions">
-          <button class="btn-primary" @click="showBoardSettings">
-            <span class="btn-icon">🎯</span>
-            <span class="btn-text">下一步：棋盘设置</span>
-          </button>
-        </div>
-      </div>
-    </div>
+    <IntroPage v-if="gameState.gameStatus === 'intro'" @start="showBoardSettings" />
 
     <!-- 棋盘设置页面 -->
     <div v-else-if="gameState.gameStatus === 'board_settings'" class="settings-page">
@@ -588,9 +580,9 @@
         <BoardConfigPanel :config="gameState.boardConfig" @update="updateBoardConfig" />
 
         <div class="page-actions">
-          <button class="btn-secondary" @click="showInstructions">
+          <button class="btn-secondary" @click="showIntro">
             <span class="btn-icon">⬅️</span>
-            <span class="btn-text">返回说明</span>
+            <span class="btn-text">返回开始</span>
           </button>
           <button class="btn-primary" :disabled="!isBoardConfigValid" @click="showSettings">
             <span class="btn-icon">⚙️</span>
@@ -694,6 +686,7 @@
       :combinations="punishmentCombinations"
       @confirm="confirmPunishmentCombinations"
       @regenerate="generatePunishmentCombinations"
+      @back-to-settings="handleBackToPunishmentSettings"
     />
 
     <!-- 惩罚统计弹窗 -->
@@ -722,15 +715,6 @@
   .app {
     min-height: 100vh;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  }
-
-  /* 说明页面样式 */
-  .instructions-page {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: clamp(1rem, 4vw, 2rem);
   }
 
   .page-container {

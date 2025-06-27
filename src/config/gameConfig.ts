@@ -159,11 +159,11 @@ export const GAME_CONFIG = {
 
   // 默认棋盘配置
   DEFAULT_BOARD_CONFIG: {
-    punishmentCells: 31, // 惩罚格子数量（31 + 2 + 2 + 2 + 3 = 40）
-    bonusCells: 2, // 奖励格子数量
-    reverseCells: 2, // 后退格子数量
-    restCells: 2, // 休息格子数量
-    restartCells: 3, // 回到起点格子数量
+    punishmentCells: 32, // 惩罚格子数量（80% × 40 = 32）
+    bonusCells: 1, // 前进格子数量（2.5% × 40 = 1）
+    reverseCells: 2, // 后退格子数量（5% × 40 = 2）
+    restCells: 1, // 休息格子数量（2.5% × 40 = 1）
+    restartCells: 4, // 回到起点格子数量（10% × 40 = 4）
     totalCells: 40, // 总格子数量
   },
 }

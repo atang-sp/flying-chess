@@ -13,7 +13,6 @@
       | 'finished'
       | 'configuring'
       | 'intro'
-      | 'instructions'
       | 'board_settings'
       | 'settings'
     turnCount: number
@@ -44,8 +43,6 @@
         return '配置中'
       case 'intro':
         return '开始页面'
-      case 'instructions':
-        return '游戏说明'
       case 'board_settings':
         return '棋盘设置'
       case 'settings':

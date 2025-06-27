@@ -89,7 +89,6 @@ export interface GameState {
     | 'finished'
     | 'configuring'
     | 'intro'
-    | 'instructions'
     | 'board_settings'
     | 'settings'
   winner: Player | null

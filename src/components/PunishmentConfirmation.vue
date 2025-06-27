@@ -10,6 +10,7 @@
   interface Emits {
     (e: 'confirm', combinations: PunishmentAction[]): void
     (e: 'regenerate'): void
+    (e: 'back-to-settings'): void
   }
 
   const props = defineProps<Props>()
@@ -121,6 +122,9 @@
 
         <div class="modal-actions">
           <button class="btn-secondary" @click="regenerateCombinations">🔄 重新生成</button>
+          <button class="btn-secondary" @click="() => emit('back-to-settings')">
+            ⬅️ 返回惩罚设置
+          </button>
           <button
             class="btn-primary"
             :disabled="removedCombinations.size >= combinations.length"

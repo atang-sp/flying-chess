@@ -15,213 +15,9 @@ export class GameService {
     // 1. 读取配置
     const config = punishmentConfig || this.createPunishmentConfig()
     const boardConf = boardConfig || GAME_CONFIG.DEFAULT_BOARD_CONFIG
-    const totalCells = boardConf.totalCells
 
-    // 判断是否为默认棋盘配置（与GAME_CONFIG.DEFAULT_BOARD_CONFIG完全一致）
-    const isDefaultConfig =
-      boardConf.totalCells === GAME_CONFIG.DEFAULT_BOARD_CONFIG.totalCells &&
-      boardConf.punishmentCells === GAME_CONFIG.DEFAULT_BOARD_CONFIG.punishmentCells &&
-      boardConf.bonusCells === GAME_CONFIG.DEFAULT_BOARD_CONFIG.bonusCells &&
-      boardConf.reverseCells === GAME_CONFIG.DEFAULT_BOARD_CONFIG.reverseCells &&
-      boardConf.restCells === GAME_CONFIG.DEFAULT_BOARD_CONFIG.restCells &&
-      boardConf.restartCells === GAME_CONFIG.DEFAULT_BOARD_CONFIG.restartCells
-
-    // 如果不是默认配置，使用随机分配逻辑
-    if (!isDefaultConfig) {
-      return this.createBoardRandom(config, boardConf)
-    }
-
-    // ---------------- 默认配置：使用预定义格子 ----------------
-    // 创建一个映射来存储格子，稍后组装为数组
-    const cellMap = new Map<number, BoardCell>()
-
-    // 3. 基于预定义配置创建格子
-    // 起点
-    cellMap.set(1, {
-      id: 1,
-      type: 'bonus',
-      position: 1,
-      effect: {
-        type: 'move',
-        value: 0,
-        description: '起点',
-      },
-    })
-
-    // 终点
-    cellMap.set(totalCells, {
-      id: totalCells,
-      type: 'bonus',
-      position: totalCells,
-      effect: {
-        type: 'move',
-        value: 0,
-        description: '终点 - 游戏胜利',
-      },
-    })
-
-    // 预定义的惩罚格子
-    Object.entries(GAME_CONFIG.PUNISHMENT_CELLS).forEach(([positionStr, cellConfig]) => {
-      const position = parseInt(positionStr)
-      if (position <= totalCells) {
-        const tool = config.tools.find(t => t.id === cellConfig.tool) || config.tools[0]
-        const bodyPart =
-          config.bodyParts.find(b => b.id === cellConfig.bodyPart) || config.bodyParts[0]
-        const pos = config.positions.find(p => p.id === cellConfig.position) || config.positions[0]
-
-        const punishment: PunishmentAction = {
-          tool,
-          bodyPart,
-          position: pos,
-          description: `用${tool.name}打${bodyPart.name}，姿势：${pos.name}`,
-        }
-
-        cellMap.set(position, {
-          id: position,
-          type: 'punishment',
-          position,
-          effect: {
-            type: 'punishment',
-            value: 0,
-            description: punishment.description,
-            punishment,
-          },
-        })
-      }
-    })
-
-    // 动态惩罚格子
-    Object.entries(GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS).forEach(([positionStr, cellConfig]) => {
-      const position = parseInt(positionStr)
-      if (position <= totalCells) {
-        const tool = config.tools.find(t => t.id === cellConfig.tool) || config.tools[0]
-        const bodyPart =
-          config.bodyParts.find(b => b.id === cellConfig.bodyPart) || config.bodyParts[0]
-        const pos = config.positions.find(p => p.id === cellConfig.position) || config.positions[0]
-
-        const punishment: PunishmentAction = {
-          tool,
-          bodyPart,
-          position: pos,
-          description: cellConfig.description,
-        }
-
-        cellMap.set(position, {
-          id: position,
-          type: 'punishment',
-          position,
-          effect: {
-            type: 'punishment',
-            value: 0,
-            description: punishment.description,
-            punishment,
-            dynamicType: cellConfig.type as
-              | 'dice_multiplier'
-              | 'previous_player'
-              | 'next_player'
-              | 'other_player_choice',
-            multiplier: (cellConfig as { multiplier?: number }).multiplier,
-          },
-        })
-      }
-    })
-
-    // 奖励格子
-    Object.entries(GAME_CONFIG.BONUS_CELLS).forEach(([positionStr, cellConfig]) => {
-      const position = parseInt(positionStr)
-      if (position <= totalCells) {
-        cellMap.set(position, {
-          id: position,
-          type: 'bonus',
-          position,
-          effect: {
-            type: 'move',
-            value: cellConfig.value,
-            description: cellConfig.description,
-          },
-        })
-      }
-    })
-
-    // 后退格子
-    Object.entries(GAME_CONFIG.REVERSE_CELLS).forEach(([positionStr, cellConfig]) => {
-      const position = parseInt(positionStr)
-      if (position <= totalCells) {
-        cellMap.set(position, {
-          id: position,
-          type: 'special',
-          position,
-          effect: {
-            type: cellConfig.type as 'reverse',
-            value: cellConfig.value,
-            description: cellConfig.description,
-          },
-        })
-      }
-    })
-
-    // 休息格子
-    Object.entries(GAME_CONFIG.REST_CELLS).forEach(([positionStr, cellConfig]) => {
-      const position = parseInt(positionStr)
-      if (position <= totalCells) {
-        cellMap.set(position, {
-          id: position,
-          type: 'special',
-          position,
-          effect: {
-            type: cellConfig.type as 'rest',
-            value: cellConfig.value,
-            description: cellConfig.description,
-          },
-        })
-      }
-    })
-
-    // 回到起点格子
-    Object.entries(GAME_CONFIG.RESTART_CELLS).forEach(([positionStr, cellConfig]) => {
-      const position = parseInt(positionStr)
-      if (position <= totalCells) {
-        cellMap.set(position, {
-          id: position,
-          type: 'restart',
-          position,
-          effect: {
-            type: 'restart',
-            value: 0,
-            description: cellConfig.description,
-          },
-        })
-      }
-    })
-
-    // 4. 为剩余的空位置创建普通格子（非惩罚格子）
-    for (let i = 1; i <= totalCells; i++) {
-      if (!cellMap.has(i)) {
-        cellMap.set(i, {
-          id: i,
-          type: 'bonus',
-          position: i,
-          effect: {
-            type: 'move',
-            value: 0,
-            description: '安全格子',
-          },
-        })
-      }
-    }
-
-    const boardDefault: BoardCell[] = []
-    for (let i = 1; i <= totalCells; i++) {
-      const cell = cellMap.get(i)
-      if (cell) {
-        boardDefault.push(cell)
-      }
-    }
-
-    // 调试信息（默认棋盘）
-    this.logBoardStats(boardDefault, '默认棋盘分配信息')
-
-    return boardDefault
+    // 始终使用随机分配逻辑，确保所有格子都严格按照棋盘配置来生成
+    return this.createBoardRandom(config, boardConf)
   }
 
   // 随机分配棋盘（自定义配置）
@@ -397,29 +193,17 @@ export class GameService {
       })
     })
 
-    // 剩余位置全部填充惩罚格子
+    // 为剩余的空位置创建普通格子（无效果）
     for (let i = 1; i <= totalCells; i++) {
       if (!cellMap.has(i)) {
-        const tool = this.selectByRatio(config.tools)
-        const bodyPart = this.selectByRatio(config.bodyParts)
-        const position = this.selectByRatio(config.positions)
-
-        const punishment: PunishmentAction = {
-          tool,
-          bodyPart,
-          position,
-          description: `用${tool.name}打${bodyPart.name}，姿势：${position.name}`,
-        }
-
         cellMap.set(i, {
           id: i,
-          type: 'punishment',
+          type: 'bonus',
           position: i,
           effect: {
-            type: 'punishment',
+            type: 'move',
             value: 0,
-            description: punishment.description,
-            punishment,
+            description: '普通格子',
           },
         })
       }

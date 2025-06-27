@@ -95,12 +95,12 @@
   // 自动分配格子
   const autoDistribute = () => {
     const total = localConfig.value.totalCells
-    // 按新比例分配：惩罚格子80%，回到起点格子8%，前进/后退/休息格子各4%
+    // 按指定比例分配：惩罚格子80%，回到起点格子10%，前进格子2.5%，后退格子5%，休息格子2.5%
     localConfig.value.punishmentCells = Math.floor(total * 0.8)
-    localConfig.value.restartCells = Math.floor(total * 0.08)
-    localConfig.value.bonusCells = Math.floor(total * 0.04)
-    localConfig.value.reverseCells = Math.floor(total * 0.04)
-    localConfig.value.restCells = Math.floor(total * 0.04)
+    localConfig.value.restartCells = Math.floor(total * 0.1)
+    localConfig.value.bonusCells = Math.floor(total * 0.025)
+    localConfig.value.reverseCells = Math.floor(total * 0.05)
+    localConfig.value.restCells = Math.floor(total * 0.025)
 
     // 计算已分配的格子总数
     const assigned =
