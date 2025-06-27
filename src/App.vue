@@ -228,7 +228,29 @@
 
   // 重置游戏
   const resetGame = () => {
-    initializeGame()
+    // 重置游戏状态但保持配置
+    gameState.players = GameService.createPlayers()
+    gameState.board = GameService.createBoard(gameState.punishmentConfig, gameState.boardConfig)
+    gameState.currentPlayerIndex = 0
+    gameState.diceValue = null
+    gameState.winner = null
+    gameState.pendingEffect = null
+    gameStarted.value = false
+    gameFinished.value = false
+    turnCount.value = 0
+    lastEffect.value = ''
+    currentPunishment.value = null
+
+    // 清除惩罚组合确认状态
+    showPunishmentConfirmation.value = false
+    punishmentCombinations.value = []
+    showPunishmentStats.value = false
+    confirmedCombinations.value = []
+    showTakeoffPunishmentDisplay.value = false
+    currentTakeoffPunishment.value = null
+
+    // 直接跳转到棋盘设置页面
+    gameState.gameStatus = 'board_settings'
   }
 
   // 处理骰子滚动
