@@ -11,17 +11,42 @@
     "deploy": "./deploy.sh",
     "deploy:docs": "npm run build && rm -rf docs && cp -r dist docs && echo '✅ 已复制到docs文件夹，请提交并推送'",
     "deploy:manual": "npm run build && echo '✅ 构建完成，请手动上传dist文件夹到GitHub Pages'",
-    "build:tag": "node scripts/build-with-tag.js"
+    "build:tag": "node scripts/build-with-tag.js",
+    "lint": "eslint . --ext .vue,.js,.ts,.jsx,.tsx --fix",
+    "lint:check": "eslint . --ext .vue,.js,.ts,.jsx,.tsx",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "type-check": "vue-tsc --noEmit",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,ts,vue}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "vue": "^3.5.13"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
     "@vitejs/plugin-vue": "^5.2.3",
+    "@vue/eslint-config-typescript": "^13.0.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.5.1",
+    "eslint-plugin-vue": "^9.33.0",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2",
+    "prettier": "^3.2.5",
+    "typescript": "^5.0.2",
     "vite": "^6.2.4",
     "vite-plugin-vue-devtools": "^7.7.2",
-    "typescript": "^5.0.2",
     "vue-tsc": "^1.8.5"
   }
 }

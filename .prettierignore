@@ -1,0 +1,13 @@
+node_modules/
+dist/
+docs/
+*.min.js
+*.bundle.js
+coverage/
+.nyc_output/
+*.log
+.DS_Store
+Thumbs.db
+package-lock.json
+yarn.lock
+pnpm-lock.yaml 
