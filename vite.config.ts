@@ -5,11 +5,7 @@ import { versionPlugin } from './vite-plugin-version'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [
-    vue(),
-    devtools(),
-    versionPlugin()
-  ],
+  plugins: [vue(), devtools(), versionPlugin()],
   base: '/flying-chess/',
   build: {
     outDir: 'dist',
@@ -18,9 +14,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['vue']
-        }
-      }
-    }
-  }
-}) 
+          vendor: ['vue'],
+        },
+      },
+    },
+  },
+})
