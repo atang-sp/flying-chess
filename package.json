@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mobile": "node scripts/get-ip.cjs && echo '启动开发服务器...' && vite",
+    "ip": "node scripts/get-ip.cjs",
     "build": "vite build",
     "build:version": "npm run build -- --mode production",
     "preview": "vite preview",

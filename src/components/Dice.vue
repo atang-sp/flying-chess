@@ -635,57 +635,366 @@
     }
   }
 
-  /* 移动端适配 */
-  @media (max-width: 1023px) {
+  /* 移动端优化 */
+  @media (max-width: 767px) {
     .dice-container {
-      padding: clamp(0.25rem, 1vw, 0.5rem);
-      gap: clamp(0.4rem, 1vw, 0.5rem);
+      gap: 0.5rem;
+      padding: 0.5rem;
     }
 
     .dice {
-      width: clamp(45px, 12vw, 60px);
-      height: clamp(45px, 12vw, 60px);
-      margin: clamp(0.5rem, 2vw, 1rem) 0;
+      width: clamp(60px, 15vw, 70px);
+      height: clamp(60px, 15vw, 70px);
+      margin: 1rem 0;
     }
 
     .dice-result-highlight {
-      width: clamp(30px, 8vw, 40px);
-      height: clamp(30px, 8vw, 40px);
-      bottom: clamp(-6px, -1.5vw, -10px);
+      width: clamp(45px, 12vw, 50px);
+      height: clamp(45px, 12vw, 50px);
+      bottom: -15px;
     }
 
     .result-number {
-      font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+      font-size: clamp(1.2rem, 3vw, 1.3rem);
     }
 
     .result-label {
-      font-size: clamp(0.45rem, 1.2vw, 0.6rem);
+      font-size: clamp(0.6rem, 1.5vw, 0.7rem);
+    }
+
+    .dice-face {
+      border-radius: 8px;
+      border-width: 1px;
+    }
+
+    .dice-face::before {
+      border-radius: 7px;
+    }
+
+    .dice-face::after {
+      border-radius: 8px;
+    }
+
+    .dots {
+      gap: 2px;
+      padding: 6px;
+    }
+
+    .dot {
+      width: clamp(8px, 2vw, 10px);
+      height: clamp(8px, 2vw, 10px);
     }
 
     .dice-info {
-      font-size: clamp(0.75rem, 2.5vw, 0.9rem);
-      gap: clamp(0.25rem, 0.8vw, 0.3rem);
+      gap: 0.3rem;
+      padding: 0.5rem;
+      border-radius: 6px;
+    }
+
+    .rolling-text,
+    .result-text,
+    .roll-prompt {
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+      gap: 0.3rem;
+    }
+
+    .rolling-icon,
+    .result-icon,
+    .prompt-icon {
+      font-size: clamp(0.9rem, 2.5vw, 1rem);
     }
 
     .dice-controls {
+      gap: 0.5rem;
       flex-direction: column;
-      gap: clamp(0.4rem, 1vw, 0.5rem);
+      width: 100%;
+      max-width: 200px;
     }
 
     .roll-button,
     .shake-toggle-button {
-      padding: clamp(0.4rem, 1.5vw, 0.6rem) clamp(0.7rem, 2.5vw, 1rem);
-      font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+      padding: clamp(0.5rem, 2vw, 0.6rem) clamp(1rem, 3vw, 1.2rem);
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+      border-radius: 6px;
+      min-height: clamp(36px, 8vw, 40px);
+      gap: clamp(0.3rem, 1vw, 0.4rem);
+    }
+
+    .button-icon {
+      font-size: clamp(0.9rem, 2.5vw, 1rem);
+    }
+
+    .button-text {
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+    }
+
+    .shake-hint {
+      padding: clamp(0.4rem, 1.5vw, 0.5rem);
+      border-radius: 6px;
+      font-size: clamp(0.7rem, 2vw, 0.8rem);
+      gap: 0.3rem;
+    }
+
+    .hint-icon {
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+    }
+  }
+
+  /* 小屏手机优化 */
+  @media (max-width: 480px) {
+    .dice-container {
+      gap: 0.4rem;
+      padding: 0.4rem;
+    }
+
+    .dice {
+      width: clamp(50px, 12vw, 60px);
+      height: clamp(50px, 12vw, 60px);
+      margin: 0.75rem 0;
+    }
+
+    .dice-result-highlight {
+      width: clamp(40px, 10vw, 45px);
+      height: clamp(40px, 10vw, 45px);
+      bottom: -12px;
+    }
+
+    .result-number {
+      font-size: clamp(1rem, 2.5vw, 1.2rem);
+    }
+
+    .result-label {
+      font-size: clamp(0.5rem, 1.2vw, 0.6rem);
+    }
+
+    .dots {
+      gap: 1px;
+      padding: 4px;
+    }
+
+    .dot {
+      width: clamp(6px, 1.5vw, 8px);
+      height: clamp(6px, 1.5vw, 8px);
+    }
+
+    .dice-info {
+      padding: 0.4rem;
+    }
+
+    .rolling-text,
+    .result-text,
+    .roll-prompt {
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+      gap: 0.25rem;
+    }
+
+    .rolling-icon,
+    .result-icon,
+    .prompt-icon {
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+    }
+
+    .dice-controls {
+      gap: 0.4rem;
+      max-width: 180px;
+    }
+
+    .roll-button,
+    .shake-toggle-button {
+      padding: clamp(0.4rem, 1.8vw, 0.5rem) clamp(0.8rem, 2.5vw, 1rem);
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+      min-height: clamp(32px, 7vw, 36px);
       gap: clamp(0.25rem, 0.8vw, 0.3rem);
     }
 
     .button-icon {
-      font-size: clamp(0.85rem, 2.5vw, 1rem);
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+    }
+
+    .button-text {
+      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
     }
 
     .shake-hint {
-      font-size: clamp(0.7rem, 2.5vw, 0.8rem);
-      padding: clamp(0.25rem, 1vw, 0.4rem) clamp(0.5rem, 2vw, 0.8rem);
+      padding: clamp(0.3rem, 1.2vw, 0.4rem);
+      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+      gap: 0.25rem;
+    }
+
+    .hint-icon {
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+    }
+  }
+
+  /* 超小屏手机优化 */
+  @media (max-width: 360px) {
+    .dice-container {
+      gap: 0.3rem;
+      padding: 0.3rem;
+    }
+
+    .dice {
+      width: clamp(45px, 10vw, 50px);
+      height: clamp(45px, 10vw, 50px);
+      margin: 0.5rem 0;
+    }
+
+    .dice-result-highlight {
+      width: clamp(35px, 8vw, 40px);
+      height: clamp(35px, 8vw, 40px);
+      bottom: -10px;
+    }
+
+    .result-number {
+      font-size: clamp(0.9rem, 2.2vw, 1rem);
+    }
+
+    .result-label {
+      font-size: clamp(0.45rem, 1vw, 0.5rem);
+    }
+
+    .dots {
+      gap: 1px;
+      padding: 3px;
+    }
+
+    .dot {
+      width: clamp(5px, 1.2vw, 6px);
+      height: clamp(5px, 1.2vw, 6px);
+    }
+
+    .dice-info {
+      padding: 0.3rem;
+    }
+
+    .rolling-text,
+    .result-text,
+    .roll-prompt {
+      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
+      gap: 0.2rem;
+    }
+
+    .rolling-icon,
+    .result-icon,
+    .prompt-icon {
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+    }
+
+    .dice-controls {
+      gap: 0.3rem;
+      max-width: 160px;
+    }
+
+    .roll-button,
+    .shake-toggle-button {
+      padding: clamp(0.35rem, 1.5vw, 0.4rem) clamp(0.7rem, 2vw, 0.8rem);
+      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
+      min-height: clamp(28px, 6vw, 32px);
+      gap: clamp(0.2rem, 0.6vw, 0.25rem);
+    }
+
+    .button-icon {
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+    }
+
+    .button-text {
+      font-size: clamp(0.65rem, 1.5vw, 0.7rem);
+    }
+
+    .shake-hint {
+      padding: clamp(0.25rem, 1vw, 0.3rem);
+      font-size: clamp(0.6rem, 1.5vw, 0.65rem);
+      gap: 0.2rem;
+    }
+
+    .hint-icon {
+      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
+    }
+  }
+
+  /* 横屏模式优化 */
+  @media (max-width: 767px) and (orientation: landscape) {
+    .dice-container {
+      gap: 0.3rem;
+      padding: 0.3rem;
+    }
+
+    .dice {
+      width: clamp(50px, 12vw, 60px);
+      height: clamp(50px, 12vw, 60px);
+      margin: 0.5rem 0;
+    }
+
+    .dice-result-highlight {
+      width: clamp(40px, 10vw, 45px);
+      height: clamp(40px, 10vw, 45px);
+      bottom: -12px;
+    }
+
+    .result-number {
+      font-size: clamp(1rem, 2.5vw, 1.2rem);
+    }
+
+    .result-label {
+      font-size: clamp(0.5rem, 1.2vw, 0.6rem);
+    }
+
+    .dots {
+      gap: 1px;
+      padding: 4px;
+    }
+
+    .dot {
+      width: clamp(6px, 1.5vw, 8px);
+      height: clamp(6px, 1.5vw, 8px);
+    }
+
+    .dice-info {
+      padding: 0.3rem;
+    }
+
+    .rolling-text,
+    .result-text,
+    .roll-prompt {
+      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
+      gap: 0.2rem;
+    }
+
+    .rolling-icon,
+    .result-icon,
+    .prompt-icon {
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+    }
+
+    .dice-controls {
+      gap: 0.3rem;
+      max-width: 160px;
+    }
+
+    .roll-button,
+    .shake-toggle-button {
+      padding: clamp(0.35rem, 1.5vw, 0.4rem) clamp(0.7rem, 2vw, 0.8rem);
+      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
+      min-height: clamp(28px, 6vw, 32px);
+      gap: clamp(0.2rem, 0.6vw, 0.25rem);
+    }
+
+    .button-icon {
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+    }
+
+    .button-text {
+      font-size: clamp(0.65rem, 1.5vw, 0.7rem);
+    }
+
+    .shake-hint {
+      padding: clamp(0.25rem, 1vw, 0.3rem);
+      font-size: clamp(0.6rem, 1.5vw, 0.65rem);
+      gap: 0.2rem;
+    }
+
+    .hint-icon {
+      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
     }
   }
 </style>

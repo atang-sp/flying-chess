@@ -920,4 +920,151 @@
       justify-content: center;
     }
   }
+
+  /* 移动端极致紧凑优化 */
+  @media (max-width: 767px) {
+    .punishment-config {
+      padding: 0.3rem !important;
+    }
+    .config-header {
+      margin-bottom: 0.3rem !important;
+    }
+    .config-header h3 {
+      font-size: 0.95rem !important;
+      margin-bottom: 0.1rem !important;
+    }
+    .config-sections {
+      gap: 0.3rem !important;
+      margin-bottom: 0.3rem !important;
+    }
+    .config-section {
+      padding: 0.2rem !important;
+      border-radius: 2px !important;
+    }
+    .config-section h4 {
+      font-size: 0.75rem !important;
+      margin-bottom: 0.15rem !important;
+    }
+    .tools-list,
+    .body-parts-list,
+    .positions-list {
+      gap: 0.15rem !important;
+      margin-bottom: 0.15rem !important;
+    }
+    .tool-item,
+    .body-part-item,
+    .position-item {
+      padding: 0.15rem !important;
+      gap: 0.15rem !important;
+      border-radius: 2px !important;
+    }
+    .tool-name,
+    .body-part-name,
+    .position-name {
+      font-size: 0.8rem !important;
+    }
+    .tool-intensity,
+    .body-part-sensitivity,
+    .position-difficulty {
+      font-size: 0.6rem !important;
+      padding: 0.05rem 0.1rem !important;
+      border-radius: 1px !important;
+    }
+    .tool-controls,
+    .body-part-controls,
+    .position-controls {
+      gap: 0.15rem !important;
+    }
+    .intensity-controls,
+    .sensitivity-controls,
+    .difficulty-controls {
+      gap: 0.05rem !important;
+    }
+    .btn-small {
+      width: 18px !important;
+      height: 18px !important;
+      font-size: 0.6rem !important;
+      border-radius: 1px !important;
+    }
+    .intensity-value,
+    .sensitivity-value,
+    .difficulty-value {
+      min-width: 12px !important;
+      font-size: 0.7rem !important;
+    }
+    .ratio-control {
+      min-width: 60px !important;
+      gap: 0.05rem !important;
+    }
+    .ratio-control label {
+      font-size: 0.55rem !important;
+    }
+    .ratio-slider {
+      height: 2px !important;
+    }
+    .ratio-slider::-webkit-slider-thumb,
+    .ratio-slider::-moz-range-thumb {
+      width: 8px !important;
+      height: 8px !important;
+    }
+    .btn-remove {
+      width: 18px !important;
+      height: 18px !important;
+      border-radius: 1px !important;
+      font-size: 0.7rem !important;
+    }
+    .add-item {
+      gap: 0.1rem !important;
+    }
+    .input-field {
+      padding: 0.1rem !important;
+      font-size: 0.7rem !important;
+      border-radius: 1px !important;
+    }
+    .input-mini {
+      width: 30px !important;
+      margin: 0 0.1rem !important;
+      padding: 0.08rem 0.05rem !important;
+      font-size: 0.7rem !important;
+      border-radius: 1px !important;
+    }
+    .btn-add {
+      padding: 0.1rem 0.3rem !important;
+      font-size: 0.7rem !important;
+      border-radius: 1px !important;
+    }
+    .strikes-config {
+      gap: 0.15rem !important;
+    }
+    .strikes-item {
+      padding: 0.15rem !important;
+      border-radius: 2px !important;
+    }
+    .strikes-label {
+      font-size: 0.7rem !important;
+    }
+    .strikes-controls {
+      gap: 0.1rem !important;
+    }
+    .strikes-value {
+      min-width: 18px !important;
+      font-size: 0.7rem !important;
+    }
+    .strikes-description {
+      padding: 0.1rem !important;
+      font-size: 0.7rem !important;
+      border-radius: 2px !important;
+    }
+    .config-actions {
+      gap: 0.1rem !important;
+    }
+    .btn-primary,
+    .btn-secondary {
+      padding: 0.15rem 0.4rem !important;
+      font-size: 0.7rem !important;
+      min-height: 24px !important;
+      border-radius: 1px !important;
+      max-width: 100% !important;
+    }
+  }
 </style>

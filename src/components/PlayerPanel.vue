@@ -191,4 +191,238 @@
       grid-template-columns: 1fr;
     }
   }
+
+  /* 移动端优化 */
+  @media (max-width: 767px) {
+    .player-panel {
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .player-panel h3 {
+      margin: 0 0 0.5rem 0;
+      font-size: clamp(1rem, 2.5vw, 1.1rem);
+    }
+
+    .players-grid {
+      gap: 0.5rem;
+    }
+
+    .player-card {
+      padding: 0.5rem;
+      border-width: 1px;
+    }
+
+    .player-header {
+      gap: 0.3rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .player-color {
+      width: clamp(12px, 3vw, 16px);
+      height: clamp(12px, 3vw, 16px);
+      border-width: 1px;
+    }
+
+    .player-name {
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+    }
+
+    .winner-badge {
+      font-size: clamp(0.8rem, 2.5vw, 1rem);
+    }
+
+    .player-stats {
+      gap: 0.3rem;
+    }
+
+    .stat {
+      gap: 0.3rem;
+    }
+
+    .label {
+      font-size: clamp(0.7rem, 2vw, 0.8rem);
+      min-width: clamp(30px, 7vw, 35px);
+    }
+
+    .value {
+      font-size: clamp(0.7rem, 2vw, 0.8rem);
+    }
+
+    .progress-bar {
+      height: clamp(4px, 1vw, 6px);
+    }
+  }
+
+  /* 小屏手机优化 */
+  @media (max-width: 480px) {
+    .player-panel {
+      padding: 0.4rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .player-panel h3 {
+      margin: 0 0 0.4rem 0;
+      font-size: clamp(0.9rem, 2.2vw, 1rem);
+    }
+
+    .players-grid {
+      gap: 0.4rem;
+    }
+
+    .player-card {
+      padding: 0.4rem;
+    }
+
+    .player-header {
+      gap: 0.25rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .player-color {
+      width: clamp(10px, 2.5vw, 12px);
+      height: clamp(10px, 2.5vw, 12px);
+    }
+
+    .player-name {
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+    }
+
+    .winner-badge {
+      font-size: clamp(0.7rem, 2.2vw, 0.8rem);
+    }
+
+    .player-stats {
+      gap: 0.25rem;
+    }
+
+    .stat {
+      gap: 0.25rem;
+    }
+
+    .label {
+      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+      min-width: clamp(25px, 6vw, 30px);
+    }
+
+    .value {
+      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+    }
+
+    .progress-bar {
+      height: clamp(3px, 0.8vw, 4px);
+    }
+  }
+
+  /* 超小屏手机优化 */
+  @media (max-width: 360px) {
+    .player-panel {
+      padding: 0.3rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .player-panel h3 {
+      margin: 0 0 0.3rem 0;
+      font-size: clamp(0.8rem, 2vw, 0.9rem);
+    }
+
+    .players-grid {
+      gap: 0.3rem;
+    }
+
+    .player-card {
+      padding: 0.3rem;
+    }
+
+    .player-header {
+      gap: 0.2rem;
+      margin-bottom: 0.2rem;
+    }
+
+    .player-color {
+      width: clamp(8px, 2vw, 10px);
+      height: clamp(8px, 2vw, 10px);
+    }
+
+    .player-name {
+      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
+    }
+
+    .winner-badge {
+      font-size: clamp(0.6rem, 1.8vw, 0.7rem);
+    }
+
+    .player-stats {
+      gap: 0.2rem;
+    }
+
+    .stat {
+      gap: 0.2rem;
+    }
+
+    .label {
+      font-size: clamp(0.6rem, 1.5vw, 0.65rem);
+      min-width: clamp(20px, 5vw, 25px);
+    }
+
+    .value {
+      font-size: clamp(0.6rem, 1.5vw, 0.65rem);
+    }
+
+    .progress-bar {
+      height: clamp(2px, 0.6vw, 3px);
+    }
+  }
+
+  /* 横屏模式优化 */
+  @media (max-width: 767px) and (orientation: landscape) {
+    .player-panel {
+      padding: 0.3rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .player-panel h3 {
+      margin: 0 0 0.3rem 0;
+      font-size: clamp(0.8rem, 2vw, 0.9rem);
+    }
+
+    .players-grid {
+      gap: 0.3rem;
+    }
+
+    .player-card {
+      padding: 0.3rem;
+    }
+
+    .player-header {
+      gap: 0.2rem;
+      margin-bottom: 0.2rem;
+    }
+
+    .player-color {
+      width: clamp(10px, 2.5vw, 12px);
+      height: clamp(10px, 2.5vw, 12px);
+    }
+
+    .player-name {
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+    }
+
+    .player-stats {
+      gap: 0.2rem;
+    }
+
+    .stat {
+      gap: 0.2rem;
+    }
+
+    .label {
+      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+      min-width: clamp(25px, 6vw, 30px);
+    }
+
+    .value {
+      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+    }
+  }
 </style>

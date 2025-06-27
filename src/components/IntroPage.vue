@@ -888,45 +888,509 @@
     }
   }
 
-  /* 响应式设计 */
-  @media (max-width: 768px) {
-    .intro-features {
-      grid-template-columns: 1fr;
-      gap: clamp(1rem, 3vw, 1.5rem);
+  /* 移动端优化 */
+  @media (max-width: 767px) {
+    .intro-page {
+      padding: 1rem;
+      min-height: 100vh;
     }
 
-    .feature-item {
-      padding: clamp(1rem, 3vw, 1.5rem);
+    .intro-content {
+      gap: 1.5rem;
+      padding: 1rem;
     }
 
-    .start-btn {
-      width: 100%;
-      max-width: min(350px, 90vw);
+    .intro-header {
+      gap: 1rem;
     }
 
-    .dev-card {
-      flex-direction: column;
-      text-align: center;
+    .title-container {
+      gap: 0.5rem;
     }
 
-    .dev-details {
-      align-items: center;
+    .game-title {
+      font-size: clamp(1.8rem, 6vw, 2.5rem);
+      line-height: 1.2;
     }
-  }
 
-  @media (max-width: 480px) {
     .title-decoration {
-      flex-direction: column;
-      gap: clamp(0.5rem, 2vw, 1rem);
+      gap: 0.5rem;
     }
 
     .decoration-line {
-      width: clamp(60px, 30vw, 100px);
+      height: 2px;
+      width: clamp(40px, 15vw, 60px);
+    }
+
+    .decoration-center {
+      gap: 0.3rem;
+    }
+
+    .decoration-star,
+    .decoration-diamond {
+      font-size: clamp(0.8rem, 2.5vw, 1rem);
+    }
+
+    .game-subtitle {
+      gap: 0.3rem;
+    }
+
+    .subtitle-text {
+      font-size: clamp(0.9rem, 2.5vw, 1rem);
+    }
+
+    .subtitle-underline {
+      height: 1px;
+      width: clamp(120px, 40vw, 200px);
+    }
+
+    .developer-info {
+      gap: 0.5rem;
+    }
+
+    .dev-card {
+      padding: 0.5rem;
+      gap: 0.5rem;
+    }
+
+    .dev-avatar {
+      font-size: clamp(1.5rem, 4vw, 2rem);
+    }
+
+    .dev-details {
+      gap: 0.2rem;
+    }
+
+    .dev-name {
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+    }
+
+    .dev-link {
+      gap: 0.2rem;
+    }
+
+    .dev-id {
+      font-size: clamp(0.7rem, 2vw, 0.8rem);
+    }
+
+    .link-icon {
+      font-size: clamp(0.6rem, 1.8vw, 0.7rem);
+    }
+
+    .intro-features {
+      gap: 0.8rem;
+    }
+
+    .feature-item {
+      padding: 0.8rem;
+      gap: 0.5rem;
+    }
+
+    .feature-icon-container {
+      width: clamp(40px, 10vw, 50px);
+      height: clamp(40px, 10vw, 50px);
+    }
+
+    .feature-icon {
+      font-size: clamp(1.2rem, 3vw, 1.5rem);
+    }
+
+    .feature-text h3 {
+      font-size: clamp(0.9rem, 2.5vw, 1rem);
+      margin-bottom: 0.2rem;
+    }
+
+    .feature-text p {
+      font-size: clamp(0.7rem, 2vw, 0.8rem);
+      line-height: 1.3;
+    }
+
+    .intro-actions {
+      gap: 1rem;
+    }
+
+    .start-btn {
+      padding: clamp(0.8rem, 3vw, 1rem) clamp(1.5rem, 5vw, 2rem);
+      border-radius: 12px;
+      min-height: clamp(48px, 12vw, 56px);
+    }
+
+    .btn-content {
+      gap: 0.5rem;
+    }
+
+    .btn-icon {
+      font-size: clamp(1.2rem, 3.5vw, 1.5rem);
+    }
+
+    .btn-text {
+      font-size: clamp(1rem, 2.8vw, 1.2rem);
     }
 
     .game-info {
-      flex-direction: column;
-      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .info-item {
+      gap: 0.3rem;
+    }
+
+    .info-icon {
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+    }
+
+    .info-text {
+      font-size: clamp(0.7rem, 2vw, 0.8rem);
+    }
+
+    .floating-dice {
+      display: none; /* 移动端隐藏浮动骰子以节省空间 */
+    }
+
+    .floating-stars {
+      display: none; /* 移动端隐藏浮动星星以节省空间 */
+    }
+  }
+
+  /* 小屏手机优化 */
+  @media (max-width: 480px) {
+    .intro-page {
+      padding: 0.5rem;
+    }
+
+    .intro-content {
+      gap: 1rem;
+      padding: 0.5rem;
+    }
+
+    .intro-header {
+      gap: 0.8rem;
+    }
+
+    .game-title {
+      font-size: clamp(1.5rem, 5vw, 1.8rem);
+    }
+
+    .title-decoration {
+      gap: 0.4rem;
+    }
+
+    .decoration-line {
+      width: clamp(30px, 12vw, 40px);
+    }
+
+    .decoration-star,
+    .decoration-diamond {
+      font-size: clamp(0.7rem, 2vw, 0.8rem);
+    }
+
+    .subtitle-text {
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+    }
+
+    .subtitle-underline {
+      width: clamp(100px, 35vw, 150px);
+    }
+
+    .dev-card {
+      padding: 0.4rem;
+      gap: 0.4rem;
+    }
+
+    .dev-avatar {
+      font-size: clamp(1.3rem, 3.5vw, 1.5rem);
+    }
+
+    .dev-name {
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+    }
+
+    .dev-id {
+      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+    }
+
+    .intro-features {
+      gap: 0.6rem;
+    }
+
+    .feature-item {
+      padding: 0.6rem;
+      gap: 0.4rem;
+    }
+
+    .feature-icon-container {
+      width: clamp(35px, 9vw, 40px);
+      height: clamp(35px, 9vw, 40px);
+    }
+
+    .feature-icon {
+      font-size: clamp(1rem, 2.5vw, 1.2rem);
+    }
+
+    .feature-text h3 {
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+      margin-bottom: 0.15rem;
+    }
+
+    .feature-text p {
+      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+    }
+
+    .start-btn {
+      padding: clamp(0.7rem, 2.5vw, 0.8rem) clamp(1.2rem, 4vw, 1.5rem);
+      min-height: clamp(44px, 11vw, 48px);
+    }
+
+    .btn-icon {
+      font-size: clamp(1rem, 3vw, 1.2rem);
+    }
+
+    .btn-text {
+      font-size: clamp(0.9rem, 2.5vw, 1rem);
+    }
+
+    .game-info {
+      gap: 0.4rem;
+    }
+
+    .info-item {
+      gap: 0.25rem;
+    }
+
+    .info-icon {
+      font-size: clamp(0.7rem, 2vw, 0.8rem);
+    }
+
+    .info-text {
+      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+    }
+  }
+
+  /* 超小屏手机优化 */
+  @media (max-width: 360px) {
+    .intro-page {
+      padding: 0.3rem;
+    }
+
+    .intro-content {
+      gap: 0.8rem;
+      padding: 0.3rem;
+    }
+
+    .intro-header {
+      gap: 0.6rem;
+    }
+
+    .game-title {
+      font-size: clamp(1.3rem, 4.5vw, 1.5rem);
+    }
+
+    .title-decoration {
+      gap: 0.3rem;
+    }
+
+    .decoration-line {
+      width: clamp(25px, 10vw, 30px);
+    }
+
+    .decoration-star,
+    .decoration-diamond {
+      font-size: clamp(0.6rem, 1.8vw, 0.7rem);
+    }
+
+    .subtitle-text {
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+    }
+
+    .subtitle-underline {
+      width: clamp(80px, 30vw, 120px);
+    }
+
+    .dev-card {
+      padding: 0.3rem;
+      gap: 0.3rem;
+    }
+
+    .dev-avatar {
+      font-size: clamp(1.1rem, 3vw, 1.3rem);
+    }
+
+    .dev-name {
+      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
+    }
+
+    .dev-id {
+      font-size: clamp(0.6rem, 1.5vw, 0.65rem);
+    }
+
+    .intro-features {
+      gap: 0.5rem;
+    }
+
+    .feature-item {
+      padding: 0.5rem;
+      gap: 0.3rem;
+    }
+
+    .feature-icon-container {
+      width: clamp(30px, 8vw, 35px);
+      height: clamp(30px, 8vw, 35px);
+    }
+
+    .feature-icon {
+      font-size: clamp(0.9rem, 2.2vw, 1rem);
+    }
+
+    .feature-text h3 {
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+      margin-bottom: 0.1rem;
+    }
+
+    .feature-text p {
+      font-size: clamp(0.6rem, 1.5vw, 0.65rem);
+    }
+
+    .start-btn {
+      padding: clamp(0.6rem, 2vw, 0.7rem) clamp(1rem, 3.5vw, 1.2rem);
+      min-height: clamp(40px, 10vw, 44px);
+    }
+
+    .btn-icon {
+      font-size: clamp(0.9rem, 2.5vw, 1rem);
+    }
+
+    .btn-text {
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+    }
+
+    .game-info {
+      gap: 0.3rem;
+    }
+
+    .info-item {
+      gap: 0.2rem;
+    }
+
+    .info-icon {
+      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+    }
+
+    .info-text {
+      font-size: clamp(0.6rem, 1.5vw, 0.65rem);
+    }
+  }
+
+  /* 横屏模式优化 */
+  @media (max-width: 767px) and (orientation: landscape) {
+    .intro-page {
+      padding: 0.5rem;
+    }
+
+    .intro-content {
+      gap: 1rem;
+      padding: 0.5rem;
+    }
+
+    .intro-header {
+      gap: 0.8rem;
+    }
+
+    .game-title {
+      font-size: clamp(1.5rem, 5vw, 1.8rem);
+    }
+
+    .title-decoration {
+      gap: 0.4rem;
+    }
+
+    .decoration-line {
+      width: clamp(30px, 12vw, 40px);
+    }
+
+    .decoration-star,
+    .decoration-diamond {
+      font-size: clamp(0.7rem, 2vw, 0.8rem);
+    }
+
+    .subtitle-text {
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+    }
+
+    .subtitle-underline {
+      width: clamp(100px, 35vw, 150px);
+    }
+
+    .dev-card {
+      padding: 0.4rem;
+      gap: 0.4rem;
+    }
+
+    .dev-avatar {
+      font-size: clamp(1.3rem, 3.5vw, 1.5rem);
+    }
+
+    .dev-name {
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+    }
+
+    .dev-id {
+      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+    }
+
+    .intro-features {
+      gap: 0.6rem;
+    }
+
+    .feature-item {
+      padding: 0.6rem;
+      gap: 0.4rem;
+    }
+
+    .feature-icon-container {
+      width: clamp(35px, 9vw, 40px);
+      height: clamp(35px, 9vw, 40px);
+    }
+
+    .feature-icon {
+      font-size: clamp(1rem, 2.5vw, 1.2rem);
+    }
+
+    .feature-text h3 {
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+      margin-bottom: 0.15rem;
+    }
+
+    .feature-text p {
+      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+    }
+
+    .start-btn {
+      padding: clamp(0.7rem, 2.5vw, 0.8rem) clamp(1.2rem, 4vw, 1.5rem);
+      min-height: clamp(44px, 11vw, 48px);
+    }
+
+    .btn-icon {
+      font-size: clamp(1rem, 3vw, 1.2rem);
+    }
+
+    .btn-text {
+      font-size: clamp(0.9rem, 2.5vw, 1rem);
+    }
+
+    .game-info {
+      gap: 0.4rem;
+    }
+
+    .info-item {
+      gap: 0.25rem;
+    }
+
+    .info-icon {
+      font-size: clamp(0.7rem, 2vw, 0.8rem);
+    }
+
+    .info-text {
+      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
     }
   }
 </style>

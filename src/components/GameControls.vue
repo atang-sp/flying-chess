@@ -198,15 +198,15 @@
   }
 
   .game-over h3 {
-    margin: 0 0 clamp(0.8rem, 2.5vw, 1rem) 0;
+    margin: 0 0 0.5rem 0;
     color: #333;
-    font-size: clamp(1.2rem, 4vw, 1.5rem);
+    font-size: clamp(1.2rem, 3.5vw, 1.5rem);
   }
 
   .game-over p {
-    margin: 0 0 clamp(1.2rem, 3vw, 1.5rem) 0;
-    font-size: clamp(1rem, 3vw, 1.2rem);
+    margin: 0 0 1rem 0;
     color: #666;
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
   }
 
   @keyframes pulse {
@@ -219,37 +219,210 @@
     }
   }
 
-  /* 移动端适配 */
-  @media (max-width: 1023px) {
+  /* 移动端优化 */
+  @media (max-width: 767px) {
     .game-controls {
-      padding: clamp(0.5rem, 2vw, 0.75rem);
-      margin-bottom: clamp(0.25rem, 1vw, 0.5rem);
+      padding: 0.75rem;
+      margin-bottom: 0.75rem;
+      border-radius: 6px;
     }
 
     .control-buttons {
-      gap: clamp(0.4rem, 1vw, 0.5rem);
-      margin-bottom: clamp(0.4rem, 1vw, 0.5rem);
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .btn {
+      padding: clamp(0.5rem, 2vw, 0.6rem) clamp(1rem, 3vw, 1.2rem);
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+      border-radius: 4px;
+      min-height: clamp(36px, 8vw, 40px);
+      gap: clamp(0.3rem, 1vw, 0.4rem);
     }
 
     .game-status {
-      gap: clamp(0.75rem, 2vw, 1rem);
-      padding: clamp(0.5rem, 2vw, 0.75rem);
+      gap: clamp(0.5rem, 2vw, 1rem);
+      padding: clamp(0.5rem, 2vw, 0.8rem);
+      border-radius: 4px;
     }
 
     .status-item {
       gap: clamp(0.15rem, 0.5vw, 0.2rem);
     }
 
+    .label {
+      font-size: clamp(0.7rem, 2vw, 0.8rem);
+    }
+
+    .value {
+      font-size: clamp(0.9rem, 2.5vw, 1rem);
+    }
+
     .game-over {
       padding: clamp(1rem, 3vw, 1.5rem);
+      border-radius: 6px;
     }
 
     .game-over h3 {
-      margin-bottom: clamp(0.5rem, 1.5vw, 0.75rem);
+      font-size: clamp(1rem, 3vw, 1.2rem);
+      margin-bottom: 0.4rem;
     }
 
     .game-over p {
-      margin-bottom: clamp(0.75rem, 2vw, 1rem);
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+      margin-bottom: 0.75rem;
+    }
+  }
+
+  /* 小屏手机优化 */
+  @media (max-width: 480px) {
+    .game-controls {
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .control-buttons {
+      gap: 0.4rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .btn {
+      padding: clamp(0.4rem, 1.8vw, 0.5rem) clamp(0.8rem, 2.5vw, 1rem);
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+      min-height: clamp(32px, 7vw, 36px);
+      gap: clamp(0.25rem, 0.8vw, 0.3rem);
+    }
+
+    .game-status {
+      gap: clamp(0.4rem, 1.5vw, 0.5rem);
+      padding: clamp(0.4rem, 1.5vw, 0.5rem);
+    }
+
+    .status-item {
+      gap: clamp(0.1rem, 0.4vw, 0.15rem);
+    }
+
+    .label {
+      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+    }
+
+    .value {
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+    }
+
+    .game-over {
+      padding: clamp(0.75rem, 2.5vw, 1rem);
+    }
+
+    .game-over h3 {
+      font-size: clamp(0.9rem, 2.5vw, 1rem);
+      margin-bottom: 0.3rem;
+    }
+
+    .game-over p {
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+      margin-bottom: 0.5rem;
+    }
+  }
+
+  /* 超小屏手机优化 */
+  @media (max-width: 360px) {
+    .game-controls {
+      padding: 0.4rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .control-buttons {
+      gap: 0.3rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      padding: clamp(0.35rem, 1.5vw, 0.4rem) clamp(0.7rem, 2vw, 0.8rem);
+      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
+      min-height: clamp(28px, 6vw, 32px);
+      gap: clamp(0.2rem, 0.6vw, 0.25rem);
+    }
+
+    .game-status {
+      gap: clamp(0.3rem, 1.2vw, 0.4rem);
+      padding: clamp(0.3rem, 1.2vw, 0.4rem);
+    }
+
+    .status-item {
+      gap: clamp(0.08rem, 0.3vw, 0.1rem);
+    }
+
+    .label {
+      font-size: clamp(0.6rem, 1.5vw, 0.65rem);
+    }
+
+    .value {
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+    }
+
+    .game-over {
+      padding: clamp(0.6rem, 2vw, 0.75rem);
+    }
+
+    .game-over h3 {
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+      margin-bottom: 0.25rem;
+    }
+
+    .game-over p {
+      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
+      margin-bottom: 0.4rem;
+    }
+  }
+
+  /* 横屏模式优化 */
+  @media (max-width: 767px) and (orientation: landscape) {
+    .game-controls {
+      padding: 0.4rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .control-buttons {
+      gap: 0.3rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      padding: clamp(0.35rem, 1.5vw, 0.4rem) clamp(0.7rem, 2vw, 0.8rem);
+      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
+      min-height: clamp(28px, 6vw, 32px);
+    }
+
+    .game-status {
+      gap: clamp(0.3rem, 1.2vw, 0.4rem);
+      padding: clamp(0.3rem, 1.2vw, 0.4rem);
+    }
+
+    .status-item {
+      gap: clamp(0.08rem, 0.3vw, 0.1rem);
+    }
+
+    .label {
+      font-size: clamp(0.6rem, 1.5vw, 0.65rem);
+    }
+
+    .value {
+      font-size: clamp(0.75rem, 2vw, 0.8rem);
+    }
+
+    .game-over {
+      padding: clamp(0.6rem, 2vw, 0.75rem);
+    }
+
+    .game-over h3 {
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+      margin-bottom: 0.25rem;
+    }
+
+    .game-over p {
+      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
+      margin-bottom: 0.4rem;
     }
   }
 </style>

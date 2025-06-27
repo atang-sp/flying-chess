@@ -7,6 +7,21 @@ import { versionPlugin } from './vite-plugin-version'
 export default defineConfig({
   plugins: [vue(), devtools(), versionPlugin()],
   base: '/flying-chess/',
+  server: {
+    // 允许内网访问
+    host: '0.0.0.0',
+    // 设置端口
+    port: 5173,
+    // 自动打开浏览器
+    open: false,
+    // 允许跨域
+    cors: true,
+    // 热更新配置
+    hmr: {
+      host: 'localhost',
+      port: 5173,
+    },
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

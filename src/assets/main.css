@@ -6,6 +6,9 @@
   padding: 0;
   font-weight: normal;
   min-height: 100vh;
+  /* 移动端优化 */
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 a,
@@ -22,6 +25,7 @@ a,
   }
 }
 
+/* 桌面端布局 */
 @media (min-width: 1024px) {
   body {
     display: flex;
@@ -36,11 +40,114 @@ a,
   }
 }
 
-/* 自适应布局 - 使用相对单位和视口单位 */
-@media (max-width: 1023px) {
+/* 平板端布局 */
+@media (max-width: 1023px) and (min-width: 768px) {
+  #app {
+    padding: 0 1rem;
+    width: 100%;
+    max-width: none;
+  }
+}
+
+/* 移动端布局 - 紧凑设计 */
+@media (max-width: 767px) {
   #app {
     padding: 0;
     width: 100%;
     max-width: none;
+  }
+  
+  /* 移动端全局样式优化 */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* 触摸优化 */
+  button, .btn {
+    min-height: 44px; /* 确保触摸目标足够大 */
+    touch-action: manipulation;
+  }
+  
+  /* 紧凑间距 */
+  .container {
+    padding: 0.5rem;
+  }
+  
+  /* 优化滚动 */
+  .scrollable {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+}
+
+/* 小屏手机优化 */
+@media (max-width: 480px) {
+  #app {
+    padding: 0;
+  }
+  
+  /* 更紧凑的间距 */
+  .container {
+    padding: 0.25rem;
+  }
+  
+  /* 优化字体大小 */
+  body {
+    font-size: 14px;
+  }
+}
+
+/* 超小屏手机优化 */
+@media (max-width: 360px) {
+  #app {
+    padding: 0;
+  }
+  
+  body {
+    font-size: 13px;
+  }
+  
+  /* 最小触摸目标 */
+  button, .btn {
+    min-height: 40px;
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+/* 横屏模式优化 */
+@media (max-width: 767px) and (orientation: landscape) {
+  #app {
+    padding: 0.25rem;
+  }
+  
+  /* 横屏时更紧凑的布局 */
+  .game-board {
+    max-height: 80vh;
+  }
+}
+
+/* 高分辨率屏幕优化 */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* 确保在高分辨率屏幕上清晰显示 */
+  .board-cell,
+  .player-marker,
+  .btn {
+    border-width: 0.5px;
+  }
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+  /* 可以在这里添加深色模式样式 */
+}
+
+/* 减少动画偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

@@ -618,57 +618,208 @@
     .game-board {
       padding: clamp(0.25rem, 1vw, 0.5rem);
     }
-
     .board-container {
       max-width: 100%;
     }
-
     .board-grid {
       gap: clamp(0.25rem, 1vw, 0.5rem);
       padding: clamp(0.25rem, 1vw, 0.5rem);
     }
-
     .board-row {
       gap: clamp(0.15rem, 0.5vw, 0.25rem);
     }
-
     .board-cell {
-      width: clamp(35px, 8vw, 40px);
-      height: clamp(35px, 8vw, 40px);
-      font-size: clamp(0.5rem, 1.5vw, 0.6rem);
+      width: clamp(48px, 12vw, 60px);
+      height: clamp(48px, 12vw, 60px);
+      font-size: clamp(0.7rem, 2vw, 0.9rem);
     }
-
     .cell-number {
-      font-size: clamp(0.45rem, 1.2vw, 0.5rem);
+      font-size: clamp(0.6rem, 1.5vw, 0.7rem);
       font-weight: bold;
     }
-
     .cell-icon {
-      font-size: clamp(0.6rem, 1.8vw, 0.7rem);
+      font-size: clamp(0.9rem, 2.5vw, 1.1rem);
     }
-
     .cell-effect {
-      font-size: clamp(0.35rem, 1vw, 0.4rem);
+      font-size: clamp(0.5rem, 1.5vw, 0.7rem);
     }
+    .player-marker {
+      width: clamp(1.5rem, 4vw, 2rem);
+      height: clamp(1.5rem, 4vw, 2rem);
+      font-size: clamp(0.8rem, 2vw, 1rem);
+      border: 1px solid white;
+    }
+    .start-cell {
+      width: clamp(65px, 16vw, 80px);
+      height: clamp(65px, 16vw, 80px);
+    }
+    .start-cell .cell-number {
+      font-size: clamp(0.7rem, 2vw, 0.9rem);
+    }
+    .start-cell .cell-icon {
+      font-size: clamp(1.3rem, 3vw, 1.6rem);
+    }
+  }
 
+  /* 移动端优化 - 更紧凑的布局 */
+  @media (max-width: 767px) {
+    .game-board {
+      padding: 0.25rem;
+      gap: 0.5rem;
+    }
+    .board-container {
+      gap: 0.5rem;
+    }
+    .board-grid {
+      gap: 0.25rem;
+      padding: 0.5rem;
+      border-radius: 12px;
+    }
+    .board-row {
+      gap: 0.15rem;
+    }
+    .board-cell {
+      width: clamp(38px, 10vw, 48px);
+      height: clamp(38px, 10vw, 48px);
+      border-radius: 8px;
+      border-width: 1px;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cell-content {
+      padding: 0.15rem;
+    }
+    .cell-number {
+      font-size: clamp(0.6rem, 1.5vw, 0.7rem);
+      margin-bottom: 0.05rem;
+    }
+    .cell-icon {
+      font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+      margin-bottom: 0.05rem;
+    }
+    .cell-effect {
+      font-size: clamp(0.5rem, 1.5vw, 0.7rem);
+      line-height: 1;
+    }
+    .player-marker {
+      width: clamp(1.2rem, 3vw, 1.5rem);
+      height: clamp(1.2rem, 3vw, 1.5rem);
+      font-size: clamp(0.7rem, 1.8vw, 0.9rem);
+      border-width: 1px;
+    }
+    .start-cell {
+      width: clamp(55px, 14vw, 65px);
+      height: clamp(55px, 14vw, 65px);
+      border-radius: 10px;
+      border-width: 2px;
+    }
+    .start-cell .cell-number {
+      font-size: clamp(0.7rem, 2vw, 0.9rem);
+    }
+    .start-cell .cell-icon {
+      font-size: clamp(1.1rem, 3vw, 1.3rem);
+    }
+    .start-position {
+      top: -30px;
+    }
+  }
+
+  /* 小屏手机优化 */
+  @media (max-width: 480px) {
+    .game-board {
+      padding: 0.15rem;
+      gap: 0.25rem;
+    }
+    .board-grid {
+      gap: 0.15rem;
+      padding: 0.25rem;
+    }
+    .board-row {
+      gap: 0.1rem;
+    }
+    .board-cell {
+      width: clamp(32px, 8vw, 38px);
+      height: clamp(32px, 8vw, 38px);
+      border-radius: 6px;
+    }
+    .cell-content {
+      padding: 0.1rem;
+    }
+    .cell-number {
+      font-size: clamp(0.5rem, 1.2vw, 0.6rem);
+    }
+    .cell-icon {
+      font-size: clamp(0.7rem, 2vw, 0.9rem);
+    }
+    .cell-effect {
+      font-size: clamp(0.4rem, 1vw, 0.5rem);
+    }
     .player-marker {
       width: clamp(1rem, 2.5vw, 1.2rem);
       height: clamp(1rem, 2.5vw, 1.2rem);
-      font-size: clamp(0.5rem, 1.5vw, 0.6rem);
-      border: 1px solid white;
+      font-size: clamp(0.6rem, 1.5vw, 0.8rem);
+    }
+    .start-cell {
+      width: clamp(45px, 11vw, 55px);
+      height: clamp(45px, 11vw, 55px);
+    }
+    .start-cell .cell-number {
+      font-size: clamp(0.6rem, 1.5vw, 0.7rem);
+    }
+    .start-cell .cell-icon {
+      font-size: clamp(0.9rem, 2vw, 1.1rem);
+    }
+    .start-position {
+      top: -25px;
+    }
+  }
+
+  /* 超小屏手机优化 */
+  @media (max-width: 360px) {
+    .board-cell {
+      width: clamp(26px, 6vw, 32px);
+      height: clamp(26px, 6vw, 32px);
+    }
+    .cell-number {
+      font-size: clamp(0.4rem, 1vw, 0.5rem);
+    }
+    .cell-icon {
+      font-size: clamp(0.6rem, 1.5vw, 0.7rem);
+    }
+    .cell-effect {
+      font-size: clamp(0.3rem, 0.8vw, 0.4rem);
+    }
+    .player-marker {
+      width: clamp(0.8rem, 2vw, 1rem);
+      height: clamp(0.8rem, 2vw, 1rem);
+      font-size: clamp(0.5rem, 1vw, 0.6rem);
+    }
+    .start-cell {
+      width: clamp(35px, 9vw, 40px);
+      height: clamp(35px, 9vw, 40px);
+    }
+  }
+
+  /* 横屏模式优化 */
+  @media (max-width: 767px) and (orientation: landscape) {
+    .game-board {
+      padding: 0.15rem;
+      gap: 0.25rem;
+    }
+
+    .board-grid {
+      gap: 0.15rem;
+      padding: 0.25rem;
+    }
+
+    .board-cell {
+      width: clamp(22px, 5.5vw, 28px);
+      height: clamp(22px, 5.5vw, 28px);
     }
 
     .start-cell {
-      width: clamp(50px, 12vw, 60px);
-      height: clamp(50px, 12vw, 60px);
-    }
-
-    .start-cell .cell-number {
-      font-size: clamp(0.5rem, 1.5vw, 0.6rem);
-    }
-
-    .start-cell .cell-icon {
-      font-size: clamp(1rem, 3vw, 1.2rem);
+      width: clamp(35px, 8vw, 40px);
+      height: clamp(35px, 8vw, 40px);
     }
   }
 
@@ -855,6 +1006,206 @@
 
     .detail-value {
       text-align: left;
+    }
+  }
+
+  /* 移动端浮窗优化 */
+  @media (max-width: 767px) {
+    .cell-tooltip {
+      max-width: 180px;
+      min-width: 140px;
+      border-radius: 8px;
+      border-width: 1px;
+    }
+
+    .tooltip-content {
+      padding: 0.5rem;
+    }
+
+    .tooltip-header {
+      margin-bottom: 0.4rem;
+      padding-bottom: 0.3rem;
+    }
+
+    .tooltip-number {
+      font-size: 0.85rem;
+    }
+
+    .tooltip-type {
+      font-size: 0.6rem;
+      padding: 0.15rem 0.4rem;
+    }
+
+    .tooltip-body {
+      font-size: 0.7rem;
+    }
+
+    .effect-title {
+      font-size: 0.75rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .punishment-details,
+    .move-details,
+    .rest-details,
+    .reverse-details,
+    .restart-details {
+      padding: 0.4rem;
+      border-radius: 6px;
+      margin-top: 0.3rem;
+    }
+
+    .detail-item {
+      margin-bottom: 0.2rem;
+      gap: 0.2rem;
+    }
+
+    .detail-label {
+      font-size: 0.65rem;
+      min-width: 35px;
+    }
+
+    .detail-value {
+      font-size: 0.7rem;
+    }
+  }
+
+  /* 小屏手机浮窗优化 */
+  @media (max-width: 480px) {
+    .cell-tooltip {
+      max-width: 160px;
+      min-width: 120px;
+    }
+
+    .tooltip-content {
+      padding: 0.4rem;
+    }
+
+    .tooltip-header {
+      margin-bottom: 0.3rem;
+      padding-bottom: 0.2rem;
+    }
+
+    .tooltip-number {
+      font-size: 0.8rem;
+    }
+
+    .tooltip-type {
+      font-size: 0.55rem;
+      padding: 0.1rem 0.3rem;
+    }
+
+    .tooltip-body {
+      font-size: 0.65rem;
+    }
+
+    .effect-title {
+      font-size: 0.7rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .punishment-details,
+    .move-details,
+    .rest-details,
+    .reverse-details,
+    .restart-details {
+      padding: 0.3rem;
+      margin-top: 0.25rem;
+    }
+
+    .detail-item {
+      margin-bottom: 0.15rem;
+      gap: 0.15rem;
+    }
+
+    .detail-label {
+      font-size: 0.6rem;
+      min-width: 30px;
+    }
+
+    .detail-value {
+      font-size: 0.65rem;
+    }
+  }
+
+  /* 超小屏手机浮窗优化 */
+  @media (max-width: 360px) {
+    .cell-tooltip {
+      max-width: 140px;
+      min-width: 100px;
+    }
+
+    .tooltip-content {
+      padding: 0.3rem;
+    }
+
+    .tooltip-number {
+      font-size: 0.75rem;
+    }
+
+    .tooltip-type {
+      font-size: 0.5rem;
+      padding: 0.1rem 0.25rem;
+    }
+
+    .tooltip-body {
+      font-size: 0.6rem;
+    }
+
+    .effect-title {
+      font-size: 0.65rem;
+      margin-bottom: 0.2rem;
+    }
+
+    .punishment-details,
+    .move-details,
+    .rest-details,
+    .reverse-details,
+    .restart-details {
+      padding: 0.25rem;
+      margin-top: 0.2rem;
+    }
+
+    .detail-item {
+      margin-bottom: 0.1rem;
+      gap: 0.1rem;
+    }
+
+    .detail-label {
+      font-size: 0.55rem;
+      min-width: 25px;
+    }
+
+    .detail-value {
+      font-size: 0.6rem;
+    }
+  }
+
+  /* 横屏模式浮窗优化 */
+  @media (max-width: 767px) and (orientation: landscape) {
+    .cell-tooltip {
+      max-width: 160px;
+      min-width: 120px;
+    }
+
+    .tooltip-content {
+      padding: 0.4rem;
+    }
+
+    .tooltip-header {
+      margin-bottom: 0.3rem;
+    }
+
+    .tooltip-number {
+      font-size: 0.8rem;
+    }
+
+    .tooltip-type {
+      font-size: 0.6rem;
+    }
+
+    .tooltip-body {
+      font-size: 0.7rem;
     }
   }
 </style>
