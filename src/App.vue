@@ -192,47 +192,47 @@
     initializeGame()
     
     // 将游戏状态暴露到全局作用域，方便调试
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).gameState = gameState
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).trapConfig = trapConfig
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).gameStarted = gameStarted
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).gameFinished = gameFinished
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).turnCount = turnCount
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).lastEffect = lastEffect
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).currentPunishment = currentPunishment
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).showPunishmentConfirmation = showPunishmentConfirmation
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).punishmentCombinations = punishmentCombinations
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).effectFromPosition = effectFromPosition
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).effectToPosition = effectToPosition
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).showPunishmentStats = showPunishmentStats
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).confirmedCombinations = confirmedCombinations
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).showTakeoffPunishmentDisplay = showTakeoffPunishmentDisplay
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).currentTakeoffPunishment = currentTakeoffPunishment
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).currentTakeoffDiceValue = currentTakeoffDiceValue
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).currentTakeoffExecutorIndex = currentTakeoffExecutorIndex
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).currentPunishmentExecutor = currentPunishmentExecutor
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).showTrapDisplay = showTrapDisplay
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).currentTrapPunishment = currentTrapPunishment
-    // @ts-ignore
+    // @ts-expect-error
     ;(window as any).currentTrapDescription = currentTrapDescription
   })
 
@@ -430,15 +430,6 @@
 
       // 检查是否有普通惩罚
       if (punishment) {
-        // 检查是否是机关陷阱
-        if (cellEffect && cellEffect.type === 'trap') {
-          // 显示机关陷阱弹窗，机关不再有复杂的惩罚对象
-          currentTrapDescription.value = cellEffect.description || '未知机关'
-          showTrapDisplay.value = true
-          // 保持moving状态，等待用户处理机关陷阱
-          return
-        }
-        
         currentPunishment.value = punishment
         // 设置执行惩罚的玩家（如果有executorIndex）
         if (
@@ -461,6 +452,15 @@
         }
         gameState.gameStatus = 'configuring'
         return // 等待用户处理惩罚
+      }
+
+      // 检查是否是机关陷阱（机关格子没有punishment，但有cellEffect）
+      if (cellEffect && cellEffect.type === 'trap') {
+        // 显示机关陷阱弹窗，机关不再有复杂的惩罚对象
+        currentTrapDescription.value = cellEffect.description || '未知机关'
+        showTrapDisplay.value = true
+        // 保持moving状态，等待用户处理机关陷阱
+        return
       }
 
       // 检查是否有需要显示效果的非惩罚格子
