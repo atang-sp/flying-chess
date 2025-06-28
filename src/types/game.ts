@@ -25,7 +25,6 @@ export interface PunishmentBodyPart {
 export interface PunishmentPosition {
   id: string
   name: string
-  difficulty: number // 1-5 难度等级
   ratio: number // 出现比例 (0-100)
 }
 

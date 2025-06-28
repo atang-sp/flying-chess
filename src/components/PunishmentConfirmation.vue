@@ -66,17 +66,16 @@
                 <div class="combination-tool">
                   <span class="label">工具:</span>
                   <span class="value">{{ combination.tool.name }}</span>
-                  <span class="intensity">强度: {{ combination.tool.intensity }}/5</span>
+                  <span class="intensity">强度: {{ combination.tool.intensity }}/10</span>
                 </div>
                 <div class="combination-body-part">
                   <span class="label">部位:</span>
                   <span class="value">{{ combination.bodyPart.name }}</span>
-                  <span class="sensitivity">耐受度: {{ combination.bodyPart.sensitivity }}/5</span>
+                  <span class="sensitivity">耐受度: {{ combination.bodyPart.sensitivity }}/10</span>
                 </div>
                 <div class="combination-position">
                   <span class="label">姿势:</span>
                   <span class="value">{{ combination.position.name }}</span>
-                  <span class="difficulty">难度: {{ combination.position.difficulty }}/5</span>
                 </div>
               </div>
               <div class="combination-summary">
@@ -267,8 +266,7 @@
   }
 
   .intensity,
-  .sensitivity,
-  .difficulty {
+  .sensitivity {
     background: #667eea;
     color: white;
     padding: 0.2rem 0.4rem;

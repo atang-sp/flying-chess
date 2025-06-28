@@ -21,11 +21,10 @@
   const emit = defineEmits<Emits>()
 
   const newToolName = ref('')
-  const newToolIntensity = ref(3)
+  const newToolIntensity = ref(5)
   const newBodyPartName = ref('')
-  const newBodyPartSensitivity = ref(3)
+  const newBodyPartSensitivity = ref(5)
   const newPositionName = ref('')
-  const newPositionDifficulty = ref(3)
 
   // 检查配置是否有效
   const isConfigValid = computed(() => {
@@ -113,7 +112,7 @@
   const updateToolIntensity = (toolId: string, newIntensity: number) => {
     const newConfig = { ...props.config }
     const tool = newConfig.tools.find(t => t.id === toolId)
-    if (tool && newIntensity >= 1 && newIntensity <= 5) {
+    if (tool && newIntensity >= 1 && newIntensity <= 10) {
       tool.intensity = newIntensity
       emit('update', newConfig)
     }
@@ -141,12 +140,12 @@
       const newTool: PunishmentTool = {
         id: `tool_${Date.now()}`,
         name: newToolName.value.trim(),
-        intensity: Math.max(1, Math.min(5, newToolIntensity.value)),
+        intensity: Math.max(1, Math.min(10, newToolIntensity.value)),
         ratio,
       }
       newConfig.tools.push(newTool)
       newToolName.value = ''
-      newToolIntensity.value = 3
+      newToolIntensity.value = 5
       emit('update', newConfig)
     }
   }
@@ -154,7 +153,7 @@
   const updateBodyPartSensitivity = (bodyPartId: string, newSensitivity: number) => {
     const newConfig = { ...props.config }
     const bodyPart = newConfig.bodyParts.find(b => b.id === bodyPartId)
-    if (bodyPart && newSensitivity >= 1 && newSensitivity <= 5) {
+    if (bodyPart && newSensitivity >= 1 && newSensitivity <= 10) {
       bodyPart.sensitivity = newSensitivity
       emit('update', newConfig)
     }
@@ -181,21 +180,12 @@
       const newBodyPart: PunishmentBodyPart = {
         id: `bodypart_${Date.now()}`,
         name: newBodyPartName.value.trim(),
-        sensitivity: Math.max(1, Math.min(5, newBodyPartSensitivity.value)),
+        sensitivity: Math.max(1, Math.min(10, newBodyPartSensitivity.value)),
         ratio,
       }
       newConfig.bodyParts.push(newBodyPart)
       newBodyPartName.value = ''
-      newBodyPartSensitivity.value = 3
-      emit('update', newConfig)
-    }
-  }
-
-  const updatePositionDifficulty = (positionId: string, newDifficulty: number) => {
-    const newConfig = { ...props.config }
-    const position = newConfig.positions.find(p => p.id === positionId)
-    if (position && newDifficulty >= 1 && newDifficulty <= 5) {
-      position.difficulty = newDifficulty
+      newBodyPartSensitivity.value = 5
       emit('update', newConfig)
     }
   }
@@ -221,12 +211,10 @@
       const newPosition: PunishmentPosition = {
         id: `position_${Date.now()}`,
         name: newPositionName.value.trim(),
-        difficulty: Math.max(1, Math.min(5, newPositionDifficulty.value)),
         ratio,
       }
       newConfig.positions.push(newPosition)
       newPositionName.value = ''
-      newPositionDifficulty.value = 3
       emit('update', newConfig)
     }
   }
@@ -288,9 +276,9 @@
                   >
                     -
                   </button>
-                  <span class="stat-value">{{ tool.intensity }}/5</span>
+                  <span class="stat-value">{{ tool.intensity }}/10</span>
                   <button
-                    :disabled="tool.intensity >= 5"
+                    :disabled="tool.intensity >= 10"
                     class="btn-stat"
                     @click="updateToolIntensity(tool.id, tool.intensity + 1)"
                   >
@@ -322,7 +310,7 @@
               v-model.number="newToolIntensity"
               type="number"
               min="1"
-              max="5"
+              max="10"
               class="input-mini"
               placeholder="强度"
             />
@@ -358,9 +346,9 @@
                   >
                     -
                   </button>
-                  <span class="stat-value">{{ bodyPart.sensitivity }}/5</span>
+                  <span class="stat-value">{{ bodyPart.sensitivity }}/10</span>
                   <button
-                    :disabled="bodyPart.sensitivity >= 5"
+                    :disabled="bodyPart.sensitivity >= 10"
                     class="btn-stat"
                     @click="updateBodyPartSensitivity(bodyPart.id, bodyPart.sensitivity + 1)"
                   >
@@ -392,7 +380,7 @@
               v-model.number="newBodyPartSensitivity"
               type="number"
               min="1"
-              max="5"
+              max="10"
               class="input-mini"
               placeholder="耐受度"
             />
@@ -419,27 +407,6 @@
 
             <div class="item-stats">
               <div class="stat-item">
-                <span class="stat-label">难度</span>
-                <div class="stat-controls">
-                  <button
-                    :disabled="position.difficulty <= 1"
-                    class="btn-stat"
-                    @click="updatePositionDifficulty(position.id, position.difficulty - 1)"
-                  >
-                    -
-                  </button>
-                  <span class="stat-value">{{ position.difficulty }}/5</span>
-                  <button
-                    :disabled="position.difficulty >= 5"
-                    class="btn-stat"
-                    @click="updatePositionDifficulty(position.id, position.difficulty + 1)"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <div class="stat-item">
                 <span class="stat-label">比例 {{ Math.round(position.ratio * 10) / 10 }}%</span>
                 <input
                   v-model.number="position.ratio"
@@ -458,14 +425,6 @@
         <div class="add-item-form">
           <div class="form-row">
             <input v-model="newPositionName" placeholder="新姿势名称" class="input-field" />
-            <input
-              v-model.number="newPositionDifficulty"
-              type="number"
-              min="1"
-              max="5"
-              class="input-mini"
-              placeholder="难度"
-            />
           </div>
           <button :disabled="!newPositionName.trim()" class="btn-add" @click="addPosition">
             + 添加姿势

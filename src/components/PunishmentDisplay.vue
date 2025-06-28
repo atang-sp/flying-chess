@@ -34,19 +34,18 @@
         <div class="punishment-item">
           <span class="label">工具:</span>
           <span class="value tool">{{ punishment.tool.name }}</span>
-          <span class="intensity">强度: {{ punishment.tool.intensity }}/5</span>
+          <span class="intensity">强度: {{ punishment.tool.intensity }}/10</span>
         </div>
 
         <div class="punishment-item">
           <span class="label">部位:</span>
           <span class="value body-part">{{ punishment.bodyPart.name }}</span>
-          <span class="sensitivity">耐受度: {{ punishment.bodyPart.sensitivity }}/5</span>
+          <span class="sensitivity">耐受度: {{ punishment.bodyPart.sensitivity }}/10</span>
         </div>
 
         <div class="punishment-item">
           <span class="label">姿势:</span>
           <span class="value position">{{ punishment.position.name }}</span>
-          <span class="difficulty">难度: {{ punishment.position.difficulty }}/5</span>
         </div>
       </div>
 
@@ -149,8 +148,7 @@
   }
 
   .intensity,
-  .sensitivity,
-  .difficulty {
+  .sensitivity {
     font-size: 0.8rem;
     color: #666;
     background: #e0e0e0;
@@ -253,8 +251,7 @@
     }
 
     .intensity,
-    .sensitivity,
-    .difficulty {
+    .sensitivity {
       font-size: 0.7rem;
       padding: 0.2rem 0.4rem;
     }
@@ -325,8 +322,7 @@
     }
 
     .intensity,
-    .sensitivity,
-    .difficulty {
+    .sensitivity {
       font-size: 0.65rem;
       padding: 0.15rem 0.3rem;
     }
