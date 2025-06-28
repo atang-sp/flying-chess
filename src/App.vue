@@ -190,49 +190,49 @@
 
     // 组件挂载时初始化游戏
     initializeGame()
-    
+
     // 将游戏状态暴露到全局作用域，方便调试
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).gameState = gameState
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).trapConfig = trapConfig
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).gameStarted = gameStarted
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).gameFinished = gameFinished
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).turnCount = turnCount
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).lastEffect = lastEffect
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).currentPunishment = currentPunishment
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).showPunishmentConfirmation = showPunishmentConfirmation
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).punishmentCombinations = punishmentCombinations
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).effectFromPosition = effectFromPosition
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).effectToPosition = effectToPosition
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).showPunishmentStats = showPunishmentStats
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).confirmedCombinations = confirmedCombinations
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).showTakeoffPunishmentDisplay = showTakeoffPunishmentDisplay
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).currentTakeoffPunishment = currentTakeoffPunishment
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).currentTakeoffDiceValue = currentTakeoffDiceValue
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).currentTakeoffExecutorIndex = currentTakeoffExecutorIndex
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).currentPunishmentExecutor = currentPunishmentExecutor
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).showTrapDisplay = showTrapDisplay
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).currentTrapPunishment = currentTrapPunishment
-    // @ts-expect-error
+    // @ts-expect-error - 扩展window对象用于调试
     ;(window as any).currentTrapDescription = currentTrapDescription
   })
 
@@ -247,10 +247,14 @@
     gameState.boardConfig = GameService.createBoardConfig()
     gameState.pendingEffect = null
     trapConfig.value = [...GAME_CONFIG.DEFAULT_TRAPS]
-    
+
     // 在配置设置后创建棋盘
-    gameState.board = GameService.createBoard(gameState.punishmentConfig, gameState.boardConfig, trapConfig.value)
-    
+    gameState.board = GameService.createBoard(
+      gameState.punishmentConfig,
+      gameState.boardConfig,
+      trapConfig.value
+    )
+
     gameStarted.value = false
     gameFinished.value = false
     turnCount.value = 0
@@ -281,7 +285,11 @@
   const updateTrapConfig = (traps: TrapAction[]) => {
     trapConfig.value = traps
     // 重新创建棋盘以应用新的机关配置
-    gameState.board = GameService.createBoard(gameState.punishmentConfig, gameState.boardConfig, traps)
+    gameState.board = GameService.createBoard(
+      gameState.punishmentConfig,
+      gameState.boardConfig,
+      traps
+    )
   }
 
   // 开始游戏
@@ -321,7 +329,11 @@
   const resetGame = () => {
     // 重置游戏状态但保持配置
     gameState.players = GameService.createPlayers()
-    gameState.board = GameService.createBoard(gameState.punishmentConfig, gameState.boardConfig, trapConfig.value)
+    gameState.board = GameService.createBoard(
+      gameState.punishmentConfig,
+      gameState.boardConfig,
+      trapConfig.value
+    )
     gameState.currentPlayerIndex = 0
     gameState.diceValue = null
     gameState.winner = null
