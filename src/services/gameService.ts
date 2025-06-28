@@ -670,23 +670,34 @@ export class GameService {
   }
 
   // 验证惩罚配置的合理性
-  static validatePunishmentConfig(config: PunishmentConfig): boolean {
+  static validatePunishmentConfig(config: PunishmentConfig): {
+    isValid: boolean
+    errorMessage?: string
+    requiredSensitivity?: number
+  } {
     // 检查是否有可用的工具和部位组合
     for (const tool of config.tools) {
       const hasValidBodyPart = config.bodyParts.some(b => b.sensitivity >= tool.intensity)
       if (!hasValidBodyPart) {
-        return false // 有工具没有合适的部位
+        return {
+          isValid: false,
+          errorMessage: `工具"${tool.name}"的强度(${tool.intensity})过高，没有部位可以承受。需要耐受度至少为${tool.intensity}的部位。`,
+          requiredSensitivity: tool.intensity,
+        }
       }
     }
 
     for (const bodyPart of config.bodyParts) {
       const hasValidTool = config.tools.some(t => t.intensity <= bodyPart.sensitivity)
       if (!hasValidTool) {
-        return false // 有部位没有合适的工具
+        return {
+          isValid: false,
+          errorMessage: `部位"${bodyPart.name}"的耐受度(${bodyPart.sensitivity})过低，没有工具可以使用。需要强度不超过${bodyPart.sensitivity}的工具。`,
+        }
       }
     }
 
-    return true
+    return { isValid: true }
   }
 
   // 应用均等比例

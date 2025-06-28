@@ -1,5 +1,5 @@
 // 测试验证失败但配置仍然生效的问题
-import { GameService } from './src/services/gameService.ts'
+import { GameService } from './src/services/gameService.js'
 
 // 模拟一个无效的配置：工具强度超过所有部位的耐受度
 const invalidConfig = {

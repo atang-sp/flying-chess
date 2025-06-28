@@ -74,7 +74,7 @@
   })
 
   const isConfigValid = computed(() => {
-    return GameService.validatePunishmentConfig(gameState.punishmentConfig)
+    return GameService.validatePunishmentConfig(gameState.punishmentConfig).isValid
   })
 
   const isBoardConfigValid = computed(() => {
@@ -747,6 +747,12 @@
   onMounted(() => {
     initializeGame()
   })
+
+  // 添加validation-failed事件处理
+  const handleValidationFailed = () => {
+    console.error('惩罚配置验证失败，正在重置状态...')
+    resetGameStateOnError()
+  }
 </script>
 
 <template>
@@ -788,6 +794,7 @@
         <PunishmentConfigPanel
           :config="gameState.punishmentConfig"
           @update="updatePunishmentConfig"
+          @validation-failed="handleValidationFailed"
         />
 
         <div class="page-actions">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, computed } from 'vue'
+  import { ref, computed, watch } from 'vue'
   import type {
     PunishmentConfig,
     PunishmentTool,
@@ -8,6 +8,7 @@
   } from '../types/game'
   import { GAME_CONFIG } from '../config/gameConfig'
   import { GameService } from '../services/gameService'
+  import ConfigErrorModal from './ConfigErrorModal.vue'
 
   interface Props {
     config: PunishmentConfig
@@ -15,10 +16,28 @@
 
   interface Emits {
     (e: 'update', config: PunishmentConfig): void
+    (e: 'validation-failed', errorMessage: string, requiredSensitivity?: number): void
   }
 
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
+
+  // 本地状态，避免直接修改props
+  const localConfig = ref<PunishmentConfig>({ ...props.config })
+
+  // 监听props变化，更新本地状态
+  watch(
+    () => props.config,
+    newConfig => {
+      localConfig.value = { ...newConfig }
+    },
+    { deep: true, immediate: true }
+  )
+
+  // 错误提示状态
+  const showErrorModal = ref(false)
+  const errorMessage = ref('')
+  const requiredSensitivity = ref<number>()
 
   const newToolName = ref('')
   const newToolIntensity = ref(5)
@@ -29,14 +48,34 @@
   // 检查配置是否有效
   const isConfigValid = computed(() => {
     return (
-      props.config.tools.length > 0 &&
-      props.config.bodyParts.length > 0 &&
-      props.config.positions.length > 0
+      localConfig.value.tools.length > 0 &&
+      localConfig.value.bodyParts.length > 0 &&
+      localConfig.value.positions.length > 0
     )
   })
 
+  // 验证配置并处理结果
+  const validateAndUpdate = (newConfig: PunishmentConfig) => {
+    const validation = GameService.validatePunishmentConfig(newConfig)
+    if (validation.isValid) {
+      localConfig.value = newConfig
+      emit('update', newConfig)
+    } else {
+      // 显示错误提示
+      errorMessage.value = validation.errorMessage || '配置验证失败'
+      requiredSensitivity.value = validation.requiredSensitivity
+      showErrorModal.value = true
+      // 同时发送validation-failed事件给父组件
+      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+    }
+  }
+
+  const closeErrorModal = () => {
+    showErrorModal.value = false
+  }
+
   const updateConfig = () => {
-    emit('update', props.config)
+    validateAndUpdate(localConfig.value)
   }
 
   // 比例自动分配算法
@@ -94,32 +133,32 @@
   }
 
   const onToolRatioInput = (idx: number, value: number) => {
-    const newConfig = { ...props.config }
+    const newConfig = { ...localConfig.value }
     autoDistributeRatio(newConfig.tools, idx, value)
-    emit('update', newConfig)
+    validateAndUpdate(newConfig)
   }
   const onBodyPartRatioInput = (idx: number, value: number) => {
-    const newConfig = { ...props.config }
+    const newConfig = { ...localConfig.value }
     autoDistributeRatio(newConfig.bodyParts, idx, value)
-    emit('update', newConfig)
+    validateAndUpdate(newConfig)
   }
   const onPositionRatioInput = (idx: number, value: number) => {
-    const newConfig = { ...props.config }
+    const newConfig = { ...localConfig.value }
     autoDistributeRatio(newConfig.positions, idx, value)
-    emit('update', newConfig)
+    validateAndUpdate(newConfig)
   }
 
   const updateToolIntensity = (toolId: string, newIntensity: number) => {
-    const newConfig = { ...props.config }
+    const newConfig = { ...localConfig.value }
     const tool = newConfig.tools.find(t => t.id === toolId)
     if (tool && newIntensity >= 1 && newIntensity <= 10) {
       tool.intensity = newIntensity
-      emit('update', newConfig)
+      validateAndUpdate(newConfig)
     }
   }
 
   const removeTool = (toolId: string) => {
-    const newConfig = { ...props.config }
+    const newConfig = { ...localConfig.value }
     const index = newConfig.tools.findIndex(t => t.id === toolId)
     if (index > -1) {
       newConfig.tools.splice(index, 1)
@@ -127,13 +166,13 @@
       if (newConfig.tools.length > 0) {
         autoDistributeRatio(newConfig.tools, 0, newConfig.tools[0].ratio)
       }
-      emit('update', newConfig)
+      validateAndUpdate(newConfig)
     }
   }
 
   const addTool = () => {
     if (newToolName.value.trim()) {
-      const newConfig = { ...props.config }
+      const newConfig = { ...localConfig.value }
       const n = newConfig.tools.length + 1
       const ratio = 100 / n
       newConfig.tools.forEach(t => (t.ratio = ratio))
@@ -146,34 +185,34 @@
       newConfig.tools.push(newTool)
       newToolName.value = ''
       newToolIntensity.value = 5
-      emit('update', newConfig)
+      validateAndUpdate(newConfig)
     }
   }
 
   const updateBodyPartSensitivity = (bodyPartId: string, newSensitivity: number) => {
-    const newConfig = { ...props.config }
+    const newConfig = { ...localConfig.value }
     const bodyPart = newConfig.bodyParts.find(b => b.id === bodyPartId)
     if (bodyPart && newSensitivity >= 1 && newSensitivity <= 10) {
       bodyPart.sensitivity = newSensitivity
-      emit('update', newConfig)
+      validateAndUpdate(newConfig)
     }
   }
 
   const removeBodyPart = (bodyPartId: string) => {
-    const newConfig = { ...props.config }
+    const newConfig = { ...localConfig.value }
     const index = newConfig.bodyParts.findIndex(b => b.id === bodyPartId)
     if (index > -1) {
       newConfig.bodyParts.splice(index, 1)
       if (newConfig.bodyParts.length > 0) {
         autoDistributeRatio(newConfig.bodyParts, 0, newConfig.bodyParts[0].ratio)
       }
-      emit('update', newConfig)
+      validateAndUpdate(newConfig)
     }
   }
 
   const addBodyPart = () => {
     if (newBodyPartName.value.trim()) {
-      const newConfig = { ...props.config }
+      const newConfig = { ...localConfig.value }
       const n = newConfig.bodyParts.length + 1
       const ratio = 100 / n
       newConfig.bodyParts.forEach(b => (b.ratio = ratio))
@@ -186,25 +225,25 @@
       newConfig.bodyParts.push(newBodyPart)
       newBodyPartName.value = ''
       newBodyPartSensitivity.value = 5
-      emit('update', newConfig)
+      validateAndUpdate(newConfig)
     }
   }
 
   const removePosition = (positionId: string) => {
-    const newConfig = { ...props.config }
+    const newConfig = { ...localConfig.value }
     const index = newConfig.positions.findIndex(p => p.id === positionId)
     if (index > -1) {
       newConfig.positions.splice(index, 1)
       if (newConfig.positions.length > 0) {
         autoDistributeRatio(newConfig.positions, 0, newConfig.positions[0].ratio)
       }
-      emit('update', newConfig)
+      validateAndUpdate(newConfig)
     }
   }
 
   const addPosition = () => {
     if (newPositionName.value.trim()) {
-      const newConfig = { ...props.config }
+      const newConfig = { ...localConfig.value }
       const n = newConfig.positions.length + 1
       const ratio = 100 / n
       newConfig.positions.forEach(p => (p.ratio = ratio))
@@ -215,32 +254,32 @@
       }
       newConfig.positions.push(newPosition)
       newPositionName.value = ''
-      emit('update', newConfig)
+      validateAndUpdate(newConfig)
     }
   }
 
   const resetToDefault = () => {
     const defaultConfig = GameService.createPunishmentConfig()
-    emit('update', defaultConfig)
+    validateAndUpdate(defaultConfig)
   }
 
   const saveConfig = () => {
-    emit('update', props.config)
+    validateAndUpdate(localConfig.value)
   }
 
   const updateMinStrikes = (newValue: number) => {
-    const newConfig = { ...props.config }
+    const newConfig = { ...localConfig.value }
     newConfig.minStrikes = Math.max(5, newValue)
     if (newConfig.minStrikes > newConfig.maxStrikes) {
       newConfig.maxStrikes = newConfig.minStrikes
     }
-    emit('update', newConfig)
+    validateAndUpdate(newConfig)
   }
 
   const updateMaxStrikes = (newValue: number) => {
-    const newConfig = { ...props.config }
+    const newConfig = { ...localConfig.value }
     newConfig.maxStrikes = Math.max(newConfig.minStrikes, newValue)
-    emit('update', newConfig)
+    validateAndUpdate(newConfig)
   }
 </script>
 
@@ -255,11 +294,11 @@
       <div class="config-section">
         <div class="section-header">
           <h4>🛠️ 工具设置</h4>
-          <div class="section-summary">{{ config.tools.length }}个工具</div>
+          <div class="section-summary">{{ localConfig.tools.length }}个工具</div>
         </div>
 
         <div class="items-grid">
-          <div v-for="(tool, idx) in config.tools" :key="tool.id" class="item-card">
+          <div v-for="(tool, idx) in localConfig.tools" :key="tool.id" class="item-card">
             <div class="item-header">
               <span class="item-name">{{ tool.name }}</span>
               <button class="btn-remove" @click="removeTool(tool.id)">×</button>
@@ -325,11 +364,15 @@
       <div class="config-section">
         <div class="section-header">
           <h4>🎯 部位设置</h4>
-          <div class="section-summary">{{ config.bodyParts.length }}个部位</div>
+          <div class="section-summary">{{ localConfig.bodyParts.length }}个部位</div>
         </div>
 
         <div class="items-grid">
-          <div v-for="(bodyPart, idx) in config.bodyParts" :key="bodyPart.id" class="item-card">
+          <div
+            v-for="(bodyPart, idx) in localConfig.bodyParts"
+            :key="bodyPart.id"
+            class="item-card"
+          >
             <div class="item-header">
               <span class="item-name">{{ bodyPart.name }}</span>
               <button class="btn-remove" @click="removeBodyPart(bodyPart.id)">×</button>
@@ -395,11 +438,15 @@
       <div class="config-section">
         <div class="section-header">
           <h4>🧘 姿势设置</h4>
-          <div class="section-summary">{{ config.positions.length }}个姿势</div>
+          <div class="section-summary">{{ localConfig.positions.length }}个姿势</div>
         </div>
 
         <div class="items-grid">
-          <div v-for="(position, idx) in config.positions" :key="position.id" class="item-card">
+          <div
+            v-for="(position, idx) in localConfig.positions"
+            :key="position.id"
+            class="item-card"
+          >
             <div class="item-header">
               <span class="item-name">{{ position.name }}</span>
               <button class="btn-remove" @click="removePosition(position.id)">×</button>
@@ -443,17 +490,17 @@
             <span class="strikes-label">最小次数</span>
             <div class="strikes-controls">
               <button
-                :disabled="config.minStrikes <= 5"
+                :disabled="localConfig.minStrikes <= 5"
                 class="btn-stat"
-                @click="updateMinStrikes(config.minStrikes - 5)"
+                @click="updateMinStrikes(localConfig.minStrikes - 5)"
               >
                 -
               </button>
-              <span class="strikes-value">{{ config.minStrikes }}</span>
+              <span class="strikes-value">{{ localConfig.minStrikes }}</span>
               <button
-                :disabled="config.minStrikes >= config.maxStrikes"
+                :disabled="localConfig.minStrikes >= localConfig.maxStrikes"
                 class="btn-stat"
-                @click="updateMinStrikes(config.minStrikes + 5)"
+                @click="updateMinStrikes(localConfig.minStrikes + 5)"
               >
                 +
               </button>
@@ -464,17 +511,17 @@
             <span class="strikes-label">最大次数</span>
             <div class="strikes-controls">
               <button
-                :disabled="config.maxStrikes <= config.minStrikes"
+                :disabled="localConfig.maxStrikes <= localConfig.minStrikes"
                 class="btn-stat"
-                @click="updateMaxStrikes(config.maxStrikes - 5)"
+                @click="updateMaxStrikes(localConfig.maxStrikes - 5)"
               >
                 -
               </button>
-              <span class="strikes-value">{{ config.maxStrikes }}</span>
+              <span class="strikes-value">{{ localConfig.maxStrikes }}</span>
               <button
-                :disabled="config.maxStrikes >= 100"
+                :disabled="localConfig.maxStrikes >= 100"
                 class="btn-stat"
-                @click="updateMaxStrikes(config.maxStrikes + 5)"
+                @click="updateMaxStrikes(localConfig.maxStrikes + 5)"
               >
                 +
               </button>
@@ -482,7 +529,7 @@
           </div>
 
           <div class="strikes-description">
-            {{ config.minStrikes }} - {{ config.maxStrikes }} 次随机
+            {{ localConfig.minStrikes }} - {{ localConfig.maxStrikes }} 次随机
           </div>
         </div>
       </div>
@@ -492,6 +539,14 @@
       <button class="btn-secondary" @click="resetToDefault">重置默认</button>
       <button class="btn-primary" :disabled="!isConfigValid" @click="saveConfig">保存设置</button>
     </div>
+
+    <!-- 错误提示弹窗 -->
+    <ConfigErrorModal
+      :show="showErrorModal"
+      :error-message="errorMessage"
+      :required-sensitivity="requiredSensitivity"
+      @close="closeErrorModal"
+    />
   </div>
 </template>
 

@@ -12,44 +12,35 @@
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
 
-  const handleOverlayClick = () => {
-    emit('close')
-  }
-
-  const handleClose = () => {
+  const closeModal = () => {
     emit('close')
   }
 </script>
 
 <template>
   <div v-if="show" class="config-error-modal">
-    <div class="modal-overlay" @click="handleOverlayClick">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <div class="error-icon">⚠️</div>
-          <h3>配置验证失败</h3>
-          <button class="close-btn" @click="handleClose">×</button>
-        </div>
+    <div class="modal-overlay" @click="closeModal"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>⚠️ 配置错误</h3>
+        <button class="close-btn" @click="closeModal">×</button>
+      </div>
 
-        <div class="modal-body">
-          <div class="error-message">{{ errorMessage }}</div>
+      <div class="modal-body">
+        <div class="error-icon">❌</div>
+        <p class="error-message">{{ errorMessage }}</p>
 
-          <div v-if="requiredSensitivity" class="suggestion">
-            <div class="suggestion-title">💡 建议解决方案：</div>
-            <div class="suggestion-content">
-              <p>
-                请添加一个耐受度为
-                <strong>{{ requiredSensitivity }}</strong>
-                的部位，或者调整现有部位的耐受度。
-              </p>
-              <p>例如：添加一个名为"屁股"的部位，耐受度设置为 {{ requiredSensitivity }}。</p>
-            </div>
-          </div>
+        <div v-if="requiredSensitivity" class="suggestion">
+          <h4>💡 建议解决方案：</h4>
+          <ul>
+            <li>添加耐受度为 {{ requiredSensitivity }} 或更高的部位</li>
+            <li>或者降低工具的强度到 {{ requiredSensitivity }} 或更低</li>
+          </ul>
         </div>
+      </div>
 
-        <div class="modal-footer">
-          <button class="btn-primary" @click="handleClose">我知道了</button>
-        </div>
+      <div class="modal-footer">
+        <button class="btn-primary" @click="closeModal">我知道了</button>
       </div>
     </div>
   </div>
@@ -62,124 +53,131 @@
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 1000;
-  }
-
-  .modal-overlay {
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    z-index: 2000;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 1rem;
+  }
+
+  .modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
   }
 
   .modal-content {
+    position: relative;
     background: white;
     border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    max-width: min(500px, 90vw);
-    width: 100%;
+    max-width: 500px;
+    width: 90%;
     max-height: 90vh;
-    overflow-y: auto;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-50px) scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
 
   .modal-header {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+    color: white;
+    padding: 1.5rem;
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 0.8rem;
-    padding: 1.2rem 1.5rem 0.8rem;
-    border-bottom: 1px solid #e0e0e0;
-    position: relative;
-  }
-
-  .error-icon {
-    font-size: 1.5rem;
   }
 
   .modal-header h3 {
     margin: 0;
-    color: #d32f2f;
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     font-weight: 600;
-    flex: 1;
   }
 
   .close-btn {
-    width: 32px;
-    height: 32px;
+    background: none;
     border: none;
-    background: #f5f5f5;
-    border-radius: 50%;
+    color: white;
+    font-size: 1.5rem;
     cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.2rem;
-    color: #666;
-    transition: all 0.2s ease;
+    border-radius: 50%;
+    transition: background-color 0.2s;
   }
 
   .close-btn:hover {
-    background: #e0e0e0;
-    color: #333;
+    background: rgba(255, 255, 255, 0.2);
   }
 
   .modal-body {
-    padding: 1.2rem 1.5rem;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  .error-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
   }
 
   .error-message {
-    color: #d32f2f;
-    font-size: 1rem;
-    line-height: 1.5;
-    margin-bottom: 1rem;
-    padding: 0.8rem;
-    background: #ffebee;
-    border-radius: 6px;
-    border-left: 4px solid #d32f2f;
+    font-size: 1.1rem;
+    color: #333;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
   }
 
   .suggestion {
-    background: #e3f2fd;
-    border-radius: 6px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
     padding: 1rem;
-    border-left: 4px solid #2196f3;
+    text-align: left;
   }
 
-  .suggestion-title {
-    font-weight: 600;
-    color: #1976d2;
-    margin-bottom: 0.5rem;
-    font-size: 0.95rem;
+  .suggestion h4 {
+    margin: 0 0 0.5rem 0;
+    color: #495057;
+    font-size: 1rem;
   }
 
-  .suggestion-content {
-    color: #1565c0;
-    font-size: 0.9rem;
-    line-height: 1.4;
+  .suggestion ul {
+    margin: 0;
+    padding-left: 1.5rem;
+    color: #6c757d;
   }
 
-  .suggestion-content p {
-    margin: 0.3rem 0;
-  }
-
-  .suggestion-content strong {
-    color: #d32f2f;
+  .suggestion li {
+    margin-bottom: 0.25rem;
   }
 
   .modal-footer {
-    padding: 0.8rem 1.5rem 1.2rem;
-    display: flex;
-    justify-content: center;
+    padding: 1.5rem;
+    text-align: center;
+    border-top: 1px solid #e9ecef;
   }
 
   .btn-primary {
-    padding: 0.6rem 1.5rem;
-    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+    background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
     border: none;
+    padding: 0.75rem 2rem;
     border-radius: 6px;
     font-size: 1rem;
     font-weight: 600;
@@ -189,96 +187,44 @@
 
   .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
   }
 
-  /* 移动端优化 */
+  /* 移动端适配 */
   @media (max-width: 768px) {
-    .modal-overlay {
-      padding: 0.5rem;
-    }
-
     .modal-content {
-      max-width: 95vw;
+      width: 95%;
+      max-height: 95vh;
     }
 
     .modal-header {
-      padding: 1rem 1.2rem 0.6rem;
+      padding: 1rem;
     }
 
     .modal-header h3 {
-      font-size: 1.1rem;
+      font-size: 1.2rem;
     }
 
     .modal-body {
-      padding: 1rem 1.2rem;
+      padding: 1.5rem;
+    }
+
+    .error-icon {
+      font-size: 2.5rem;
     }
 
     .error-message {
-      font-size: 0.95rem;
-      padding: 0.6rem;
-    }
-
-    .suggestion {
-      padding: 0.8rem;
-    }
-
-    .suggestion-title {
-      font-size: 0.9rem;
-    }
-
-    .suggestion-content {
-      font-size: 0.85rem;
-    }
-
-    .modal-footer {
-      padding: 0.6rem 1.2rem 1rem;
-    }
-
-    .btn-primary {
-      padding: 0.5rem 1.2rem;
-      font-size: 0.95rem;
-    }
-  }
-
-  /* 超小屏幕优化 */
-  @media (max-width: 480px) {
-    .modal-header {
-      padding: 0.8rem 1rem 0.5rem;
-    }
-
-    .modal-header h3 {
       font-size: 1rem;
     }
 
-    .modal-body {
-      padding: 0.8rem 1rem;
-    }
-
-    .error-message {
-      font-size: 0.9rem;
-      padding: 0.5rem;
-    }
-
-    .suggestion {
-      padding: 0.6rem;
-    }
-
-    .suggestion-title {
-      font-size: 0.85rem;
-    }
-
-    .suggestion-content {
-      font-size: 0.8rem;
-    }
-
     .modal-footer {
-      padding: 0.5rem 1rem 0.8rem;
+      padding: 1rem;
     }
 
     .btn-primary {
-      padding: 0.4rem 1rem;
-      font-size: 0.9rem;
+      width: 100%;
+      padding: 1rem;
+      font-size: 1.1rem;
     }
   }
 </style>
