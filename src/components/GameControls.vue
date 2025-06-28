@@ -17,6 +17,8 @@
       | 'settings'
     turnCount: number
     winner: Player | null
+    players: Player[]
+    currentPlayerIndex: number
   }
 
   interface Emits {
@@ -26,6 +28,10 @@
 
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
+
+  const currentPlayer = computed(() => {
+    return props.players[props.currentPlayerIndex] || null
+  })
 
   const gameStatusText = computed(() => {
     switch (props.gameStatus) {
@@ -79,6 +85,13 @@
       <div class="status-item">
         <span class="label">回合数:</span>
         <span class="value">{{ turnCount }}</span>
+      </div>
+      <div v-if="currentPlayer" class="status-item current-player-info">
+        <span class="label">当前玩家:</span>
+        <div class="player-info">
+          <div class="player-avatar" :style="{ backgroundColor: currentPlayer.color }"></div>
+          <span class="player-name">{{ currentPlayer.name }}</span>
+        </div>
       </div>
     </div>
 
@@ -187,6 +200,34 @@
 
   .status-finished {
     color: #96ceb4;
+  }
+
+  /* 当前玩家信息样式 */
+  .current-player-info {
+    background: linear-gradient(135deg, rgba(78, 205, 196, 0.1), rgba(69, 183, 209, 0.1));
+    border-radius: clamp(4px, 1vw, 6px);
+    padding: clamp(0.5rem, 1.5vw, 0.8rem);
+    border: 1px solid rgba(78, 205, 196, 0.3);
+  }
+
+  .player-info {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.5rem, 1.5vw, 0.8rem);
+  }
+
+  .player-avatar {
+    width: clamp(20px, 5vw, 24px);
+    height: clamp(20px, 5vw, 24px);
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .player-name {
+    font-weight: bold;
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
+    color: #333;
   }
 
   .game-over {

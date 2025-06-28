@@ -174,6 +174,7 @@
 
 <template>
   <div class="game-board">
+    <!-- 棋盘区域 -->
     <div class="board-container">
       <!-- 螺旋蛇形棋盘布局 -->
       <div class="board-grid">
@@ -1014,8 +1015,6 @@
     .cell-tooltip {
       max-width: 180px;
       min-width: 140px;
-      border-radius: 8px;
-      border-width: 1px;
     }
 
     .tooltip-content {
@@ -1206,6 +1205,30 @@
 
     .tooltip-body {
       font-size: 0.7rem;
+    }
+  }
+
+  /* 玩家移动动画 */
+  @keyframes playerMove {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  /* 飞机浮动动画 */
+  @keyframes planeFloat {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-3px);
     }
   }
 </style>

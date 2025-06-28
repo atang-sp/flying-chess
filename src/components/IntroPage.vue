@@ -2,13 +2,47 @@
   import { ref, onMounted, onUnmounted } from 'vue'
 
   interface Emits {
-    (e: 'start'): void
+    (e: 'start', playerConfig: { count: number; names: string[] }): void
   }
 
   const emit = defineEmits<Emits>()
 
+  // 玩家配置状态
+  const playerCount = ref(2)
+  const playerNames = ref<string[]>(['玩家1', '玩家2'])
+
+  // 更新玩家名称数组
+  const updatePlayerNames = () => {
+    const currentNames = [...playerNames.value]
+    const newNames: string[] = []
+
+    for (let i = 0; i < playerCount.value; i++) {
+      if (i < currentNames.length) {
+        newNames.push(currentNames[i])
+      } else {
+        newNames.push(`玩家${i + 1}`)
+      }
+    }
+
+    playerNames.value = newNames
+  }
+
+  // 监听玩家数量变化
+  const onPlayerCountChange = (newCount: number) => {
+    playerCount.value = newCount
+    updatePlayerNames()
+  }
+
+  // 更新单个玩家名称
+  const updatePlayerName = (index: number, name: string) => {
+    playerNames.value[index] = name
+  }
+
   const startGame = () => {
-    emit('start')
+    emit('start', {
+      count: playerCount.value,
+      names: playerNames.value,
+    })
   }
 
   // 粒子系统
@@ -20,6 +54,7 @@
   onMounted(() => {
     initParticles()
     animateParticles()
+    updatePlayerNames() // 初始化玩家名称
   })
 
   onUnmounted(() => {
@@ -136,6 +171,62 @@
                 <span class="dev-id">@sp_with_py</span>
                 <span class="link-icon">🔗</span>
               </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 玩家设置区域 -->
+      <div class="player-settings">
+        <div class="settings-header">
+          <h2 class="settings-title">👥 玩家设置</h2>
+          <div class="settings-underline"></div>
+        </div>
+
+        <!-- 玩家数量设置 -->
+        <div class="player-count-section">
+          <div class="setting-item">
+            <label class="setting-label">
+              <span class="label-icon">👤</span>
+              <span class="label-text">玩家人数</span>
+            </label>
+            <div class="count-controls">
+              <button
+                class="count-btn minus"
+                :disabled="playerCount <= 2"
+                @click="onPlayerCountChange(Math.max(2, playerCount - 1))"
+              >
+                <span class="btn-icon">➖</span>
+              </button>
+              <div class="count-display">
+                <span class="count-number">{{ playerCount }}</span>
+                <span class="count-unit">人</span>
+              </div>
+              <button class="count-btn plus" @click="onPlayerCountChange(playerCount + 1)">
+                <span class="btn-icon">➕</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 玩家名称设置 -->
+        <div class="player-names-section">
+          <div class="names-header">
+            <span class="names-title">玩家昵称</span>
+          </div>
+          <div class="names-list">
+            <div v-for="(name, index) in playerNames" :key="index" class="name-item">
+              <div class="name-input-container">
+                <input
+                  type="text"
+                  :value="name"
+                  class="name-input"
+                  :placeholder="`玩家${index + 1}`"
+                  maxlength="10"
+                  @input="updatePlayerName(index, ($event.target as HTMLInputElement).value)"
+                />
+                <div class="input-glow"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -452,6 +543,216 @@
 
   .dev-link:hover .link-icon {
     transform: scale(1.2);
+  }
+
+  /* 玩家设置区域 */
+  .player-settings {
+    margin: clamp(2rem, 6vw, 3rem) 0;
+    padding: clamp(1.5rem, 4vw, 2rem);
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: clamp(20px, 5vw, 30px);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  }
+
+  .settings-header {
+    text-align: center;
+    margin-bottom: clamp(1.5rem, 4vw, 2rem);
+  }
+
+  .settings-title {
+    font-size: clamp(1.3rem, 4vw, 1.6rem);
+    font-weight: 700;
+    margin: 0 0 clamp(0.5rem, 1.5vw, 0.8rem) 0;
+    background: linear-gradient(135deg, #4ecdc4, #45b7d1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .settings-underline {
+    width: clamp(60px, 15vw, 100px);
+    height: 3px;
+    background: linear-gradient(90deg, #4ecdc4, #45b7d1);
+    margin: 0 auto;
+    border-radius: 2px;
+    animation: underlineGlow 2s ease-in-out infinite;
+  }
+
+  /* 玩家数量设置 */
+  .player-count-section {
+    margin-bottom: clamp(1.5rem, 4vw, 2rem);
+  }
+
+  .setting-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: clamp(1rem, 3vw, 1.5rem);
+    padding: clamp(1rem, 3vw, 1.5rem);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: clamp(15px, 4vw, 20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+  }
+
+  .setting-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .setting-label {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.5rem, 1.5vw, 0.8rem);
+    font-size: clamp(1rem, 3vw, 1.1rem);
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .label-icon {
+    font-size: clamp(1.2rem, 3.5vw, 1.4rem);
+  }
+
+  .count-controls {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.8rem, 2vw, 1rem);
+  }
+
+  .count-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: clamp(40px, 10vw, 50px);
+    height: clamp(40px, 10vw, 50px);
+    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: clamp(1.2rem, 3vw, 1.4rem);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+  }
+
+  .count-btn:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.1);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+  }
+
+  .count-btn:active:not(:disabled) {
+    transform: translateY(0) scale(1.05);
+  }
+
+  .count-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .count-display {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.3rem, 1vw, 0.5rem);
+    padding: clamp(0.5rem, 1.5vw, 0.8rem) clamp(1rem, 3vw, 1.5rem);
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: clamp(10px, 3vw, 15px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    min-width: clamp(80px, 20vw, 100px);
+    justify-content: center;
+  }
+
+  .count-number {
+    font-size: clamp(1.2rem, 3.5vw, 1.4rem);
+    font-weight: 700;
+    color: #4ecdc4;
+  }
+
+  .count-unit {
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  /* 玩家名称设置 */
+  .player-names-section {
+    margin-top: clamp(1.5rem, 4vw, 2rem);
+  }
+
+  .names-header {
+    margin-bottom: clamp(1rem, 3vw, 1.5rem);
+    text-align: center;
+  }
+
+  .names-title {
+    font-size: clamp(1rem, 3vw, 1.1rem);
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .names-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(200px, 80vw), 1fr));
+    gap: clamp(0.8rem, 2vw, 1rem);
+  }
+
+  .name-item {
+    position: relative;
+  }
+
+  .name-input-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .name-input {
+    width: 100%;
+    padding: clamp(0.8rem, 2vw, 1rem) clamp(1rem, 3vw, 1.2rem);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: clamp(10px, 3vw, 15px);
+    color: #fff;
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
+    font-weight: 500;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+  }
+
+  .name-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .name-input:focus {
+    outline: none;
+    border-color: #4ecdc4;
+    background: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.2);
+  }
+
+  .name-input:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .input-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(78, 205, 196, 0.1), rgba(69, 183, 209, 0.1));
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+
+  .name-input:focus + .input-glow {
+    opacity: 1;
   }
 
   /* 特性展示 */

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-  import type { PunishmentAction } from '../types/game'
+  import type { PunishmentAction, Player } from '../types/game'
 
   interface Props {
     punishment: PunishmentAction | null
+    executorPlayer?: Player | null
   }
 
   interface Emits {
@@ -30,6 +31,17 @@
     </div>
 
     <div class="punishment-content">
+      <!-- 执行惩罚的玩家信息 -->
+      <div v-if="executorPlayer" class="executor-info">
+        <div class="executor-header">
+          <span class="executor-label">执行惩罚的玩家:</span>
+        </div>
+        <div class="executor-player">
+          <div class="executor-avatar" :style="{ backgroundColor: executorPlayer.color }"></div>
+          <span class="executor-name">{{ executorPlayer.name }}</span>
+        </div>
+      </div>
+
       <div class="punishment-details">
         <div class="punishment-item">
           <span class="label">工具:</span>
@@ -101,6 +113,44 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+  }
+
+  /* 执行惩罚的玩家信息样式 */
+  .executor-info {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-radius: 8px;
+    padding: 1rem;
+    border: 2px solid #4ecdc4;
+  }
+
+  .executor-header {
+    margin-bottom: 0.5rem;
+  }
+
+  .executor-label {
+    font-weight: bold;
+    color: #333;
+    font-size: 1rem;
+  }
+
+  .executor-player {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+
+  .executor-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .executor-name {
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: #333;
   }
 
   .punishment-details {

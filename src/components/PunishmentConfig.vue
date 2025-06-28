@@ -492,21 +492,6 @@
     }
   }
 
-  const saveConfig = async () => {
-    // 验证当前配置
-    const validation = GameService.validatePunishmentConfig(localConfig.value)
-    if (validation.isValid) {
-      // 配置有效，发送更新事件
-      emit('update', localConfig.value)
-    } else {
-      // 配置无效，显示错误提示
-      errorMessage.value = validation.errorMessage || '配置验证失败'
-      requiredSensitivity.value = validation.requiredSensitivity
-      showErrorModal.value = true
-      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
-    }
-  }
-
   const updateMinStrikes = async (newValue: number) => {
     // 记录修改前的配置
     const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
@@ -812,8 +797,10 @@
     </div>
 
     <div class="config-actions">
-      <button class="btn-secondary" @click="resetToDefault">重置默认</button>
-      <button class="btn-primary" :disabled="!isConfigValid" @click="saveConfig">保存设置</button>
+      <button class="btn-secondary" @click="resetToDefault">
+        <span class="btn-icon">🔄</span>
+        <span class="btn-text">重置默认</span>
+      </button>
     </div>
 
     <!-- 错误提示弹窗 -->
@@ -1119,13 +1106,17 @@
 
   .btn-primary,
   .btn-secondary {
-    padding: 0.8rem 1.5rem;
+    padding: clamp(0.4rem, 1.5vw, 0.6rem) clamp(0.8rem, 2.5vw, 1.2rem);
     border: none;
-    border-radius: 6px;
-    font-size: 1rem;
-    font-weight: 600;
+    border-radius: clamp(4px, 1vw, 6px);
+    font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+    font-weight: bold;
     cursor: pointer;
     transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: clamp(0.3rem, 1vw, 0.4rem);
+    min-height: clamp(32px, 7vw, 36px);
     min-width: 120px;
   }
 
@@ -1154,6 +1145,14 @@
   .btn-secondary:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+  }
+
+  .btn-icon {
+    font-size: 1rem;
+  }
+
+  .btn-text {
+    font-weight: 600;
   }
 
   /* 移动端优化 */
@@ -1277,8 +1276,13 @@
     .btn-primary,
     .btn-secondary {
       width: 100%;
-      padding: 0.7rem;
-      font-size: 0.95rem;
+      max-width: min(300px, 80vw);
+      justify-content: center;
+      padding: clamp(0.35rem, 1.5vw, 0.4rem) clamp(0.7rem, 2vw, 0.8rem);
+      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
+      border-radius: 4px;
+      min-height: clamp(28px, 6vw, 32px);
+      gap: clamp(0.2rem, 0.6vw, 0.25rem);
       min-width: auto;
     }
   }
@@ -1418,8 +1422,15 @@
 
     .btn-primary,
     .btn-secondary {
-      padding: 0.6rem;
-      font-size: 0.9rem;
+      width: 100%;
+      max-width: min(300px, 80vw);
+      justify-content: center;
+      padding: clamp(0.3rem, 1.2vw, 0.35rem) clamp(0.6rem, 1.8vw, 0.7rem);
+      font-size: clamp(0.65rem, 1.6vw, 0.7rem);
+      border-radius: 4px;
+      min-height: clamp(24px, 5vw, 28px);
+      gap: clamp(0.15rem, 0.5vw, 0.2rem);
+      min-width: auto;
     }
   }
 </style>

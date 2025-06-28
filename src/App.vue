@@ -62,6 +62,9 @@
   const currentTakeoffDiceValue = ref(0)
   const currentTakeoffExecutorIndex = ref(0)
 
+  // 执行惩罚的玩家状态
+  const currentPunishmentExecutor = ref<Player | null>(null)
+
   // 计算属性
   const canRollDice = computed(() => {
     return (
@@ -190,6 +193,7 @@
     turnCount.value = 0
     lastEffect.value = ''
     currentPunishment.value = null
+    currentPunishmentExecutor.value = null // 清除执行惩罚的玩家
 
     // 清除惩罚组合确认状态
     showPunishmentConfirmation.value = false
@@ -211,7 +215,23 @@
   }
 
   // 开始游戏
-  const startGame = () => {
+  const startGame = (playerConfig?: { count: number; names: string[] }) => {
+    // 如果提供了玩家配置，创建自定义玩家
+    if (playerConfig) {
+      const { count, names } = playerConfig
+      gameState.players = GameService.createCustomPlayers(count, names)
+    } else {
+      // 使用默认玩家配置
+      gameState.players = GameService.createPlayers()
+    }
+
+    // 检查当前游戏状态
+    if (gameState.gameStatus === 'intro') {
+      // 如果从开始页面开始，先跳转到棋盘设置页面
+      gameState.gameStatus = 'board_settings'
+      return
+    }
+
     // 检查是否已生成惩罚组合
     if (gameState.gameStatus === 'settings') {
       // 如果还在设置页面，先生成惩罚组合
@@ -219,6 +239,7 @@
       return
     }
 
+    // 直接开始游戏（从其他入口进入）
     gameState.gameStatus = 'waiting'
     gameStarted.value = true
     if (turnCount.value === 0) {
@@ -240,6 +261,7 @@
     turnCount.value = 0
     lastEffect.value = ''
     currentPunishment.value = null
+    currentPunishmentExecutor.value = null // 清除执行惩罚的玩家
 
     // 清除惩罚组合确认状态
     showPunishmentConfirmation.value = false
@@ -339,6 +361,25 @@
       // 检查是否有普通惩罚
       if (punishment) {
         currentPunishment.value = punishment
+        // 设置执行惩罚的玩家（如果有executorIndex）
+        if (
+          executorIndex !== undefined &&
+          executorIndex >= 0 &&
+          executorIndex < gameState.players.length
+        ) {
+          currentPunishmentExecutor.value = gameState.players[executorIndex]
+        } else {
+          // 如果没有指定执行者，随机选择一个其他玩家
+          const otherPlayers = gameState.players.filter(
+            (_, index) => index !== gameState.currentPlayerIndex
+          )
+          if (otherPlayers.length > 0) {
+            const randomIndex = Math.floor(Math.random() * otherPlayers.length)
+            currentPunishmentExecutor.value = otherPlayers[randomIndex]
+          } else {
+            currentPunishmentExecutor.value = null
+          }
+        }
         gameState.gameStatus = 'configuring'
         return // 等待用户处理惩罚
       }
@@ -602,6 +643,7 @@
   const confirmPunishment = async () => {
     try {
       currentPunishment.value = null
+      currentPunishmentExecutor.value = null // 清除执行惩罚的玩家
       gameState.gameStatus = 'waiting'
 
       // 继续游戏流程
@@ -611,6 +653,7 @@
       // 确保在发生错误时重置游戏状态
       gameState.gameStatus = 'waiting'
       currentPunishment.value = null
+      currentPunishmentExecutor.value = null
     }
   }
 
@@ -618,6 +661,7 @@
   const skipPunishment = async () => {
     try {
       currentPunishment.value = null
+      currentPunishmentExecutor.value = null // 清除执行惩罚的玩家
       gameState.gameStatus = 'waiting'
 
       // 继续游戏流程
@@ -627,6 +671,7 @@
       // 确保在发生错误时重置游戏状态
       gameState.gameStatus = 'waiting'
       currentPunishment.value = null
+      currentPunishmentExecutor.value = null
     }
   }
 
@@ -754,12 +799,53 @@
     // 不需要重置游戏状态，只需要显示错误提示即可
     // 错误提示已经在PunishmentConfig组件中处理了
   }
+
+  // 修改IntroPage组件的调用，使其能够接收玩家配置信息并传递给startGame方法
+  const handleIntroStart = (playerConfig?: { count: number; names: string[] }) => {
+    startGame(playerConfig)
+  }
+
+  // 为GameControls组件创建包装方法
+  const handleGameControlsStart = () => {
+    startGame() // 不传递参数，使用默认配置
+  }
+
+  // 计算游戏状态样式类
+  const gameStatusClass = computed(() => {
+    return `status-${gameState.gameStatus}`
+  })
+
+  // 计算游戏状态文本
+  const gameStatusText = computed(() => {
+    switch (gameState.gameStatus) {
+      case 'waiting':
+        return '等待玩家操作'
+      case 'rolling':
+        return '骰子滚动中'
+      case 'moving':
+        return '棋子移动中'
+      case 'showing_effect':
+        return '显示效果中'
+      case 'finished':
+        return '游戏结束'
+      case 'configuring':
+        return '配置中'
+      case 'intro':
+        return '开始页面'
+      case 'board_settings':
+        return '棋盘设置'
+      case 'settings':
+        return '惩罚设置'
+      default:
+        return '未知状态'
+    }
+  })
 </script>
 
 <template>
   <div class="app">
     <!-- 开始页面 -->
-    <IntroPage v-if="gameState.gameStatus === 'intro'" @start="showBoardSettings" />
+    <IntroPage v-if="gameState.gameStatus === 'intro'" @start="handleIntroStart" />
 
     <!-- 棋盘设置页面 -->
     <div v-else-if="gameState.gameStatus === 'board_settings'" class="settings-page">
@@ -817,7 +903,7 @@
           <p class="combinations-info">
             已生成 {{ punishmentCombinations.length }} 个惩罚组合，点击开始游戏继续
           </p>
-          <button class="btn-primary" @click="startGame">
+          <button class="btn-primary" @click="handleGameControlsStart">
             <span class="btn-icon">🚀</span>
             <span class="btn-text">开始游戏</span>
           </button>
@@ -833,33 +919,123 @@
       </header>
 
       <main class="game-main">
-        <!-- 骰子区域 - 移到顶部 -->
-        <div class="dice-section">
-          <Dice :can-roll="canRollDice" :value="gameState.diceValue" @roll="handleDiceRoll" />
+        <!-- 顶部信息区域 -->
+        <div class="top-info-section">
+          <!-- 骰子区域 -->
+          <div class="dice-section">
+            <Dice :can-roll="canRollDice" :value="gameState.diceValue" @roll="handleDiceRoll" />
+          </div>
+
+          <!-- 玩家状态面板 -->
+          <div class="player-status-section">
+            <div class="status-panel">
+              <div class="status-header">
+                <h3>🎮 游戏状态</h3>
+              </div>
+
+              <!-- 游戏状态信息 -->
+              <div class="game-status-info">
+                <div class="status-item">
+                  <span class="status-label">回合数:</span>
+                  <span class="status-value">{{ turnCount }}</span>
+                </div>
+                <div class="status-item">
+                  <span class="status-label">状态:</span>
+                  <span class="status-value" :class="gameStatusClass">{{ gameStatusText }}</span>
+                </div>
+              </div>
+
+              <!-- 当前玩家信息 -->
+              <div
+                v-if="gameState.players[gameState.currentPlayerIndex]"
+                class="current-player-info"
+              >
+                <span class="current-label">当前玩家:</span>
+                <div class="current-player">
+                  <div
+                    class="current-avatar"
+                    :style="{
+                      backgroundColor: gameState.players[gameState.currentPlayerIndex].color,
+                    }"
+                  ></div>
+                  <span class="current-name">
+                    {{ gameState.players[gameState.currentPlayerIndex].name }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- 玩家列表 -->
+              <div class="player-list">
+                <div
+                  v-for="(player, index) in gameState.players"
+                  :key="player.id"
+                  class="player-item"
+                  :class="{
+                    'current-player': index === gameState.currentPlayerIndex,
+                    'player-moving': player.isMoving,
+                  }"
+                >
+                  <div class="player-info">
+                    <div class="player-avatar" :style="{ backgroundColor: player.color }"></div>
+                    <div class="player-details">
+                      <div class="player-name">{{ player.name }}</div>
+                      <div class="player-position">
+                        <span class="position-label">位置:</span>
+                        <span class="position-value">
+                          {{ player.position === 0 ? '起点' : `第${player.position}格` }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="player-plane">✈️</div>
+                </div>
+              </div>
+
+              <!-- 游戏结束信息 -->
+              <div v-if="gameState.winner" class="winner-info">
+                <span class="winner-label">🎉 获胜者:</span>
+                <div class="winner-player">
+                  <div
+                    class="winner-avatar"
+                    :style="{ backgroundColor: gameState.winner.color }"
+                  ></div>
+                  <span class="winner-name">{{ gameState.winner.name }}</span>
+                </div>
+              </div>
+
+              <!-- 游戏控制按钮 -->
+              <div class="control-buttons">
+                <button
+                  v-if="!gameStarted"
+                  class="btn btn-primary"
+                  @click="handleGameControlsStart"
+                >
+                  🎮 开始游戏
+                </button>
+                <button v-if="gameFinished" class="btn btn-primary" @click="resetGame">
+                  🎮 再来一局
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <GameControls
-          :game-started="gameStarted"
-          :game-finished="gameFinished"
-          :game-status="gameState.gameStatus"
-          :turn-count="turnCount"
-          :winner="gameState.winner"
-          @start="startGame"
-          @reset="resetGame"
-        />
-
-        <GameBoard
-          :board="gameState.board"
-          :players="gameState.players"
-          :current-player-index="gameState.currentPlayerIndex"
-          :last-effect="lastEffect"
-          @cell-click="handleCellClick"
-        />
+        <!-- 棋盘区域 - 占据主要空间 -->
+        <div class="board-section">
+          <GameBoard
+            :board="gameState.board"
+            :players="gameState.players"
+            :current-player-index="gameState.currentPlayerIndex"
+            :last-effect="lastEffect"
+            @cell-click="handleCellClick"
+          />
+        </div>
       </main>
 
       <!-- 惩罚显示弹窗 -->
       <PunishmentDisplay
         :punishment="currentPunishment"
+        :executor-player="currentPunishmentExecutor"
         @confirm="confirmPunishment"
         @skip="skipPunishment"
       />
@@ -993,63 +1169,284 @@
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: clamp(0.15rem, 0.5vw, 0.25rem);
+    gap: clamp(0.5rem, 2vw, 1rem);
     width: 100%;
+    /* 确保游戏主容器有足够的高度 */
+    min-height: calc(100vh - 120px);
+  }
+
+  /* 顶部信息区域 */
+  .top-info-section {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: clamp(0.5rem, 2vw, 1rem);
+    padding: clamp(0.5rem, 2vw, 1rem);
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    margin-bottom: clamp(0.5rem, 2vw, 1rem);
+    /* 限制最大高度，为棋盘留出空间 */
+    max-height: 45vh;
   }
 
   .dice-section {
+    order: 1;
+    flex: 0 0 auto;
+    min-width: 80px;
+    max-width: 120px;
+  }
+
+  .player-status-section {
+    order: 2;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .status-panel {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: clamp(0.4rem, 2vw, 0.6rem);
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .status-header {
     text-align: center;
+    color: white;
     margin-bottom: clamp(0.25rem, 1vw, 0.5rem);
   }
 
-  /* 按钮样式 */
-  .btn-primary,
-  .btn-secondary {
+  .status-header h3 {
+    margin: 0 0 clamp(0.1rem, 0.25vw, 0.1rem) 0;
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .game-status-info {
+    flex-direction: row;
+    gap: clamp(0.3rem, 1vw, 0.5rem);
+    justify-content: space-between;
+  }
+
+  .status-item {
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+  }
+
+  .status-label,
+  .status-value {
+    font-size: clamp(0.7rem, 2vw, 0.8rem);
+  }
+
+  .status-label {
+    opacity: 0.9;
+  }
+
+  .status-value {
+    font-weight: bold;
+  }
+
+  .current-player-info,
+  .winner-info {
+    margin-bottom: clamp(0.3rem, 1vw, 0.5rem);
+    text-align: center;
+  }
+
+  .current-label,
+  .winner-label {
+    font-size: clamp(0.7rem, 2vw, 0.8rem);
+    opacity: 0.9;
+  }
+
+  .current-name,
+  .winner-name {
+    font-size: clamp(0.75rem, 2vw, 0.85rem);
+  }
+
+  .current-avatar,
+  .winner-avatar {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-color: #ccc;
+  }
+
+  .current-player {
     display: flex;
     align-items: center;
-    gap: clamp(0.25rem, 1vw, 0.5rem);
-    padding: clamp(0.5rem, 2vw, 0.8rem) clamp(1rem, 3vw, 1.5rem);
-    font-size: clamp(0.85rem, 2.5vw, 1rem);
+    justify-content: center;
+    gap: clamp(0.3rem, 1vw, 0.5rem);
+  }
+
+  .winner-player {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(0.3rem, 1vw, 0.5rem);
+  }
+
+  /* 玩家列表样式 */
+  .player-list {
+    gap: 0.3rem;
+    margin-bottom: clamp(0.3rem, 1vw, 0.5rem);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .player-item {
+    padding: 0.3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+  }
+
+  .player-item:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-1px);
+  }
+
+  .player-item.current-player {
+    background: linear-gradient(135deg, rgba(78, 205, 196, 0.2), rgba(69, 183, 209, 0.2));
+    border: 2px solid rgba(78, 205, 196, 0.5);
+    box-shadow: 0 4px 12px rgba(78, 205, 196, 0.3);
+  }
+
+  .player-item.player-moving {
+    animation: playerMove 0.6s ease-in-out;
+  }
+
+  .player-info {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex: 1;
+  }
+
+  .player-avatar {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
+  }
+
+  .player-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+    min-width: 0;
+  }
+
+  .player-name {
+    font-size: 0.7rem;
     font-weight: bold;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .player-position {
+    font-size: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.1rem;
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .position-label {
+    font-weight: 500;
+  }
+
+  .position-value {
+    font-weight: bold;
+    color: #4ecdc4;
+  }
+
+  .player-plane {
+    font-size: 0.75rem;
+    margin-left: 0.2rem;
+    flex-shrink: 0;
+  }
+
+  .player-item.current-player .player-plane {
+    animation: planeFloat 2s ease-in-out infinite;
+  }
+
+  .control-buttons {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: clamp(0.4rem, 1.5vw, 0.6rem) clamp(0.8rem, 2.5vw, 1.2rem);
     border: none;
-    border-radius: clamp(4px, 1vw, 8px);
+    border-radius: clamp(4px, 1vw, 6px);
+    font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+    font-weight: bold;
     cursor: pointer;
     transition: all 0.3s ease;
-    text-decoration: none;
-    min-height: clamp(36px, 8vw, 44px);
+    display: flex;
+    align-items: center;
+    gap: clamp(0.3rem, 1vw, 0.4rem);
+    min-height: clamp(32px, 7vw, 36px);
+  }
+
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   }
 
   .btn-primary {
-    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-    color: white;
-    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
-  }
-
-  .btn-primary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-
-  .btn-secondary {
     background: linear-gradient(135deg, #4ecdc4, #44a08d);
     color: white;
-    box-shadow: 0 4px 15px rgba(78, 205, 196, 0.3);
   }
 
-  .btn-secondary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(78, 205, 196, 0.4);
+  /* 玩家移动动画 */
+  @keyframes playerMove {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+    100% {
+      transform: scale(1);
+    }
   }
 
-  .btn-icon {
-    font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+  /* 飞机浮动动画 */
+  @keyframes planeFloat {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-3px);
+    }
+  }
+
+  /* 棋盘区域 */
+  .board-section {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    /* 确保棋盘区域有最小高度 */
+    min-height: 300px;
   }
 
   /* 自适应布局 - 移除固定断点，使用相对单位 */
@@ -1064,6 +1461,371 @@
       width: 100%;
       max-width: min(300px, 80vw);
       justify-content: center;
+    }
+
+    /* 移动端顶部信息区域布局 */
+    .top-info-section {
+      flex-direction: row;
+      gap: clamp(0.5rem, 2vw, 1rem);
+      padding: clamp(0.5rem, 2vw, 1rem);
+      align-items: flex-start;
+      /* 限制最大高度，避免占用过多空间 */
+      max-height: 35vh;
+    }
+
+    .dice-section {
+      order: 1;
+      flex: 0 0 auto;
+      min-width: 80px;
+      max-width: 120px;
+    }
+
+    .player-status-section {
+      order: 2;
+      flex: 1;
+      min-width: 0;
+      /* 确保状态区域不会过度扩展 */
+      max-height: 100%;
+    }
+
+    .status-panel {
+      padding: clamp(0.4rem, 2vw, 0.6rem);
+      /* 限制状态面板最大高度，添加滚动 */
+      max-height: 30vh;
+      overflow-y: auto;
+      /* 添加滚动条样式 */
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+    }
+
+    /* Webkit浏览器的滚动条样式 */
+    .status-panel::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .status-panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .status-panel::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 2px;
+    }
+
+    .status-panel::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    .status-header h3 {
+      font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+      /* 固定头部，不随滚动 */
+      position: sticky;
+      top: 0;
+      background: rgba(255, 255, 255, 0.1);
+      margin: -0.4rem -0.4rem 0.4rem -0.4rem;
+      padding: 0.4rem;
+      border-radius: 8px 8px 0 0;
+      z-index: 10;
+    }
+
+    .game-status-info {
+      flex-direction: column;
+      gap: clamp(0.3rem, 1vw, 0.5rem);
+    }
+
+    .status-item {
+      flex-direction: row;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .status-label,
+    .status-value {
+      font-size: clamp(0.75rem, 2.2vw, 0.85rem);
+    }
+
+    .current-player-info,
+    .winner-info {
+      margin-bottom: clamp(0.3rem, 1vw, 0.5rem);
+    }
+
+    .current-label,
+    .winner-label {
+      font-size: clamp(0.75rem, 2.2vw, 0.85rem);
+    }
+
+    .current-name,
+    .winner-name {
+      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+    }
+
+    .current-avatar,
+    .winner-avatar {
+      width: 20px;
+      height: 20px;
+    }
+
+    .player-list {
+      gap: 0.4rem;
+      margin-bottom: clamp(0.3rem, 1vw, 0.5rem);
+    }
+
+    .player-item {
+      padding: 0.4rem;
+    }
+
+    .player-avatar {
+      width: 18px;
+      height: 18px;
+    }
+
+    .player-name {
+      font-size: 0.75rem;
+    }
+
+    .player-position {
+      font-size: 0.65rem;
+    }
+
+    .player-plane {
+      font-size: 0.8rem;
+    }
+
+    .control-buttons {
+      gap: 0.4rem;
+    }
+
+    .btn {
+      padding: clamp(0.35rem, 1.5vw, 0.4rem) clamp(0.7rem, 2vw, 0.8rem);
+      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
+      border-radius: 4px;
+      min-height: clamp(28px, 6vw, 32px);
+      gap: clamp(0.2rem, 0.6vw, 0.25rem);
+    }
+  }
+
+  /* 小屏幕手机优化 */
+  @media (max-width: 767px) {
+    .game-header h1 {
+      font-size: clamp(1rem, 5vw, 1.3rem);
+    }
+
+    .game-header p {
+      font-size: clamp(0.6rem, 2.5vw, 0.75rem);
+    }
+
+    .top-info-section {
+      padding: clamp(0.4rem, 2vw, 0.8rem);
+      gap: clamp(0.4rem, 2vw, 0.8rem);
+      /* 进一步限制高度 */
+      max-height: 30vh;
+    }
+
+    .game-main {
+      gap: clamp(0.3rem, 1.5vw, 0.8rem);
+      /* 确保有足够的最小高度 */
+      min-height: calc(100vh - 100px);
+    }
+
+    .status-panel {
+      padding: clamp(0.3rem, 1.5vw, 0.5rem);
+      /* 更严格的高度限制 */
+      max-height: 25vh;
+    }
+
+    .status-header h3 {
+      font-size: clamp(0.75rem, 2.2vw, 0.8rem);
+      margin: -0.3rem -0.3rem 0.3rem -0.3rem;
+      padding: 0.3rem;
+    }
+
+    .status-label,
+    .status-value {
+      font-size: clamp(0.7rem, 2vw, 0.8rem);
+    }
+
+    .current-label,
+    .winner-label {
+      font-size: clamp(0.7rem, 2vw, 0.8rem);
+    }
+
+    .current-name,
+    .winner-name {
+      font-size: clamp(0.75rem, 2vw, 0.85rem);
+    }
+
+    .current-avatar,
+    .winner-avatar {
+      width: 18px;
+      height: 18px;
+    }
+
+    .player-list {
+      gap: 0.3rem;
+      margin-bottom: clamp(0.25rem, 1vw, 0.4rem);
+    }
+
+    .player-item {
+      padding: 0.3rem;
+    }
+
+    .player-avatar {
+      width: 16px;
+      height: 16px;
+    }
+
+    .player-name {
+      font-size: 0.7rem;
+    }
+
+    .player-position {
+      font-size: 0.6rem;
+    }
+
+    .player-plane {
+      font-size: 0.75rem;
+    }
+
+    .control-buttons {
+      gap: 0.3rem;
+    }
+
+    .btn {
+      padding: clamp(0.3rem, 1.2vw, 0.35rem) clamp(0.6rem, 1.8vw, 0.7rem);
+      font-size: clamp(0.65rem, 1.6vw, 0.7rem);
+      min-height: clamp(24px, 5vw, 28px);
+      gap: clamp(0.15rem, 0.5vw, 0.2rem);
+    }
+  }
+
+  /* 超小屏幕手机优化 */
+  @media (max-width: 480px) {
+    .game-header h1 {
+      font-size: clamp(0.9rem, 6vw, 1.2rem);
+    }
+
+    .game-header p {
+      font-size: clamp(0.55rem, 3vw, 0.7rem);
+    }
+
+    .top-info-section {
+      padding: clamp(0.3rem, 2vw, 0.6rem);
+      gap: clamp(0.3rem, 2vw, 0.6rem);
+      /* 超小屏幕更严格的高度限制 */
+      max-height: 25vh;
+    }
+
+    .game-main {
+      gap: clamp(0.2rem, 1vw, 0.6rem);
+      /* 超小屏幕的最小高度 */
+      min-height: calc(100vh - 80px);
+    }
+
+    .status-panel {
+      padding: clamp(0.25rem, 1.2vw, 0.4rem);
+      /* 超小屏幕更严格的高度限制 */
+      max-height: 20vh;
+    }
+
+    .status-header h3 {
+      font-size: clamp(0.7rem, 2vw, 0.75rem);
+      margin: -0.25rem -0.25rem 0.25rem -0.25rem;
+      padding: 0.25rem;
+    }
+
+    .status-label,
+    .status-value {
+      font-size: clamp(0.65rem, 1.8vw, 0.75rem);
+    }
+
+    .current-label,
+    .winner-label {
+      font-size: clamp(0.65rem, 1.8vw, 0.75rem);
+    }
+
+    .current-name,
+    .winner-name {
+      font-size: clamp(0.7rem, 1.8vw, 0.8rem);
+    }
+
+    .current-avatar,
+    .winner-avatar {
+      width: 16px;
+      height: 16px;
+    }
+
+    .player-list {
+      gap: 0.25rem;
+      margin-bottom: clamp(0.2rem, 0.8vw, 0.3rem);
+    }
+
+    .player-item {
+      padding: 0.25rem;
+    }
+
+    .player-avatar {
+      width: 14px;
+      height: 14px;
+    }
+
+    .player-name {
+      font-size: 0.65rem;
+    }
+
+    .player-position {
+      font-size: 0.55rem;
+    }
+
+    .player-plane {
+      font-size: 0.7rem;
+    }
+
+    .control-buttons {
+      gap: 0.25rem;
+    }
+
+    .btn {
+      padding: clamp(0.25rem, 1vw, 0.3rem) clamp(0.5rem, 1.5vw, 0.6rem);
+      font-size: clamp(0.6rem, 1.4vw, 0.65rem);
+      min-height: clamp(20px, 4vw, 24px);
+      gap: clamp(0.1rem, 0.4vw, 0.15rem);
+    }
+  }
+
+  /* 游戏状态样式 */
+  .status-waiting {
+    color: #4ecdc4;
+  }
+
+  .status-rolling {
+    color: #ff6b6b;
+    animation: pulse 1s infinite;
+  }
+
+  .status-moving {
+    color: #45b7d1;
+  }
+
+  .status-showing_effect {
+    color: #ab47bc;
+    animation: pulse 1s infinite;
+  }
+
+  .status-finished {
+    color: #96ceb4;
+  }
+
+  .status-configuring {
+    color: #ffa726;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
     }
   }
 </style>

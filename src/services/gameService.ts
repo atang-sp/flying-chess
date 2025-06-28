@@ -265,6 +265,33 @@ export class GameService {
     return players
   }
 
+  static createCustomPlayers(count: number, names: string[]): Player[] {
+    const players: Player[] = []
+    const colors = [
+      '#ff6b6b',
+      '#4ecdc4',
+      '#45b7d1',
+      '#96ceb4',
+      '#feca57',
+      '#ff9ff3',
+      '#54a0ff',
+      '#5f27cd',
+    ]
+
+    for (let i = 0; i < count; i++) {
+      players.push({
+        id: i + 1,
+        name: names[i] || `玩家${i + 1}`,
+        color: colors[i % colors.length],
+        position: 0,
+        isWinner: false,
+        hasTakenOff: false,
+      })
+    }
+
+    return players
+  }
+
   static createPunishmentConfig(): PunishmentConfig {
     return {
       tools: [...GAME_CONFIG.DEFAULT_TOOLS],
@@ -357,10 +384,19 @@ export class GameService {
         const bodyPart = this.selectByRatio(punishmentConfig.bodyParts)
         const position = this.selectByRatio(punishmentConfig.positions)
 
-        // 计算惩罚执行者
+        // 计算惩罚执行者 - 等概率随机选择其他玩家
         const otherPlayersCount = totalPlayers - 1
         if (otherPlayersCount > 0) {
-          executorIndex = diceValue % otherPlayersCount
+          // 创建其他玩家的索引数组（排除当前玩家）
+          const otherPlayerIndices = []
+          for (let i = 0; i < totalPlayers; i++) {
+            if (i !== currentPlayerIndex) {
+              otherPlayerIndices.push(i)
+            }
+          }
+          // 等概率随机选择一个其他玩家
+          const randomIndex = Math.floor(Math.random() * otherPlayerIndices.length)
+          executorIndex = otherPlayerIndices[randomIndex]
         }
 
         punishment = {
