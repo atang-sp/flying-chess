@@ -125,6 +125,7 @@
       bonus: '前进格子',
       special: '后退格子',
       restart: '回到起点',
+      trap: '机关陷阱',
     }
 
     // 特殊处理休息格子
@@ -259,7 +260,7 @@
         </div>
         <div class="tooltip-body">
           <div v-if="tooltipCell?.effect" class="tooltip-effect">
-            <div class="effect-title">{{ tooltipCell.effect.description }}</div>
+            <div v-if="tooltipCell.effect.type !== 'trap'" class="effect-title">{{ tooltipCell.effect.description }}</div>
             <div
               v-if="tooltipCell.effect.type === 'punishment' && tooltipCell.effect.punishment"
               class="punishment-details"
@@ -300,6 +301,16 @@
             <div v-else-if="tooltipCell.effect.type === 'restart'" class="restart-details">
               <div class="detail-item">
                 <span class="detail-label">回到起点</span>
+              </div>
+            </div>
+            <div v-else-if="tooltipCell.effect.type === 'trap'" class="trap-details">
+              <div class="detail-item">
+                <span class="detail-label">⚠️ 警告：</span>
+                <span class="detail-value">每次惩罚都不一样！</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">💀 特点：</span>
+                <span class="detail-value">随机生成惩罚内容</span>
               </div>
             </div>
           </div>
@@ -442,6 +453,17 @@
 
   .cell-restart .cell-number,
   .cell-restart .cell-effect {
+    color: white;
+  }
+
+  .cell-trap {
+    background: linear-gradient(135deg, #8b0000, #dc143c);
+    border-color: #b22222;
+    color: white;
+  }
+
+  .cell-trap .cell-number,
+  .cell-trap .cell-effect {
     color: white;
   }
 
@@ -885,7 +907,8 @@
   .move-details,
   .rest-details,
   .reverse-details,
-  .restart-details {
+  .restart-details,
+  .trap-details {
     background: rgba(0, 0, 0, 0.05);
     border-radius: 8px;
     padding: 0.75rem;

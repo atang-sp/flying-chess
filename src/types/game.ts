@@ -49,9 +49,9 @@ export interface PunishmentAction {
 
 export interface BoardCell {
   id: number
-  type: 'punishment' | 'bonus' | 'special' | 'restart'
+  type: 'punishment' | 'bonus' | 'special' | 'restart' | 'trap'
   effect?: {
-    type: 'punishment' | 'move' | 'rest' | 'reverse' | 'restart'
+    type: 'punishment' | 'move' | 'rest' | 'reverse' | 'restart' | 'trap'
     value: number
     description: string
     punishment?: PunishmentAction
@@ -73,6 +73,7 @@ export interface BoardConfig {
   reverseCells: number // 后退格子数量
   restCells: number // 休息格子数量
   restartCells: number // 回到起点格子数量
+  trapCells: number // 机关格子数量
   totalCells: number // 总格子数量
 }
 
@@ -100,4 +101,10 @@ export interface GameState {
 export interface DiceAnimation {
   isRolling: boolean
   duration: number
+}
+
+export interface TrapAction {
+  id: string
+  name: string
+  description: string
 }

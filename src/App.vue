@@ -10,6 +10,7 @@
     PunishmentAction,
     CellEffect,
     BoardConfig,
+    TrapAction,
   } from './types/game'
   import IntroPage from './components/IntroPage.vue'
   import GameControls from './components/GameControls.vue'
@@ -17,12 +18,14 @@
   import Dice from './components/Dice.vue'
   import BoardConfigPanel from './components/BoardConfig.vue'
   import PunishmentConfigPanel from './components/PunishmentConfig.vue'
+  import TrapConfigPanel from './components/TrapConfig.vue'
   import PunishmentDisplay from './components/PunishmentDisplay.vue'
   import PunishmentConfirmation from './components/PunishmentConfirmation.vue'
   import EffectDisplay from './components/EffectDisplay.vue'
   import PunishmentStats from './components/PunishmentStats.vue'
   import TakeoffPunishmentDisplay from './components/TakeoffPunishmentDisplay.vue'
   import VersionDisplay from './components/VersionDisplay.vue'
+  import TrapDisplay from './components/TrapDisplay.vue'
 
   // 游戏状态
   const gameState = reactive<GameState>({
@@ -65,6 +68,14 @@
   // 执行惩罚的玩家状态
   const currentPunishmentExecutor = ref<Player | null>(null)
 
+  // 机关配置状态
+  const trapConfig = ref<TrapAction[]>([...GAME_CONFIG.DEFAULT_TRAPS])
+
+  // 机关陷阱弹窗状态
+  const showTrapDisplay = ref(false)
+  const currentTrapPunishment = ref<PunishmentAction | null>(null)
+  const currentTrapDescription = ref<string>('')
+
   // 计算属性
   const canRollDice = computed(() => {
     return (
@@ -72,7 +83,8 @@
       !gameFinished.value &&
       gameState.gameStatus === 'waiting' &&
       !currentPunishment.value &&
-      !showTakeoffPunishmentDisplay.value
+      !showTakeoffPunishmentDisplay.value &&
+      !showTrapDisplay.value
     )
   })
 
@@ -175,12 +187,58 @@
 
     // 定期检查游戏状态健康度
     setInterval(checkGameStateHealth, 2000) // 每2秒检查一次
+
+    // 组件挂载时初始化游戏
+    initializeGame()
+    
+    // 将游戏状态暴露到全局作用域，方便调试
+    // @ts-ignore
+    ;(window as any).gameState = gameState
+    // @ts-ignore
+    ;(window as any).trapConfig = trapConfig
+    // @ts-ignore
+    ;(window as any).gameStarted = gameStarted
+    // @ts-ignore
+    ;(window as any).gameFinished = gameFinished
+    // @ts-ignore
+    ;(window as any).turnCount = turnCount
+    // @ts-ignore
+    ;(window as any).lastEffect = lastEffect
+    // @ts-ignore
+    ;(window as any).currentPunishment = currentPunishment
+    // @ts-ignore
+    ;(window as any).showPunishmentConfirmation = showPunishmentConfirmation
+    // @ts-ignore
+    ;(window as any).punishmentCombinations = punishmentCombinations
+    // @ts-ignore
+    ;(window as any).effectFromPosition = effectFromPosition
+    // @ts-ignore
+    ;(window as any).effectToPosition = effectToPosition
+    // @ts-ignore
+    ;(window as any).showPunishmentStats = showPunishmentStats
+    // @ts-ignore
+    ;(window as any).confirmedCombinations = confirmedCombinations
+    // @ts-ignore
+    ;(window as any).showTakeoffPunishmentDisplay = showTakeoffPunishmentDisplay
+    // @ts-ignore
+    ;(window as any).currentTakeoffPunishment = currentTakeoffPunishment
+    // @ts-ignore
+    ;(window as any).currentTakeoffDiceValue = currentTakeoffDiceValue
+    // @ts-ignore
+    ;(window as any).currentTakeoffExecutorIndex = currentTakeoffExecutorIndex
+    // @ts-ignore
+    ;(window as any).currentPunishmentExecutor = currentPunishmentExecutor
+    // @ts-ignore
+    ;(window as any).showTrapDisplay = showTrapDisplay
+    // @ts-ignore
+    ;(window as any).currentTrapPunishment = currentTrapPunishment
+    // @ts-ignore
+    ;(window as any).currentTrapDescription = currentTrapDescription
   })
 
   // 初始化游戏
   const initializeGame = () => {
     gameState.players = GameService.createPlayers()
-    gameState.board = GameService.createBoard(gameState.punishmentConfig, gameState.boardConfig)
     gameState.currentPlayerIndex = 0
     gameState.diceValue = null
     gameState.gameStatus = 'intro'
@@ -188,6 +246,11 @@
     gameState.punishmentConfig = GameService.createPunishmentConfig()
     gameState.boardConfig = GameService.createBoardConfig()
     gameState.pendingEffect = null
+    trapConfig.value = [...GAME_CONFIG.DEFAULT_TRAPS]
+    
+    // 在配置设置后创建棋盘
+    gameState.board = GameService.createBoard(gameState.punishmentConfig, gameState.boardConfig, trapConfig.value)
+    
     gameStarted.value = false
     gameFinished.value = false
     turnCount.value = 0
@@ -204,14 +267,21 @@
   const updatePunishmentConfig = (config: PunishmentConfig) => {
     gameState.punishmentConfig = config
     // 重新创建棋盘以应用新的惩罚配置
-    gameState.board = GameService.createBoard(config, gameState.boardConfig)
+    gameState.board = GameService.createBoard(config, gameState.boardConfig, trapConfig.value)
   }
 
   // 更新棋盘配置
   const updateBoardConfig = (config: BoardConfig) => {
     gameState.boardConfig = config
     // 重新创建棋盘以应用新的棋盘配置
-    gameState.board = GameService.createBoard(gameState.punishmentConfig, config)
+    gameState.board = GameService.createBoard(gameState.punishmentConfig, config, trapConfig.value)
+  }
+
+  // 更新机关配置
+  const updateTrapConfig = (traps: TrapAction[]) => {
+    trapConfig.value = traps
+    // 重新创建棋盘以应用新的机关配置
+    gameState.board = GameService.createBoard(gameState.punishmentConfig, gameState.boardConfig, traps)
   }
 
   // 开始游戏
@@ -251,7 +321,7 @@
   const resetGame = () => {
     // 重置游戏状态但保持配置
     gameState.players = GameService.createPlayers()
-    gameState.board = GameService.createBoard(gameState.punishmentConfig, gameState.boardConfig)
+    gameState.board = GameService.createBoard(gameState.punishmentConfig, gameState.boardConfig, trapConfig.value)
     gameState.currentPlayerIndex = 0
     gameState.diceValue = null
     gameState.winner = null
@@ -360,6 +430,15 @@
 
       // 检查是否有普通惩罚
       if (punishment) {
+        // 检查是否是机关陷阱
+        if (cellEffect && cellEffect.type === 'trap') {
+          // 显示机关陷阱弹窗，机关不再有复杂的惩罚对象
+          currentTrapDescription.value = cellEffect.description || '未知机关'
+          showTrapDisplay.value = true
+          // 保持moving状态，等待用户处理机关陷阱
+          return
+        }
+        
         currentPunishment.value = punishment
         // 设置执行惩罚的玩家（如果有executorIndex）
         if (
@@ -788,11 +867,6 @@
     gameState.gameStatus = 'settings'
   }
 
-  // 组件挂载时初始化游戏
-  onMounted(() => {
-    initializeGame()
-  })
-
   // 添加validation-failed事件处理
   const handleValidationFailed = (errorMessage: string, requiredSensitivity?: number) => {
     console.log('惩罚配置验证失败:', errorMessage)
@@ -840,6 +914,26 @@
         return '未知状态'
     }
   })
+
+  // 确认机关陷阱
+  const confirmTrap = async () => {
+    try {
+      showTrapDisplay.value = false
+      currentTrapPunishment.value = null
+      currentTrapDescription.value = ''
+      gameState.gameStatus = 'waiting'
+
+      // 继续游戏流程
+      await continueAfterMove()
+    } catch (error) {
+      console.error('确认机关陷阱时发生错误:', error)
+      // 确保在发生错误时重置游戏状态
+      gameState.gameStatus = 'waiting'
+      showTrapDisplay.value = false
+      currentTrapPunishment.value = null
+      currentTrapDescription.value = ''
+    }
+  }
 </script>
 
 <template>
@@ -856,6 +950,8 @@
         </div>
 
         <BoardConfigPanel :config="gameState.boardConfig" @update="updateBoardConfig" />
+
+        <TrapConfigPanel :traps="trapConfig" @update="updateTrapConfig" />
 
         <div class="page-actions">
           <button class="btn-secondary" @click="showIntro">
@@ -1074,6 +1170,13 @@
       :dice-value="currentTakeoffDiceValue"
       :executor-name="gameState.players[currentTakeoffExecutorIndex]?.name || '未知玩家'"
       @confirm="confirmTakeoffPunishment"
+    />
+
+    <!-- 机关陷阱弹窗 -->
+    <TrapDisplay
+      :show="showTrapDisplay"
+      :trap-description="currentTrapDescription"
+      @confirm="confirmTrap"
     />
 
     <!-- 版本显示组件 -->

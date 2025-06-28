@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>机关格子悬浮提示最终修改演示</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .demo-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .before-after {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .before, .after {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        .before {
+            border-color: #e74c3c;
+        }
+        .after {
+            border-color: #2ecc71;
+        }
+        .tooltip-example {
+            background: rgba(139, 0, 0, 0.8);
+            border: 2px solid #8b0000;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .highlight {
+            color: #ffd700;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+        .success {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+        .demo-cell {
+            display: inline-block;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #8b0000, #dc143c);
+            border-radius: 8px;
+            text-align: center;
+            line-height: 60px;
+            font-size: 24px;
+            margin: 10px;
+            cursor: pointer;
+            border: 2px solid #ff6b6b;
+            box-shadow: 0 4px 15px rgba(139, 0, 0, 0.4);
+        }
+        .demo-cell:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(139, 0, 0, 0.6);
+        }
+        .final-result {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            border: 2px solid #27ae60;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 机关格子悬浮提示最终修改演示</h1>
+    
+    <div class="demo-section">
+        <h2>📋 最终修改说明</h2>
+        <p>根据用户要求，机关格子的悬浮提示中完全去掉了机关名称/描述信息，只保留警告和特点提示，让界面更加简洁。</p>
+    </div>
+
+    <div class="demo-section">
+        <h2>🔄 修改前后对比</h2>
+        <div class="before-after">
+            <div class="before">
+                <h3>❌ 修改前</h3>
+                <div class="tooltip-example">
+                    <div><strong>机关陷阱</strong></div>
+                    <div>机关名称：暗箭伤人</div>
+                    <div class="warning">⚠️ 警告：每次惩罚都不一样！</div>
+                    <div class="success">💀 特点：随机生成惩罚内容</div>
+                </div>
+                <p class="warning">问题：仍然显示机关名称，信息冗余</p>
+            </div>
+            <div class="after">
+                <h3>✅ 修改后</h3>
+                <div class="tooltip-example">
+                    <div><strong>机关陷阱</strong></div>
+                    <div class="warning">⚠️ 警告：每次惩罚都不一样！</div>
+                    <div class="success">💀 特点：随机生成惩罚内容</div>
+                </div>
+                <p class="success">优势：界面更简洁，直接突出核心信息</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="final-result">
+        <h2>🎉 最终效果</h2>
+        <p>机关格子的悬浮提示现在只显示：</p>
+        <ul style="text-align: left; display: inline-block;">
+            <li>⚠️ 警告：每次惩罚都不一样！</li>
+            <li>💀 特点：随机生成惩罚内容</li>
+        </ul>
+        <p class="highlight">界面更加简洁，信息更加聚焦！</p>
+    </div>
+
+    <div class="demo-section">
+        <h2>🎮 交互演示</h2>
+        <p>将鼠标悬浮在下面的机关格子上，查看最终的悬浮提示效果：</p>
+        
+        <div style="text-align: center; margin: 20px 0;">
+            <div class="demo-cell" title="机关陷阱&#10;⚠️ 警告：每次惩罚都不一样！&#10;💀 特点：随机生成惩罚内容">💀</div>
+            <div class="demo-cell" title="机关陷阱&#10;⚠️ 警告：每次惩罚都不一样！&#10;💀 特点：随机生成惩罚内容">💀</div>
+            <div class="demo-cell" title="机关陷阱&#10;⚠️ 警告：每次惩罚都不一样！&#10;💀 特点：随机生成惩罚内容">💀</div>
+        </div>
+        
+        <p class="highlight">💡 提示：将鼠标悬浮在骷髅图标上查看最终悬浮提示</p>
+    </div>
+
+    <div class="demo-section">
+        <h2>🔍 技术实现</h2>
+        <div class="tooltip-example">
+            <p><strong>修改位置：</strong> src/components/GameBoard.vue</p>
+            <p><strong>关键修改：</strong></p>
+            <pre style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; overflow-x: auto;">
+// 修改前：显示effect-title
+&lt;div class="effect-title"&gt;{{ tooltipCell.effect.description }}&lt;/div&gt;
+
+// 修改后：机关格子不显示effect-title
+&lt;div v-if="tooltipCell.effect.type !== 'trap'" class="effect-title"&gt;
+  {{ tooltipCell.effect.description }}
+&lt;/div&gt;</pre>
+            <p><strong>效果：</strong>机关格子悬浮时直接显示警告和特点，不显示机关名称</p>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>✅ 最终验证要点</h2>
+        <ul>
+            <li class="success">✅ 悬浮提示不显示机关名称/描述</li>
+            <li class="success">✅ 悬浮提示直接显示警告和特点</li>
+            <li class="success">✅ 界面更加简洁，信息聚焦</li>
+            <li class="success">✅ 保持神秘感，增加游戏刺激性</li>
+            <li class="success">✅ 实际触发时惩罚内容仍然随机</li>
+        </ul>
+    </div>
+
+    <div class="demo-section">
+        <h2>🎯 用户体验改进</h2>
+        <div class="before-after">
+            <div class="before">
+                <h3>修改前的问题</h3>
+                <ul>
+                    <li>❌ 显示机关名称，信息冗余</li>
+                    <li>❌ 界面不够简洁</li>
+                    <li>❌ 用户注意力分散</li>
+                </ul>
+            </div>
+            <div class="after">
+                <h3>修改后的优势</h3>
+                <ul>
+                    <li>✅ 界面简洁，信息聚焦</li>
+                    <li>✅ 直接突出核心警告信息</li>
+                    <li>✅ 用户体验更好</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>🚀 测试方法</h2>
+        <ol>
+            <li>启动游戏：<code>npm run dev</code></li>
+            <li>进入棋盘设置，确认机关格子配置</li>
+            <li>开始游戏，将鼠标悬浮在骷髅图标的机关格子上</li>
+            <li>验证悬浮提示只显示警告和特点，不显示机关名称</li>
+            <li>掷骰子移动到机关格子，观察随机惩罚弹窗</li>
+            <li>多次触发同一机关格子，验证惩罚内容不同</li>
+        </ol>
+        
+        <p class="highlight">💡 也可以运行 <code>test-trap-tooltip-final.js</code> 进行自动化测试</p>
+    </div>
+
+    <div class="demo-section">
+        <h2>📊 修改总结</h2>
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <tr style="background: rgba(255,255,255,0.1);">
+                <th style="padding: 10px; border: 1px solid rgba(255,255,255,0.3);">项目</th>
+                <th style="padding: 10px; border: 1px solid rgba(255,255,255,0.3);">修改前</th>
+                <th style="padding: 10px; border: 1px solid rgba(255,255,255,0.3);">修改后</th>
+            </tr>
+            <tr>
+                <td style="padding: 10px; border: 1px solid rgba(255,255,255,0.3);">机关名称</td>
+                <td style="padding: 10px; border: 1px solid rgba(255,255,255,0.3);">显示</td>
+                <td style="padding: 10px; border: 1px solid rgba(255,255,255,0.3);">不显示</td>
+            </tr>
+            <tr>
+                <td style="padding: 10px; border: 1px solid rgba(255,255,255,0.3);">警告信息</td>
+                <td style="padding: 10px; border: 1px solid rgba(255,255,255,0.3);">显示</td>
+                <td style="padding: 10px; border: 1px solid rgba(255,255,255,0.3);">显示</td>
+            </tr>
+            <tr>
+                <td style="padding: 10px; border: 1px solid rgba(255,255,255,0.3);">特点信息</td>
+                <td style="padding: 10px; border: 1px solid rgba(255,255,255,0.3);">显示</td>
+                <td style="padding: 10px; border: 1px solid rgba(255,255,255,0.3);">显示</td>
+            </tr>
+            <tr>
+                <td style="padding: 10px; border: 1px solid rgba(255,255,255,0.3);">界面简洁度</td>
+                <td style="padding: 10px; border: 1px solid rgba(255,255,255,0.3);">一般</td>
+                <td style="padding: 10px; border: 1px solid rgba(255,255,255,0.3);">优秀</td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html> 

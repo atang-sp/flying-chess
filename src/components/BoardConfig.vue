@@ -23,7 +23,8 @@
       localConfig.value.bonusCells +
       localConfig.value.reverseCells +
       localConfig.value.restCells +
-      localConfig.value.restartCells
+      localConfig.value.restartCells +
+      localConfig.value.trapCells
     return localConfig.value.totalCells - used
   })
 
@@ -35,7 +36,8 @@
       localConfig.value.bonusCells >= 0 &&
       localConfig.value.reverseCells >= 0 &&
       localConfig.value.restCells >= 0 &&
-      localConfig.value.restartCells >= 0
+      localConfig.value.restartCells >= 0 &&
+      localConfig.value.trapCells >= 0
     )
   })
 
@@ -46,13 +48,14 @@
 
   // 处理输入变化，自动调整后面格子
   const handleCellInput = (field: keyof BoardConfig) => {
-    // 顺序：punishmentCells -> bonusCells -> reverseCells -> restCells -> restartCells
+    // 顺序：punishmentCells -> bonusCells -> reverseCells -> restCells -> restartCells -> trapCells
     const order: (keyof BoardConfig)[] = [
       'punishmentCells',
       'bonusCells',
       'reverseCells',
       'restCells',
       'restartCells',
+      'trapCells',
     ]
     const idx = order.indexOf(field)
     if (idx === -1) return
@@ -87,6 +90,7 @@
       reverseCells: props.config.reverseCells,
       restCells: props.config.restCells,
       restartCells: props.config.restartCells,
+      trapCells: props.config.trapCells,
       totalCells: props.config.totalCells,
     }
     updateConfig()
@@ -95,12 +99,13 @@
   // 自动分配格子
   const autoDistribute = () => {
     const total = localConfig.value.totalCells
-    // 按指定比例分配：惩罚格子80%，回到起点格子10%，前进格子2.5%，后退格子5%，休息格子2.5%
-    localConfig.value.punishmentCells = Math.floor(total * 0.8)
+    // 按指定比例分配：惩罚格子75%，回到起点格子10%，前进格子2.5%，后退格子5%，休息格子2.5%，机关格子5%
+    localConfig.value.punishmentCells = Math.floor(total * 0.75)
     localConfig.value.restartCells = Math.floor(total * 0.1)
     localConfig.value.bonusCells = Math.floor(total * 0.025)
     localConfig.value.reverseCells = Math.floor(total * 0.05)
     localConfig.value.restCells = Math.floor(total * 0.025)
+    localConfig.value.trapCells = Math.floor(total * 0.05)
 
     // 计算已分配的格子总数
     const assigned =
@@ -108,7 +113,8 @@
       localConfig.value.restartCells +
       localConfig.value.bonusCells +
       localConfig.value.reverseCells +
-      localConfig.value.restCells
+      localConfig.value.restCells +
+      localConfig.value.trapCells
 
     // 将剩余的格子分配给惩罚格子，确保总和等于总数
     const remaining = total - assigned
@@ -246,6 +252,26 @@
             <span class="input-unit">格</span>
           </div>
           <div class="cell-description">玩家踩到后需要回到起点的格子</div>
+        </div>
+
+        <!-- 机关格子 -->
+        <div class="config-item">
+          <label class="config-label">
+            <span class="label-icon">💀</span>
+            机关格子
+          </label>
+          <div class="input-group">
+            <input
+              v-model.number="localConfig.trapCells"
+              type="number"
+              min="0"
+              :max="localConfig.totalCells"
+              class="config-input"
+              @input="handleCellInput('trapCells')"
+            />
+            <span class="input-unit">格</span>
+          </div>
+          <div class="cell-description">玩家踩到后随机触发机关惩罚的格子</div>
         </div>
       </div>
 

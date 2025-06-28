@@ -110,7 +110,7 @@
     }
   }
 
-  const getParticleStyle = (particle: any) => {
+  const getParticleStyle = (particle: { x: number; y: number; size: number; opacity: number }) => {
     return {
       left: `${particle.x}px`,
       top: `${particle.y}px`,
@@ -193,8 +193,8 @@
             <div class="count-controls">
               <button
                 class="count-btn minus"
-                :disabled="playerCount <= 2"
-                @click="onPlayerCountChange(Math.max(2, playerCount - 1))"
+                :disabled="playerCount <= 1"
+                @click="onPlayerCountChange(Math.max(1, playerCount - 1))"
               >
                 <span class="btn-icon">➖</span>
               </button>

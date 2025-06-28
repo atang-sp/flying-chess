@@ -168,13 +168,28 @@ export const GAME_CONFIG = {
 
   // 默认棋盘配置
   DEFAULT_BOARD_CONFIG: {
-    punishmentCells: 32, // 惩罚格子数量（80% × 40 = 32）
+    punishmentCells: 28, // 惩罚格子数量（减少2个，为机关格子腾出空间）
     bonusCells: 1, // 前进格子数量（2.5% × 40 = 1）
     reverseCells: 2, // 后退格子数量（5% × 40 = 2）
     restCells: 1, // 休息格子数量（2.5% × 40 = 1）
     restartCells: 4, // 回到起点格子数量（10% × 40 = 4）
+    trapCells: 2, // 机关格子数量（5% × 40 = 2）
     totalCells: 40, // 总格子数量
   },
+
+  // 默认机关配置
+  DEFAULT_TRAPS: [
+    {
+      id: 'trap_1',
+      name: '晾臀机关',
+      description: '晾臀5分钟',
+    },
+    {
+      id: 'trap_2',
+      name: '随机惩罚机关',
+      description: '由随机玩家使用任意工具惩罚屁股，必须自己请罚"请xxx打我的屁股"',
+    },
+  ],
 }
 
 // 格子类型图标映射
@@ -183,6 +198,7 @@ export const CELL_ICONS = {
   bonus: '🎁',
   special: '⬅️',
   restart: '🔄',
+  trap: '💀',
 }
 
 // 格子类型颜色映射
@@ -202,5 +218,9 @@ export const CELL_COLORS = {
   restart: {
     background: 'linear-gradient(135deg, #ab47bc, #8e44ad)',
     border: '#9b59b6',
+  },
+  trap: {
+    background: 'linear-gradient(135deg, #8b0000, #dc143c)',
+    border: '#b22222',
   },
 }

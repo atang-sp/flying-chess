@@ -7,21 +7,23 @@ import type {
   PunishmentTool,
   PunishmentPosition,
   BoardConfig,
+  TrapAction,
 } from '../types/game'
 import { GAME_CONFIG } from '../config/gameConfig'
 
 export class GameService {
-  static createBoard(punishmentConfig?: PunishmentConfig, boardConfig?: BoardConfig): BoardCell[] {
+  static createBoard(punishmentConfig?: PunishmentConfig, boardConfig?: BoardConfig, customTraps?: TrapAction[]): BoardCell[] {
     // 1. 读取配置
     const config = punishmentConfig || this.createPunishmentConfig()
     const boardConf = boardConfig || GAME_CONFIG.DEFAULT_BOARD_CONFIG
+    const traps = customTraps || GAME_CONFIG.DEFAULT_TRAPS
 
     // 始终使用随机分配逻辑，确保所有格子都严格按照棋盘配置来生成
-    return this.createBoardRandom(config, boardConf)
+    return this.createBoardRandom(config, boardConf, traps)
   }
 
   // 随机分配棋盘（自定义配置）
-  private static createBoardRandom(config: PunishmentConfig, boardConf: BoardConfig): BoardCell[] {
+  private static createBoardRandom(config: PunishmentConfig, boardConf: BoardConfig, traps: TrapAction[]): BoardCell[] {
     const totalCells = boardConf.totalCells
 
     const startPosition = 1
@@ -98,6 +100,11 @@ export class GameService {
     const restartCount = Math.min(boardConf.restartCells, availableCount - currentIndex)
     const restartPositions = availablePositions.slice(currentIndex, currentIndex + restartCount)
     currentIndex += restartCount
+
+    // 机关格子
+    const trapCount = Math.min(boardConf.trapCells, availableCount - currentIndex)
+    const trapPositions = availablePositions.slice(currentIndex, currentIndex + trapCount)
+    currentIndex += trapCount
 
     // 填充惩罚格子
     punishmentPositions.forEach(pos => {
@@ -193,6 +200,23 @@ export class GameService {
       })
     })
 
+    // 机关格子
+    trapPositions.forEach(pos => {
+      // 从机关中随机选择一个
+      const randomTrap = traps[Math.floor(Math.random() * traps.length)]
+      
+      cellMap.set(pos, {
+        id: pos,
+        type: 'trap',
+        position: pos,
+        effect: {
+          type: 'trap',
+          value: 0,
+          description: randomTrap.description,
+        },
+      })
+    })
+
     // 为剩余的空位置创建普通格子（无效果）
     for (let i = 1; i <= totalCells; i++) {
       if (!cellMap.has(i)) {
@@ -231,6 +255,7 @@ export class GameService {
     ).length
     const restCount = board.filter(c => c.type === 'special' && c.effect?.type === 'rest').length
     const restartCount = board.filter(c => c.type === 'restart').length
+    const trapCount = board.filter(c => c.type === 'trap').length
 
     console.log(title, {
       totalCells: board.length,
@@ -239,7 +264,8 @@ export class GameService {
       reverseCount,
       restCount,
       restartCount,
-      totalAssigned: punishmentCount + bonusCount + reverseCount + restCount + restartCount,
+      trapCount,
+      totalAssigned: punishmentCount + bonusCount + reverseCount + restCount + restartCount + trapCount,
     })
 
     // 输出每个格子
@@ -312,7 +338,8 @@ export class GameService {
       config.bonusCells +
       config.reverseCells +
       config.restCells +
-      config.restartCells
+      config.restartCells +
+      config.trapCells
 
     return (
       totalUsed <= config.totalCells &&
@@ -321,6 +348,7 @@ export class GameService {
       config.reverseCells >= 0 &&
       config.restCells >= 0 &&
       config.restartCells >= 0 &&
+      config.trapCells >= 0 &&
       config.totalCells >= 20
     )
   }
@@ -483,6 +511,11 @@ export class GameService {
           }
           break
 
+        case 'trap':
+          // 机关格子直接使用描述内容，不再生成随机惩罚
+          effect = `💀 触发机关陷阱！${targetCell.effect.description}`
+          break
+
         case 'move':
           // 不在这里应用移动效果，只返回效果信息
           effect = `移动到第${newPosition}格，触发前进${targetCell.effect.value}步效果`
@@ -559,6 +592,10 @@ export class GameService {
         newPosition = player.position
         effect = cellEffect.description || '接受惩罚'
         break
+      case 'trap':
+        newPosition = player.position
+        effect = cellEffect.description || '触发机关'
+        break
       default:
         newPosition = player.position
         effect = '未知效果'
@@ -617,7 +654,7 @@ export class GameService {
   }
 
   // 获取格子类型
-  static getCellType(position: number): 'punishment' | 'bonus' | 'special' | 'restart' {
+  static getCellType(position: number): 'punishment' | 'bonus' | 'special' | 'restart' | 'trap' {
     if (
       position in GAME_CONFIG.PUNISHMENT_CELLS ||
       position in GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS
