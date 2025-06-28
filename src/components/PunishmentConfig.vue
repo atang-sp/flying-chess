@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, computed, watch } from 'vue'
+  import { ref, computed, watch, nextTick } from 'vue'
   import type {
     PunishmentConfig,
     PunishmentTool,
@@ -55,12 +55,18 @@
   })
 
   // 验证配置并处理结果
-  const validateAndUpdate = (newConfig: PunishmentConfig) => {
+  const validateAndUpdate = async (newConfig: PunishmentConfig) => {
     const validation = GameService.validatePunishmentConfig(newConfig)
     if (validation.isValid) {
       localConfig.value = newConfig
       emit('update', newConfig)
     } else {
+      // 验证失败时，立即恢复本地状态到上一个有效状态
+      localConfig.value = JSON.parse(JSON.stringify(props.config))
+
+      // 等待DOM更新后显示错误提示
+      await nextTick()
+
       // 显示错误提示
       errorMessage.value = validation.errorMessage || '配置验证失败'
       requiredSensitivity.value = validation.requiredSensitivity
@@ -74,8 +80,8 @@
     showErrorModal.value = false
   }
 
-  const updateConfig = () => {
-    validateAndUpdate(localConfig.value)
+  const updateConfig = async () => {
+    await validateAndUpdate(localConfig.value)
   }
 
   // 比例自动分配算法
@@ -132,154 +138,424 @@
     }
   }
 
-  const onToolRatioInput = (idx: number, value: number) => {
-    const newConfig = { ...localConfig.value }
-    autoDistributeRatio(newConfig.tools, idx, value)
-    validateAndUpdate(newConfig)
-  }
-  const onBodyPartRatioInput = (idx: number, value: number) => {
-    const newConfig = { ...localConfig.value }
-    autoDistributeRatio(newConfig.bodyParts, idx, value)
-    validateAndUpdate(newConfig)
-  }
-  const onPositionRatioInput = (idx: number, value: number) => {
-    const newConfig = { ...localConfig.value }
-    autoDistributeRatio(newConfig.positions, idx, value)
-    validateAndUpdate(newConfig)
+  const onToolRatioInput = async (idx: number, value: number) => {
+    // 记录修改前的配置
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+
+    // 先更新UI显示新值
+    autoDistributeRatio(localConfig.value.tools, idx, value)
+
+    // 验证配置
+    const validation = GameService.validatePunishmentConfig(localConfig.value)
+    if (validation.isValid) {
+      // 配置有效，发送更新事件
+      emit('update', localConfig.value)
+    } else {
+      // 配置无效，回退到修改前的值
+      localConfig.value = originalConfig
+
+      // 显示错误提示
+      errorMessage.value = validation.errorMessage || '配置验证失败'
+      requiredSensitivity.value = validation.requiredSensitivity
+      showErrorModal.value = true
+      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+    }
   }
 
-  const updateToolIntensity = (toolId: string, newIntensity: number) => {
-    const newConfig = { ...localConfig.value }
-    const tool = newConfig.tools.find(t => t.id === toolId)
+  const onBodyPartRatioInput = async (idx: number, value: number) => {
+    // 记录修改前的配置
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+
+    // 先更新UI显示新值
+    autoDistributeRatio(localConfig.value.bodyParts, idx, value)
+
+    // 验证配置
+    const validation = GameService.validatePunishmentConfig(localConfig.value)
+    if (validation.isValid) {
+      // 配置有效，发送更新事件
+      emit('update', localConfig.value)
+    } else {
+      // 配置无效，回退到修改前的值
+      localConfig.value = originalConfig
+
+      // 显示错误提示
+      errorMessage.value = validation.errorMessage || '配置验证失败'
+      requiredSensitivity.value = validation.requiredSensitivity
+      showErrorModal.value = true
+      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+    }
+  }
+
+  const onPositionRatioInput = async (idx: number, value: number) => {
+    // 记录修改前的配置
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+
+    // 先更新UI显示新值
+    autoDistributeRatio(localConfig.value.positions, idx, value)
+
+    // 验证配置
+    const validation = GameService.validatePunishmentConfig(localConfig.value)
+    if (validation.isValid) {
+      // 配置有效，发送更新事件
+      emit('update', localConfig.value)
+    } else {
+      // 配置无效，回退到修改前的值
+      localConfig.value = originalConfig
+
+      // 显示错误提示
+      errorMessage.value = validation.errorMessage || '配置验证失败'
+      requiredSensitivity.value = validation.requiredSensitivity
+      showErrorModal.value = true
+      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+    }
+  }
+
+  const updateToolIntensity = async (toolId: string, newIntensity: number) => {
+    const tool = localConfig.value.tools.find(t => t.id === toolId)
     if (tool && newIntensity >= 1 && newIntensity <= 10) {
+      // 记录修改前的值
+      const originalIntensity = tool.intensity
+
+      // 先更新UI显示新值
       tool.intensity = newIntensity
-      validateAndUpdate(newConfig)
-    }
-  }
 
-  const removeTool = (toolId: string) => {
-    const newConfig = { ...localConfig.value }
-    const index = newConfig.tools.findIndex(t => t.id === toolId)
-    if (index > -1) {
-      newConfig.tools.splice(index, 1)
-      // 重新分配比例
-      if (newConfig.tools.length > 0) {
-        autoDistributeRatio(newConfig.tools, 0, newConfig.tools[0].ratio)
+      // 验证配置
+      const validation = GameService.validatePunishmentConfig(localConfig.value)
+      if (validation.isValid) {
+        // 配置有效，发送更新事件
+        emit('update', localConfig.value)
+      } else {
+        // 配置无效，回退到修改前的值
+        tool.intensity = originalIntensity
+
+        // 显示错误提示
+        errorMessage.value = validation.errorMessage || '配置验证失败'
+        requiredSensitivity.value = validation.requiredSensitivity
+        showErrorModal.value = true
+        emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
       }
-      validateAndUpdate(newConfig)
     }
   }
 
-  const addTool = () => {
+  const removeTool = async (toolId: string) => {
+    // 记录修改前的配置
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+
+    const index = localConfig.value.tools.findIndex(t => t.id === toolId)
+    if (index > -1) {
+      // 先更新UI显示新值
+      localConfig.value.tools.splice(index, 1)
+      // 重新分配比例
+      if (localConfig.value.tools.length > 0) {
+        autoDistributeRatio(localConfig.value.tools, 0, localConfig.value.tools[0].ratio)
+      }
+
+      // 验证配置
+      const validation = GameService.validatePunishmentConfig(localConfig.value)
+      if (validation.isValid) {
+        // 配置有效，发送更新事件
+        emit('update', localConfig.value)
+      } else {
+        // 配置无效，等待DOM更新后回退到修改前的值
+        await nextTick()
+        localConfig.value = originalConfig
+
+        // 显示错误提示
+        errorMessage.value = validation.errorMessage || '配置验证失败'
+        requiredSensitivity.value = validation.requiredSensitivity
+        showErrorModal.value = true
+        emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+      }
+    }
+  }
+
+  const addTool = async () => {
     if (newToolName.value.trim()) {
-      const newConfig = { ...localConfig.value }
-      const n = newConfig.tools.length + 1
+      // 记录修改前的配置
+      const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+
+      // 先更新UI显示新值
+      const n = localConfig.value.tools.length + 1
       const ratio = 100 / n
-      newConfig.tools.forEach(t => (t.ratio = ratio))
+      localConfig.value.tools.forEach(t => (t.ratio = ratio))
       const newTool: PunishmentTool = {
         id: `tool_${Date.now()}`,
         name: newToolName.value.trim(),
         intensity: Math.max(1, Math.min(10, newToolIntensity.value)),
         ratio,
       }
-      newConfig.tools.push(newTool)
-      newToolName.value = ''
-      newToolIntensity.value = 5
-      validateAndUpdate(newConfig)
-    }
-  }
+      localConfig.value.tools.push(newTool)
 
-  const updateBodyPartSensitivity = (bodyPartId: string, newSensitivity: number) => {
-    const newConfig = { ...localConfig.value }
-    const bodyPart = newConfig.bodyParts.find(b => b.id === bodyPartId)
-    if (bodyPart && newSensitivity >= 1 && newSensitivity <= 10) {
-      bodyPart.sensitivity = newSensitivity
-      validateAndUpdate(newConfig)
-    }
-  }
+      // 验证配置
+      const validation = GameService.validatePunishmentConfig(localConfig.value)
+      if (validation.isValid) {
+        // 配置有效，发送更新事件
+        emit('update', localConfig.value)
+        newToolName.value = ''
+        newToolIntensity.value = 5
+      } else {
+        // 配置无效，回退到修改前的值
+        localConfig.value = originalConfig
 
-  const removeBodyPart = (bodyPartId: string) => {
-    const newConfig = { ...localConfig.value }
-    const index = newConfig.bodyParts.findIndex(b => b.id === bodyPartId)
-    if (index > -1) {
-      newConfig.bodyParts.splice(index, 1)
-      if (newConfig.bodyParts.length > 0) {
-        autoDistributeRatio(newConfig.bodyParts, 0, newConfig.bodyParts[0].ratio)
+        // 显示错误提示
+        errorMessage.value = validation.errorMessage || '配置验证失败'
+        requiredSensitivity.value = validation.requiredSensitivity
+        showErrorModal.value = true
+        emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
       }
-      validateAndUpdate(newConfig)
     }
   }
 
-  const addBodyPart = () => {
+  const updateBodyPartSensitivity = async (bodyPartId: string, newSensitivity: number) => {
+    const bodyPart = localConfig.value.bodyParts.find(b => b.id === bodyPartId)
+    if (bodyPart && newSensitivity >= 1 && newSensitivity <= 10) {
+      // 记录修改前的值
+      const originalSensitivity = bodyPart.sensitivity
+
+      // 先更新UI显示新值
+      bodyPart.sensitivity = newSensitivity
+
+      // 验证配置
+      const validation = GameService.validatePunishmentConfig(localConfig.value)
+      if (validation.isValid) {
+        // 配置有效，发送更新事件
+        emit('update', localConfig.value)
+      } else {
+        // 配置无效，回退到修改前的值
+        bodyPart.sensitivity = originalSensitivity
+
+        // 显示错误提示
+        errorMessage.value = validation.errorMessage || '配置验证失败'
+        requiredSensitivity.value = validation.requiredSensitivity
+        showErrorModal.value = true
+        emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+      }
+    }
+  }
+
+  const removeBodyPart = async (bodyPartId: string) => {
+    // 记录修改前的配置
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+
+    const index = localConfig.value.bodyParts.findIndex(b => b.id === bodyPartId)
+    if (index > -1) {
+      // 先更新UI显示新值
+      localConfig.value.bodyParts.splice(index, 1)
+      if (localConfig.value.bodyParts.length > 0) {
+        autoDistributeRatio(localConfig.value.bodyParts, 0, localConfig.value.bodyParts[0].ratio)
+      }
+
+      // 验证配置
+      const validation = GameService.validatePunishmentConfig(localConfig.value)
+      if (validation.isValid) {
+        // 配置有效，发送更新事件
+        emit('update', localConfig.value)
+      } else {
+        // 配置无效，等待DOM更新后回退到修改前的值
+        await nextTick()
+        localConfig.value = originalConfig
+
+        // 显示错误提示
+        errorMessage.value = validation.errorMessage || '配置验证失败'
+        requiredSensitivity.value = validation.requiredSensitivity
+        showErrorModal.value = true
+        emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+      }
+    }
+  }
+
+  const addBodyPart = async () => {
     if (newBodyPartName.value.trim()) {
-      const newConfig = { ...localConfig.value }
-      const n = newConfig.bodyParts.length + 1
+      // 记录修改前的配置
+      const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+
+      // 先更新UI显示新值
+      const n = localConfig.value.bodyParts.length + 1
       const ratio = 100 / n
-      newConfig.bodyParts.forEach(b => (b.ratio = ratio))
+      localConfig.value.bodyParts.forEach(b => (b.ratio = ratio))
       const newBodyPart: PunishmentBodyPart = {
         id: `bodypart_${Date.now()}`,
         name: newBodyPartName.value.trim(),
         sensitivity: Math.max(1, Math.min(10, newBodyPartSensitivity.value)),
         ratio,
       }
-      newConfig.bodyParts.push(newBodyPart)
-      newBodyPartName.value = ''
-      newBodyPartSensitivity.value = 5
-      validateAndUpdate(newConfig)
-    }
-  }
+      localConfig.value.bodyParts.push(newBodyPart)
 
-  const removePosition = (positionId: string) => {
-    const newConfig = { ...localConfig.value }
-    const index = newConfig.positions.findIndex(p => p.id === positionId)
-    if (index > -1) {
-      newConfig.positions.splice(index, 1)
-      if (newConfig.positions.length > 0) {
-        autoDistributeRatio(newConfig.positions, 0, newConfig.positions[0].ratio)
+      // 验证配置
+      const validation = GameService.validatePunishmentConfig(localConfig.value)
+      if (validation.isValid) {
+        // 配置有效，发送更新事件
+        emit('update', localConfig.value)
+        newBodyPartName.value = ''
+        newBodyPartSensitivity.value = 5
+      } else {
+        // 配置无效，回退到修改前的值
+        localConfig.value = originalConfig
+
+        // 显示错误提示
+        errorMessage.value = validation.errorMessage || '配置验证失败'
+        requiredSensitivity.value = validation.requiredSensitivity
+        showErrorModal.value = true
+        emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
       }
-      validateAndUpdate(newConfig)
     }
   }
 
-  const addPosition = () => {
+  const removePosition = async (positionId: string) => {
+    // 记录修改前的配置
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+
+    const index = localConfig.value.positions.findIndex(p => p.id === positionId)
+    if (index > -1) {
+      // 先更新UI显示新值
+      localConfig.value.positions.splice(index, 1)
+      if (localConfig.value.positions.length > 0) {
+        autoDistributeRatio(localConfig.value.positions, 0, localConfig.value.positions[0].ratio)
+      }
+
+      // 验证配置
+      const validation = GameService.validatePunishmentConfig(localConfig.value)
+      if (validation.isValid) {
+        // 配置有效，发送更新事件
+        emit('update', localConfig.value)
+      } else {
+        // 配置无效，等待DOM更新后回退到修改前的值
+        await nextTick()
+        localConfig.value = originalConfig
+
+        // 显示错误提示
+        errorMessage.value = validation.errorMessage || '配置验证失败'
+        requiredSensitivity.value = validation.requiredSensitivity
+        showErrorModal.value = true
+        emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+      }
+    }
+  }
+
+  const addPosition = async () => {
     if (newPositionName.value.trim()) {
-      const newConfig = { ...localConfig.value }
-      const n = newConfig.positions.length + 1
+      // 记录修改前的配置
+      const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+
+      // 先更新UI显示新值
+      const n = localConfig.value.positions.length + 1
       const ratio = 100 / n
-      newConfig.positions.forEach(p => (p.ratio = ratio))
+      localConfig.value.positions.forEach(p => (p.ratio = ratio))
       const newPosition: PunishmentPosition = {
         id: `position_${Date.now()}`,
         name: newPositionName.value.trim(),
         ratio,
       }
-      newConfig.positions.push(newPosition)
-      newPositionName.value = ''
-      validateAndUpdate(newConfig)
+      localConfig.value.positions.push(newPosition)
+
+      // 验证配置
+      const validation = GameService.validatePunishmentConfig(localConfig.value)
+      if (validation.isValid) {
+        // 配置有效，发送更新事件
+        emit('update', localConfig.value)
+        newPositionName.value = ''
+      } else {
+        // 配置无效，回退到修改前的值
+        localConfig.value = originalConfig
+
+        // 显示错误提示
+        errorMessage.value = validation.errorMessage || '配置验证失败'
+        requiredSensitivity.value = validation.requiredSensitivity
+        showErrorModal.value = true
+        emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+      }
     }
   }
 
-  const resetToDefault = () => {
+  const resetToDefault = async () => {
+    // 记录修改前的配置
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+
+    // 先更新UI显示新值
     const defaultConfig = GameService.createPunishmentConfig()
-    validateAndUpdate(defaultConfig)
-  }
+    localConfig.value = defaultConfig
 
-  const saveConfig = () => {
-    validateAndUpdate(localConfig.value)
-  }
+    // 验证配置
+    const validation = GameService.validatePunishmentConfig(localConfig.value)
+    if (validation.isValid) {
+      // 配置有效，发送更新事件
+      emit('update', localConfig.value)
+    } else {
+      // 配置无效，回退到修改前的值
+      localConfig.value = originalConfig
 
-  const updateMinStrikes = (newValue: number) => {
-    const newConfig = { ...localConfig.value }
-    newConfig.minStrikes = Math.max(5, newValue)
-    if (newConfig.minStrikes > newConfig.maxStrikes) {
-      newConfig.maxStrikes = newConfig.minStrikes
+      // 显示错误提示
+      errorMessage.value = validation.errorMessage || '配置验证失败'
+      requiredSensitivity.value = validation.requiredSensitivity
+      showErrorModal.value = true
+      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
     }
-    validateAndUpdate(newConfig)
   }
 
-  const updateMaxStrikes = (newValue: number) => {
-    const newConfig = { ...localConfig.value }
-    newConfig.maxStrikes = Math.max(newConfig.minStrikes, newValue)
-    validateAndUpdate(newConfig)
+  const saveConfig = async () => {
+    // 验证当前配置
+    const validation = GameService.validatePunishmentConfig(localConfig.value)
+    if (validation.isValid) {
+      // 配置有效，发送更新事件
+      emit('update', localConfig.value)
+    } else {
+      // 配置无效，显示错误提示
+      errorMessage.value = validation.errorMessage || '配置验证失败'
+      requiredSensitivity.value = validation.requiredSensitivity
+      showErrorModal.value = true
+      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+    }
+  }
+
+  const updateMinStrikes = async (newValue: number) => {
+    // 记录修改前的配置
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+
+    // 先更新UI显示新值
+    localConfig.value.minStrikes = Math.max(5, newValue)
+    if (localConfig.value.minStrikes > localConfig.value.maxStrikes) {
+      localConfig.value.maxStrikes = localConfig.value.minStrikes
+    }
+
+    // 验证配置
+    const validation = GameService.validatePunishmentConfig(localConfig.value)
+    if (validation.isValid) {
+      // 配置有效，发送更新事件
+      emit('update', localConfig.value)
+    } else {
+      // 配置无效，回退到修改前的值
+      localConfig.value = originalConfig
+
+      // 显示错误提示
+      errorMessage.value = validation.errorMessage || '配置验证失败'
+      requiredSensitivity.value = validation.requiredSensitivity
+      showErrorModal.value = true
+      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+    }
+  }
+
+  const updateMaxStrikes = async (newValue: number) => {
+    // 记录修改前的配置
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+
+    // 先更新UI显示新值
+    localConfig.value.maxStrikes = Math.max(localConfig.value.minStrikes, newValue)
+
+    // 验证配置
+    const validation = GameService.validatePunishmentConfig(localConfig.value)
+    if (validation.isValid) {
+      // 配置有效，发送更新事件
+      emit('update', localConfig.value)
+    } else {
+      // 配置无效，回退到修改前的值
+      localConfig.value = originalConfig
+
+      // 显示错误提示
+      errorMessage.value = validation.errorMessage || '配置验证失败'
+      requiredSensitivity.value = validation.requiredSensitivity
+      showErrorModal.value = true
+      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+    }
   }
 </script>
 
