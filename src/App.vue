@@ -749,9 +749,10 @@
   })
 
   // 添加validation-failed事件处理
-  const handleValidationFailed = () => {
-    console.error('惩罚配置验证失败，正在重置状态...')
-    resetGameStateOnError()
+  const handleValidationFailed = (errorMessage: string, requiredSensitivity?: number) => {
+    console.log('惩罚配置验证失败:', errorMessage)
+    // 不需要重置游戏状态，只需要显示错误提示即可
+    // 错误提示已经在PunishmentConfig组件中处理了
   }
 </script>
 
@@ -893,7 +894,7 @@
     <!-- 起飞惩罚显示弹窗 -->
     <TakeoffPunishmentDisplay
       :visible="showTakeoffPunishmentDisplay"
-      :punishment="currentTakeoffPunishment!"
+      :punishment="currentTakeoffPunishment"
       :dice-value="currentTakeoffDiceValue"
       :executor-name="gameState.players[currentTakeoffExecutorIndex]?.name || '未知玩家'"
       @confirm="confirmTakeoffPunishment"

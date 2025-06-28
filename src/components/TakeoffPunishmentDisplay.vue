@@ -7,7 +7,7 @@
 
   interface Props {
     visible: boolean
-    punishment: PunishmentAction
+    punishment: PunishmentAction | null
     diceValue: number
     executorName: string
   }
@@ -35,7 +35,7 @@
       <div class="punishment-content">
         <div class="punishment-description">掷到{{ diceValue }}点，未能起飞！需要接受惩罚。</div>
 
-        <div class="punishment-details">
+        <div v-if="punishment" class="punishment-details">
           <div class="detail-item">
             <span class="detail-label">执行者：</span>
             <span class="detail-value">{{ executorName }}</span>
