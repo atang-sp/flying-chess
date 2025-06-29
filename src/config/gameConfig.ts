@@ -187,7 +187,8 @@ export const GAME_CONFIG = {
     {
       id: 'trap_2',
       name: '随机惩罚机关',
-      description: '由随机玩家使用任意工具惩罚屁股，必须自己请罚"请xxx打我的屁股"',
+      description:
+        '由上一个被惩罚的玩家使用任意工具惩罚屁股，必须自己请罚，大声说出"请xxx打我的屁股"',
     },
   ],
 }

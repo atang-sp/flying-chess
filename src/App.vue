@@ -26,6 +26,7 @@
   import TakeoffPunishmentDisplay from './components/TakeoffPunishmentDisplay.vue'
   import VersionDisplay from './components/VersionDisplay.vue'
   import TrapDisplay from './components/TrapDisplay.vue'
+  import VictoryScreen from './components/VictoryScreen.vue'
 
   // 游戏状态
   const gameState = reactive<GameState>({
@@ -75,6 +76,9 @@
   const showTrapDisplay = ref(false)
   const currentTrapPunishment = ref<PunishmentAction | null>(null)
   const currentTrapDescription = ref<string>('')
+
+  // 胜利结算画面状态
+  const showVictoryScreen = ref(false)
 
   // 计算属性
   const canRollDice = computed(() => {
@@ -353,6 +357,9 @@
     showTakeoffPunishmentDisplay.value = false
     currentTakeoffPunishment.value = null
 
+    // 清除胜利结算画面状态
+    showVictoryScreen.value = false
+
     // 直接跳转到棋盘设置页面
     gameState.gameStatus = 'board_settings'
   }
@@ -427,6 +434,7 @@
         gameState.winner = currentPlayer
         gameState.gameStatus = 'finished'
         gameFinished.value = true
+        showVictoryScreen.value = true
         return
       }
 
@@ -614,6 +622,7 @@
         gameState.winner = currentPlayer
         gameState.gameStatus = 'finished'
         gameFinished.value = true
+        showVictoryScreen.value = true
         return
       }
 
@@ -697,6 +706,7 @@
         gameState.winner = currentPlayer
         gameState.gameStatus = 'finished'
         gameFinished.value = true
+        showVictoryScreen.value = true
         return
       }
 
@@ -777,6 +787,7 @@
         gameState.winner = currentPlayer
         gameState.gameStatus = 'finished'
         gameFinished.value = true
+        showVictoryScreen.value = true
         return
       }
 
@@ -945,6 +956,12 @@
       currentTrapPunishment.value = null
       currentTrapDescription.value = ''
     }
+  }
+
+  // 处理胜利结算画面的"再来一局"按钮
+  const handleVictoryPlayAgain = () => {
+    showVictoryScreen.value = false
+    resetGame()
   }
 </script>
 
@@ -1189,6 +1206,14 @@
       :show="showTrapDisplay"
       :trap-description="currentTrapDescription"
       @confirm="confirmTrap"
+    />
+
+    <!-- 胜利结算画面 -->
+    <VictoryScreen
+      :show="showVictoryScreen"
+      :winner="gameState.winner"
+      :all-players="gameState.players"
+      @play-again="handleVictoryPlayAgain"
     />
 
     <!-- 版本显示组件 -->

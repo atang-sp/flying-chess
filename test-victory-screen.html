@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>胜利结算画面测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .test-button {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            font-size: 16px;
+        }
+        .test-button:hover {
+            background: #ee5a24;
+        }
+        .instructions {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🎉 胜利结算画面功能测试</h1>
+        
+        <div class="instructions">
+            <h3>测试说明：</h3>
+            <ol>
+                <li>点击"开始游戏"进入游戏</li>
+                <li>快速移动到终点（可以通过修改玩家位置来模拟）</li>
+                <li>当玩家到达终点时，应该显示胜利结算画面</li>
+                <li>胜利结算画面应该显示：
+                    <ul>
+                        <li>胜利者信息</li>
+                        <li>胜利奖励：用手对所有其他玩家打屁股5下</li>
+                        <li>其他玩家列表</li>
+                        <li>"再来一局"按钮</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <div>
+            <button class="test-button" onclick="startGame()">🎮 开始游戏</button>
+            <button class="test-button" onclick="simulateVictory()">🏆 模拟胜利</button>
+            <button class="test-button" onclick="resetGame()">🔄 重置游戏</button>
+        </div>
+
+        <div id="game-status" style="margin-top: 20px; padding: 10px; background: #e9ecef; border-radius: 5px;">
+            <h3>游戏状态：</h3>
+            <p id="status-text">未开始</p>
+        </div>
+    </div>
+
+    <script>
+        // 模拟游戏状态
+        let gameState = {
+            gameStatus: 'intro',
+            players: [],
+            winner: null,
+            currentPlayerIndex: 0
+        };
+
+        function startGame() {
+            gameState.gameStatus = 'waiting';
+            gameState.players = [
+                { id: 1, name: '玩家1', color: '#ff6b6b', position: 0, isWinner: false },
+                { id: 2, name: '玩家2', color: '#4ecdc4', position: 0, isWinner: false },
+                { id: 3, name: '玩家3', color: '#45b7d1', position: 0, isWinner: false }
+            ];
+            updateStatus('游戏已开始');
+        }
+
+        function simulateVictory() {
+            if (gameState.players.length === 0) {
+                alert('请先开始游戏！');
+                return;
+            }
+            
+            // 模拟玩家1到达终点
+            gameState.players[0].position = 40; // 假设棋盘有40格
+            gameState.players[0].isWinner = true;
+            gameState.winner = gameState.players[0];
+            gameState.gameStatus = 'finished';
+            
+            updateStatus('玩家1获胜！应该显示胜利结算画面');
+            
+            // 显示胜利结算画面信息
+            showVictoryInfo();
+        }
+
+        function showVictoryInfo() {
+            const winner = gameState.winner;
+            const otherPlayers = gameState.players.filter(p => p.id !== winner.id);
+            
+            const victoryInfo = `
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; margin-top: 20px;">
+                    <h2>🎉 游戏胜利！</h2>
+                    <div style="display: flex; align-items: center; gap: 10px; margin: 15px 0;">
+                        <div style="width: 50px; height: 50px; border-radius: 50%; background-color: ${winner.color}; border: 3px solid white;"></div>
+                        <span style="font-size: 18px; font-weight: bold;">${winner.name}</span>
+                    </div>
+                    
+                    <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+                        <h3>🏆 胜利奖励</h3>
+                        <p>恭喜 ${winner.name} 获得胜利！</p>
+                        <p style="color: #ffd700; font-weight: bold;">作为奖励，${winner.name} 可以用手对所有其他玩家打屁股5下：</p>
+                        
+                        <h4>其他玩家列表：</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 10px;">
+                            ${otherPlayers.map(player => `
+                                <div style="background: rgba(255, 255, 255, 0.15); padding: 10px; border-radius: 8px; text-align: center;">
+                                    <div style="width: 30px; height: 30px; border-radius: 50%; background-color: ${player.color}; border: 2px solid white; margin: 0 auto 5px;"></div>
+                                    <div style="font-size: 14px; font-weight: bold;">${player.name}</div>
+                                    <div style="background: #ff6b6b; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-top: 5px;">5下</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <button onclick="resetGame()" style="background: #ff6b6b; color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-size: 16px;">
+                        🎮 再来一局
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('game-status').innerHTML += victoryInfo;
+        }
+
+        function resetGame() {
+            gameState = {
+                gameStatus: 'intro',
+                players: [],
+                winner: null,
+                currentPlayerIndex: 0
+            };
+            updateStatus('游戏已重置');
+        }
+
+        function updateStatus(text) {
+            document.getElementById('status-text').textContent = text;
+        }
+    </script>
+</body>
+</html> 
