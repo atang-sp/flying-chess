@@ -33,7 +33,9 @@
       </div>
 
       <div class="punishment-content">
-        <div class="punishment-description">掷到{{ diceValue }}点，未能起飞！需要接受惩罚。</div>
+        <div class="punishment-description">
+          掷到{{ diceValue }}点，未能起飞！需要被惩罚{{ diceValue }}下。
+        </div>
 
         <div v-if="punishment" class="punishment-details">
           <div class="detail-item">
