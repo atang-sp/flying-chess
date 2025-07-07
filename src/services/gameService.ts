@@ -12,7 +12,11 @@ import type {
 import { GAME_CONFIG } from '../config/gameConfig'
 
 export class GameService {
-  static createBoard(punishmentConfig?: PunishmentConfig, boardConfig?: BoardConfig, customTraps?: TrapAction[]): BoardCell[] {
+  static createBoard(
+    punishmentConfig?: PunishmentConfig,
+    boardConfig?: BoardConfig,
+    customTraps?: TrapAction[]
+  ): BoardCell[] {
     // 1. 读取配置
     const config = punishmentConfig || this.createPunishmentConfig()
     const boardConf = boardConfig || GAME_CONFIG.DEFAULT_BOARD_CONFIG
@@ -23,7 +27,11 @@ export class GameService {
   }
 
   // 随机分配棋盘（自定义配置）
-  private static createBoardRandom(config: PunishmentConfig, boardConf: BoardConfig, traps: TrapAction[]): BoardCell[] {
+  private static createBoardRandom(
+    config: PunishmentConfig,
+    boardConf: BoardConfig,
+    traps: TrapAction[]
+  ): BoardCell[] {
     const totalCells = boardConf.totalCells
 
     const startPosition = 1
@@ -204,7 +212,7 @@ export class GameService {
     trapPositions.forEach(pos => {
       // 从机关中随机选择一个
       const randomTrap = traps[Math.floor(Math.random() * traps.length)]
-      
+
       cellMap.set(pos, {
         id: pos,
         type: 'trap',
@@ -265,7 +273,8 @@ export class GameService {
       restCount,
       restartCount,
       trapCount,
-      totalAssigned: punishmentCount + bonusCount + reverseCount + restCount + restartCount + trapCount,
+      totalAssigned:
+        punishmentCount + bonusCount + reverseCount + restCount + restartCount + trapCount,
     })
 
     // 输出每个格子
@@ -325,6 +334,7 @@ export class GameService {
       positions: [...GAME_CONFIG.DEFAULT_POSITIONS],
       minStrikes: GAME_CONFIG.DEFAULT_PUNISHMENT_STRIKES.min,
       maxStrikes: GAME_CONFIG.DEFAULT_PUNISHMENT_STRIKES.max,
+      step: GAME_CONFIG.DEFAULT_PUNISHMENT_STRIKES.step,
     }
   }
 
@@ -412,6 +422,20 @@ export class GameService {
         const bodyPart = this.selectByRatio(punishmentConfig.bodyParts)
         const position = this.selectByRatio(punishmentConfig.positions)
 
+        // 生成惩罚次数，确保是步长的倍数
+        const minStrikes = Math.max(1, punishmentConfig.minStrikes || 10)
+        const maxStrikes = Math.max(minStrikes, punishmentConfig.maxStrikes || 30)
+        const step = punishmentConfig.step || 5
+
+        // 确保最小值和最大值都是步长的倍数
+        const minMultiple = Math.ceil(minStrikes / step)
+        const maxMultiple = Math.floor(maxStrikes / step)
+
+        // 在有效的倍数范围内随机选择
+        const randomMultiple =
+          Math.floor(Math.random() * (maxMultiple - minMultiple + 1)) + minMultiple
+        const strikes = randomMultiple * step
+
         // 计算惩罚执行者 - 等概率随机选择其他玩家
         const otherPlayersCount = totalPlayers - 1
         if (otherPlayersCount > 0) {
@@ -431,7 +455,8 @@ export class GameService {
           tool,
           bodyPart,
           position,
-          description: `未起飞，被惩罚：${tool.name} ${bodyPart.name} ${position.name}`,
+          strikes,
+          description: `未起飞，被惩罚：用${tool.name}打${bodyPart.name}${strikes}下，姿势：${position.name}`,
         }
 
         effect = `未起飞！被惩罚`
@@ -694,10 +719,18 @@ export class GameService {
     position: PunishmentPosition,
     config: PunishmentConfig
   ): PunishmentAction {
-    // 在配置的范围内随机生成惩罚次数
+    // 在配置的范围内随机生成惩罚次数，确保是步长的倍数
     const minStrikes = Math.max(1, config.minStrikes || 10)
     const maxStrikes = Math.max(minStrikes, config.maxStrikes || 30)
-    const strikes = Math.floor(Math.random() * (maxStrikes - minStrikes + 1)) + minStrikes
+    const step = config.step || 5
+
+    // 确保最小值和最大值都是步长的倍数
+    const minMultiple = Math.ceil(minStrikes / step)
+    const maxMultiple = Math.floor(maxStrikes / step)
+
+    // 在有效的倍数范围内随机选择
+    const randomMultiple = Math.floor(Math.random() * (maxMultiple - minMultiple + 1)) + minMultiple
+    const strikes = randomMultiple * step
 
     return {
       tool,
@@ -728,10 +761,18 @@ export class GameService {
     // 随机选择姿势
     const position = this.selectByRatio(config.positions)
 
-    // 在配置的范围内随机生成惩罚次数
+    // 在配置的范围内随机生成惩罚次数，确保是步长的倍数
     const minStrikes = Math.max(1, config.minStrikes || 10)
     const maxStrikes = Math.max(minStrikes, config.maxStrikes || 30)
-    const strikes = Math.floor(Math.random() * (maxStrikes - minStrikes + 1)) + minStrikes
+    const step = config.step || 5
+
+    // 确保最小值和最大值都是步长的倍数
+    const minMultiple = Math.ceil(minStrikes / step)
+    const maxMultiple = Math.floor(maxStrikes / step)
+
+    // 在有效的倍数范围内随机选择
+    const randomMultiple = Math.floor(Math.random() * (maxMultiple - minMultiple + 1)) + minMultiple
+    const strikes = randomMultiple * step
 
     return {
       tool,

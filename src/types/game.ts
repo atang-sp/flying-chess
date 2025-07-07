@@ -34,6 +34,7 @@ export interface PunishmentConfig {
   positions: PunishmentPosition[]
   minStrikes: number // 最小惩罚次数
   maxStrikes: number // 最大惩罚次数
+  step: number // 惩罚次数步长
 }
 
 export interface PunishmentAction {
