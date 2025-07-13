@@ -260,7 +260,9 @@
         </div>
         <div class="tooltip-body">
           <div v-if="tooltipCell?.effect" class="tooltip-effect">
-            <div v-if="tooltipCell.effect.type !== 'trap'" class="effect-title">{{ tooltipCell.effect.description }}</div>
+            <div v-if="tooltipCell.effect.type !== 'trap'" class="effect-title">
+              {{ tooltipCell.effect.description }}
+            </div>
             <div
               v-if="tooltipCell.effect.type === 'punishment' && tooltipCell.effect.punishment"
               class="punishment-details"

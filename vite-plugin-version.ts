@@ -35,7 +35,7 @@ export function versionPlugin(options: VersionPluginOptions = {}): Plugin {
 
   return {
     name: 'version-plugin',
-    configResolved(config) {
+    configResolved(_config) {
       // 优先使用环境变量中的版本号
       const envVersion = process.env.VITE_APP_VERSION
       if (envVersion) {

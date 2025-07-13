@@ -1,5 +1,6 @@
 <script setup lang="ts">
-  import { ref, onMounted, onUnmounted } from 'vue'
+  import { ref, onMounted, onUnmounted, watch } from 'vue'
+  import { savePlayerSettings, loadPlayerSettings } from '../utils/cache'
 
   interface Emits {
     (e: 'start', playerConfig: { count: number; names: string[] }): void
@@ -10,6 +11,22 @@
   // 玩家配置状态
   const playerCount = ref(2)
   const playerNames = ref<string[]>(['玩家1', '玩家2'])
+
+  // 初始化时尝试加载本地缓存的玩家设置
+  const cachedSettings = loadPlayerSettings()
+  if (cachedSettings) {
+    playerCount.value = cachedSettings.playerCount
+    playerNames.value = [...cachedSettings.playerNames]
+  }
+
+  // 监听玩家数量和名称变化并持久化
+  watch(
+    () => [playerCount.value, playerNames.value],
+    () => {
+      savePlayerSettings({ playerCount: playerCount.value, playerNames: playerNames.value })
+    },
+    { deep: true }
+  )
 
   // 更新玩家名称数组
   const updatePlayerNames = () => {

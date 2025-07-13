@@ -47,8 +47,9 @@
 
   // 检查配置是否有效
   const isConfigValid = computed(() => {
-    return localTraps.value.length > 0 && localTraps.value.every(trap => 
-      trap.name.trim() !== '' && trap.description.trim() !== ''
+    return (
+      localTraps.value.length > 0 &&
+      localTraps.value.every(trap => trap.name.trim() !== '' && trap.description.trim() !== '')
     )
   })
 </script>
@@ -63,17 +64,13 @@
 
       <!-- 机关列表 -->
       <div class="traps-list">
-        <div
-          v-for="(trap, index) in localTraps"
-          :key="trap.id"
-          class="trap-item"
-        >
+        <div v-for="(trap, index) in localTraps" :key="trap.id" class="trap-item">
           <div class="trap-header">
             <h4>机关 {{ index + 1 }}</h4>
             <button
               class="btn-remove"
-              @click="removeTrap(index)"
               :disabled="localTraps.length <= 1"
+              @click="removeTrap(index)"
             >
               🗑️
             </button>
@@ -363,4 +360,4 @@
       flex-direction: column;
     }
   }
-</style> 
+</style>

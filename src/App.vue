@@ -1,5 +1,6 @@
 <script setup lang="ts">
-  import { ref, reactive, computed, onMounted } from 'vue'
+  /* eslint-disable @typescript-eslint/ban-ts-comment */
+  import { ref, reactive, computed, onMounted, watch } from 'vue'
   import { GameService } from './services/gameService'
   import { GAME_CONFIG } from './config/gameConfig'
   import type {
@@ -27,6 +28,7 @@
   import VersionDisplay from './components/VersionDisplay.vue'
   import TrapDisplay from './components/TrapDisplay.vue'
   import VictoryScreen from './components/VictoryScreen.vue'
+  import { saveConfig, loadConfig } from './utils/cache'
 
   // 游戏状态
   const gameState = reactive<GameState>({
@@ -71,6 +73,20 @@
 
   // 机关配置状态
   const trapConfig = ref<TrapAction[]>([...GAME_CONFIG.DEFAULT_TRAPS])
+
+  // 持久化：监听配置变化并保存到 localStorage（12 个月过期）
+  watch(
+    () => [gameState.boardConfig, gameState.punishmentConfig, trapConfig.value],
+    () => {
+      // 直接从响应式状态读取，避免类型推断问题
+      saveConfig({
+        boardConfig: gameState.boardConfig,
+        punishmentConfig: gameState.punishmentConfig,
+        trapConfig: trapConfig.value,
+      })
+    },
+    { deep: true }
+  )
 
   // 机关陷阱弹窗状态
   const showTrapDisplay = ref(false)
@@ -195,48 +211,63 @@
     // 组件挂载时初始化游戏
     initializeGame()
 
+    // 初始化后尝试读取本地缓存配置并应用
+    const cached = loadConfig()
+    if (cached) {
+      gameState.boardConfig = cached.boardConfig
+      gameState.punishmentConfig = cached.punishmentConfig
+      trapConfig.value = cached.trapConfig
+
+      // 根据缓存重新生成棋盘
+      gameState.board = GameService.createBoard(
+        gameState.punishmentConfig,
+        gameState.boardConfig,
+        trapConfig.value
+      )
+    }
+
     // 将游戏状态暴露到全局作用域，方便调试
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).gameState = gameState
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).trapConfig = trapConfig
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).gameStarted = gameStarted
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).gameFinished = gameFinished
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).turnCount = turnCount
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).lastEffect = lastEffect
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).currentPunishment = currentPunishment
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).showPunishmentConfirmation = showPunishmentConfirmation
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).punishmentCombinations = punishmentCombinations
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).effectFromPosition = effectFromPosition
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).effectToPosition = effectToPosition
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).showPunishmentStats = showPunishmentStats
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).confirmedCombinations = confirmedCombinations
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).showTakeoffPunishmentDisplay = showTakeoffPunishmentDisplay
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).currentTakeoffPunishment = currentTakeoffPunishment
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).currentTakeoffDiceValue = currentTakeoffDiceValue
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).currentTakeoffExecutorIndex = currentTakeoffExecutorIndex
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).currentPunishmentExecutor = currentPunishmentExecutor
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).showTrapDisplay = showTrapDisplay
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).currentTrapPunishment = currentTrapPunishment
-    // @ts-expect-error - 扩展window对象用于调试
+    // @ts-ignore - 扩展window对象用于调试
     ;(window as any).currentTrapDescription = currentTrapDescription
   })
 
