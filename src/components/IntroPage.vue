@@ -179,6 +179,16 @@
             <div class="dev-avatar">👨‍💻</div>
             <div class="dev-details">
               <span class="dev-name">开发者：阿汤</span>
+              <!-- 论坛宣传链接 -->
+              <a
+                href="https://atang-sp.run.place"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="dev-link"
+              >
+                <span class="dev-id">论坛: atang-sp.run.place</span>
+                <span class="link-icon">🔗</span>
+              </a>
               <a
                 href="https://x.com/sp_with_py"
                 target="_blank"
