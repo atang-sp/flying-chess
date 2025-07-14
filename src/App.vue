@@ -156,12 +156,13 @@
   // 状态检查机制
   const checkGameStateHealth = () => {
     // 检查是否卡在moving状态超过5秒
-    if (gameState.gameStatus === 'moving') {
+    // 但是如果有起飞惩罚弹窗显示，则不触发自动重置
+    if (gameState.gameStatus === 'moving' && !showTakeoffPunishmentDisplay.value) {
       const movingStartTime = Date.now()
 
       // 设置一个检查定时器
       const checkTimer = setInterval(() => {
-        if (gameState.gameStatus === 'moving') {
+        if (gameState.gameStatus === 'moving' && !showTakeoffPunishmentDisplay.value) {
           const elapsed = Date.now() - movingStartTime
           if (elapsed > 5000) {
             // 5秒后仍然在moving状态
@@ -475,6 +476,8 @@
         currentTakeoffDiceValue.value = diceValue
         currentTakeoffExecutorIndex.value = executorIndex
         showTakeoffPunishmentDisplay.value = true
+        // 处理起飞惩罚显示逻辑（单人自动消失，多人等待确认）
+        handleTakeoffPunishmentDisplay()
         // 保持moving状态，等待用户处理起飞惩罚
         return
       }
@@ -913,6 +916,12 @@
 
     // 继续游戏流程
     await continueAfterPunishment()
+  }
+
+  // 处理起飞惩罚显示逻辑
+  const handleTakeoffPunishmentDisplay = () => {
+    // 所有情况下都等待玩家手动确认，不自动消失
+    // 单人游戏和多人游戏都需要玩家点击确认按钮
   }
 
   // 在setup中添加handleBackToPunishmentSettings方法
