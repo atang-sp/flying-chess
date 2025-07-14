@@ -471,12 +471,14 @@
       }
 
       // 检查是否有起飞惩罚
-      if (punishment && executorIndex !== undefined) {
+      // 条件：当玩家尚未起飞(仍停留在起点)且出现惩罚时，无论是否存在执行者索引，都视为未起飞惩罚
+      if (punishment && !currentPlayer.hasTakenOff) {
         currentTakeoffPunishment.value = punishment
         currentTakeoffDiceValue.value = diceValue
-        currentTakeoffExecutorIndex.value = executorIndex
+        // 如果有指定执行者索引，则使用；否则设为-1 表示无执行者
+        currentTakeoffExecutorIndex.value = executorIndex !== undefined ? executorIndex : -1
         showTakeoffPunishmentDisplay.value = true
-        // 处理起飞惩罚显示逻辑（单人自动消失，多人等待确认）
+        // 处理起飞惩罚显示逻辑（等待玩家确认）
         handleTakeoffPunishmentDisplay()
         // 保持moving状态，等待用户处理起飞惩罚
         return
