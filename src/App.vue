@@ -28,6 +28,7 @@
   import VersionDisplay from './components/VersionDisplay.vue'
   import TrapDisplay from './components/TrapDisplay.vue'
   import VictoryScreen from './components/VictoryScreen.vue'
+  import TakeoffReliefDisplay from './components/TakeoffReliefDisplay.vue'
   import { saveConfig, loadConfig } from './utils/cache'
 
   // 游戏状态
@@ -433,6 +434,7 @@
         cellEffect,
         canTakeOff,
         executorIndex,
+        forcedTakeoffDueToFailure,
       } = GameService.movePlayer(
         currentPlayer,
         diceValue,
@@ -467,6 +469,14 @@
         gameState.gameStatus = 'finished'
         gameFinished.value = true
         showVictoryScreen.value = true
+        return
+      }
+
+      // 检查是否触发连续失败自动起飞
+      if (forcedTakeoffDueToFailure) {
+        failedTakeoffCountForMessage.value = gameState.punishmentConfig.maxTakeoffFailures || 5
+        showTakeoffReliefDisplay.value = true
+        // 保持moving状态，等待用户确认
         return
       }
 
@@ -1005,6 +1015,15 @@
     showVictoryScreen.value = false
     resetGame()
   }
+
+  const showTakeoffReliefDisplay = ref(false)
+  const failedTakeoffCountForMessage = ref(0)
+
+  const confirmTakeoffRelief = async () => {
+    showTakeoffReliefDisplay.value = false
+    gameState.gameStatus = 'waiting'
+    await continueAfterMove()
+  }
 </script>
 
 <template>
@@ -1023,6 +1042,25 @@
         <BoardConfigPanel :config="gameState.boardConfig" @update="updateBoardConfig" />
 
         <TrapConfigPanel :traps="trapConfig" @update="updateTrapConfig" />
+
+        <!-- 起飞失败次数配置 -->
+        <div class="failure-config">
+          <label class="failure-label">
+            <span class="label-icon">✈️</span>
+            最大起飞失败次数
+          </label>
+          <div class="input-group">
+            <input
+              v-model.number="gameState.punishmentConfig.maxTakeoffFailures"
+              type="number"
+              min="1"
+              max="20"
+              class="config-input"
+            />
+            <span class="input-unit">次</span>
+          </div>
+          <p class="failure-description">达到该次数后将自动起飞，不再受未起飞惩罚</p>
+        </div>
 
         <div class="page-actions">
           <button class="btn-secondary" @click="showIntro">
@@ -1264,6 +1302,13 @@
 
     <!-- 版本显示组件 -->
     <VersionDisplay />
+
+    <!-- 起飞失败过多自动起飞弹窗 -->
+    <TakeoffReliefDisplay
+      :visible="showTakeoffReliefDisplay"
+      :failed-count="failedTakeoffCountForMessage"
+      @confirm="confirmTakeoffRelief"
+    />
   </div>
 </template>
 

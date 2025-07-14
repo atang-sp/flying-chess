@@ -6,6 +6,7 @@ export interface Player {
   isWinner: boolean
   isMoving?: boolean // 添加移动动画状态
   hasTakenOff?: boolean // 是否已经起飞
+  failedTakeoffAttempts?: number // 起飞失败次数
 }
 
 export interface PunishmentTool {
@@ -35,6 +36,7 @@ export interface PunishmentConfig {
   minStrikes: number // 最小惩罚次数
   maxStrikes: number // 最大惩罚次数
   step: number // 惩罚次数步长
+  maxTakeoffFailures: number // 最大起飞失败次数（达到后自动起飞）
 }
 
 export interface PunishmentAction {

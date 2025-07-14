@@ -542,6 +542,23 @@
       emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
     }
   }
+
+  const updateMaxTakeoffFailures = async (newValue: number) => {
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+
+    localConfig.value.maxTakeoffFailures = Math.max(1, newValue)
+
+    const validation = GameService.validatePunishmentConfig(localConfig.value)
+    if (validation.isValid) {
+      emit('update', localConfig.value)
+    } else {
+      localConfig.value = originalConfig
+      errorMessage.value = validation.errorMessage || '配置验证失败'
+      requiredSensitivity.value = validation.requiredSensitivity
+      showErrorModal.value = true
+      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+    }
+  }
 </script>
 
 <template>
@@ -783,6 +800,27 @@
                 :disabled="localConfig.maxStrikes >= 100"
                 class="btn-stat"
                 @click="updateMaxStrikes(localConfig.maxStrikes + 5)"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div class="strikes-item">
+            <span class="strikes-label">最大起飞失败</span>
+            <div class="strikes-controls">
+              <button
+                :disabled="localConfig.maxTakeoffFailures <= 1"
+                class="btn-stat"
+                @click="updateMaxTakeoffFailures(localConfig.maxTakeoffFailures - 1)"
+              >
+                -
+              </button>
+              <span class="strikes-value">{{ localConfig.maxTakeoffFailures }}</span>
+              <button
+                :disabled="localConfig.maxTakeoffFailures >= 10"
+                class="btn-stat"
+                @click="updateMaxTakeoffFailures(localConfig.maxTakeoffFailures + 1)"
               >
                 +
               </button>

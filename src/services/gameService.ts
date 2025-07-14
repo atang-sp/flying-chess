@@ -294,6 +294,7 @@ export class GameService {
         position: 0,
         isWinner: false,
         hasTakenOff: false,
+        failedTakeoffAttempts: 0,
       })
     }
 
@@ -321,6 +322,7 @@ export class GameService {
         position: 0,
         isWinner: false,
         hasTakenOff: false,
+        failedTakeoffAttempts: 0,
       })
     }
 
@@ -335,6 +337,7 @@ export class GameService {
       minStrikes: GAME_CONFIG.DEFAULT_PUNISHMENT_STRIKES.min,
       maxStrikes: GAME_CONFIG.DEFAULT_PUNISHMENT_STRIKES.max,
       step: GAME_CONFIG.DEFAULT_PUNISHMENT_STRIKES.step,
+      maxTakeoffFailures: 5,
     }
   }
 
@@ -385,6 +388,7 @@ export class GameService {
     cellEffect?: BoardCell['effect']
     canTakeOff?: boolean
     executorIndex?: number
+    forcedTakeoffDueToFailure?: boolean
   } {
     // 设置移动动画状态
     player.isMoving = true
@@ -413,11 +417,44 @@ export class GameService {
       if (diceValue === 6) {
         // 起飞成功
         player.hasTakenOff = true
+        player.failedTakeoffAttempts = 0 // 重置失败计数
         newPosition = 1 // 移动到第一个格子
         effect = '起飞成功！移动到第1格'
         canTakeOff = true
       } else {
-        // 未起飞，触发惩罚
+        // 未起飞，触发惩罚或强制起飞判断
+
+        // 记录起飞失败次数
+        player.failedTakeoffAttempts = (player.failedTakeoffAttempts || 0) + 1
+
+        // 判断是否达到最大失败次数，直接起飞
+        if (
+          punishmentConfig.maxTakeoffFailures !== undefined &&
+          player.failedTakeoffAttempts >= punishmentConfig.maxTakeoffFailures
+        ) {
+          player.hasTakenOff = true
+          player.failedTakeoffAttempts = 0
+          newPosition = 1
+          effect = `运气太差，连续${punishmentConfig.maxTakeoffFailures}次未起飞，自动起飞！移动到第1格`
+          canTakeOff = true
+
+          // 返回特殊标记 forcedTakeoffDueToFailure
+          clearTimeout(movingTimer)
+          clearMovingState()
+
+          return {
+            newPosition,
+            effect,
+            punishment: undefined,
+            targetPlayerIndex,
+            cellEffect,
+            canTakeOff,
+            executorIndex,
+            forcedTakeoffDueToFailure: true,
+          } as any // casting to allow extra prop
+        }
+
+        // 未达到上限，继续惩罚流程
         const tool = this.selectByRatio(punishmentConfig.tools)
         const bodyPart = this.selectByRatio(punishmentConfig.bodyParts)
         const position = this.selectByRatio(punishmentConfig.positions)
