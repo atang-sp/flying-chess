@@ -1228,7 +1228,11 @@
       :visible="showTakeoffPunishmentDisplay"
       :punishment="currentTakeoffPunishment"
       :dice-value="currentTakeoffDiceValue"
-      :executor-name="gameState.players[currentTakeoffExecutorIndex]?.name || '未知玩家'"
+      :executor-name="
+        currentTakeoffExecutorIndex !== undefined && currentTakeoffExecutorIndex >= 0
+          ? gameState.players[currentTakeoffExecutorIndex]?.name || ''
+          : ''
+      "
       @confirm="confirmTakeoffPunishment"
     />
 

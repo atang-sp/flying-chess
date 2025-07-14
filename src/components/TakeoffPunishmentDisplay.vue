@@ -3,6 +3,7 @@
     tool: { name: string }
     bodyPart: { name: string }
     position: { name: string }
+    strikes?: number
   }
 
   interface Props {
@@ -34,11 +35,11 @@
 
       <div class="punishment-content">
         <div class="punishment-description">
-          掷到{{ diceValue }}点，未能起飞！需要被惩罚{{ diceValue }}下。
+          掷到{{ diceValue }}点，未能起飞！需要被惩罚{{ punishment?.strikes ?? diceValue }}下。
         </div>
 
         <div v-if="punishment" class="punishment-details">
-          <div class="detail-item">
+          <div v-if="executorName" class="detail-item">
             <span class="detail-label">执行者：</span>
             <span class="detail-value">{{ executorName }}</span>
           </div>
