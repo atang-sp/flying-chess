@@ -30,6 +30,7 @@
   import VictoryScreen from './components/VictoryScreen.vue'
   import TakeoffReliefDisplay from './components/TakeoffReliefDisplay.vue'
   import { saveConfig, loadConfig } from './utils/cache'
+  import { driver as createDriver } from 'driver.js'
 
   // 游戏状态
   const gameState = reactive<GameState>({
@@ -1024,6 +1025,52 @@
     gameState.gameStatus = 'waiting'
     await continueAfterMove()
   }
+
+  // 用户指引
+  const startGuide = () => {
+    const driver = createDriver({
+      allowClose: true,
+      overlayOpacity: 0.4,
+      nextBtnText: '下一步',
+      prevBtnText: '上一步',
+      doneBtnText: '完成',
+    })
+    driver.setSteps([
+      {
+        element: '.dice-section',
+        popover: {
+          title: '骰子',
+          description: '点击这里掷骰子，看看能否起飞！',
+          position: 'bottom',
+        },
+      },
+      {
+        element: '.player-status-section',
+        popover: {
+          title: '玩家信息',
+          description: '查看当前回合、状态以及玩家列表',
+          position: 'right',
+        },
+      },
+      {
+        element: '.board-section',
+        popover: {
+          title: '棋盘',
+          description: '这里展示棋盘与玩家飞机的位置',
+          position: 'left',
+        },
+      },
+      {
+        element: '.control-buttons',
+        popover: {
+          title: '游戏控制',
+          description: '可以开始游戏或在游戏结束后再来一局',
+          position: 'top',
+        },
+      },
+    ])
+    driver.drive(0)
+  }
 </script>
 
 <template>
@@ -1309,6 +1356,9 @@
       :failed-count="failedTakeoffCountForMessage"
       @confirm="confirmTakeoffRelief"
     />
+
+    <!-- 用户指引按钮 -->
+    <button class="guide-btn" title="用户指引" @click="startGuide">❓</button>
   </div>
 </template>
 
@@ -2058,5 +2108,27 @@
     50% {
       opacity: 0.5;
     }
+  }
+
+  /* 用户指引按钮 */
+  .guide-btn {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #ff6b6b;
+    color: #fff;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 1100;
+    transition: transform 0.2s ease;
+  }
+
+  .guide-btn:hover {
+    transform: translateY(-2px);
   }
 </style>
