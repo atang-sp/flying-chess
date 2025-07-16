@@ -56,11 +56,38 @@
   }
 
   const startGame = () => {
-    emit('start', {
-      count: playerCount.value,
-      names: playerNames.value,
-    })
+    emit('start', { count: playerCount.value, names: playerNames.value })
   }
+
+  // 清空缓存功能
+  const clearCache = () => {
+    try {
+      // 清空localStorage中的引导相关数据
+      localStorage.removeItem('hasShownGuide')
+      localStorage.removeItem('autoGuideEnabled')
+
+      // 清空玩家设置缓存
+      localStorage.removeItem('playerSettings')
+
+      // 清空游戏配置缓存
+      localStorage.removeItem('gameConfig')
+
+      // 显示成功提示
+      showClearSuccess.value = true
+
+      // 3秒后隐藏提示
+      setTimeout(() => {
+        showClearSuccess.value = false
+      }, 3000)
+
+      console.log('缓存已清空，引导将重新触发')
+    } catch (error) {
+      console.error('清空缓存时出错:', error)
+    }
+  }
+
+  // 显示清空成功提示
+  const showClearSuccess = ref(false)
 
   // 粒子系统
   const particles = ref<
@@ -259,45 +286,6 @@
         </div>
       </div>
 
-      <!-- 特性展示 -->
-      <div class="intro-features">
-        <div class="feature-item" data-feature="board">
-          <div class="feature-icon-container">
-            <div class="feature-icon">⚙️</div>
-            <div class="icon-glow"></div>
-          </div>
-          <div class="feature-text">
-            <h3>自定义棋盘</h3>
-            <p>格子数量、类型可配置</p>
-          </div>
-          <div class="feature-hover-effect"></div>
-        </div>
-
-        <div class="feature-item" data-feature="game">
-          <div class="feature-icon-container">
-            <div class="feature-icon">📊</div>
-            <div class="icon-glow"></div>
-          </div>
-          <div class="feature-text">
-            <h3>自定义惩罚</h3>
-            <p>姿势、工具、部位类型，比例可配置</p>
-          </div>
-          <div class="feature-hover-effect"></div>
-        </div>
-
-        <div class="feature-item" data-feature="animation">
-          <div class="feature-icon-container">
-            <div class="feature-icon">🎨</div>
-            <div class="icon-glow"></div>
-          </div>
-          <div class="feature-text">
-            <h3>精美动画</h3>
-            <p>流畅的视觉效果</p>
-          </div>
-          <div class="feature-hover-effect"></div>
-        </div>
-      </div>
-
       <!-- 操作区域 -->
       <div class="intro-actions">
         <button class="start-btn" @click="startGame">
@@ -318,6 +306,25 @@
             <span class="info-icon">🎯</span>
             <span class="info-text">适合年龄：18岁以上</span>
           </div>
+        </div>
+
+        <!-- 清空缓存选项 -->
+        <div class="cache-controls">
+          <button
+            class="clear-cache-btn"
+            title="清空所有缓存数据，重新触发引导"
+            @click="clearCache"
+          >
+            <span class="btn-icon">🧹</span>
+            <span class="btn-text">重置新手引导</span>
+          </button>
+          <p class="cache-hint">刷新页面可重新体验新手引导</p>
+        </div>
+
+        <!-- 清空成功提示 -->
+        <div v-if="showClearSuccess" class="clear-success-toast">
+          <span class="toast-icon">✅</span>
+          <span class="toast-text">已重置！新手引导将重新触发</span>
         </div>
       </div>
     </div>
@@ -782,93 +789,6 @@
     opacity: 1;
   }
 
-  /* 特性展示 */
-  .intro-features {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(280px, 85vw), 1fr));
-    gap: clamp(1.5rem, 4vw, 2.5rem);
-    margin-bottom: clamp(3rem, 8vw, 4rem);
-  }
-
-  .feature-item {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: clamp(1rem, 3vw, 1.5rem);
-    padding: clamp(1.5rem, 4vw, 2rem);
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: clamp(15px, 4vw, 20px);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow: hidden;
-  }
-
-  .feature-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-    transition: left 0.6s ease;
-  }
-
-  .feature-item:hover {
-    transform: translateY(-8px) scale(1.02);
-    background: rgba(255, 255, 255, 0.12);
-    box-shadow:
-      0 20px 40px rgba(0, 0, 0, 0.3),
-      0 0 0 1px rgba(255, 255, 255, 0.2);
-  }
-
-  .feature-item:hover::before {
-    left: 100%;
-  }
-
-  .feature-icon-container {
-    position: relative;
-    min-width: clamp(50px, 12vw, 70px);
-    height: clamp(50px, 12vw, 70px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .feature-icon {
-    font-size: clamp(2rem, 5vw, 2.5rem);
-    position: relative;
-    z-index: 2;
-    animation: iconPulse 2s ease-in-out infinite;
-  }
-
-  .icon-glow {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 100%;
-    height: 100%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
-    border-radius: 50%;
-    animation: glowPulse 2s ease-in-out infinite;
-  }
-
-  .feature-text h3 {
-    margin: 0 0 clamp(0.5rem, 1.5vw, 0.8rem) 0;
-    font-size: clamp(1.1rem, 3.5vw, 1.3rem);
-    font-weight: 700;
-    color: #fff;
-  }
-
-  .feature-text p {
-    margin: 0;
-    opacity: 0.8;
-    font-size: clamp(0.9rem, 2.5vw, 1rem);
-    line-height: 1.4;
-  }
-
   /* 操作区域 */
   .intro-actions {
     display: flex;
@@ -1133,28 +1053,6 @@
     }
   }
 
-  @keyframes iconPulse {
-    0%,
-    100% {
-      transform: scale(1);
-    }
-    50% {
-      transform: scale(1.1);
-    }
-  }
-
-  @keyframes glowPulse {
-    0%,
-    100% {
-      opacity: 0.3;
-      transform: translate(-50%, -50%) scale(1);
-    }
-    50% {
-      opacity: 0.6;
-      transform: translate(-50%, -50%) scale(1.2);
-    }
-  }
-
   @keyframes rocketBounce {
     0%,
     100% {
@@ -1305,34 +1203,6 @@
       font-size: clamp(0.6rem, 1.8vw, 0.7rem);
     }
 
-    .intro-features {
-      gap: 0.8rem;
-    }
-
-    .feature-item {
-      padding: 0.8rem;
-      gap: 0.5rem;
-    }
-
-    .feature-icon-container {
-      width: clamp(40px, 10vw, 50px);
-      height: clamp(40px, 10vw, 50px);
-    }
-
-    .feature-icon {
-      font-size: clamp(1.2rem, 3vw, 1.5rem);
-    }
-
-    .feature-text h3 {
-      font-size: clamp(0.9rem, 2.5vw, 1rem);
-      margin-bottom: 0.2rem;
-    }
-
-    .feature-text p {
-      font-size: clamp(0.7rem, 2vw, 0.8rem);
-      line-height: 1.3;
-    }
-
     .intro-actions {
       gap: 1rem;
     }
@@ -1434,33 +1304,6 @@
     }
 
     .dev-id {
-      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
-    }
-
-    .intro-features {
-      gap: 0.6rem;
-    }
-
-    .feature-item {
-      padding: 0.6rem;
-      gap: 0.4rem;
-    }
-
-    .feature-icon-container {
-      width: clamp(35px, 9vw, 40px);
-      height: clamp(35px, 9vw, 40px);
-    }
-
-    .feature-icon {
-      font-size: clamp(1rem, 2.5vw, 1.2rem);
-    }
-
-    .feature-text h3 {
-      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
-      margin-bottom: 0.15rem;
-    }
-
-    .feature-text p {
       font-size: clamp(0.65rem, 1.8vw, 0.7rem);
     }
 
@@ -1665,33 +1508,6 @@
       font-size: clamp(0.65rem, 1.8vw, 0.7rem);
     }
 
-    .intro-features {
-      gap: 0.6rem;
-    }
-
-    .feature-item {
-      padding: 0.6rem;
-      gap: 0.4rem;
-    }
-
-    .feature-icon-container {
-      width: clamp(35px, 9vw, 40px);
-      height: clamp(35px, 9vw, 40px);
-    }
-
-    .feature-icon {
-      font-size: clamp(1rem, 2.5vw, 1.2rem);
-    }
-
-    .feature-text h3 {
-      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
-      margin-bottom: 0.15rem;
-    }
-
-    .feature-text p {
-      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
-    }
-
     .start-btn {
       padding: clamp(0.7rem, 2.5vw, 0.8rem) clamp(1.2rem, 4vw, 1.5rem);
       min-height: clamp(44px, 11vw, 48px);
@@ -1719,6 +1535,108 @@
 
     .info-text {
       font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+    }
+  }
+
+  /* 清空缓存控件样式 */
+  .cache-controls {
+    margin-top: 1.5rem;
+    text-align: center;
+  }
+
+  .clear-cache-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+  }
+
+  .clear-cache-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(255, 107, 107, 0.4);
+    background: linear-gradient(135deg, #ee5a5a, #dd4a4a);
+  }
+
+  .clear-cache-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+  }
+
+  .clear-cache-btn .btn-icon {
+    font-size: 1rem;
+  }
+
+  .cache-hint {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.7);
+    opacity: 0.8;
+  }
+
+  /* 清空成功提示样式 */
+  .clear-success-toast {
+    position: fixed;
+    top: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.5rem;
+    background: rgba(46, 160, 67, 0.95);
+    color: white;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(10px);
+    z-index: 1000;
+    animation: toastSlideIn 0.3s ease-out;
+  }
+
+  .toast-icon {
+    font-size: 1.1rem;
+  }
+
+  @keyframes toastSlideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+
+  /* 移动端适配 */
+  @media (max-width: 768px) {
+    .cache-controls {
+      margin-top: 1rem;
+    }
+
+    .clear-cache-btn {
+      padding: 0.5rem 1rem;
+      font-size: 0.8rem;
+    }
+
+    .cache-hint {
+      font-size: 0.7rem;
+    }
+
+    .clear-success-toast {
+      top: 1rem;
+      padding: 0.6rem 1.2rem;
+      font-size: 0.85rem;
     }
   }
 </style>

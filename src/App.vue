@@ -1,6 +1,6 @@
 <script setup lang="ts">
   /* eslint-disable @typescript-eslint/ban-ts-comment */
-  import { ref, reactive, computed, onMounted, watch } from 'vue'
+  import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
   import { GameService } from './services/gameService'
   import { GAME_CONFIG } from './config/gameConfig'
   import type {
@@ -272,6 +272,43 @@
     ;(window as any).currentTrapPunishment = currentTrapPunishment
     // @ts-ignore - 扩展window对象用于调试
     ;(window as any).currentTrapDescription = currentTrapDescription
+
+    // 从localStorage恢复设置
+    const savedAutoGuide = localStorage.getItem('autoGuideEnabled')
+    if (savedAutoGuide !== null) {
+      autoGuideEnabled.value = savedAutoGuide === 'true'
+    }
+
+    const savedGuideStatus = localStorage.getItem('hasShownGuide')
+    if (savedGuideStatus) {
+      try {
+        const guideStatus = JSON.parse(savedGuideStatus)
+        hasShownGuide.value = new Set(guideStatus)
+      } catch (e) {
+        console.warn('无法解析引导状态:', e)
+      }
+    }
+
+    // 页面加载完成后，检查是否需要显示当前页面的引导
+    // 使用nextTick立即检查一次
+    nextTick(() => {
+      const currentStatus = gameState.gameStatus
+      console.log(`nextTick检查，当前状态: ${currentStatus}`)
+      if (['intro', 'board_settings', 'settings'].includes(currentStatus)) {
+        console.log(`立即触发自动引导检查`)
+        showAutoGuide(currentStatus)
+      }
+    })
+
+    // 延迟检查作为备用
+    setTimeout(() => {
+      const currentStatus = gameState.gameStatus
+      console.log(`页面加载完成，当前状态: ${currentStatus}`)
+      if (['intro', 'board_settings', 'settings'].includes(currentStatus)) {
+        console.log(`触发页面加载时的自动引导检查`)
+        showAutoGuide(currentStatus)
+      }
+    }, 1200) // 延迟1.2秒确保页面完全渲染
   })
 
   // 初始化游戏
@@ -1028,6 +1065,38 @@
 
   // 用户指引
   const startGuide = () => {
+    const currentStatus = gameState.gameStatus
+
+    // 如果惩罚确认弹窗正在显示，优先显示确认页面引导
+    if (showPunishmentConfirmation.value) {
+      startPunishmentConfirmationGuide()
+      return
+    }
+
+    // 根据当前页面状态选择对应的引导
+    switch (currentStatus) {
+      case 'intro':
+        startIntroGuide()
+        break
+      case 'board_settings':
+        startBoardSettingsGuide()
+        break
+      case 'settings':
+        startPunishmentSettingsGuide()
+        break
+      case 'waiting':
+      case 'rolling':
+      case 'moving':
+      case 'showing_effect':
+        startGameGuide()
+        break
+      default:
+        startDefaultGuide()
+    }
+  }
+
+  // 开始页面引导
+  const startIntroGuide = () => {
     const driver = createDriver({
       allowClose: true,
       overlayOpacity: 0.4,
@@ -1037,40 +1106,344 @@
     })
     driver.setSteps([
       {
-        element: '.dice-section',
+        element: '.game-title',
         popover: {
-          title: '骰子',
-          description: '点击这里掷骰子，看看能否起飞！',
+          title: '欢迎来到惩罚飞行棋！',
+          description: '这是一个刺激有趣的飞行棋游戏，支持自定义惩罚机制',
           position: 'bottom',
         },
       },
       {
-        element: '.player-status-section',
+        element: '.player-settings',
         popover: {
-          title: '玩家信息',
-          description: '查看当前回合、状态以及玩家列表',
-          position: 'right',
+          title: '玩家设置',
+          description: '设置游戏的玩家数量和昵称',
+          position: 'top',
         },
       },
+
       {
-        element: '.board-section',
+        element: '.start-btn',
         popover: {
-          title: '棋盘',
-          description: '这里展示棋盘与玩家飞机的位置',
-          position: 'left',
-        },
-      },
-      {
-        element: '.control-buttons',
-        popover: {
-          title: '游戏控制',
-          description: '可以开始游戏或在游戏结束后再来一局',
+          title: '开始游戏',
+          description: '点击开始游戏，进入棋盘设置页面进行详细配置',
           position: 'top',
         },
       },
     ])
     driver.drive(0)
   }
+
+  // 棋盘设置页面引导
+  const startBoardSettingsGuide = () => {
+    const driver = createDriver({
+      allowClose: true,
+      overlayOpacity: 0.4,
+      nextBtnText: '下一步',
+      prevBtnText: '上一步',
+      doneBtnText: '完成',
+    })
+    driver.setSteps([
+      {
+        element: '.settings-header',
+        popover: {
+          title: '棋盘设置',
+          description: '在这里配置游戏棋盘的基本参数',
+          position: 'bottom',
+        },
+      },
+      {
+        element: '.board-config',
+        popover: {
+          title: '格子数量配置',
+          description: '设置不同类型格子的数量：惩罚格、奖励格、特殊格子等',
+          position: 'right',
+        },
+      },
+      {
+        element: '.trap-config',
+        popover: {
+          title: '机关陷阱配置',
+          description: '配置棋盘上的机关陷阱，增加游戏的刺激性和随机性',
+          position: 'right',
+        },
+      },
+
+      {
+        element: '.page-actions',
+        popover: {
+          title: '操作按钮',
+          description: '可以返回上一页或进入下一步的惩罚设置',
+          position: 'top',
+        },
+      },
+    ])
+    driver.drive(0)
+  }
+
+  // 惩罚设置页面引导
+  const startPunishmentSettingsGuide = () => {
+    const driver = createDriver({
+      allowClose: true,
+      overlayOpacity: 0.4,
+      nextBtnText: '下一步',
+      prevBtnText: '上一步',
+      doneBtnText: '完成',
+    })
+    driver.setSteps([
+      {
+        element: '.settings-header',
+        popover: {
+          title: '惩罚设置',
+          description: '在这里配置游戏中的惩罚内容',
+          position: 'bottom',
+        },
+      },
+      {
+        element: '.config-section:nth-child(1)',
+        popover: {
+          title: '惩罚工具',
+          description: '选择和配置惩罚中使用的工具，每种工具有不同的强度和比例',
+          position: 'right',
+        },
+      },
+      {
+        element: '.config-section:nth-child(2)',
+        popover: {
+          title: '身体部位',
+          description: '选择和配置惩罚的身体部位，每个部位有不同的敏感度',
+          position: 'right',
+        },
+      },
+      {
+        element: '.config-section:nth-child(3)',
+        popover: {
+          title: '受罚姿势',
+          description: '配置受罚时的姿势，不同姿势有不同的难度',
+          position: 'right',
+        },
+      },
+      {
+        element: '.config-section:nth-child(4)',
+        popover: {
+          title: '惩罚次数',
+          description: '设置惩罚的最小和最大次数范围，以及最大起飞失败次数',
+          position: 'right',
+        },
+      },
+    ])
+    driver.drive(0)
+  }
+
+  // 游戏页面引导
+  const startGameGuide = () => {
+    const driver = createDriver({
+      allowClose: true,
+      overlayOpacity: 0.4,
+      nextBtnText: '下一步',
+      prevBtnText: '上一步',
+      doneBtnText: '完成',
+    })
+    driver.setSteps([
+      {
+        element: '.dice-container',
+        popover: {
+          title: '骰子区域',
+          description: '点击骰子开始掷骰子，看看能否起飞或移动多少步！',
+          position: 'bottom',
+        },
+      },
+      {
+        element: '.player-status-section',
+        popover: {
+          title: '游戏状态',
+          description: '查看当前回合数、游戏状态和当前玩家信息',
+          position: 'left',
+        },
+      },
+      {
+        element: '.board-section',
+        popover: {
+          title: '游戏棋盘',
+          description: '这里是主要的游戏区域，显示棋盘和玩家的飞机位置',
+          position: 'top',
+        },
+      },
+    ])
+    driver.drive(0)
+  }
+
+  // 惩罚确认页面引导
+  const startPunishmentConfirmationGuide = () => {
+    const driver = createDriver({
+      allowClose: true,
+      overlayOpacity: 0.4,
+      nextBtnText: '下一步',
+      prevBtnText: '上一步',
+      doneBtnText: '完成',
+    })
+    driver.setSteps([
+      {
+        element: '.modal-header',
+        popover: {
+          title: '惩罚组合确认',
+          description: '系统已为你生成了惩罚组合，你可以在这里查看和管理所有组合',
+          position: 'bottom',
+        },
+      },
+      {
+        element: '.combinations-list',
+        popover: {
+          title: '组合列表',
+          description: '这里显示了所有生成的惩罚组合，每个组合包含工具、部位、姿势和描述',
+          position: 'right',
+        },
+      },
+      {
+        element: '.combination-item:first-child .combination-details',
+        popover: {
+          title: '组合详情',
+          description: '每个组合显示工具强度、部位耐受度和详细的惩罚描述',
+          position: 'left',
+        },
+      },
+      {
+        element: '.combination-item:first-child .combination-actions',
+        popover: {
+          title: '删除或恢复',
+          description: '点击🗑️可以删除不合适的组合，删除后可以点击🔄恢复',
+          position: 'left',
+        },
+      },
+      {
+        element: '.combination-stats',
+        popover: {
+          title: '统计信息',
+          description: '显示总组合数、删除数量和最终保留的组合数量',
+          position: 'top',
+        },
+      },
+      {
+        element: '.modal-actions',
+        popover: {
+          title: '操作按钮',
+          description: '可以重新生成组合、返回设置页面或确认当前组合开始游戏',
+          position: 'top',
+        },
+      },
+    ])
+    driver.drive(0)
+  }
+
+  // 默认引导（兼容性）
+  const startDefaultGuide = () => {
+    const driver = createDriver({
+      allowClose: true,
+      overlayOpacity: 0.4,
+      nextBtnText: '下一步',
+      prevBtnText: '上一步',
+      doneBtnText: '完成',
+    })
+    driver.setSteps([
+      {
+        element: '.app',
+        popover: {
+          title: '惩罚飞行棋',
+          description: '欢迎使用惩罚飞行棋游戏！点击右下角的帮助按钮可以获取当前页面的详细引导。',
+          position: 'center',
+        },
+      },
+    ])
+    driver.drive(0)
+  }
+
+  // 自动引导功能 - 当进入新页面时自动显示引导
+  const hasShownGuide = ref(new Set<string>())
+  const autoGuideEnabled = ref(true) // 可以控制是否启用自动引导
+  const showGuideSettings = ref(false) // 控制引导设置菜单显示
+
+  const showAutoGuide = (pageType: string) => {
+    console.log(
+      `检查自动引导 - 页面类型: ${pageType}, 自动引导开启: ${autoGuideEnabled.value}, 已显示过: ${hasShownGuide.value.has(pageType)}`
+    )
+
+    if (autoGuideEnabled.value && !hasShownGuide.value.has(pageType)) {
+      console.log(`准备显示自动引导 - 页面: ${pageType}`)
+      // 延迟一下确保页面元素已经渲染
+      setTimeout(() => {
+        console.log(`执行自动引导 - 页面: ${pageType}`)
+        // 针对特定页面，直接调用专门的引导函数
+        if (pageType === 'punishment_confirmation') {
+          startPunishmentConfirmationGuide()
+        } else if (pageType === 'game') {
+          startGameGuide()
+        } else {
+          startGuide()
+        }
+        hasShownGuide.value.add(pageType)
+      }, 800) // 稍微减少延迟时间
+    }
+  }
+
+  // 切换自动引导开关
+  const toggleAutoGuide = () => {
+    autoGuideEnabled.value = !autoGuideEnabled.value
+    console.log(`自动引导开关切换为: ${autoGuideEnabled.value}`)
+    // 保存到localStorage
+    localStorage.setItem('autoGuideEnabled', autoGuideEnabled.value.toString())
+  }
+
+  // 重置引导状态
+  const resetGuideStatus = () => {
+    hasShownGuide.value.clear()
+    localStorage.removeItem('hasShownGuide')
+    console.log('引导状态已重置')
+  }
+
+  // 监听游戏状态变化，自动显示引导
+  watch(
+    () => gameState.gameStatus,
+    (newStatus, oldStatus) => {
+      console.log(`游戏状态变化: ${oldStatus} -> ${newStatus}`)
+      if (oldStatus && newStatus !== oldStatus) {
+        // 仅在特定页面自动显示引导
+        if (['intro', 'board_settings', 'settings'].includes(newStatus)) {
+          showAutoGuide(newStatus)
+        }
+        // 当进入游戏页面时（waiting状态），显示游戏引导
+        else if (
+          newStatus === 'waiting' &&
+          !['waiting', 'rolling', 'moving', 'showing_effect'].includes(oldStatus)
+        ) {
+          // 只有从非游戏状态进入waiting状态时才显示引导（避免游戏过程中重复显示）
+          showAutoGuide('game')
+        }
+      }
+    }
+  )
+
+  // 监听惩罚确认弹窗显示，自动显示引导
+  watch(
+    () => showPunishmentConfirmation.value,
+    newValue => {
+      console.log(`惩罚确认弹窗显示状态变化: ${newValue}`)
+      if (newValue) {
+        // 延迟显示引导，确保弹窗已完全渲染
+        setTimeout(() => {
+          showAutoGuide('punishment_confirmation')
+        }, 500)
+      }
+    }
+  )
+
+  // 保存引导状态
+  watch(
+    () => hasShownGuide.value,
+    newValue => {
+      localStorage.setItem('hasShownGuide', JSON.stringify(Array.from(newValue)))
+    },
+    { deep: true }
+  )
 </script>
 
 <template>
@@ -1089,25 +1462,6 @@
         <BoardConfigPanel :config="gameState.boardConfig" @update="updateBoardConfig" />
 
         <TrapConfigPanel :traps="trapConfig" @update="updateTrapConfig" />
-
-        <!-- 起飞失败次数配置 -->
-        <div class="failure-config">
-          <label class="failure-label">
-            <span class="label-icon">✈️</span>
-            最大起飞失败次数
-          </label>
-          <div class="input-group">
-            <input
-              v-model.number="gameState.punishmentConfig.maxTakeoffFailures"
-              type="number"
-              min="1"
-              max="20"
-              class="config-input"
-            />
-            <span class="input-unit">次</span>
-          </div>
-          <p class="failure-description">达到该次数后将自动起飞，不再受未起飞惩罚</p>
-        </div>
 
         <div class="page-actions">
           <button class="btn-secondary" @click="showIntro">
@@ -1357,8 +1711,51 @@
       @confirm="confirmTakeoffRelief"
     />
 
-    <!-- 用户指引按钮 -->
-    <button class="guide-btn" title="用户指引" @click="startGuide">❓</button>
+    <!-- 用户引导按钮和设置 -->
+    <div class="guide-controls">
+      <!-- 主要引导按钮 -->
+      <button class="guide-btn" title="查看当前页面引导" @click="startGuide">
+        <span class="guide-icon">❓</span>
+        <span class="guide-text">帮助</span>
+      </button>
+
+      <!-- 引导设置菜单 -->
+      <div class="guide-settings">
+        <button
+          class="settings-toggle"
+          title="引导设置"
+          @click="showGuideSettings = !showGuideSettings"
+        >
+          <span class="settings-icon">⚙️</span>
+        </button>
+
+        <!-- 设置菜单 -->
+        <div v-if="showGuideSettings" class="settings-menu">
+          <div class="settings-item">
+            <label class="setting-label">
+              <input
+                v-model="autoGuideEnabled"
+                type="checkbox"
+                class="setting-checkbox"
+                @change="toggleAutoGuide"
+              />
+              <span class="checkbox-text">自动显示引导</span>
+            </label>
+          </div>
+
+          <div class="settings-item">
+            <button class="reset-btn" title="重置引导状态" @click="resetGuideStatus">
+              <span class="reset-icon">🔄</span>
+              <span class="reset-text">重置引导</span>
+            </button>
+          </div>
+
+          <div class="settings-footer">
+            <small>首次访问页面时显示引导</small>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -2115,20 +2512,194 @@
     position: fixed;
     bottom: 1.5rem;
     right: 1.5rem;
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
     background: #ff6b6b;
     color: #fff;
     border: none;
-    font-size: 1.5rem;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    font-size: 1.8rem;
     cursor: pointer;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    z-index: 1100;
     transition: transform 0.2s ease;
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
   }
 
   .guide-btn:hover {
     transform: translateY(-2px);
+  }
+
+  .guide-icon {
+    font-size: 1.5rem;
+  }
+
+  .guide-text {
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  /* 用户引导设置 */
+  .guide-controls {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    z-index: 1100;
+  }
+
+  .guide-settings {
+    position: relative;
+  }
+
+  .settings-toggle {
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    border: 2px solid #ddd;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+  }
+
+  .settings-toggle:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 1);
+    border-color: #ff6b6b;
+  }
+
+  .settings-menu {
+    position: absolute;
+    bottom: 60px;
+    left: 0;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    min-width: 200px;
+    animation: fadeInUp 0.3s ease;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .settings-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .settings-item:last-child {
+    margin-bottom: 0;
+  }
+
+  .setting-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: #333;
+    cursor: pointer;
+  }
+
+  .setting-checkbox {
+    width: 16px;
+    height: 16px;
+    accent-color: #ff6b6b;
+  }
+
+  .checkbox-text {
+    font-weight: 500;
+  }
+
+  .reset-btn {
+    background: #ff6b6b;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .reset-btn:hover {
+    background: #e55a5a;
+    transform: translateY(-1px);
+  }
+
+  .reset-icon {
+    font-size: 1rem;
+  }
+
+  .reset-text {
+    font-weight: 500;
+  }
+
+  .settings-footer {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    font-size: 0.75rem;
+    color: #666;
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  /* 移动端适配 */
+  @media (max-width: 768px) {
+    .guide-btn {
+      width: 50px;
+      height: 50px;
+      font-size: 1.5rem;
+      bottom: 1rem;
+      right: 1rem;
+    }
+
+    .guide-text {
+      display: none;
+    }
+
+    .guide-controls {
+      bottom: 1rem;
+      left: 1rem;
+    }
+
+    .settings-toggle {
+      width: 40px;
+      height: 40px;
+      font-size: 1rem;
+    }
+
+    .settings-menu {
+      min-width: 180px;
+      padding: 0.75rem;
+    }
   }
 </style>

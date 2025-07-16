@@ -112,14 +112,6 @@
     margin-bottom: 1rem;
   }
 
-  .control-buttons {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1rem;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
   .btn {
     padding: clamp(0.6rem, 2vw, 0.75rem) clamp(1.2rem, 3vw, 1.5rem);
     border: none;
