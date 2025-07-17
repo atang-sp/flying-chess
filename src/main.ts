@@ -5,6 +5,7 @@ import 'driver.js/dist/driver.css'
 
 // PrimeVue imports
 import PrimeVue from 'primevue/config'
+import Aura from '@primevue/themes/aura'
 import 'primeicons/primeicons.css'
 
 // PrimeVue components
@@ -22,7 +23,16 @@ import Divider from 'primevue/divider'
 const app = createApp(App)
 
 // Configure PrimeVue
-app.use(PrimeVue)
+app.use(PrimeVue, {
+  theme: {
+    preset: Aura,
+    options: {
+      prefix: 'p',
+      darkModeSelector: 'system',
+      cssLayer: false,
+    },
+  },
+})
 
 // Register PrimeVue components
 app.component('PButton', Button)

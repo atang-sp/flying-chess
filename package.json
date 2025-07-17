@@ -31,6 +31,7 @@
     ]
   },
   "dependencies": {
+    "@primevue/themes": "^4.3.6",
     "@types/three": "^0.178.1",
     "driver.js": "^1.3.6",
     "primeicons": "^7.0.0",

@@ -72,13 +72,31 @@
 
 ## 🛠️ 安装与运行
 
+### 环境要求
+
+- Node.js 16+
+- npm 或 yarn
+
+### 安装步骤
+
 ```bash
-# 安装依赖
+# 1. 克隆项目
+git clone https://github.com/atang-sp/flying-chess.git
+cd flying-chess
+
+# 2. 安装依赖
 npm install
 
-# 启动开发服务器
+# 3. 启动开发服务器
 npm run dev
 
+# 4. 访问应用
+# 打开浏览器访问: http://localhost:5173/flying-chess/
+```
+
+### 构建与部署
+
+```bash
 # 构建生产版本
 npm run build
 
@@ -87,6 +105,19 @@ npm run build:tag
 
 # 预览生产版本
 npm run preview
+```
+
+### 常见问题
+
+**Q: 访问 localhost:5173 出现 404 错误？**
+A: 请确保访问完整路径：`http://localhost:5173/flying-chess/`
+
+**Q: 安装依赖时出现 PrimeVue 相关错误？**
+A: 确保安装了所有必需的依赖：
+
+```bash
+npm install @primevue/themes
+npm install primevue primeicons
 ```
 
 ---
