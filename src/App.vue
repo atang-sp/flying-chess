@@ -14,9 +14,9 @@
     TrapAction,
   } from './types/game'
   import IntroPage from './components/IntroPage.vue'
-  import GameControls from './components/GameControls.vue'
   import GameBoard from './components/GameBoard.vue'
-  import Dice from './components/Dice.vue'
+  import PlayerPanel from './components/PlayerPanel.vue'
+  import CoolDice from './components/CoolDice.vue'
   import BoardConfigPanel from './components/BoardConfig.vue'
   import PunishmentConfigPanel from './components/PunishmentConfig.vue'
   import TrapConfigPanel from './components/TrapConfig.vue'
@@ -48,6 +48,10 @@
   // 游戏控制状态
   const gameStarted = ref(false)
   const gameFinished = ref(false)
+
+  // UI状态
+  const sidebarVisible = ref(false)
+
   const turnCount = ref(0)
   const lastEffect = ref<string>('')
   const currentPunishment = ref<PunishmentAction | null>(null)
@@ -117,6 +121,24 @@
   const isBoardConfigValid = computed(() => {
     return GameService.validateBoardConfig(gameState.boardConfig)
   })
+
+  // UI辅助方法
+  const getStatusSeverity = (status: string) => {
+    switch (status) {
+      case 'waiting':
+        return 'info'
+      case 'rolling':
+        return 'warning'
+      case 'moving':
+        return 'warning'
+      case 'finished':
+        return 'success'
+      case 'showing_effect':
+        return 'warning'
+      default:
+        return 'info'
+    }
+  }
 
   // 页面导航
   const showBoardSettings = () => {
@@ -230,48 +252,53 @@
     }
 
     // 将游戏状态暴露到全局作用域，方便调试
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).gameState = gameState
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).trapConfig = trapConfig
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).gameStarted = gameStarted
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).gameFinished = gameFinished
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).turnCount = turnCount
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).lastEffect = lastEffect
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).currentPunishment = currentPunishment
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).showPunishmentConfirmation = showPunishmentConfirmation
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).punishmentCombinations = punishmentCombinations
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).effectFromPosition = effectFromPosition
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).effectToPosition = effectToPosition
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).showPunishmentStats = showPunishmentStats
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).confirmedCombinations = confirmedCombinations
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).showTakeoffPunishmentDisplay = showTakeoffPunishmentDisplay
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).currentTakeoffPunishment = currentTakeoffPunishment
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).currentTakeoffDiceValue = currentTakeoffDiceValue
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).currentTakeoffExecutorIndex = currentTakeoffExecutorIndex
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).currentPunishmentExecutor = currentPunishmentExecutor
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).showTrapDisplay = showTrapDisplay
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).currentTrapPunishment = currentTrapPunishment
-    // @ts-ignore - 扩展window对象用于调试
-    ;(window as any).currentTrapDescription = currentTrapDescription
+    if (import.meta.env.DEV) {
+      const debugWindow = window as typeof window & {
+        gameState: typeof gameState
+        trapConfig: typeof trapConfig
+        gameStarted: typeof gameStarted
+        gameFinished: typeof gameFinished
+        turnCount: typeof turnCount
+        lastEffect: typeof lastEffect
+        currentPunishment: typeof currentPunishment
+        showPunishmentConfirmation: typeof showPunishmentConfirmation
+        punishmentCombinations: typeof punishmentCombinations
+        effectFromPosition: typeof effectFromPosition
+        effectToPosition: typeof effectToPosition
+        showPunishmentStats: typeof showPunishmentStats
+        confirmedCombinations: typeof confirmedCombinations
+        showTakeoffPunishmentDisplay: typeof showTakeoffPunishmentDisplay
+        currentTakeoffPunishment: typeof currentTakeoffPunishment
+        currentTakeoffDiceValue: typeof currentTakeoffDiceValue
+        currentTakeoffExecutorIndex: typeof currentTakeoffExecutorIndex
+        currentPunishmentExecutor: typeof currentPunishmentExecutor
+        showTrapDisplay: typeof showTrapDisplay
+        currentTrapPunishment: typeof currentTrapPunishment
+        currentTrapDescription: typeof currentTrapDescription
+      }
+
+      debugWindow.gameState = gameState
+      debugWindow.trapConfig = trapConfig
+      debugWindow.gameStarted = gameStarted
+      debugWindow.gameFinished = gameFinished
+      debugWindow.turnCount = turnCount
+      debugWindow.lastEffect = lastEffect
+      debugWindow.currentPunishment = currentPunishment
+      debugWindow.showPunishmentConfirmation = showPunishmentConfirmation
+      debugWindow.punishmentCombinations = punishmentCombinations
+      debugWindow.effectFromPosition = effectFromPosition
+      debugWindow.effectToPosition = effectToPosition
+      debugWindow.showPunishmentStats = showPunishmentStats
+      debugWindow.confirmedCombinations = confirmedCombinations
+      debugWindow.showTakeoffPunishmentDisplay = showTakeoffPunishmentDisplay
+      debugWindow.currentTakeoffPunishment = currentTakeoffPunishment
+      debugWindow.currentTakeoffDiceValue = currentTakeoffDiceValue
+      debugWindow.currentTakeoffExecutorIndex = currentTakeoffExecutorIndex
+      debugWindow.currentPunishmentExecutor = currentPunishmentExecutor
+      debugWindow.showTrapDisplay = showTrapDisplay
+      debugWindow.currentTrapPunishment = currentTrapPunishment
+      debugWindow.currentTrapDescription = currentTrapDescription
+    }
 
     // 从localStorage恢复设置
     const savedAutoGuide = localStorage.getItem('autoGuideEnabled')
@@ -400,6 +427,38 @@
     }
   }
 
+  // 强制开始游戏（用于侧边栏等控制按钮）
+  const forceStartGame = () => {
+    // 如果还没有惩罚组合，先生成并直接确认
+    if (punishmentCombinations.value.length === 0) {
+      // 计算需要的惩罚组合数量：基于实际棋盘中的惩罚格子数量
+      const punishmentCells = gameState.board.filter(cell => cell.type === 'punishment')
+      const totalPunishmentCells = punishmentCells.length
+
+      // 生成惩罚组合
+      const combinations = GameService.generateBalancedPunishmentCombinations(
+        gameState.punishmentConfig,
+        totalPunishmentCells
+      )
+
+      // 直接确认组合，不显示确认弹窗
+      gameState.board = GameService.updateBoardWithConfirmedCombinations(
+        gameState.board,
+        combinations
+      )
+
+      punishmentCombinations.value = combinations
+      confirmedCombinations.value = combinations
+    }
+
+    // 直接开始游戏
+    gameState.gameStatus = 'waiting'
+    gameStarted.value = true
+    if (turnCount.value === 0) {
+      turnCount.value = 1
+    }
+  }
+
   // 重置游戏
   const resetGame = () => {
     // 重置游戏状态但保持配置
@@ -409,6 +468,7 @@
       gameState.boardConfig,
       trapConfig.value
     )
+    gameState.punishmentConfig = GameService.createPunishmentConfig() // 新增：重置惩罚配置
     gameState.currentPlayerIndex = 0
     gameState.diceValue = null
     gameState.winner = null
@@ -468,7 +528,6 @@
         newPosition,
         effect,
         punishment,
-        targetPlayerIndex,
         cellEffect,
         canTakeOff,
         executorIndex,
@@ -653,19 +712,10 @@
       // 记录三段路径的位置
       const originalPosition = effectFromPosition.value // 原始位置（骰子移动前）
       const diceMovePosition = effectToPosition.value // 骰子移动后的位置
-      const finalPosition =
-        currentPlayer.position +
-        (effectType === 'move'
-          ? gameState.pendingEffect.value
-          : effectType === 'reverse'
-            ? -gameState.pendingEffect.value
-            : effectType === 'restart'
-              ? -currentPlayer.position
-              : 0)
 
       // 处理格子效果
       const currentBoardSize = gameState.board.length
-      const { newPosition, effect, fromPosition, toPosition } = GameService.processCellEffect(
+      const { newPosition } = GameService.processCellEffect(
         currentPlayer,
         gameState.pendingEffect,
         currentBoardSize
@@ -942,6 +992,9 @@
 
   // 从统计页面开始游戏
   const startGameWithStats = () => {
+    console.log('startGameWithStats called')
+    console.log('Before: gameStarted =', gameStarted.value, 'gameStatus =', gameState.gameStatus)
+
     showPunishmentStats.value = false
 
     // 直接开始游戏流程
@@ -950,6 +1003,8 @@
     if (turnCount.value === 0) {
       turnCount.value = 1
     }
+
+    console.log('After: gameStarted =', gameStarted.value, 'gameStatus =', gameState.gameStatus)
   }
 
   // 从统计页面重新生成组合
@@ -981,7 +1036,7 @@
   }
 
   // 添加validation-failed事件处理
-  const handleValidationFailed = (errorMessage: string, requiredSensitivity?: number) => {
+  const handleValidationFailed = (errorMessage: string) => {
     console.log('惩罚配置验证失败:', errorMessage)
     // 不需要重置游戏状态，只需要显示错误提示即可
     // 错误提示已经在PunishmentConfig组件中处理了
@@ -994,13 +1049,8 @@
 
   // 为GameControls组件创建包装方法
   const handleGameControlsStart = () => {
-    startGame() // 不传递参数，使用默认配置
+    forceStartGame() // 强制开始游戏，跳过状态检查
   }
-
-  // 计算游戏状态样式类
-  const gameStatusClass = computed(() => {
-    return `status-${gameState.gameStatus}`
-  })
 
   // 计算游戏状态文本
   const gameStatusText = computed(() => {
@@ -1509,7 +1559,7 @@
           <p class="combinations-info">
             已生成 {{ punishmentCombinations.length }} 个惩罚组合，点击开始游戏继续
           </p>
-          <button class="btn-primary" @click="handleGameControlsStart">
+          <button class="btn-primary" @click="startGameWithStats">
             <span class="btn-icon">🚀</span>
             <span class="btn-text">开始游戏</span>
           </button>
@@ -1519,122 +1569,347 @@
 
     <!-- 游戏页面 -->
     <div v-else class="game-page">
+      <!-- 移动端顶部栏 -->
       <header class="game-header">
-        <h1>🎲 惩罚飞行棋</h1>
+        <div class="header-content">
+          <h1>🎲 惩罚飞行棋</h1>
+          <PButton
+            icon="pi pi-bars"
+            class="mobile-menu-btn"
+            :style="{ display: 'none' }"
+            @click="sidebarVisible = true"
+          />
+        </div>
         <p>环形棋盘游戏，支持自定义惩罚设置</p>
       </header>
 
+      <!-- 侧边栏 -->
+      <Sidebar v-model:visible="sidebarVisible" class="game-sidebar" :style="{ width: '320px' }">
+        <template #header>
+          <div class="sidebar-header">
+            <i class="pi pi-gamepad-2"></i>
+            <span>游戏控制台</span>
+          </div>
+        </template>
+
+        <!-- 骰子区域 -->
+        <Card class="dice-card">
+          <template #title>
+            <div class="card-title">
+              <i class="pi pi-circle"></i>
+              <span>投掷骰子</span>
+            </div>
+          </template>
+          <template #content>
+            <div class="dice-section">
+              <CoolDice
+                :can-roll="canRollDice"
+                :value="gameState.diceValue"
+                @roll="handleDiceRoll"
+              />
+            </div>
+          </template>
+        </Card>
+
+        <!-- 游戏状态卡片 -->
+        <Card class="status-card">
+          <template #title>
+            <div class="card-title">
+              <i class="pi pi-info-circle"></i>
+              <span>游戏状态</span>
+            </div>
+          </template>
+          <template #content>
+            <div class="status-info">
+              <div class="status-item">
+                <span class="status-label">回合数:</span>
+                <Badge :value="turnCount" class="turn-badge" />
+              </div>
+              <div class="status-item">
+                <span class="status-label">状态:</span>
+                <Tag
+                  :value="gameStatusText"
+                  :severity="getStatusSeverity(gameState.gameStatus)"
+                  class="status-tag"
+                />
+              </div>
+            </div>
+          </template>
+        </Card>
+
+        <!-- 当前玩家卡片 -->
+        <Card v-if="gameState.players[gameState.currentPlayerIndex]" class="current-player-card">
+          <template #title>
+            <div class="card-title">
+              <i class="pi pi-user"></i>
+              <span>当前玩家</span>
+            </div>
+          </template>
+          <template #content>
+            <div class="current-player-display">
+              <div
+                class="current-avatar"
+                :style="{ backgroundColor: gameState.players[gameState.currentPlayerIndex].color }"
+              >
+                ✈️
+              </div>
+              <div class="current-info">
+                <div class="current-name">
+                  {{ gameState.players[gameState.currentPlayerIndex].name }}
+                </div>
+                <div class="current-position">
+                  位置:
+                  {{
+                    gameState.players[gameState.currentPlayerIndex].position === 0
+                      ? '起点'
+                      : `第${gameState.players[gameState.currentPlayerIndex].position}格`
+                  }}
+                </div>
+              </div>
+            </div>
+          </template>
+        </Card>
+
+        <!-- 玩家状态面板 -->
+        <PlayerPanel
+          :players="gameState.players"
+          :current-player-index="gameState.currentPlayerIndex"
+        />
+
+        <!-- 获胜者信息 -->
+        <Card v-if="gameState.winner" class="winner-card">
+          <template #title>
+            <div class="card-title">
+              <i class="pi pi-trophy"></i>
+              <span>获胜者</span>
+            </div>
+          </template>
+          <template #content>
+            <div class="winner-display">
+              <div class="winner-avatar" :style="{ backgroundColor: gameState.winner.color }">
+                🏆
+              </div>
+              <div class="winner-name">{{ gameState.winner.name }}</div>
+            </div>
+          </template>
+        </Card>
+
+        <!-- 游戏控制 -->
+        <Card class="game-controls-card">
+          <template #title>
+            <div class="card-title">
+              <i class="pi pi-cog"></i>
+              <span>游戏控制</span>
+            </div>
+          </template>
+          <template #content>
+            <div class="control-buttons">
+              <PButton
+                v-if="!gameStarted"
+                label="开始游戏"
+                icon="pi pi-play"
+                class="p-button-success w-full"
+                @click="handleGameControlsStart"
+              />
+              <PButton
+                v-if="gameFinished"
+                label="再来一局"
+                icon="pi pi-refresh"
+                class="p-button-info w-full"
+                @click="resetGame"
+              />
+            </div>
+          </template>
+        </Card>
+
+        <!-- 控制按钮 -->
+        <div class="control-buttons">
+          <PButton
+            v-if="!gameStarted"
+            label="开始游戏"
+            icon="pi pi-play"
+            class="p-button-success w-full"
+            @click="handleGameControlsStart"
+          />
+          <PButton
+            v-if="gameFinished"
+            label="再来一局"
+            icon="pi pi-refresh"
+            class="p-button-info w-full"
+            @click="resetGame"
+          />
+        </div>
+      </Sidebar>
+
+      <!-- 主要内容区域 -->
       <main class="game-main">
-        <!-- 顶部信息区域 -->
-        <div class="top-info-section">
-          <!-- 骰子区域 -->
-          <div class="dice-section">
-            <Dice :can-roll="canRollDice" :value="gameState.diceValue" @roll="handleDiceRoll" />
+        <!-- 左侧骰子区域 -->
+        <div class="left-sidebar">
+          <div class="sidebar-content">
+            <!-- 骰子区域 -->
+            <Card class="dice-card">
+              <template #title>
+                <div class="card-title">
+                  <i class="pi pi-circle"></i>
+                  <span>投掷骰子</span>
+                </div>
+              </template>
+              <template #content>
+                <div class="dice-section">
+                  <CoolDice
+                    :can-roll="canRollDice"
+                    :value="gameState.diceValue"
+                    @roll="handleDiceRoll"
+                  />
+                </div>
+              </template>
+            </Card>
+
+            <!-- 控制按钮 -->
+            <div class="control-buttons">
+              <PButton
+                v-if="!gameStarted"
+                label="开始游戏"
+                icon="pi pi-play"
+                class="p-button-success w-full"
+                @click="handleGameControlsStart"
+              />
+              <PButton
+                v-if="gameFinished"
+                label="再来一局"
+                icon="pi pi-refresh"
+                class="p-button-info w-full"
+                @click="resetGame"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧游戏区域 -->
+        <div class="game-area">
+          <!-- 移动端控制面板 -->
+          <div class="mobile-control-panel">
+            <!-- 左侧骰子区域 -->
+            <div class="mobile-dice-section">
+              <CoolDice
+                :can-roll="canRollDice"
+                :value="gameState.diceValue"
+                @roll="handleDiceRoll"
+              />
+            </div>
+
+            <!-- 右侧玩家状态区域 -->
+            <div class="mobile-status-section">
+              <!-- 回合数显示 -->
+              <div class="mobile-turn-display">
+                <div class="turn-number">{{ turnCount }}</div>
+                <div class="turn-label">回合</div>
+              </div>
+
+              <!-- 游戏状态 -->
+              <div class="mobile-game-status">
+                <Tag
+                  :value="gameStatusText"
+                  :severity="getStatusSeverity(gameState.gameStatus)"
+                  class="status-tag-mobile"
+                />
+              </div>
+
+              <!-- 玩家状态面板 (移动端) -->
+              <div class="mobile-players-container">
+                <PlayerPanel
+                  :players="gameState.players"
+                  :current-player-index="gameState.currentPlayerIndex"
+                  class="mobile-player-panel"
+                />
+              </div>
+            </div>
           </div>
 
-          <!-- 玩家状态面板 -->
-          <div class="player-status-section">
-            <div class="status-panel">
-              <div class="status-header">
-                <h3>🎮 游戏状态</h3>
-              </div>
-
-              <!-- 游戏状态信息 -->
-              <div class="game-status-info">
-                <div class="status-item">
-                  <span class="status-label">回合数:</span>
-                  <span class="status-value">{{ turnCount }}</span>
+          <!-- 棋盘上方状态区域（桌面端） -->
+          <div class="top-status-area desktop-only">
+            <!-- 游戏状态 -->
+            <Card class="compact-status-card">
+              <template #content>
+                <div class="compact-status-info">
+                  <div class="status-item">
+                    <i class="pi pi-info-circle status-icon"></i>
+                    <span class="status-label">回合:</span>
+                    <Badge :value="turnCount" class="turn-badge" />
+                  </div>
+                  <div class="status-item">
+                    <span class="status-label">状态:</span>
+                    <Tag
+                      :value="gameStatusText"
+                      :severity="getStatusSeverity(gameState.gameStatus)"
+                      class="status-tag"
+                    />
+                  </div>
                 </div>
-                <div class="status-item">
-                  <span class="status-label">状态:</span>
-                  <span class="status-value" :class="gameStatusClass">{{ gameStatusText }}</span>
-                </div>
-              </div>
+              </template>
+            </Card>
 
-              <!-- 当前玩家信息 -->
-              <div
-                v-if="gameState.players[gameState.currentPlayerIndex]"
-                class="current-player-info"
-              >
-                <span class="current-label">当前玩家:</span>
-                <div class="current-player">
+            <!-- 当前玩家 -->
+            <Card
+              v-if="gameState.players[gameState.currentPlayerIndex]"
+              class="compact-current-player-card"
+            >
+              <template #content>
+                <div class="compact-current-player">
                   <div
                     class="current-avatar"
                     :style="{
                       backgroundColor: gameState.players[gameState.currentPlayerIndex].color,
                     }"
-                  ></div>
-                  <span class="current-name">
-                    {{ gameState.players[gameState.currentPlayerIndex].name }}
-                  </span>
-                </div>
-              </div>
-
-              <!-- 玩家列表 -->
-              <div class="player-list">
-                <div
-                  v-for="(player, index) in gameState.players"
-                  :key="player.id"
-                  class="player-item"
-                  :class="{
-                    'current-player': index === gameState.currentPlayerIndex,
-                    'player-moving': player.isMoving,
-                  }"
-                >
-                  <div class="player-info">
-                    <div class="player-avatar" :style="{ backgroundColor: player.color }"></div>
-                    <div class="player-details">
-                      <div class="player-name">{{ player.name }}</div>
-                      <div class="player-position">
-                        <span class="position-label">位置:</span>
-                        <span class="position-value">
-                          {{ player.position === 0 ? '起点' : `第${player.position}格` }}
-                        </span>
-                      </div>
+                  >
+                    ✈️
+                  </div>
+                  <div class="current-info">
+                    <div class="current-name">
+                      {{ gameState.players[gameState.currentPlayerIndex].name }}
+                    </div>
+                    <div class="current-position">
+                      {{
+                        gameState.players[gameState.currentPlayerIndex].position === 0
+                          ? '起点'
+                          : `第${gameState.players[gameState.currentPlayerIndex].position}格`
+                      }}
                     </div>
                   </div>
-                  <div class="player-plane">✈️</div>
                 </div>
-              </div>
+              </template>
+            </Card>
 
-              <!-- 游戏结束信息 -->
-              <div v-if="gameState.winner" class="winner-info">
-                <span class="winner-label">🎉 获胜者:</span>
-                <div class="winner-player">
-                  <div
-                    class="winner-avatar"
-                    :style="{ backgroundColor: gameState.winner.color }"
-                  ></div>
-                  <span class="winner-name">{{ gameState.winner.name }}</span>
+            <!-- 玩家状态面板 (桌面端紧凑版) -->
+            <PlayerPanel
+              :players="gameState.players"
+              :current-player-index="gameState.currentPlayerIndex"
+            />
+
+            <!-- 获胜者信息 -->
+            <Card v-if="gameState.winner" class="compact-winner-card">
+              <template #content>
+                <div class="compact-winner-display">
+                  <i class="pi pi-trophy winner-icon"></i>
+                  <div class="winner-avatar" :style="{ backgroundColor: gameState.winner.color }">
+                    🏆
+                  </div>
+                  <div class="winner-name">{{ gameState.winner.name }} 获胜!</div>
                 </div>
-              </div>
-
-              <!-- 游戏控制按钮 -->
-              <div class="control-buttons">
-                <button
-                  v-if="!gameStarted"
-                  class="btn btn-primary"
-                  @click="handleGameControlsStart"
-                >
-                  🎮 开始游戏
-                </button>
-                <button v-if="gameFinished" class="btn btn-primary" @click="resetGame">
-                  🎮 再来一局
-                </button>
-              </div>
-            </div>
+              </template>
+            </Card>
           </div>
-        </div>
 
-        <!-- 棋盘区域 - 占据主要空间 -->
-        <div class="board-section">
-          <GameBoard
-            :board="gameState.board"
-            :players="gameState.players"
-            :current-player-index="gameState.currentPlayerIndex"
-            :last-effect="lastEffect"
-            @cell-click="handleCellClick"
-          />
+          <!-- 棋盘区域 -->
+          <div class="board-section">
+            <GameBoard
+              :board="gameState.board"
+              :players="gameState.players"
+              :current-player-index="gameState.currentPlayerIndex"
+              :last-effect="lastEffect"
+              @cell-click="handleCellClick"
+            />
+          </div>
         </div>
       </main>
 
@@ -1819,656 +2094,988 @@
   /* 游戏页面样式 */
   .game-page {
     min-height: 100vh;
-    padding: clamp(0.15rem, 1vw, 0.25rem);
     width: 100%;
+    display: flex;
+    flex-direction: column;
   }
 
   .game-header {
     text-align: center;
     color: white;
-    margin-bottom: clamp(0.25rem, 1vw, 0.5rem);
+    padding: clamp(0.5rem, 2vw, 1rem);
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
   }
 
   .game-header h1 {
-    margin: 0 0 clamp(0.15rem, 0.5vw, 0.25rem) 0;
-    font-size: clamp(1.1rem, 4vw, 1.5rem);
+    margin: 0;
+    font-size: clamp(1.2rem, 4vw, 1.8rem);
     font-weight: bold;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
   }
 
   .game-header p {
-    margin: 0;
-    font-size: clamp(0.65rem, 2vw, 0.8rem);
+    margin: clamp(0.25rem, 1vw, 0.5rem) 0 0 0;
+    font-size: clamp(0.7rem, 2vw, 0.9rem);
     opacity: 0.9;
   }
 
-  .game-main {
-    max-width: min(1200px, 95vw);
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: clamp(0.5rem, 2vw, 1rem);
-    width: 100%;
-    /* 确保游戏主容器有足够的高度 */
-    min-height: calc(100vh - 120px);
+  .mobile-menu-btn {
+    display: none !important;
   }
 
-  /* 顶部信息区域 */
-  .top-info-section {
+  .game-main {
+    flex: 1;
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: clamp(0.5rem, 2vw, 1rem);
-    padding: clamp(0.5rem, 2vw, 1rem);
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    margin-bottom: clamp(0.5rem, 2vw, 1rem);
-    /* 限制最大高度，为棋盘留出空间 */
-    max-height: 45vh;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  /* 侧边栏样式 */
+  .game-sidebar {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(10px) !important;
+  }
+
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: bold;
+    color: #333;
+  }
+
+  .left-sidebar {
+    width: 280px;
+    min-width: 280px;
+    display: flex;
+    flex-direction: column;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+  }
+
+  .sidebar-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    height: 100%;
+    padding: 1rem;
+  }
+
+  .game-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .top-status-area {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 1rem 2rem;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    min-height: 80px;
+  }
+
+  .board-section {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 500px;
+    padding: 1rem;
+  }
+
+  /* 卡片样式 */
+  .card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .dice-card,
+  .status-card,
+  .current-player-card,
+  .players-card,
+  .winner-card {
+    margin-bottom: 1rem;
   }
 
   .dice-section {
-    order: 1;
-    flex: 0 0 auto;
-    min-width: 80px;
-    max-width: 120px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem 0;
+    min-height: 200px;
   }
 
-  .player-status-section {
-    order: 2;
-    flex: 1;
-    min-width: 0;
+  /* 紧凑状态卡片样式 */
+  .compact-status-card,
+  .compact-current-player-card,
+  .compact-players-card,
+  .compact-winner-card {
+    margin: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
   }
 
-  .status-panel {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: clamp(0.4rem, 2vw, 0.6rem);
-    width: 100%;
-    max-height: none;
-    overflow: visible;
+  .compact-status-card .p-card-content,
+  .compact-current-player-card .p-card-content,
+  .compact-players-card .p-card-content,
+  .compact-winner-card .p-card-content {
+    padding: 0.75rem 1rem;
   }
 
-  .status-header {
-    text-align: center;
+  .compact-status-info {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .compact-status-info .status-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .status-icon {
+    color: #667eea;
+    font-size: 1rem;
+  }
+
+  .compact-current-player {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .compact-current-player .current-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
     color: white;
-    margin-bottom: clamp(0.25rem, 1vw, 0.5rem);
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
-  .status-header h3 {
-    margin: 0 0 clamp(0.1rem, 0.25vw, 0.1rem) 0;
-    font-size: clamp(0.9rem, 2.5vw, 1rem);
+  .compact-current-player .current-info {
+    flex: 1;
+  }
+
+  .compact-current-player .current-name {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.9rem;
+    margin-bottom: 0.1rem;
+  }
+
+  .compact-current-player .current-position {
+    font-size: 0.8rem;
+    color: #666;
+  }
+
+  .compact-players-list {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .compact-player-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: 8px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+    font-size: 0.85rem;
+  }
+
+  .compact-player-item.current-player {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.3);
+    transform: scale(1.02);
+  }
+
+  .compact-player-item .player-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
+
+  .compact-player-item .player-details {
+    flex: 1;
+  }
+
+  .compact-player-item .player-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.1rem;
+    font-size: 0.8rem;
+  }
+
+  .compact-player-item .player-position {
+    font-size: 0.7rem;
+    color: #666;
+  }
+
+  .compact-player-item .current-indicator {
+    color: #22c55e;
+    font-size: 0.8rem;
+  }
+
+  .compact-winner-display {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #f59e0b;
+    font-weight: 600;
+  }
+
+  .winner-icon {
+    font-size: 1.2rem;
+    color: #f59e0b;
+  }
+
+  .compact-winner-display .winner-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .compact-winner-display .winner-name {
+    font-size: 0.9rem;
+  }
+
+  /* 移动端控制面板 */
+  .mobile-control-panel {
+    display: none;
+  }
+
+  .mobile-dice-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-status-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  /* 移动端回合数显示 */
+  .mobile-turn-display {
+    text-align: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  }
+
+  .turn-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    line-height: 1;
+  }
+
+  .turn-label {
+    font-size: 0.8rem;
+    opacity: 0.9;
+    margin-top: 0.2rem;
+  }
+
+  /* 移动端游戏状态 */
+  .mobile-game-status {
+    display: flex;
+    justify-content: center;
+  }
+
+  .status-tag-mobile {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  /* 桌面端专用类 */
+  .desktop-only {
+    display: block;
+  }
+
+  /* 状态信息样式 */
+  .status-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .status-label {
+    font-weight: 500;
+    color: #666;
+  }
+
+  .turn-badge {
+    background: #3b82f6;
+  }
+
+  .status-tag {
+    font-size: 0.875rem;
+  }
+
+  /* 当前玩家样式 */
+  .current-player-display {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 8px;
+    border: 2px solid rgba(59, 130, 246, 0.2);
+  }
+
+  .current-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  .current-info {
+    flex: 1;
+  }
+
+  .current-name {
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: #333;
+    margin-bottom: 0.25rem;
+  }
+
+  .current-position {
+    font-size: 0.9rem;
+    color: #666;
+  }
+
+  /* 玩家列表样式 */
+  .players-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .player-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+  }
+
+  .player-item.current-player {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.3);
+    transform: scale(1.02);
+  }
+
+  .player-item.player-moving {
+    animation: pulse 1s infinite;
+  }
+
+  .player-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .player-details {
+    flex: 1;
+  }
+
+  .player-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.25rem;
+  }
+
+  .player-position {
+    font-size: 0.85rem;
+    color: #666;
+  }
+
+  .current-indicator {
+    color: #22c55e;
+    font-size: 1.2rem;
+    animation: bounce 1s infinite;
+  }
+
+  /* 获胜者样式 */
+  .winner-display {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    border-radius: 12px;
+    color: white;
+    text-align: center;
+  }
+
+  .winner-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .winner-name {
+    font-size: 1.3rem;
     font-weight: bold;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
   }
 
-  .game-status-info {
-    flex-direction: row;
-    gap: clamp(0.3rem, 1vw, 0.5rem);
-    justify-content: space-between;
-  }
-
-  .status-item {
-    flex-direction: column;
-    align-items: center;
-    flex: 1;
-  }
-
-  .status-label,
-  .status-value {
-    font-size: clamp(0.7rem, 2vw, 0.8rem);
-  }
-
-  .status-label {
-    opacity: 0.9;
-  }
-
-  .status-value {
-    font-weight: bold;
-  }
-
-  .current-player-info,
-  .winner-info {
-    margin-bottom: clamp(0.3rem, 1vw, 0.5rem);
-    text-align: center;
-  }
-
-  .current-label,
-  .winner-label {
-    font-size: clamp(0.7rem, 2vw, 0.8rem);
-    opacity: 0.9;
-  }
-
-  .current-name,
-  .winner-name {
-    font-size: clamp(0.75rem, 2vw, 0.85rem);
-  }
-
-  .current-avatar,
-  .winner-avatar {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background-color: #ccc;
-  }
-
-  .current-player {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: clamp(0.3rem, 1vw, 0.5rem);
-  }
-
-  .winner-player {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: clamp(0.3rem, 1vw, 0.5rem);
-  }
-
-  /* 玩家列表样式 */
-  .player-list {
-    gap: 0.3rem;
-    margin-bottom: clamp(0.3rem, 1vw, 0.5rem);
-    display: flex;
-    flex-direction: column;
-  }
-
-  .player-item {
-    padding: 0.3rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.3s ease;
-  }
-
-  .player-item:hover {
-    background: rgba(255, 255, 255, 0.15);
-    transform: translateY(-1px);
-  }
-
-  .player-item.current-player {
-    background: linear-gradient(135deg, rgba(78, 205, 196, 0.2), rgba(69, 183, 209, 0.2));
-    border: 2px solid rgba(78, 205, 196, 0.5);
-    box-shadow: 0 4px 12px rgba(78, 205, 196, 0.3);
-  }
-
-  .player-item.player-moving {
-    animation: playerMove 0.6s ease-in-out;
-  }
-
-  .player-info {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    flex: 1;
-  }
-
-  .player-avatar {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.8);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-    flex-shrink: 0;
-  }
-
-  .player-details {
-    display: flex;
-    flex-direction: column;
-    gap: 0.05rem;
-    min-width: 0;
-  }
-
-  .player-name {
-    font-size: 0.7rem;
-    font-weight: bold;
-    color: white;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .player-position {
-    font-size: 0.6rem;
-    display: flex;
-    align-items: center;
-    gap: 0.1rem;
-    color: rgba(255, 255, 255, 0.8);
-  }
-
-  .position-label {
-    font-weight: 500;
-  }
-
-  .position-value {
-    font-weight: bold;
-    color: #4ecdc4;
-  }
-
-  .player-plane {
-    font-size: 0.75rem;
-    margin-left: 0.2rem;
-    flex-shrink: 0;
-  }
-
-  .player-item.current-player .player-plane {
-    animation: planeFloat 2s ease-in-out infinite;
-  }
-
+  /* 控制按钮样式 */
   .control-buttons {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: center;
-    flex-wrap: wrap;
+    margin-top: auto;
+    padding-top: 1rem;
   }
 
-  .btn {
-    padding: clamp(0.4rem, 1.5vw, 0.6rem) clamp(0.8rem, 2.5vw, 1.2rem);
-    border: none;
-    border-radius: clamp(4px, 1vw, 6px);
-    font-size: clamp(0.8rem, 2.2vw, 0.9rem);
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: clamp(0.3rem, 1vw, 0.4rem);
-    min-height: clamp(32px, 7vw, 36px);
-  }
-
-  .btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  }
-
-  .btn-primary {
-    background: linear-gradient(135deg, #4ecdc4, #44a08d);
-    color: white;
-  }
-
-  /* 玩家移动动画 */
-  @keyframes playerMove {
-    0% {
-      transform: scale(1);
+  /* 动画效果 */
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
     }
     50% {
-      transform: scale(1.05);
-    }
-    100% {
-      transform: scale(1);
+      opacity: 0.7;
     }
   }
 
-  /* 飞机浮动动画 */
-  @keyframes planeFloat {
+  @keyframes bounce {
     0%,
+    20%,
+    50%,
+    80%,
     100% {
       transform: translateY(0);
     }
-    50% {
+    40% {
+      transform: translateY(-5px);
+    }
+    60% {
       transform: translateY(-3px);
     }
   }
 
-  /* 棋盘区域 */
-  .board-section {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 0;
-    /* 确保棋盘区域有最小高度 */
-    min-height: 300px;
-  }
-
-  /* 自适应布局 - 移除固定断点，使用相对单位 */
-  @media (max-width: 1023px) {
-    .page-actions {
+  /* 平板端适配 */
+  @media (max-width: 1024px) and (min-width: 769px) {
+    .game-main {
       flex-direction: column;
-      align-items: center;
+      padding: 0.5rem;
     }
 
-    .btn-primary,
-    .btn-secondary {
+    .left-sidebar {
       width: 100%;
-      max-width: min(300px, 80vw);
+      min-width: unset;
+      border-right: none;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      overflow-y: visible;
+    }
+
+    .sidebar-content {
+      flex-direction: row;
+      gap: 1rem;
+      padding: 1rem;
       justify-content: center;
     }
 
-    /* 移动端顶部信息区域布局 */
-    .top-info-section {
-      flex-direction: row;
-      gap: clamp(0.5rem, 2vw, 1rem);
-      padding: clamp(0.5rem, 2vw, 1rem);
-      align-items: flex-start;
-      /* 限制最大高度，避免占用过多空间 */
-      max-height: 35vh;
-    }
-
-    .dice-section {
-      order: 1;
+    .dice-card {
       flex: 0 0 auto;
-      min-width: 80px;
-      max-width: 120px;
+      min-width: 300px;
     }
 
-    .player-status-section {
-      order: 2;
+    .game-area {
       flex: 1;
-      min-width: 0;
-      /* 确保状态区域不会过度扩展 */
-      max-height: 100%;
     }
 
-    .status-panel {
-      padding: clamp(0.4rem, 2vw, 0.6rem);
-      /* 限制状态面板最大高度，添加滚动 */
-      max-height: 30vh;
-      overflow-y: auto;
-      /* 添加滚动条样式 */
-      scrollbar-width: thin;
-      scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+    .mobile-dice-area {
+      display: none;
     }
 
-    /* Webkit浏览器的滚动条样式 */
-    .status-panel::-webkit-scrollbar {
-      width: 4px;
+    .top-status-area {
+      padding: 0.75rem 1rem;
+      gap: 0.75rem;
     }
 
-    .status-panel::-webkit-scrollbar-track {
-      background: transparent;
+    .mobile-menu-btn {
+      display: none;
     }
 
-    .status-panel::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.3);
-      border-radius: 2px;
+    .board-section {
+      min-height: 400px;
     }
+  }
 
-    .status-panel::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.5);
-    }
-
-    .status-header h3 {
-      font-size: clamp(0.8rem, 2.5vw, 0.9rem);
-      /* 固定头部，不随滚动 */
-      position: sticky;
-      top: 0;
-      background: rgba(255, 255, 255, 0.1);
-      margin: -0.4rem -0.4rem 0.4rem -0.4rem;
-      padding: 0.4rem;
-      border-radius: 8px 8px 0 0;
-      z-index: 10;
-    }
-
-    .game-status-info {
+  /* 移动端适配 */
+  @media (max-width: 768px) {
+    .game-main {
       flex-direction: column;
-      gap: clamp(0.3rem, 1vw, 0.5rem);
+      padding: 0;
+      height: 100vh;
     }
 
-    .status-item {
-      flex-direction: row;
-      justify-content: space-between;
-      width: 100%;
+    .left-sidebar {
+      display: none;
     }
 
-    .status-label,
-    .status-value {
-      font-size: clamp(0.75rem, 2.2vw, 0.85rem);
+    .game-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
     }
 
-    .current-player-info,
-    .winner-info {
-      margin-bottom: clamp(0.3rem, 1vw, 0.5rem);
+    /* 移动端控制面板 - 占据屏幕上方1/3 */
+    .mobile-control-panel {
+      display: flex;
+      height: 33.33vh; /* 屏幕高度的1/3 */
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+      flex-shrink: 0;
     }
 
-    .current-label,
-    .winner-label {
-      font-size: clamp(0.75rem, 2.2vw, 0.85rem);
+    /* 左侧骰子区域 - 占据控制面板的1/3 */
+    .mobile-dice-section {
+      width: 33.33%;
+      border-right: 1px solid rgba(0, 0, 0, 0.1);
+      background: rgba(248, 249, 250, 0.5);
     }
 
-    .current-name,
-    .winner-name {
-      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+    /* 右侧状态区域 - 占据控制面板的2/3 */
+    .mobile-status-section {
+      width: 66.67%;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
-    .current-avatar,
-    .winner-avatar {
-      width: 20px;
-      height: 20px;
+    /* 移动端玩家面板容器 */
+    .mobile-players-container {
+      flex: 1;
+      overflow: hidden;
+      min-height: 0; /* 允许flex子项收缩 */
     }
 
-    .player-list {
+    /* 移动端玩家面板样式调整 */
+    .mobile-player-panel {
+      height: 100%;
+      margin-bottom: 0;
+    }
+
+    .mobile-player-panel .player-panel {
+      height: 100%;
+      margin-bottom: 0;
+      padding: 0.5rem;
+    }
+
+    .mobile-player-panel .player-panel h3 {
+      margin: 0 0 0.5rem 0;
+      font-size: 0.9rem;
+    }
+
+    .mobile-player-panel .players-container {
+      max-height: none;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .mobile-player-panel .players-grid {
+      grid-template-columns: 1fr;
       gap: 0.4rem;
-      margin-bottom: clamp(0.3rem, 1vw, 0.5rem);
+      padding: 0.2rem;
     }
 
-    .player-item {
+    .mobile-player-panel .player-card {
       padding: 0.4rem;
+      border-width: 1px;
     }
 
-    .player-avatar {
-      width: 18px;
-      height: 18px;
+    .mobile-player-panel .player-header {
+      gap: 0.3rem;
+      margin-bottom: 0.3rem;
     }
 
-    .player-name {
-      font-size: 0.75rem;
+    .mobile-player-panel .player-color {
+      width: 12px;
+      height: 12px;
+      border-width: 1px;
     }
 
-    .player-position {
-      font-size: 0.65rem;
-    }
-
-    .player-plane {
+    .mobile-player-panel .player-name {
       font-size: 0.8rem;
     }
 
-    .control-buttons {
-      gap: 0.4rem;
+    .mobile-player-panel .player-stats {
+      gap: 0.2rem;
     }
 
-    .btn {
-      padding: clamp(0.35rem, 1.5vw, 0.4rem) clamp(0.7rem, 2vw, 0.8rem);
-      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
-      border-radius: 4px;
-      min-height: clamp(28px, 6vw, 32px);
-      gap: clamp(0.2rem, 0.6vw, 0.25rem);
-    }
-  }
-
-  /* 小屏幕手机优化 */
-  @media (max-width: 767px) {
-    .game-header h1 {
-      font-size: clamp(1rem, 5vw, 1.3rem);
-    }
-
-    .game-header p {
-      font-size: clamp(0.6rem, 2.5vw, 0.75rem);
-    }
-
-    .top-info-section {
-      padding: clamp(0.4rem, 2vw, 0.8rem);
-      gap: clamp(0.4rem, 2vw, 0.8rem);
-      /* 进一步限制高度 */
-      max-height: 30vh;
-    }
-
-    .game-main {
-      gap: clamp(0.3rem, 1.5vw, 0.8rem);
-      /* 确保有足够的最小高度 */
-      min-height: calc(100vh - 100px);
-    }
-
-    .status-panel {
-      padding: clamp(0.3rem, 1.5vw, 0.5rem);
-      /* 更严格的高度限制 */
-      max-height: 25vh;
-    }
-
-    .status-header h3 {
-      font-size: clamp(0.75rem, 2.2vw, 0.8rem);
-      margin: -0.3rem -0.3rem 0.3rem -0.3rem;
-      padding: 0.3rem;
-    }
-
-    .status-label,
-    .status-value {
-      font-size: clamp(0.7rem, 2vw, 0.8rem);
-    }
-
-    .current-label,
-    .winner-label {
-      font-size: clamp(0.7rem, 2vw, 0.8rem);
-    }
-
-    .current-name,
-    .winner-name {
-      font-size: clamp(0.75rem, 2vw, 0.85rem);
-    }
-
-    .current-avatar,
-    .winner-avatar {
-      width: 18px;
-      height: 18px;
-    }
-
-    .player-list {
+    .mobile-player-panel .stat {
       gap: 0.3rem;
-      margin-bottom: clamp(0.25rem, 1vw, 0.4rem);
     }
 
-    .player-item {
-      padding: 0.3rem;
+    .mobile-player-panel .label {
+      font-size: 0.7rem;
+      min-width: 25px;
     }
 
-    .player-avatar {
-      width: 16px;
-      height: 16px;
-    }
-
-    .player-name {
+    .mobile-player-panel .value {
       font-size: 0.7rem;
     }
 
-    .player-position {
-      font-size: 0.6rem;
+    .mobile-player-panel .progress-bar {
+      height: 4px;
     }
 
-    .player-plane {
+    .mobile-player-panel .players-container::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    /* 隐藏桌面端状态区域 */
+    .desktop-only {
+      display: none;
+    }
+
+    /* 棋盘区域 - 占据屏幕下方2/3 */
+    .board-section {
+      height: 66.67vh; /* 屏幕高度的2/3 */
+      flex-shrink: 0;
+      padding: 0.5rem;
+      overflow: hidden;
+    }
+
+    .mobile-menu-btn {
+      display: flex !important;
+    }
+
+    /* 移动端骰子尺寸调整 */
+    .mobile-dice-section .cool-dice-container {
+      padding: 0.5rem;
+      gap: 0.5rem;
+    }
+
+    .mobile-dice-section .dice-cube {
+      width: 50px;
+      height: 50px;
+      margin: 0.75rem;
+    }
+
+    .mobile-dice-section .face {
+      width: 50px;
+      height: 50px;
+    }
+
+    .mobile-dice-section .face-1 {
+      transform: rotateY(0deg) translateZ(25px);
+    }
+    .mobile-dice-section .face-2 {
+      transform: rotateY(90deg) translateZ(25px);
+    }
+    .mobile-dice-section .face-3 {
+      transform: rotateY(180deg) translateZ(25px);
+    }
+    .mobile-dice-section .face-4 {
+      transform: rotateY(-90deg) translateZ(25px);
+    }
+    .mobile-dice-section .face-5 {
+      transform: rotateX(90deg) translateZ(25px);
+    }
+    .mobile-dice-section .face-6 {
+      transform: rotateX(-90deg) translateZ(25px);
+    }
+
+    .mobile-dice-section .dot {
+      width: 8px;
+      height: 8px;
+    }
+
+    .mobile-dice-section .result-display {
+      padding: 0.4rem 0.8rem;
+    }
+
+    .mobile-dice-section .result-number {
+      font-size: 1.2rem;
+    }
+
+    .mobile-dice-section .dice-status {
       font-size: 0.75rem;
     }
 
-    .control-buttons {
-      gap: 0.3rem;
-    }
-
-    .btn {
-      padding: clamp(0.3rem, 1.2vw, 0.35rem) clamp(0.6rem, 1.8vw, 0.7rem);
-      font-size: clamp(0.65rem, 1.6vw, 0.7rem);
-      min-height: clamp(24px, 5vw, 28px);
-      gap: clamp(0.15rem, 0.5vw, 0.2rem);
+    .mobile-dice-section .status-rolling,
+    .mobile-dice-section .status-result,
+    .mobile-dice-section .status-prompt {
+      padding: 0.3rem 0.6rem;
+      font-size: 0.7rem;
     }
   }
 
-  /* 超小屏幕手机优化 */
-  @media (max-width: 480px) {
+  @media (max-width: 768px) {
+    .game-header {
+      padding: 0.75rem;
+    }
+
     .game-header h1 {
-      font-size: clamp(0.9rem, 6vw, 1.2rem);
+      font-size: 1.3rem;
     }
 
     .game-header p {
-      font-size: clamp(0.55rem, 3vw, 0.7rem);
+      font-size: 0.8rem;
     }
 
-    .top-info-section {
-      padding: clamp(0.3rem, 2vw, 0.6rem);
-      gap: clamp(0.3rem, 2vw, 0.6rem);
-      /* 超小屏幕更严格的高度限制 */
-      max-height: 25vh;
+    .current-player-display {
+      flex-direction: column;
+      text-align: center;
+      gap: 0.5rem;
     }
 
-    .game-main {
-      gap: clamp(0.2rem, 1vw, 0.6rem);
-      /* 超小屏幕的最小高度 */
-      min-height: calc(100vh - 80px);
-    }
-
-    .status-panel {
-      padding: clamp(0.25rem, 1.2vw, 0.4rem);
-      /* 超小屏幕更严格的高度限制 */
-      max-height: 20vh;
-    }
-
-    .status-header h3 {
-      font-size: clamp(0.7rem, 2vw, 0.75rem);
-      margin: -0.25rem -0.25rem 0.25rem -0.25rem;
-      padding: 0.25rem;
-    }
-
-    .status-label,
-    .status-value {
-      font-size: clamp(0.65rem, 1.8vw, 0.75rem);
-    }
-
-    .current-label,
-    .winner-label {
-      font-size: clamp(0.65rem, 1.8vw, 0.75rem);
-    }
-
-    .current-name,
-    .winner-name {
-      font-size: clamp(0.7rem, 1.8vw, 0.8rem);
-    }
-
-    .current-avatar,
-    .winner-avatar {
-      width: 16px;
-      height: 16px;
-    }
-
-    .player-list {
-      gap: 0.25rem;
-      margin-bottom: clamp(0.2rem, 0.8vw, 0.3rem);
-    }
-
-    .player-item {
-      padding: 0.25rem;
+    .current-avatar {
+      width: 45px;
+      height: 45px;
+      font-size: 1.3rem;
     }
 
     .player-avatar {
-      width: 14px;
-      height: 14px;
+      width: 35px;
+      height: 35px;
+      font-size: 1rem;
+    }
+
+    .winner-avatar {
+      width: 50px;
+      height: 50px;
+      font-size: 1.5rem;
+    }
+
+    .winner-name {
+      font-size: 1.1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .game-main {
+      padding: 0.25rem;
+    }
+
+    .card-title {
+      font-size: 0.9rem;
+    }
+
+    .current-name {
+      font-size: 1rem;
     }
 
     .player-name {
-      font-size: 0.65rem;
+      font-size: 0.9rem;
     }
 
-    .player-position {
-      font-size: 0.55rem;
-    }
-
-    .player-plane {
-      font-size: 0.7rem;
-    }
-
-    .control-buttons {
+    .status-item {
+      flex-direction: column;
+      align-items: flex-start;
       gap: 0.25rem;
     }
+  }
 
-    .btn {
-      padding: clamp(0.25rem, 1vw, 0.3rem) clamp(0.5rem, 1.5vw, 0.6rem);
-      font-size: clamp(0.6rem, 1.4vw, 0.65rem);
-      min-height: clamp(20px, 4vw, 24px);
-      gap: clamp(0.1rem, 0.4vw, 0.15rem);
+  /* 触摸优化 */
+  @media (hover: none) and (pointer: coarse) {
+    .dice:hover {
+      transform: none;
+      filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
+    }
+
+    .dice:active {
+      transform: scale(0.95);
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+    }
+
+    .player-item:hover {
+      background: #f8f9fa;
+      transform: none;
+    }
+
+    .player-item:active {
+      background: rgba(59, 130, 246, 0.1);
+      transform: scale(0.98);
+    }
+
+    /* 增大触摸目标 */
+    .mobile-menu-btn {
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0.75rem;
+    }
+
+    .control-buttons .p-button {
+      min-height: 48px;
+      padding: 0.75rem 1.5rem;
     }
   }
+
+  /* 横屏模式优化 */
+  @media (max-width: 1024px) and (orientation: landscape) {
+    .game-header {
+      padding: 0.5rem;
+    }
+
+    .game-header h1 {
+      font-size: 1.2rem;
+    }
+
+    .game-header p {
+      font-size: 0.75rem;
+    }
+
+    .game-main {
+      padding: 0.25rem;
+    }
+
+    .board-section {
+      min-height: 300px;
+    }
+
+    .sidebar-content {
+      gap: 0.75rem;
+    }
+
+    .dice-card .dice-section {
+      padding: 0.5rem 0;
+    }
+  }
+
+  /* 高分辨率屏幕优化 */
+  @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .dice-face {
+      border-width: 2px;
+    }
+
+    .dot {
+      width: 13px;
+      height: 13px;
+    }
+
+    .player-avatar,
+    .current-avatar,
+    .winner-avatar {
+      border-width: 1px;
+    }
+  }
+
+  /* 减少动画偏好 */
+  @media (prefers-reduced-motion: reduce) {
+    .dice.rolling {
+      animation: none;
+      transform: rotateX(360deg) rotateY(360deg);
+    }
+
+    .dice.can-roll {
+      animation: none;
+    }
+
+    .dice.rolled {
+      animation: none;
+    }
+
+    .current-indicator {
+      animation: none;
+    }
+
+    .player-item.player-moving {
+      animation: none;
+    }
+
+    * {
+      transition-duration: 0.1s !important;
+    }
+  }
+
+  /* 顶部信息区域 */
+  /* 旧样式已被新的PrimeVue布局替代 */
+
+  /* 旧的响应式样式已被新的PrimeVue响应式设计替代 */
+
+  /* 旧的移动端样式已被新的响应式设计替代 */
+
+  /* 旧的超小屏幕样式已被新的响应式设计替代 */
 
   /* 游戏状态样式 */
   .status-waiting {

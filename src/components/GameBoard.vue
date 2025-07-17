@@ -357,13 +357,13 @@
 
   .board-row {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.6rem;
   }
 
   .board-cell {
     position: relative;
-    width: 60px;
-    height: 60px;
+    width: 70px;
+    height: 70px;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.3s ease;
