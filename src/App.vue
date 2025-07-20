@@ -9,6 +9,7 @@
     BoardCell,
     PunishmentConfig,
     PunishmentAction,
+    PunishmentCombination,
     CellEffect,
     BoardConfig,
     TrapAction,
@@ -49,16 +50,13 @@
   const gameStarted = ref(false)
   const gameFinished = ref(false)
 
-  // UI状态
-  const sidebarVisible = ref(false)
-
   const turnCount = ref(0)
   const lastEffect = ref<string>('')
   const currentPunishment = ref<PunishmentAction | null>(null)
 
   // 惩罚组合确认状态
   const showPunishmentConfirmation = ref(false)
-  const punishmentCombinations = ref<PunishmentAction[]>([])
+  const punishmentCombinations = ref<PunishmentCombination[]>([])
 
   // 新增效果位置状态
   const effectFromPosition = ref<number | undefined>(undefined)
@@ -66,7 +64,7 @@
 
   // 惩罚统计状态
   const showPunishmentStats = ref(false)
-  const confirmedCombinations = ref<PunishmentAction[]>([])
+  const confirmedCombinations = ref<PunishmentCombination[]>([])
 
   // 起飞惩罚显示状态
   const showTakeoffPunishmentDisplay = ref(false)
@@ -967,8 +965,8 @@
     const punishmentCells = gameState.board.filter(cell => cell.type === 'punishment')
     const totalPunishmentCells = punishmentCells.length
 
-    // 使用新的平衡生成方法，确保符合用户设置的比例
-    punishmentCombinations.value = GameService.generateBalancedPunishmentCombinations(
+    // 使用新的平衡生成方法，生成惩罚组合定义（不包含次数）
+    punishmentCombinations.value = GameService.generateBalancedPunishmentCombinationDefinitions(
       gameState.punishmentConfig,
       totalPunishmentCells
     )
@@ -976,13 +974,14 @@
   }
 
   // 确认惩罚组合
-  const confirmPunishmentCombinations = (combinations: PunishmentAction[]) => {
+  const confirmPunishmentCombinations = (combinations: PunishmentCombination[]) => {
     showPunishmentConfirmation.value = false
 
-    // 根据确认的组合更新棋盘
-    gameState.board = GameService.updateBoardWithConfirmedCombinations(
+    // 根据确认的组合定义更新棋盘（在分配时生成随机次数）
+    gameState.board = GameService.updateBoardWithConfirmedCombinationDefinitions(
       gameState.board,
-      combinations
+      combinations,
+      gameState.punishmentConfig
     )
 
     // 显示惩罚统计信息
@@ -1595,173 +1594,9 @@
       <header class="game-header">
         <div class="header-content">
           <h1>🎲 惩罚飞行棋</h1>
-          <PButton
-            icon="pi pi-bars"
-            class="mobile-menu-btn"
-            :style="{ display: 'none' }"
-            @click="sidebarVisible = true"
-          />
         </div>
         <p>环形棋盘游戏，支持自定义惩罚设置</p>
       </header>
-
-      <!-- 侧边栏 -->
-      <Sidebar v-model:visible="sidebarVisible" class="game-sidebar" :style="{ width: '320px' }">
-        <template #header>
-          <div class="sidebar-header">
-            <i class="pi pi-gamepad-2"></i>
-            <span>游戏控制台</span>
-          </div>
-        </template>
-
-        <!-- 骰子区域 -->
-        <Card class="dice-card">
-          <template #title>
-            <div class="card-title">
-              <i class="pi pi-circle"></i>
-              <span>投掷骰子</span>
-            </div>
-          </template>
-          <template #content>
-            <div class="dice-section">
-              <CoolDice
-                :can-roll="canRollDice"
-                :value="gameState.diceValue"
-                @roll="handleDiceRoll"
-              />
-            </div>
-          </template>
-        </Card>
-
-        <!-- 游戏状态卡片 -->
-        <Card class="status-card">
-          <template #title>
-            <div class="card-title">
-              <i class="pi pi-info-circle"></i>
-              <span>游戏状态</span>
-            </div>
-          </template>
-          <template #content>
-            <div class="status-info">
-              <div class="status-item">
-                <span class="status-label">回合数:</span>
-                <Badge :value="turnCount" class="turn-badge" />
-              </div>
-              <div class="status-item">
-                <span class="status-label">状态:</span>
-                <Tag
-                  :value="gameStatusText"
-                  :severity="getStatusSeverity(gameState.gameStatus)"
-                  class="status-tag"
-                />
-              </div>
-            </div>
-          </template>
-        </Card>
-
-        <!-- 当前玩家卡片 -->
-        <Card v-if="gameState.players[gameState.currentPlayerIndex]" class="current-player-card">
-          <template #title>
-            <div class="card-title">
-              <i class="pi pi-user"></i>
-              <span>当前玩家</span>
-            </div>
-          </template>
-          <template #content>
-            <div class="current-player-display">
-              <div
-                class="current-avatar"
-                :style="{ backgroundColor: gameState.players[gameState.currentPlayerIndex].color }"
-              >
-                ✈️
-              </div>
-              <div class="current-info">
-                <div class="current-name">
-                  {{ gameState.players[gameState.currentPlayerIndex].name }}
-                </div>
-                <div class="current-position">
-                  位置:
-                  {{
-                    gameState.players[gameState.currentPlayerIndex].position === 0
-                      ? '起点'
-                      : `第${gameState.players[gameState.currentPlayerIndex].position}格`
-                  }}
-                </div>
-              </div>
-            </div>
-          </template>
-        </Card>
-
-        <!-- 玩家状态面板 -->
-        <PlayerPanel
-          :players="gameState.players"
-          :current-player-index="gameState.currentPlayerIndex"
-        />
-
-        <!-- 获胜者信息 -->
-        <Card v-if="gameState.winner" class="winner-card">
-          <template #title>
-            <div class="card-title">
-              <i class="pi pi-trophy"></i>
-              <span>获胜者</span>
-            </div>
-          </template>
-          <template #content>
-            <div class="winner-display">
-              <div class="winner-avatar" :style="{ backgroundColor: gameState.winner.color }">
-                🏆
-              </div>
-              <div class="winner-name">{{ gameState.winner.name }}</div>
-            </div>
-          </template>
-        </Card>
-
-        <!-- 游戏控制 -->
-        <Card class="game-controls-card">
-          <template #title>
-            <div class="card-title">
-              <i class="pi pi-cog"></i>
-              <span>游戏控制</span>
-            </div>
-          </template>
-          <template #content>
-            <div class="control-buttons">
-              <PButton
-                v-if="!gameStarted"
-                label="开始游戏"
-                icon="pi pi-play"
-                class="p-button-success w-full"
-                @click="handleGameControlsStart"
-              />
-              <PButton
-                v-if="gameFinished"
-                label="再来一局"
-                icon="pi pi-refresh"
-                class="p-button-info w-full"
-                @click="resetGame"
-              />
-            </div>
-          </template>
-        </Card>
-
-        <!-- 控制按钮 -->
-        <div class="control-buttons">
-          <PButton
-            v-if="!gameStarted"
-            label="开始游戏"
-            icon="pi pi-play"
-            class="p-button-success w-full"
-            @click="handleGameControlsStart"
-          />
-          <PButton
-            v-if="gameFinished"
-            label="再来一局"
-            icon="pi pi-refresh"
-            class="p-button-info w-full"
-            @click="resetGame"
-          />
-        </div>
-      </Sidebar>
 
       <!-- 主要内容区域 -->
       <main class="game-main">
@@ -1822,22 +1657,22 @@
 
             <!-- 右侧玩家状态区域 -->
             <div class="mobile-status-section">
-              <!-- 回合数显示 -->
-              <div class="mobile-turn-display">
-                <div class="turn-number">{{ turnCount }}</div>
-                <div class="turn-label">回合</div>
+              <!-- 合并的回合数和游戏状态显示 -->
+              <div class="mobile-combined-status">
+                <div class="mobile-turn-display">
+                  <div class="turn-number">{{ turnCount }}</div>
+                  <div class="turn-label">回合</div>
+                </div>
+                <div class="mobile-game-status">
+                  <Tag
+                    :value="gameStatusText"
+                    :severity="getStatusSeverity(gameState.gameStatus)"
+                    class="status-tag-mobile"
+                  />
+                </div>
               </div>
 
-              <!-- 游戏状态 -->
-              <div class="mobile-game-status">
-                <Tag
-                  :value="gameStatusText"
-                  :severity="getStatusSeverity(gameState.gameStatus)"
-                  class="status-tag-mobile"
-                />
-              </div>
-
-              <!-- 玩家状态面板 (移动端) -->
+              <!-- 玩家状态面板 (移动端) - 扩展显示区域 -->
               <div class="mobile-players-container">
                 <PlayerPanel
                   :players="gameState.players"
@@ -2163,10 +1998,6 @@
     opacity: 0.9;
   }
 
-  .mobile-menu-btn {
-    display: none !important;
-  }
-
   .game-main {
     flex: 1;
     display: flex;
@@ -2175,20 +2006,6 @@
     width: 100%;
     gap: 1rem;
     padding: 1rem;
-  }
-
-  /* 侧边栏样式 */
-  .game-sidebar {
-    background: rgba(255, 255, 255, 0.95) !important;
-    backdrop-filter: blur(10px) !important;
-  }
-
-  .sidebar-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-weight: bold;
-    color: #333;
   }
 
   .left-sidebar {
@@ -2438,41 +2255,59 @@
   .mobile-status-section {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    padding: 0.75rem;
+    gap: 0.6rem;
+    padding: 0.6rem;
+    height: 100%;
   }
 
-  /* 移动端回合数显示 */
+  /* 合并的回合数和游戏状态显示 */
+  .mobile-combined-status {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 8px;
+    padding: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
+  }
+
+  /* 移动端回合数显示 - 紧凑版 */
   .mobile-turn-display {
     text-align: center;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 0.5rem;
-    border-radius: 8px;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    min-width: 60px;
+    flex-shrink: 0;
   }
 
   .turn-number {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     font-weight: bold;
     line-height: 1;
   }
 
   .turn-label {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     opacity: 0.9;
-    margin-top: 0.2rem;
+    margin-top: 0.1rem;
   }
 
-  /* 移动端游戏状态 */
+  /* 移动端游戏状态 - 紧凑版 */
   .mobile-game-status {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
+    flex: 1;
   }
 
   .status-tag-mobile {
-    font-size: 0.8rem;
-    padding: 0.4rem 0.8rem;
+    font-size: 0.75rem;
+    padding: 0.3rem 0.6rem;
+    white-space: nowrap;
   }
 
   /* 桌面端专用类 */
@@ -2711,10 +2546,6 @@
       gap: 0.75rem;
     }
 
-    .mobile-menu-btn {
-      display: none;
-    }
-
     .board-section {
       min-height: 400px;
     }
@@ -2739,37 +2570,44 @@
       height: 100vh;
     }
 
-    /* 移动端控制面板 - 占据屏幕上方1/3 */
+    /* 移动端控制面板 - 扩大玩家状态区域 */
     .mobile-control-panel {
       display: flex;
-      height: 33.33vh; /* 屏幕高度的1/3 */
+      height: 38vh; /* 增加到屏幕高度的38% */
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(20px);
       border-bottom: 2px solid rgba(0, 0, 0, 0.1);
       flex-shrink: 0;
     }
 
-    /* 左侧骰子区域 - 占据控制面板的1/3 */
+    /* 左侧骰子区域 - 占据控制面板的30% */
     .mobile-dice-section {
-      width: 33.33%;
+      width: 30%;
       border-right: 1px solid rgba(0, 0, 0, 0.1);
       background: rgba(248, 249, 250, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    /* 右侧状态区域 - 占据控制面板的2/3 */
+    /* 右侧状态区域 - 占据控制面板的70% */
     .mobile-status-section {
-      width: 66.67%;
+      width: 70%;
       height: 100%;
       overflow: hidden;
       display: flex;
       flex-direction: column;
     }
 
-    /* 移动端玩家面板容器 */
+    /* 移动端玩家面板容器 - 扩展显示区域 */
     .mobile-players-container {
       flex: 1;
       overflow: hidden;
       min-height: 0; /* 允许flex子项收缩 */
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      margin-top: 0.3rem;
+      padding: 0.2rem;
     }
 
     /* 移动端玩家面板样式调整 */
@@ -2782,17 +2620,22 @@
       height: 100%;
       margin-bottom: 0;
       padding: 0.5rem;
+      background: transparent;
     }
 
     .mobile-player-panel .player-panel h3 {
       margin: 0 0 0.5rem 0;
       font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.9);
+      text-align: center;
+      font-weight: 600;
     }
 
     .mobile-player-panel .players-container {
       max-height: none;
-      height: 100%;
+      height: calc(100% - 2rem); /* 减去标题高度 */
       min-height: 0;
+      overflow-y: auto;
     }
 
     .mobile-player-panel .players-grid {
@@ -2802,48 +2645,80 @@
     }
 
     .mobile-player-panel .player-card {
-      padding: 0.4rem;
+      padding: 0.5rem;
       border-width: 1px;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s ease;
+    }
+
+    .mobile-player-panel .player-card.current {
+      background: rgba(59, 130, 246, 0.15);
+      border-color: rgba(59, 130, 246, 0.4);
+      box-shadow: 0 3px 8px rgba(59, 130, 246, 0.25);
+      transform: translateY(-1px);
     }
 
     .mobile-player-panel .player-header {
-      gap: 0.3rem;
-      margin-bottom: 0.3rem;
+      gap: 0.5rem;
+      margin-bottom: 0.4rem;
+      align-items: center;
     }
 
     .mobile-player-panel .player-color {
-      width: 12px;
-      height: 12px;
-      border-width: 1px;
+      width: 16px;
+      height: 16px;
+      border-width: 2px;
+      flex-shrink: 0;
+      border-radius: 50%;
     }
 
     .mobile-player-panel .player-name {
-      font-size: 0.8rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #333;
     }
 
     .mobile-player-panel .player-stats {
-      gap: 0.2rem;
+      gap: 0.35rem;
     }
 
     .mobile-player-panel .stat {
-      gap: 0.3rem;
+      gap: 0.4rem;
+      align-items: center;
     }
 
     .mobile-player-panel .label {
-      font-size: 0.7rem;
-      min-width: 25px;
+      font-size: 0.75rem;
+      min-width: 35px;
+      color: #666;
+      font-weight: 500;
     }
 
     .mobile-player-panel .value {
-      font-size: 0.7rem;
-    }
-
-    .mobile-player-panel .progress-bar {
-      height: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #333;
     }
 
     .mobile-player-panel .players-container::-webkit-scrollbar {
-      width: 3px;
+      width: 2px;
+    }
+
+    .mobile-player-panel .players-container::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 1px;
+    }
+
+    .mobile-player-panel .players-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 1px;
     }
 
     /* 隐藏桌面端状态区域 */
@@ -2851,76 +2726,85 @@
       display: none;
     }
 
-    /* 棋盘区域 - 占据屏幕下方2/3 */
+    /* 棋盘区域 - 相应减少高度 */
     .board-section {
-      height: 66.67vh; /* 屏幕高度的2/3 */
+      height: 62vh; /* 减少到屏幕高度的62% */
       flex-shrink: 0;
       padding: 0.5rem;
       overflow: hidden;
     }
 
-    .mobile-menu-btn {
-      display: flex !important;
-    }
-
-    /* 移动端骰子尺寸调整 */
+    /* 移动端骰子尺寸调整 - 更紧凑 */
     .mobile-dice-section .cool-dice-container {
-      padding: 0.5rem;
-      gap: 0.5rem;
+      padding: 0.3rem;
+      gap: 0.3rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
     }
 
     .mobile-dice-section .dice-cube {
-      width: 50px;
-      height: 50px;
-      margin: 0.75rem;
+      width: 45px;
+      height: 45px;
+      margin: 0.5rem;
     }
 
     .mobile-dice-section .face {
-      width: 50px;
-      height: 50px;
+      width: 45px;
+      height: 45px;
     }
 
     .mobile-dice-section .face-1 {
-      transform: rotateY(0deg) translateZ(25px);
+      transform: rotateY(0deg) translateZ(22.5px);
     }
     .mobile-dice-section .face-2 {
-      transform: rotateY(90deg) translateZ(25px);
+      transform: rotateY(90deg) translateZ(22.5px);
     }
     .mobile-dice-section .face-3 {
-      transform: rotateY(180deg) translateZ(25px);
+      transform: rotateY(180deg) translateZ(22.5px);
     }
     .mobile-dice-section .face-4 {
-      transform: rotateY(-90deg) translateZ(25px);
+      transform: rotateY(-90deg) translateZ(22.5px);
     }
     .mobile-dice-section .face-5 {
-      transform: rotateX(90deg) translateZ(25px);
+      transform: rotateX(90deg) translateZ(22.5px);
     }
     .mobile-dice-section .face-6 {
-      transform: rotateX(-90deg) translateZ(25px);
+      transform: rotateX(-90deg) translateZ(22.5px);
     }
 
     .mobile-dice-section .dot {
-      width: 8px;
-      height: 8px;
+      width: 7px;
+      height: 7px;
     }
 
     .mobile-dice-section .result-display {
-      padding: 0.4rem 0.8rem;
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .mobile-dice-section .result-number {
-      font-size: 1.2rem;
+      font-size: 1.1rem;
+      font-weight: bold;
     }
 
     .mobile-dice-section .dice-status {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
+      margin-top: 0.2rem;
     }
 
     .mobile-dice-section .status-rolling,
     .mobile-dice-section .status-result,
     .mobile-dice-section .status-prompt {
-      padding: 0.3rem 0.6rem;
-      font-size: 0.7rem;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.65rem;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.8);
+      text-align: center;
     }
   }
 
@@ -2971,6 +2855,106 @@
       padding: 0.25rem;
     }
 
+    /* 小屏幕优化控制面板高度 */
+    .mobile-control-panel {
+      height: 35vh; /* 保持合理的高度给玩家状态 */
+    }
+
+    .board-section {
+      height: 65vh; /* 相应调整棋盘高度 */
+    }
+
+    /* 更紧凑的合并状态显示 */
+    .mobile-combined-status {
+      gap: 0.5rem;
+      padding: 0.4rem;
+    }
+
+    .mobile-turn-display {
+      padding: 0.3rem 0.5rem;
+      min-width: 50px;
+    }
+
+    .turn-number {
+      font-size: 1.1rem;
+    }
+
+    .turn-label {
+      font-size: 0.65rem;
+    }
+
+    .status-tag-mobile {
+      font-size: 0.7rem;
+      padding: 0.25rem 0.5rem;
+    }
+
+    /* 小屏幕骰子调整 */
+    .mobile-dice-section .dice-cube {
+      width: 40px;
+      height: 40px;
+      margin: 0.4rem;
+    }
+
+    .mobile-dice-section .face {
+      width: 40px;
+      height: 40px;
+    }
+
+    .mobile-dice-section .face-1 {
+      transform: rotateY(0deg) translateZ(20px);
+    }
+    .mobile-dice-section .face-2 {
+      transform: rotateY(90deg) translateZ(20px);
+    }
+    .mobile-dice-section .face-3 {
+      transform: rotateY(180deg) translateZ(20px);
+    }
+    .mobile-dice-section .face-4 {
+      transform: rotateY(-90deg) translateZ(20px);
+    }
+    .mobile-dice-section .face-5 {
+      transform: rotateX(90deg) translateZ(20px);
+    }
+    .mobile-dice-section .face-6 {
+      transform: rotateX(-90deg) translateZ(20px);
+    }
+
+    .mobile-dice-section .dot {
+      width: 6px;
+      height: 6px;
+    }
+
+    .mobile-dice-section .result-number {
+      font-size: 1rem;
+    }
+
+    .mobile-dice-section .dice-status {
+      font-size: 0.65rem;
+    }
+
+    /* 小屏幕玩家面板优化 */
+    .mobile-player-panel .player-panel h3 {
+      font-size: 0.8rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .mobile-player-panel .player-card {
+      padding: 0.3rem;
+    }
+
+    .mobile-player-panel .player-name {
+      font-size: 0.75rem;
+    }
+
+    .mobile-player-panel .label {
+      font-size: 0.65rem;
+      min-width: 28px;
+    }
+
+    .mobile-player-panel .value {
+      font-size: 0.65rem;
+    }
+
     .card-title {
       font-size: 0.9rem;
     }
@@ -3013,11 +2997,6 @@
     }
 
     /* 增大触摸目标 */
-    .mobile-menu-btn {
-      min-width: 44px;
-      min-height: 44px;
-      padding: 0.75rem;
-    }
 
     .control-buttons .p-button {
       min-height: 48px;
@@ -3053,6 +3032,28 @@
 
     .dice-card .dice-section {
       padding: 0.5rem 0;
+    }
+
+    /* 横屏模式下的移动端控制面板优化 */
+    .mobile-control-panel {
+      height: 35vh; /* 横屏时稍微增加高度 */
+    }
+
+    .board-section {
+      height: 65vh;
+    }
+
+    .mobile-combined-status {
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .mobile-dice-section {
+      width: 25%; /* 横屏时减少骰子区域宽度 */
+    }
+
+    .mobile-status-section {
+      width: 75%; /* 横屏时增加状态区域宽度 */
     }
   }
 

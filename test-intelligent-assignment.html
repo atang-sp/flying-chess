@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能随机分配算法测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 5px;
+            margin: 10px 0;
+        }
+        .cell {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 12px;
+            text-align: center;
+            min-height: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .punishment-cell {
+            background: #ffe6e6;
+            border-color: #ff9999;
+        }
+        .other-cell {
+            background: #f0f0f0;
+            border-color: #ccc;
+        }
+        .position-number {
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 2px;
+        }
+        .combination-info {
+            font-size: 10px;
+            line-height: 1.2;
+        }
+        .tool { color: #d63384; font-weight: bold; }
+        .bodypart { color: #0d6efd; }
+        .position { color: #198754; }
+        .strikes { color: #fd7e14; font-weight: bold; }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            background: #e7f3ff;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .stat-box {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        .stat-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .diversity-score {
+            font-size: 24px;
+            font-weight: bold;
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 智能随机分配算法测试</h1>
+        <p>测试新的智能随机分配算法：在连续6个格子范围内增加惩罚组合多样性</p>
+
+        <div class="test-section">
+            <div class="test-title">测试1：智能分配 vs 传统循环分配对比</div>
+            <button onclick="testIntelligentAssignment()">生成智能分配</button>
+            <button onclick="testTraditionalAssignment()">生成传统分配</button>
+            <button onclick="compareAssignments()">对比分析</button>
+            <div id="assignment-result" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">测试2：连续6格多样性分析</div>
+            <button onclick="analyzeDiversity()">分析多样性</button>
+            <div id="diversity-result" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">测试3：多次生成稳定性测试</div>
+            <button onclick="testStability()">稳定性测试（10次）</button>
+            <div id="stability-result" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // 模拟配置
+        const mockConfig = {
+            tools: [
+                { id: 'hand', name: '手掌', intensity: 2, ratio: 30 },
+                { id: 'ruler', name: '尺子', intensity: 4, ratio: 25 },
+                { id: 'paddle', name: '拍子', intensity: 3, ratio: 20 },
+                { id: 'belt', name: '皮带', intensity: 5, ratio: 15 },
+                { id: 'cane', name: '藤条', intensity: 6, ratio: 10 }
+            ],
+            bodyParts: [
+                { id: 'butt', name: '屁股', sensitivity: 5, ratio: 40 },
+                { id: 'palm', name: '手心', sensitivity: 3, ratio: 25 },
+                { id: 'thigh', name: '大腿', sensitivity: 4, ratio: 20 },
+                { id: 'back', name: '后背', sensitivity: 6, ratio: 15 }
+            ],
+            positions: [
+                { id: 'standing', name: '站立', ratio: 30 },
+                { id: 'bending', name: '弯腰', ratio: 25 },
+                { id: 'kneeling', name: '跪趴', ratio: 20 },
+                { id: 'lying', name: '趴着', ratio: 25 }
+            ],
+            minStrikes: 10,
+            maxStrikes: 30,
+            step: 5
+        };
+
+        // 生成组合定义
+        function generateCombinations(count = 8) {
+            const combinations = [];
+            const tools = mockConfig.tools.filter(t => t.ratio > 0);
+            const bodyParts = mockConfig.bodyParts.filter(b => b.ratio > 0);
+            const positions = mockConfig.positions.filter(p => p.ratio > 0);
+            
+            for (let i = 0; i < count; i++) {
+                const tool = tools[i % tools.length];
+                const bodyPart = bodyParts[Math.floor(i / tools.length) % bodyParts.length];
+                const position = positions[Math.floor(i / (tools.length * bodyParts.length)) % positions.length];
+                
+                combinations.push({
+                    tool,
+                    bodyPart,
+                    position,
+                    description: `用${tool.name}打${bodyPart.name}，姿势：${position.name}`
+                });
+            }
+            
+            return combinations;
+        }
+
+        // 模拟棋盘（40格，28个惩罚格子）
+        function createMockBoard() {
+            const board = [];
+            const punishmentPositions = [];
+            
+            // 生成惩罚格子位置（排除起点1和终点40）
+            for (let i = 2; i <= 39; i++) {
+                if (punishmentPositions.length < 28) {
+                    punishmentPositions.push(i);
+                }
+            }
+            
+            // 随机打乱位置
+            for (let i = punishmentPositions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [punishmentPositions[i], punishmentPositions[j]] = [punishmentPositions[j], punishmentPositions[i]];
+            }
+            
+            // 创建棋盘
+            for (let i = 1; i <= 40; i++) {
+                if (i === 1 || i === 40) {
+                    board.push({ position: i, type: 'bonus' });
+                } else if (punishmentPositions.includes(i)) {
+                    board.push({ position: i, type: 'punishment' });
+                } else {
+                    board.push({ position: i, type: 'other' });
+                }
+            }
+            
+            return board;
+        }
+
+        // 传统循环分配
+        function traditionalAssignment(board, combinations) {
+            const punishmentCells = board.filter(cell => cell.type === 'punishment');
+            const result = [];
+            
+            punishmentCells.forEach((cell, index) => {
+                const combinationIndex = index % combinations.length;
+                const combination = combinations[combinationIndex];
+                const strikes = Math.floor(Math.random() * 4 + 2) * 5; // 10-25
+                
+                result.push({
+                    position: cell.position,
+                    combination,
+                    strikes,
+                    description: `${combination.description}${strikes}下`
+                });
+            });
+            
+            return result.sort((a, b) => a.position - b.position);
+        }
+
+        // 智能分配（简化版本）
+        function intelligentAssignment(board, combinations) {
+            const punishmentCells = board.filter(cell => cell.type === 'punishment');
+            const sortedCells = punishmentCells.sort((a, b) => a.position - b.position);
+            const result = [];
+            
+            for (const cell of sortedCells) {
+                const windowCombinations = getWindowCombinations(result, cell.position, 6);
+                const bestCombination = selectOptimalCombination(combinations, windowCombinations);
+                const strikes = Math.floor(Math.random() * 4 + 2) * 5; // 10-25
+                
+                const assignment = {
+                    position: cell.position,
+                    combination: bestCombination,
+                    strikes,
+                    description: `${bestCombination.description}${strikes}下`
+                };
+                
+                result.push(assignment);
+            }
+            
+            return result.sort((a, b) => a.position - b.position);
+        }
+
+        // 获取窗口内的组合
+        function getWindowCombinations(assignments, currentPosition, windowSize = 6) {
+            const halfWindow = Math.floor(windowSize / 2);
+            return assignments.filter(assignment => {
+                const distance = Math.abs(assignment.position - currentPosition);
+                return distance <= halfWindow && assignment.position !== currentPosition;
+            }).map(assignment => assignment.combination);
+        }
+
+        // 计算多样性评分
+        function calculateDiversityScore(candidate, windowCombinations) {
+            if (windowCombinations.length === 0) return 100;
+            
+            let score = 100;
+            const toolRepeats = windowCombinations.filter(combo => combo.tool.id === candidate.tool.id).length;
+            const bodyPartRepeats = windowCombinations.filter(combo => combo.bodyPart.id === candidate.bodyPart.id).length;
+            const positionRepeats = windowCombinations.filter(combo => combo.position.id === candidate.position.id).length;
+            
+            score -= toolRepeats * 30;
+            score -= bodyPartRepeats * 20;
+            score -= positionRepeats * 10;
+            
+            return Math.max(0, score);
+        }
+
+        // 选择最优组合
+        function selectOptimalCombination(availableCombinations, windowCombinations) {
+            if (availableCombinations.length === 1) return availableCombinations[0];
+            
+            const scoredCombinations = availableCombinations.map(combo => ({
+                combination: combo,
+                score: calculateDiversityScore(combo, windowCombinations)
+            }));
+            
+            const maxScore = Math.max(...scoredCombinations.map(item => item.score));
+            const topCombinations = scoredCombinations.filter(item => item.score === maxScore);
+            
+            const randomIndex = Math.floor(Math.random() * topCombinations.length);
+            return topCombinations[randomIndex].combination;
+        }
+
+        // 测试函数将在下一部分添加...
+        let currentBoard = null;
+        let currentCombinations = null;
+        let intelligentResult = null;
+        let traditionalResult = null;
+
+        // 全局函数声明
+        window.testIntelligentAssignment = function() {
+            alert('智能分配测试功能正在加载...');
+        };
+        
+        window.testTraditionalAssignment = function() {
+            alert('传统分配测试功能正在加载...');
+        };
+        
+        window.compareAssignments = function() {
+            alert('对比分析功能正在加载...');
+        };
+        
+        window.analyzeDiversity = function() {
+            alert('多样性分析功能正在加载...');
+        };
+        
+        window.testStability = function() {
+            alert('稳定性测试功能正在加载...');
+        };
+    </script>
+</body>
+</html>

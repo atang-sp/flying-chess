@@ -39,6 +39,15 @@ export interface PunishmentConfig {
   maxTakeoffFailures: number // 最大起飞失败次数（达到后自动起飞）
 }
 
+// 惩罚组合定义（不包含具体次数）
+export interface PunishmentCombination {
+  tool: PunishmentTool
+  bodyPart: PunishmentBodyPart
+  position: PunishmentPosition
+  description: string
+}
+
+// 完整的惩罚动作（包含具体次数）
 export interface PunishmentAction {
   tool: PunishmentTool
   bodyPart: PunishmentBodyPart
