@@ -28,6 +28,7 @@
   import TrapDisplay from './components/TrapDisplay.vue'
   import VictoryScreen from './components/VictoryScreen.vue'
   import TakeoffReliefDisplay from './components/TakeoffReliefDisplay.vue'
+  import ConfigExport from './components/ConfigExport.vue'
   import { saveConfig, loadConfig } from './utils/cache'
   import { driver as createDriver } from 'driver.js'
 
@@ -1411,6 +1412,9 @@
   const autoGuideEnabled = ref(true) // 可以控制是否启用自动引导
   const showGuideSettings = ref(false) // 控制引导设置菜单显示
 
+  // 配置导出功能
+  const showConfigExport = ref(false)
+
   const showAutoGuide = (pageType: string) => {
     console.log(
       `检查自动引导 - 页面类型: ${pageType}, 自动引导开启: ${autoGuideEnabled.value}, 已显示过: ${hasShownGuide.value.has(pageType)}`
@@ -1447,6 +1451,25 @@
     hasShownGuide.value.clear()
     localStorage.removeItem('hasShownGuide')
     console.log('引导状态已重置')
+  }
+
+  // 配置导出功能
+  const openConfigExport = () => {
+    showConfigExport.value = true
+  }
+
+  const closeConfigExport = () => {
+    showConfigExport.value = false
+  }
+
+  const handleExportSuccess = (filename: string) => {
+    console.log(`配置导出成功: ${filename}`)
+    // 可以在这里添加成功提示
+  }
+
+  const handleExportError = (error: string) => {
+    console.error(`配置导出失败: ${error}`)
+    // 可以在这里添加错误提示
   }
 
   // 监听游戏状态变化，自动显示引导
@@ -1984,6 +2007,12 @@
 
     <!-- 用户引导按钮和设置 -->
     <div class="guide-controls">
+      <!-- 配置导出按钮 -->
+      <button class="export-btn" title="导出配置" @click="openConfigExport">
+        <span class="export-icon">📤</span>
+        <span class="export-text">导出</span>
+      </button>
+
       <!-- 主要引导按钮 -->
       <button class="guide-btn" title="查看当前页面引导" @click="startGuide">
         <span class="guide-icon">❓</span>
@@ -2027,6 +2056,15 @@
         </div>
       </div>
     </div>
+
+    <!-- 配置导出对话框 -->
+    <ConfigExport
+      :visible="showConfigExport"
+      :current-board="gameState.board"
+      @close="closeConfigExport"
+      @export-success="handleExportSuccess"
+      @export-error="handleExportError"
+    />
   </div>
 </template>
 
@@ -3157,6 +3195,42 @@
     z-index: 1100;
   }
 
+  .export-btn {
+    background: rgba(59, 130, 246, 0.9);
+    color: white;
+    border: 2px solid rgba(59, 130, 246, 0.3);
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+
+  .export-btn:hover {
+    transform: translateY(-2px);
+    background: rgba(59, 130, 246, 1);
+    border-color: rgba(59, 130, 246, 0.5);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+  }
+
+  .export-icon {
+    font-size: 1.2rem;
+  }
+
+  .export-text {
+    display: none;
+    margin-left: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
   .guide-settings {
     position: relative;
   }
@@ -3292,6 +3366,16 @@
     .guide-controls {
       bottom: 1rem;
       left: 1rem;
+    }
+
+    .export-btn {
+      width: 50px;
+      height: 50px;
+      font-size: 1rem;
+    }
+
+    .export-text {
+      display: none;
     }
 
     .settings-toggle {
