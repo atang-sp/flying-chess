@@ -107,8 +107,10 @@
 
     console.log('📍 Using position:', useRelativePosition ? 'relative' : 'offset', actualElementTop)
 
-    // 计算目标滚动位置：让当前玩家卡片在容器中央
-    const targetScrollTop = actualElementTop - containerHeight / 2 + elementHeight / 2
+    // 计算目标滚动位置：让当前玩家卡片的顶部对齐到容器顶部，并留出一些边距
+    // 移动端使用更小的边距，确保更多内容可见
+    const topMargin = isMobile ? 10 : 20 // 移动端10px，桌面端20px边距
+    const targetScrollTop = actualElementTop - topMargin
 
     // 确保滚动位置在有效范围内
     const maxScrollTop = containerScrollHeight - containerHeight
@@ -141,7 +143,7 @@
       // 备用方案：使用scrollIntoView
       currentElement.scrollIntoView({
         behavior: 'smooth',
-        block: 'center',
+        block: 'start',
         inline: 'nearest',
       })
     }
@@ -158,7 +160,7 @@
         console.warn('⚠️ Scroll position not as expected, trying scrollIntoView fallback')
         currentElement.scrollIntoView({
           behavior: 'smooth',
-          block: 'center',
+          block: 'start',
           inline: 'nearest',
         })
       }
@@ -275,7 +277,7 @@
     if (currentElement) {
       currentElement.scrollIntoView({
         behavior: 'smooth',
-        block: 'center',
+        block: 'start',
         inline: 'nearest',
       })
     } else {
@@ -317,25 +319,7 @@
           <div class="player-stats">
             <div class="stat">
               <span class="label">位置:</span>
-              <span class="value">{{ player.position }}</span>
-            </div>
-            <div class="stat">
-              <span class="label">状态:</span>
-              <span class="value" :class="{ 'not-taken-off': !player.hasTakenOff }">
-                {{ player.hasTakenOff ? '已起飞' : '未起飞' }}
-              </span>
-            </div>
-            <div class="stat">
-              <span class="label">进度:</span>
-              <div class="progress-bar">
-                <div
-                  class="progress-fill"
-                  :style="{
-                    width: `${Math.min((player.position / 100) * 100, 100)}%`,
-                    backgroundColor: player.color,
-                  }"
-                ></div>
-              </div>
+              <span class="value">{{ player.position === 0 ? '飞机场' : player.position }}</span>
             </div>
           </div>
         </div>
@@ -472,25 +456,6 @@
     font-size: clamp(0.8rem, 2.5vw, 0.9rem);
   }
 
-  .value.not-taken-off {
-    color: #ff6b6b;
-    font-weight: bold;
-  }
-
-  .progress-bar {
-    flex: 1;
-    height: clamp(6px, 1.5vw, 8px);
-    background: #e0e0e0;
-    border-radius: clamp(3px, 0.8vw, 4px);
-    overflow: hidden;
-  }
-
-  .progress-fill {
-    height: 100%;
-    transition: width 0.5s ease;
-    border-radius: clamp(3px, 0.8vw, 4px);
-  }
-
   @keyframes bounce {
     0%,
     20%,
@@ -585,10 +550,6 @@
     .value {
       font-size: clamp(0.7rem, 2vw, 0.8rem);
     }
-
-    .progress-bar {
-      height: clamp(4px, 1vw, 6px);
-    }
   }
 
   /* 小屏手机优化 */
@@ -654,10 +615,6 @@
     .value {
       font-size: clamp(0.65rem, 1.8vw, 0.7rem);
     }
-
-    .progress-bar {
-      height: clamp(3px, 0.8vw, 4px);
-    }
   }
 
   /* 超小屏手机优化 */
@@ -722,10 +679,6 @@
 
     .value {
       font-size: clamp(0.6rem, 1.5vw, 0.65rem);
-    }
-
-    .progress-bar {
-      height: clamp(2px, 0.6vw, 3px);
     }
   }
 
