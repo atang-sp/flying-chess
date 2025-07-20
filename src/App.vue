@@ -9,6 +9,7 @@
     BoardCell,
     PunishmentConfig,
     PunishmentAction,
+    PunishmentCombination,
     CellEffect,
     BoardConfig,
     TrapAction,
@@ -57,7 +58,7 @@
 
   // 惩罚组合确认状态
   const showPunishmentConfirmation = ref(false)
-  const punishmentCombinations = ref<PunishmentAction[]>([])
+  const punishmentCombinations = ref<PunishmentCombination[]>([])
 
   // 新增效果位置状态
   const effectFromPosition = ref<number | undefined>(undefined)
@@ -65,7 +66,7 @@
 
   // 惩罚统计状态
   const showPunishmentStats = ref(false)
-  const confirmedCombinations = ref<PunishmentAction[]>([])
+  const confirmedCombinations = ref<PunishmentCombination[]>([])
 
   // 起飞惩罚显示状态
   const showTakeoffPunishmentDisplay = ref(false)
@@ -966,8 +967,8 @@
     const punishmentCells = gameState.board.filter(cell => cell.type === 'punishment')
     const totalPunishmentCells = punishmentCells.length
 
-    // 使用新的平衡生成方法，确保符合用户设置的比例
-    punishmentCombinations.value = GameService.generateBalancedPunishmentCombinations(
+    // 使用新的平衡生成方法，生成惩罚组合定义（不包含次数）
+    punishmentCombinations.value = GameService.generateBalancedPunishmentCombinationDefinitions(
       gameState.punishmentConfig,
       totalPunishmentCells
     )
@@ -975,13 +976,14 @@
   }
 
   // 确认惩罚组合
-  const confirmPunishmentCombinations = (combinations: PunishmentAction[]) => {
+  const confirmPunishmentCombinations = (combinations: PunishmentCombination[]) => {
     showPunishmentConfirmation.value = false
 
-    // 根据确认的组合更新棋盘
-    gameState.board = GameService.updateBoardWithConfirmedCombinations(
+    // 根据确认的组合定义更新棋盘（在分配时生成随机次数）
+    gameState.board = GameService.updateBoardWithConfirmedCombinationDefinitions(
       gameState.board,
-      combinations
+      combinations,
+      gameState.punishmentConfig
     )
 
     // 显示惩罚统计信息

@@ -1,14 +1,14 @@
 <script setup lang="ts">
   import { ref, computed } from 'vue'
-  import type { PunishmentAction } from '../types/game'
+  import type { PunishmentCombination } from '../types/game'
 
   interface Props {
     show: boolean
-    combinations: PunishmentAction[]
+    combinations: PunishmentCombination[]
   }
 
   interface Emits {
-    (e: 'confirm', combinations: PunishmentAction[]): void
+    (e: 'confirm', combinations: PunishmentCombination[]): void
     (e: 'regenerate'): void
     (e: 'back-to-settings'): void
   }

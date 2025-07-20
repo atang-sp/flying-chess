@@ -3,6 +3,7 @@ import type {
   BoardCell,
   PunishmentConfig,
   PunishmentAction,
+  PunishmentCombination,
   PunishmentBodyPart,
   PunishmentTool,
   PunishmentPosition,
@@ -749,7 +750,21 @@ export class GameService {
     return list[0]
   }
 
-  // 生成带随机惩罚次数的组合
+  // 创建惩罚组合定义（不包含次数）
+  private static createPunishmentCombinationDefinition(
+    tool: PunishmentTool,
+    bodyPart: PunishmentBodyPart,
+    position: PunishmentPosition
+  ): PunishmentCombination {
+    return {
+      tool,
+      bodyPart,
+      position,
+      description: `用${tool.name}打${bodyPart.name}，姿势：${position.name}`,
+    }
+  }
+
+  // 生成带随机惩罚次数的组合（保留原有方法用于兼容性）
   private static createPunishmentCombination(
     tool: PunishmentTool,
     bodyPart: PunishmentBodyPart,
@@ -775,6 +790,33 @@ export class GameService {
       position,
       strikes,
       description: `用${tool.name}打${bodyPart.name}${strikes}下，姿势：${position.name}`,
+    }
+  }
+
+  // 从惩罚组合定义生成带次数的惩罚动作
+  private static createPunishmentActionFromCombination(
+    combination: PunishmentCombination,
+    config: PunishmentConfig
+  ): PunishmentAction {
+    // 在配置的范围内随机生成惩罚次数，确保是步长的倍数
+    const minStrikes = Math.max(1, config.minStrikes || 10)
+    const maxStrikes = Math.max(minStrikes, config.maxStrikes || 30)
+    const step = config.step || 5
+
+    // 确保最小值和最大值都是步长的倍数
+    const minMultiple = Math.ceil(minStrikes / step)
+    const maxMultiple = Math.floor(maxStrikes / step)
+
+    // 在有效的倍数范围内随机选择
+    const randomMultiple = Math.floor(Math.random() * (maxMultiple - minMultiple + 1)) + minMultiple
+    const strikes = randomMultiple * step
+
+    return {
+      tool: combination.tool,
+      bodyPart: combination.bodyPart,
+      position: combination.position,
+      strikes,
+      description: `用${combination.tool.name}打${combination.bodyPart.name}${strikes}下，姿势：${combination.position.name}`,
     }
   }
 
@@ -862,7 +904,72 @@ export class GameService {
     config.positions.forEach(position => (position.ratio = positionRatio))
   }
 
-  // 生成多个惩罚组合供玩家确认
+  // 生成多个惩罚组合定义供玩家确认（不包含次数）
+  static generatePunishmentCombinationDefinitions(
+    config: PunishmentConfig,
+    count: number = 10
+  ): PunishmentCombination[] {
+    const combinations: PunishmentCombination[] = []
+    const usedCombinations = new Set<string>() // 用于去重的集合
+
+    // 获取有效的配置项（ratio > 0）
+    const validTools = config.tools.filter(tool => tool.ratio > 0)
+    const validBodyParts = config.bodyParts.filter(bodyPart => bodyPart.ratio > 0)
+    const validPositions = config.positions.filter(position => position.ratio > 0)
+
+    // 如果任何一类没有有效配置，返回空数组
+    if (validTools.length === 0 || validBodyParts.length === 0 || validPositions.length === 0) {
+      return []
+    }
+
+    // 生成所有可能的有效组合（优先考虑强度限制）
+    const allPossibleCombinations: PunishmentCombination[] = []
+
+    for (const tool of validTools) {
+      for (const bodyPart of validBodyParts) {
+        // 检查工具强度是否适合部位耐受度
+        if (tool.intensity <= bodyPart.sensitivity) {
+          for (const position of validPositions) {
+            const combination = this.createPunishmentCombinationDefinition(tool, bodyPart, position)
+            allPossibleCombinations.push(combination)
+          }
+        }
+      }
+    }
+
+    // 如果严格限制下的组合数量不足，放宽强度限制（但仍然只使用有效配置）
+    if (allPossibleCombinations.length < count) {
+      allPossibleCombinations.length = 0 // 清空数组
+      for (const tool of validTools) {
+        for (const bodyPart of validBodyParts) {
+          for (const position of validPositions) {
+            const combination = this.createPunishmentCombinationDefinition(tool, bodyPart, position)
+            allPossibleCombinations.push(combination)
+          }
+        }
+      }
+    }
+
+    // 如果组合数量仍然不足，直接返回所有可能的组合
+    if (allPossibleCombinations.length <= count) {
+      return allPossibleCombinations
+    }
+
+    // 随机选择指定数量的组合，确保不重复
+    const shuffled = [...allPossibleCombinations].sort(() => Math.random() - 0.5)
+    for (let i = 0; i < Math.min(count, shuffled.length); i++) {
+      const combination = shuffled[i]
+      const key = `${combination.tool.id}-${combination.bodyPart.id}-${combination.position.id}`
+      if (!usedCombinations.has(key)) {
+        combinations.push(combination)
+        usedCombinations.add(key)
+      }
+    }
+
+    return combinations
+  }
+
+  // 生成多个惩罚组合供玩家确认（保留原有方法用于兼容性）
   static generatePunishmentCombinations(
     config: PunishmentConfig,
     count: number = 10
@@ -941,7 +1048,80 @@ export class GameService {
     return combinations
   }
 
-  // 根据确认的组合更新棋盘
+  // 根据确认的组合定义更新棋盘（在分配时生成随机次数）
+  static updateBoardWithConfirmedCombinationDefinitions(
+    board: BoardCell[],
+    combinations: PunishmentCombination[],
+    config: PunishmentConfig
+  ): BoardCell[] {
+    const updatedBoard = [...board]
+
+    // 获取所有惩罚格子的位置（基于实际棋盘）
+    const punishmentCells = updatedBoard.filter(cell => cell.type === 'punishment')
+    const punishmentPositions = punishmentCells.map(cell => cell.position)
+
+    // 为每个惩罚格子分配一个确认的组合，并生成随机次数
+    punishmentPositions.forEach((position, index) => {
+      const cell = updatedBoard.find(c => c.position === position)
+      if (cell && combinations.length > 0) {
+        // 如果组合数量少于格子数量，循环使用组合
+        const combinationIndex = index % combinations.length
+        const combinationDefinition = combinations[combinationIndex]
+
+        // 从组合定义生成带随机次数的惩罚动作
+        const punishmentAction = this.createPunishmentActionFromCombination(
+          combinationDefinition,
+          config
+        )
+
+        // 检查是否为动态惩罚格子（基于预定义配置）
+        if (position in GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS) {
+          const dynamicConfig =
+            GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS[
+              position as keyof typeof GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS
+            ]
+          punishmentAction.dynamicType = dynamicConfig.type as
+            | 'dice_multiplier'
+            | 'previous_player'
+            | 'next_player'
+            | 'other_player_choice'
+          punishmentAction.multiplier =
+            'multiplier' in dynamicConfig ? dynamicConfig.multiplier : undefined
+
+          // 更新描述
+          switch (punishmentAction.dynamicType) {
+            case 'dice_multiplier':
+              if (punishmentAction.multiplier) {
+                punishmentAction.description = `用${punishmentAction.tool.name}打${punishmentAction.bodyPart.name}，姿势：${punishmentAction.position.name}（骰子点数×${punishmentAction.multiplier}）`
+              }
+              break
+            case 'previous_player':
+              punishmentAction.description = `上一个玩家：用${punishmentAction.tool.name}打${punishmentAction.bodyPart.name}，姿势：${punishmentAction.position.name}`
+              break
+            case 'next_player':
+              punishmentAction.description = `下一个玩家：用${punishmentAction.tool.name}打${punishmentAction.bodyPart.name}，姿势：${punishmentAction.position.name}`
+              break
+            case 'other_player_choice':
+              punishmentAction.description = `用${punishmentAction.tool.name}打${punishmentAction.bodyPart.name}，姿势：${punishmentAction.position.name}（数量由其他玩家决定）`
+              break
+          }
+        }
+
+        cell.effect = {
+          type: 'punishment',
+          value: 0,
+          description: punishmentAction.description,
+          punishment: punishmentAction,
+          dynamicType: punishmentAction.dynamicType,
+          multiplier: punishmentAction.multiplier,
+        }
+      }
+    })
+
+    return updatedBoard
+  }
+
+  // 根据确认的组合更新棋盘（保留原有方法用于兼容性）
   static updateBoardWithConfirmedCombinations(
     board: BoardCell[],
     combinations: PunishmentAction[]
@@ -1007,7 +1187,118 @@ export class GameService {
     return updatedBoard
   }
 
-  // 生成更符合用户偏好的惩罚组合
+  // 生成更符合用户偏好的惩罚组合定义（不包含次数）
+  static generateBalancedPunishmentCombinationDefinitions(
+    config: PunishmentConfig,
+    count: number = 10
+  ): PunishmentCombination[] {
+    const combinations: PunishmentCombination[] = []
+    const usedCombinations = new Set<string>() // 用于去重的集合
+
+    // 获取有效的配置项（ratio > 0）
+    const validTools = config.tools.filter(tool => tool.ratio > 0)
+    const validBodyParts = config.bodyParts.filter(bodyPart => bodyPart.ratio > 0)
+    const validPositions = config.positions.filter(position => position.ratio > 0)
+
+    // 如果任何一类没有有效配置，返回空数组
+    if (validTools.length === 0 || validBodyParts.length === 0 || validPositions.length === 0) {
+      return []
+    }
+
+    // 生成所有可能的有效组合（优先考虑强度限制）
+    const allPossibleCombinations: PunishmentCombination[] = []
+
+    for (const tool of validTools) {
+      for (const bodyPart of validBodyParts) {
+        // 检查工具强度是否适合部位耐受度
+        if (tool.intensity <= bodyPart.sensitivity) {
+          for (const position of validPositions) {
+            const combination = this.createPunishmentCombinationDefinition(tool, bodyPart, position)
+            allPossibleCombinations.push(combination)
+          }
+        }
+      }
+    }
+
+    // 如果严格限制下的组合数量不足，放宽强度限制（但仍然只使用有效配置）
+    if (allPossibleCombinations.length < count) {
+      allPossibleCombinations.length = 0 // 清空数组
+      for (const tool of validTools) {
+        for (const bodyPart of validBodyParts) {
+          for (const position of validPositions) {
+            const combination = this.createPunishmentCombinationDefinition(tool, bodyPart, position)
+            allPossibleCombinations.push(combination)
+          }
+        }
+      }
+    }
+
+    // 如果组合数量仍然不足，直接返回所有可能的组合
+    if (allPossibleCombinations.length <= count) {
+      return allPossibleCombinations
+    }
+
+    // 确保工具、部位、姿势的分布符合用户设置的比例（仅使用有效配置）
+    const toolDistribution = this.calculateDistribution(validTools, count)
+    const positionDistribution = this.calculateDistribution(validPositions, count)
+
+    // 按比例选择组合
+    let attempts = 0
+    const maxAttempts = count * 5
+
+    while (combinations.length < count && attempts < maxAttempts) {
+      // 根据分布选择工具
+      const tool = this.selectByDistribution(validTools, toolDistribution, combinations.length)
+
+      // 根据工具强度选择合适的部位（考虑比例，但仅在有效部位中选择）
+      const validBodyPartsForTool = validBodyParts.filter(b => b.sensitivity >= tool.intensity)
+      let bodyPart: PunishmentBodyPart
+      if (validBodyPartsForTool.length > 0) {
+        // 在有效部位中按比例选择
+        bodyPart = this.selectByRatio(validBodyPartsForTool)
+      } else {
+        // 如果没有合适的部位，选择耐受度最高的有效部位
+        bodyPart = validBodyParts.reduce((max, current) =>
+          current.sensitivity > max.sensitivity ? current : max
+        )
+      }
+
+      // 根据分布选择姿势
+      const position = this.selectByDistribution(
+        validPositions,
+        positionDistribution,
+        combinations.length
+      )
+
+      // 创建组合定义
+      const combination = this.createPunishmentCombinationDefinition(tool, bodyPart, position)
+      const key = `${tool.id}-${bodyPart.id}-${position.id}`
+
+      // 检查是否已存在相同组合
+      if (!usedCombinations.has(key)) {
+        combinations.push(combination)
+        usedCombinations.add(key)
+      }
+
+      attempts++
+    }
+
+    // 如果仍然没有达到目标数量，用随机选择填充剩余位置
+    while (combinations.length < count && allPossibleCombinations.length > 0) {
+      const randomCombination =
+        allPossibleCombinations[Math.floor(Math.random() * allPossibleCombinations.length)]
+      const key = `${randomCombination.tool.id}-${randomCombination.bodyPart.id}-${randomCombination.position.id}`
+
+      if (!usedCombinations.has(key)) {
+        combinations.push(randomCombination)
+        usedCombinations.add(key)
+      }
+    }
+
+    return combinations
+  }
+
+  // 生成更符合用户偏好的惩罚组合（保留原有方法用于兼容性）
   static generateBalancedPunishmentCombinations(
     config: PunishmentConfig,
     count: number = 10
