@@ -1048,6 +1048,185 @@ export class GameService {
     return combinations
   }
 
+  // 获取指定位置周围窗口内的惩罚组合
+  private static getWindowCombinations(
+    board: BoardCell[],
+    currentPosition: number,
+    windowSize: number = 6
+  ): PunishmentCombination[] {
+    const windowCombinations: PunishmentCombination[] = []
+    const halfWindow = Math.floor(windowSize / 2)
+
+    // 获取所有惩罚格子，按位置排序
+    const punishmentCells = board
+      .filter(cell => cell.type === 'punishment' && cell.effect?.punishment)
+      .sort((a, b) => a.position - b.position)
+
+    // 找到当前位置在排序后数组中的索引
+    const currentIndex = punishmentCells.findIndex(cell => cell.position === currentPosition)
+    if (currentIndex === -1) return windowCombinations
+
+    // 获取窗口范围内的组合
+    const startIndex = Math.max(0, currentIndex - halfWindow)
+    const endIndex = Math.min(punishmentCells.length - 1, currentIndex + halfWindow)
+
+    for (let i = startIndex; i <= endIndex; i++) {
+      if (i !== currentIndex) {
+        // 排除当前位置
+        const cell = punishmentCells[i]
+        if (cell.effect?.punishment) {
+          const punishment = cell.effect.punishment
+          windowCombinations.push({
+            tool: punishment.tool,
+            bodyPart: punishment.bodyPart,
+            position: punishment.position,
+            description: punishment.description,
+          })
+        }
+      }
+    }
+
+    return windowCombinations
+  }
+
+  // 计算组合在窗口内的多样性评分
+  private static calculateDiversityScore(
+    candidate: PunishmentCombination,
+    windowCombinations: PunishmentCombination[]
+  ): number {
+    if (windowCombinations.length === 0) return 100 // 如果窗口为空，所有组合都是最优的
+
+    let score = 100
+
+    // 检查工具重复（权重最高）
+    const toolRepeats = windowCombinations.filter(
+      combo => combo.tool.id === candidate.tool.id
+    ).length
+    score -= toolRepeats * 30 // 工具重复扣30分
+
+    // 检查部位重复（权重中等）
+    const bodyPartRepeats = windowCombinations.filter(
+      combo => combo.bodyPart.id === candidate.bodyPart.id
+    ).length
+    score -= bodyPartRepeats * 20 // 部位重复扣20分
+
+    // 检查姿势重复（权重最低）
+    const positionRepeats = windowCombinations.filter(
+      combo => combo.position.id === candidate.position.id
+    ).length
+    score -= positionRepeats * 10 // 姿势重复扣10分
+
+    return Math.max(0, score) // 确保评分不为负数
+  }
+
+  // 检查组合是否满足最低多样性要求
+  private static meetsDiversityRequirement(
+    candidate: PunishmentCombination,
+    windowCombinations: PunishmentCombination[]
+  ): boolean {
+    if (windowCombinations.length === 0) return true
+
+    // 计算各维度的重复数量
+    const toolRepeats = windowCombinations.filter(
+      combo => combo.tool.id === candidate.tool.id
+    ).length
+    const bodyPartRepeats = windowCombinations.filter(
+      combo => combo.bodyPart.id === candidate.bodyPart.id
+    ).length
+    const positionRepeats = windowCombinations.filter(
+      combo => combo.position.id === candidate.position.id
+    ).length
+
+    // 计算不同维度的数量
+    let differentDimensions = 0
+    if (toolRepeats === 0) differentDimensions++
+    if (bodyPartRepeats === 0) differentDimensions++
+    if (positionRepeats === 0) differentDimensions++
+
+    // 最低要求：至少有2个维度不同，或者窗口内组合数量少于3个
+    return differentDimensions >= 2 || windowCombinations.length < 3
+  }
+
+  // 智能选择最优组合（考虑多样性）
+  private static selectOptimalCombination(
+    availableCombinations: PunishmentCombination[],
+    windowCombinations: PunishmentCombination[]
+  ): PunishmentCombination {
+    if (availableCombinations.length === 0) {
+      throw new Error('没有可用的惩罚组合')
+    }
+
+    if (availableCombinations.length === 1) {
+      return availableCombinations[0]
+    }
+
+    // 为每个组合计算多样性评分
+    const scoredCombinations = availableCombinations.map(combo => ({
+      combination: combo,
+      score: this.calculateDiversityScore(combo, windowCombinations),
+      meetsDiversity: this.meetsDiversityRequirement(combo, windowCombinations),
+    }))
+
+    // 首先尝试选择满足多样性要求的组合
+    const diverseCombinations = scoredCombinations.filter(item => item.meetsDiversity)
+
+    let candidatePool: typeof scoredCombinations
+    if (diverseCombinations.length > 0) {
+      candidatePool = diverseCombinations
+    } else {
+      // 如果没有组合满足多样性要求，选择评分最高的组合
+      candidatePool = scoredCombinations
+    }
+
+    // 找到最高评分
+    const maxScore = Math.max(...candidatePool.map(item => item.score))
+
+    // 获取所有最高评分的组合
+    const topCombinations = candidatePool.filter(item => item.score === maxScore)
+
+    // 在最高评分的组合中进行加权随机选择
+    if (topCombinations.length === 1) {
+      return topCombinations[0].combination
+    }
+
+    // 如果有多个最高评分的组合，进行随机选择
+    const randomIndex = Math.floor(Math.random() * topCombinations.length)
+    return topCombinations[randomIndex].combination
+  }
+
+  // 智能分配组合到惩罚格子（考虑连续6格的多样性）
+  private static assignCombinationsWithDiversity(
+    punishmentPositions: number[],
+    combinations: PunishmentCombination[],
+    board: BoardCell[]
+  ): Map<number, PunishmentCombination> {
+    const assignmentMap = new Map<number, PunishmentCombination>()
+
+    // 按位置排序，确保按顺序分配
+    const sortedPositions = [...punishmentPositions].sort((a, b) => a - b)
+
+    for (const position of sortedPositions) {
+      // 获取当前位置窗口内的已分配组合
+      const windowCombinations = this.getWindowCombinations(board, position, 6)
+
+      // 添加已分配但还未更新到board中的组合
+      for (const [assignedPos, assignedCombo] of assignmentMap.entries()) {
+        // 检查已分配的位置是否在当前位置的窗口内
+        const distance = Math.abs(assignedPos - position)
+        if (distance <= 3 && assignedPos !== position) {
+          // 窗口半径为3
+          windowCombinations.push(assignedCombo)
+        }
+      }
+
+      // 智能选择最优组合
+      const selectedCombination = this.selectOptimalCombination(combinations, windowCombinations)
+      assignmentMap.set(position, selectedCombination)
+    }
+
+    return assignmentMap
+  }
+
   // 根据确认的组合定义更新棋盘（在分配时生成随机次数）
   static updateBoardWithConfirmedCombinationDefinitions(
     board: BoardCell[],
@@ -1060,14 +1239,24 @@ export class GameService {
     const punishmentCells = updatedBoard.filter(cell => cell.type === 'punishment')
     const punishmentPositions = punishmentCells.map(cell => cell.position)
 
-    // 为每个惩罚格子分配一个确认的组合，并生成随机次数
-    punishmentPositions.forEach((position, index) => {
-      const cell = updatedBoard.find(c => c.position === position)
-      if (cell && combinations.length > 0) {
-        // 如果组合数量少于格子数量，循环使用组合
-        const combinationIndex = index % combinations.length
-        const combinationDefinition = combinations[combinationIndex]
+    if (combinations.length === 0) {
+      console.warn('没有可用的惩罚组合定义')
+      return updatedBoard
+    }
 
+    // 使用智能分配算法，考虑连续6格的多样性
+    const assignmentMap = this.assignCombinationsWithDiversity(
+      punishmentPositions,
+      combinations,
+      updatedBoard
+    )
+
+    // 为每个惩罚格子应用分配的组合，并生成随机次数
+    punishmentPositions.forEach(position => {
+      const cell = updatedBoard.find(c => c.position === position)
+      const combinationDefinition = assignmentMap.get(position)
+
+      if (cell && combinationDefinition) {
         // 从组合定义生成带随机次数的惩罚动作
         const punishmentAction = this.createPunishmentActionFromCombination(
           combinationDefinition,
