@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { ref, onMounted, onUnmounted, watch } from 'vue'
   import { savePlayerSettings, loadPlayerSettings } from '../utils/cache'
+  import VersionDisplay from './VersionDisplay.vue'
 
   interface Emits {
     (e: 'start', playerConfig: { count: number; names: string[] }): void
@@ -346,6 +347,9 @@
       <div class="light-beam light-2"></div>
       <div class="light-beam light-3"></div>
     </div>
+
+    <!-- 版本显示组件 -->
+    <VersionDisplay />
   </div>
 </template>
 

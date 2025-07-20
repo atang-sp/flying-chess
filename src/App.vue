@@ -25,7 +25,6 @@
   import EffectDisplay from './components/EffectDisplay.vue'
   import PunishmentStats from './components/PunishmentStats.vue'
   import TakeoffPunishmentDisplay from './components/TakeoffPunishmentDisplay.vue'
-  import VersionDisplay from './components/VersionDisplay.vue'
   import TrapDisplay from './components/TrapDisplay.vue'
   import VictoryScreen from './components/VictoryScreen.vue'
   import TakeoffReliefDisplay from './components/TakeoffReliefDisplay.vue'
@@ -1975,9 +1974,6 @@
       :all-players="gameState.players"
       @play-again="handleVictoryPlayAgain"
     />
-
-    <!-- 版本显示组件 -->
-    <VersionDisplay />
 
     <!-- 起飞失败过多自动起飞弹窗 -->
     <TakeoffReliefDisplay
