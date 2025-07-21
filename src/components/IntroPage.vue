@@ -13,12 +13,18 @@
   const playerCount = ref(2)
   const playerNames = ref<string[]>(['玩家1', '玩家2'])
 
-  // 初始化时尝试加载本地缓存的玩家设置
-  const cachedSettings = loadPlayerSettings()
-  if (cachedSettings) {
-    playerCount.value = cachedSettings.playerCount
-    playerNames.value = [...cachedSettings.playerNames]
+  // 加载玩家设置的函数
+  const loadAndApplyPlayerSettings = () => {
+    const cachedSettings = loadPlayerSettings()
+    if (cachedSettings) {
+      console.log('IntroPage: 加载玩家设置', cachedSettings)
+      playerCount.value = cachedSettings.playerCount
+      playerNames.value = [...cachedSettings.playerNames]
+    }
   }
+
+  // 初始化时尝试加载本地缓存的玩家设置
+  loadAndApplyPlayerSettings()
 
   // 监听玩家数量和名称变化并持久化
   watch(
@@ -58,6 +64,12 @@
 
   const startGame = () => {
     emit('start', { count: playerCount.value, names: playerNames.value })
+  }
+
+  // 监听玩家设置更新事件
+  const handlePlayerSettingsUpdate = (event: CustomEvent) => {
+    console.log('IntroPage: 收到玩家设置更新事件', event.detail)
+    loadAndApplyPlayerSettings()
   }
 
   // 清空缓存功能
@@ -100,12 +112,20 @@
     initParticles()
     animateParticles()
     updatePlayerNames() // 初始化玩家名称
+
+    // 监听玩家设置更新事件
+    window.addEventListener('playerSettingsUpdated', handlePlayerSettingsUpdate as EventListener)
+    console.log('IntroPage: 已注册玩家设置更新监听器')
   })
 
   onUnmounted(() => {
     if (animationId.value) {
       cancelAnimationFrame(animationId.value)
     }
+
+    // 移除事件监听器
+    window.removeEventListener('playerSettingsUpdated', handlePlayerSettingsUpdate as EventListener)
+    console.log('IntroPage: 已移除玩家设置更新监听器')
   })
 
   const initParticles = () => {

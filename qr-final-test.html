@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二维码最终测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .section {
+            background: #f8faff;
+            border: 1px solid #e0e7ff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .btn:hover { background: #2563eb; }
+        .btn:disabled { background: #9ca3af; cursor: not-allowed; }
+        
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .success { background: #dcfce7; border: 1px solid #16a34a; color: #15803d; }
+        .error { background: #fef2f2; border: 1px solid #dc2626; color: #dc2626; }
+        .info { background: #eff6ff; border: 1px solid #3b82f6; color: #1d4ed8; }
+        
+        .qr-preview {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .qr-preview img {
+            max-width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 二维码最终测试</h1>
+    
+    <div class="section">
+        <h3>📋 测试流程</h3>
+        <p>这是最终的二维码功能测试，将验证完整的导入导出流程：</p>
+        <ol>
+            <li>生成标准的配置二维码</li>
+            <li>使用修复后的解析功能测试</li>
+            <li>验证数据完整性</li>
+        </ol>
+    </div>
+    
+    <div class="section">
+        <h3>🔧 步骤1: 生成标准二维码</h3>
+        <button class="btn" onclick="generateStandardQR()">生成标准二维码</button>
+        <div id="generate-result" class="result" style="display: none;"></div>
+        <div id="qr-preview" class="qr-preview" style="display: none;"></div>
+    </div>
+    
+    <div class="section">
+        <h3>📥 步骤2: 测试解析</h3>
+        <input type="file" id="file-input" accept="image/*">
+        <button class="btn" onclick="testParsing()">测试解析</button>
+        <div id="parse-result" class="result" style="display: none;"></div>
+    </div>
+    
+    <div class="section">
+        <h3>🔍 步骤3: 验证数据</h3>
+        <button class="btn" onclick="validateData()" id="validate-btn" disabled>验证数据</button>
+        <div id="validate-result" class="result" style="display: none;"></div>
+    </div>
+    
+    <div class="section">
+        <h3>📊 测试日志</h3>
+        <textarea id="debug-log" readonly></textarea>
+        <button class="btn" onclick="clearLog()">清空日志</button>
+    </div>
+
+    <script type="module">
+        // 使用项目的导出工具
+        import { generateQRCode, importFromQRCode, collectExportData } from './src/utils/export.js';
+        
+        let testData = null;
+        let parsedData = null;
+        
+        function log(message) {
+            const debugLog = document.getElementById('debug-log');
+            const timestamp = new Date().toLocaleTimeString();
+            debugLog.value += `[${timestamp}] ${message}\n`;
+            debugLog.scrollTop = debugLog.scrollHeight;
+            console.log(message);
+        }
+        
+        function showResult(elementId, content, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${type}`;
+            element.textContent = content;
+        }
+        
+        window.clearLog = function() {
+            document.getElementById('debug-log').value = '';
+        }
+        
+        // 生成标准二维码
+        window.generateStandardQR = async function() {
+            log('开始生成标准二维码...');
+            
+            try {
+                // 创建标准的配置数据
+                testData = {
+                    version: "1.0.0",
+                    exportedAt: new Date().toISOString(),
+                    gameTitle: "飞行棋配置",
+                    description: "最终测试配置",
+                    data: {
+                        playerSettings: {
+                            playerCount: 3,
+                            playerNames: ["玩家1", "玩家2", "玩家3"]
+                        },
+                        boardConfig: {
+                            punishmentCells: 28,
+                            bonusCells: 1,
+                            reverseCells: 2,
+                            restCells: 1,
+                            restartCells: 4,
+                            trapCells: 2,
+                            totalCells: 40
+                        }
+                    }
+                };
+                
+                const jsonString = JSON.stringify(testData);
+                log(`配置数据大小: ${jsonString.length} 字符`);
+                
+                // 使用项目的二维码生成功能
+                const qrCodeDataURL = await generateQRCode(testData);
+                log('二维码生成成功');
+                
+                // 显示预览
+                const preview = document.getElementById('qr-preview');
+                preview.innerHTML = `
+                    <h4>标准配置二维码</h4>
+                    <img src="${qrCodeDataURL}" alt="标准配置二维码">
+                    <p>数据长度: ${jsonString.length} 字符</p>
+                    <button class="btn" onclick="downloadQR('${qrCodeDataURL}')">下载二维码</button>
+                `;
+                preview.style.display = 'block';
+                
+                showResult('generate-result', 
+                    `标准二维码生成成功！\n` +
+                    `数据大小: ${jsonString.length} 字符\n` +
+                    `版本: ${testData.version}\n` +
+                    `配置项: ${Object.keys(testData.data).join(', ')}`, 
+                    'success'
+                );
+                
+            } catch (error) {
+                log(`二维码生成失败: ${error.message}`);
+                showResult('generate-result', `生成失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 下载二维码
+        window.downloadQR = function(dataURL) {
+            const link = document.createElement('a');
+            link.href = dataURL;
+            link.download = 'final-test-qr.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            log('二维码已下载');
+        }
+        
+        // 测试解析
+        window.testParsing = async function() {
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showResult('parse-result', '请选择一个二维码图片文件', 'error');
+                return;
+            }
+            
+            log(`开始解析二维码: ${file.name}`);
+            
+            try {
+                // 使用项目的导入功能
+                const result = await importFromQRCode(file);
+                
+                if (result.success) {
+                    parsedData = result.data;
+                    log('二维码解析成功');
+                    
+                    showResult('parse-result', 
+                        `解析成功！\n` +
+                        `文件: ${file.name}\n` +
+                        `版本: ${parsedData.version}\n` +
+                        `配置项: ${Object.keys(parsedData.data || {}).join(', ')}\n\n` +
+                        `解析数据:\n${JSON.stringify(parsedData, null, 2)}`, 
+                        'success'
+                    );
+                    
+                    document.getElementById('validate-btn').disabled = false;
+                } else {
+                    log(`解析失败: ${result.error}`);
+                    showResult('parse-result', `解析失败: ${result.error}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`解析过程中发生错误: ${error.message}`);
+                showResult('parse-result', `解析过程中发生错误: ${error.message}`, 'error');
+            }
+        }
+        
+        // 验证数据
+        window.validateData = function() {
+            if (!testData || !parsedData) {
+                showResult('validate-result', '请先生成和解析二维码', 'error');
+                return;
+            }
+            
+            log('开始验证数据完整性...');
+            
+            try {
+                const originalJson = JSON.stringify(testData);
+                const parsedJson = JSON.stringify(parsedData);
+                const isMatch = originalJson === parsedJson;
+                
+                const results = [];
+                results.push(`数据完整性验证: ${isMatch ? '✅ 通过' : '❌ 失败'}`);
+                results.push('');
+                results.push(`原始数据大小: ${originalJson.length} 字符`);
+                results.push(`解析数据大小: ${parsedJson.length} 字符`);
+                results.push('');
+                
+                if (isMatch) {
+                    results.push('🎉 完美！数据完全匹配，二维码功能正常工作！');
+                    log('✅ 数据验证通过，二维码功能正常');
+                } else {
+                    results.push('⚠️ 数据不匹配，需要进一步检查');
+                    results.push('');
+                    results.push('差异分析:');
+                    
+                    // 简单的差异检查
+                    if (testData.version !== parsedData.version) {
+                        results.push(`- 版本不匹配: ${testData.version} vs ${parsedData.version}`);
+                    }
+                    if (JSON.stringify(testData.data) !== JSON.stringify(parsedData.data)) {
+                        results.push('- 配置数据不匹配');
+                    }
+                    
+                    log('❌ 数据验证失败，存在差异');
+                }
+                
+                showResult('validate-result', results.join('\n'), isMatch ? 'success' : 'error');
+                
+            } catch (error) {
+                log(`数据验证失败: ${error.message}`);
+                showResult('validate-result', `验证失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 页面加载完成
+        log('最终测试页面加载完成');
+        log('请按顺序执行测试步骤');
+    </script>
+</body>
+</html>

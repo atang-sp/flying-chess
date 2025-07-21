@@ -61,3 +61,31 @@ export interface ExportStats {
   itemCount: number // 导出项目数量
   estimatedQRCodeSize?: number // 二维码预估大小
 }
+
+// 二维码导出选项
+export interface QRCodeOptions {
+  errorCorrectionLevel: 'L' | 'M' | 'Q' | 'H' // 错误纠正级别
+  type: 'image/png' | 'image/jpeg' | 'image/webp' // 图片格式
+  quality: number // 图片质量 (0-1)
+  margin: number // 边距
+  color: {
+    dark: string // 前景色
+    light: string // 背景色
+  }
+  width: number // 图片宽度
+}
+
+// 导入选项
+export interface ImportOptions {
+  validateData: boolean // 是否验证数据
+  mergeMode: 'replace' | 'merge' | 'selective' // 导入模式
+  backupCurrent: boolean // 是否备份当前配置
+}
+
+// 导入验证结果
+export interface ValidationResult {
+  isValid: boolean
+  errors: string[]
+  warnings: string[]
+  suggestions: string[]
+}

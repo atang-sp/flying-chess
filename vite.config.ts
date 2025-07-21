@@ -74,4 +74,8 @@ export default defineConfig({
       },
     },
   },
+  // 优化依赖处理
+  optimizeDeps: {
+    include: ['qr-scanner', 'qrcode'],
+  },
 })
