@@ -452,7 +452,7 @@ export class GameService {
             canTakeOff,
             executorIndex,
             forcedTakeoffDueToFailure: true,
-          } as any // casting to allow extra prop
+          } as PunishmentAction & { forcedTakeoffDueToFailure: boolean } // casting to allow extra prop
         }
 
         // 未达到上限，继续惩罚流程

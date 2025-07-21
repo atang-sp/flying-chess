@@ -1,0 +1,120 @@
+{
+  "$schema": "../schemas/game-config.schema.json",
+  "version": "1.0.0",
+  "exportedAt": "2025-07-21T15:00:00.000Z",
+  "gameTitle": "示例飞行棋配置",
+  "description": "这是一个带有 JSON Schema 验证的示例配置文件",
+  "data": {
+    "playerSettings": {
+      "playerCount": 2,
+      "playerNames": ["玩家1", "玩家2"]
+    },
+    "punishmentConfig": {
+      "tools": [
+        {
+          "id": "hand",
+          "name": "手掌",
+          "intensity": 2,
+          "ratio": 10
+        },
+        {
+          "id": "ruler",
+          "name": "尺子",
+          "intensity": 3,
+          "ratio": 8
+        }
+      ],
+      "bodyParts": [
+        {
+          "id": "butt",
+          "name": "屁股",
+          "sensitivity": 10,
+          "ratio": 80
+        },
+        {
+          "id": "hands",
+          "name": "手心",
+          "sensitivity": 2,
+          "ratio": 20
+        }
+      ],
+      "positions": [
+        {
+          "id": "standing",
+          "name": "站立",
+          "ratio": 50
+        },
+        {
+          "id": "kneeling",
+          "name": "跪趴",
+          "ratio": 50
+        }
+      ],
+      "minStrikes": 5,
+      "maxStrikes": 15,
+      "step": 5,
+      "maxTakeoffFailures": 2
+    },
+    "boardConfig": {
+      "punishmentCells": 8,
+      "bonusCells": 2,
+      "reverseCells": 2,
+      "restCells": 1,
+      "restartCells": 2,
+      "trapCells": 1,
+      "totalCells": 16
+    },
+    "trapConfig": [
+      {
+        "id": "trap_1",
+        "name": "示例陷阱",
+        "description": "这是一个示例陷阱"
+      }
+    ],
+    "boardContent": {
+      "seed": "example123",
+      "board": [
+        {
+          "id": 1,
+          "type": "bonus",
+          "position": 1,
+          "effect": {
+            "type": "move",
+            "value": 0,
+            "description": "起点"
+          }
+        },
+        {
+          "id": 2,
+          "type": "punishment",
+          "position": 2,
+          "effect": {
+            "type": "punishment",
+            "value": 0,
+            "description": "用手掌打屁股，姿势：站立",
+            "punishment": {
+              "tool": {
+                "id": "hand",
+                "name": "手掌",
+                "intensity": 2,
+                "ratio": 10
+              },
+              "bodyPart": {
+                "id": "butt",
+                "name": "屁股",
+                "sensitivity": 10,
+                "ratio": 80
+              },
+              "position": {
+                "id": "standing",
+                "name": "站立",
+                "ratio": 50
+              },
+              "description": "用手掌打屁股，姿势：站立"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

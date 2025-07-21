@@ -1,0 +1,382 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/schemas/game-config.schema.json",
+  "title": "飞行棋游戏配置格式",
+  "description": "飞行棋游戏的完整配置导出格式标准",
+  "type": "object",
+  "required": ["version", "exportedAt", "gameTitle", "description", "data"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "配置格式版本号，遵循语义化版本规范"
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "配置导出时间，ISO 8601 格式"
+    },
+    "gameTitle": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "游戏标题"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "配置文件描述"
+    },
+    "data": {
+      "type": "object",
+      "required": ["playerSettings", "punishmentConfig", "boardConfig", "boardContent"],
+      "properties": {
+        "playerSettings": {
+          "$ref": "#/definitions/PlayerSettings"
+        },
+        "punishmentConfig": {
+          "$ref": "#/definitions/PunishmentConfig"
+        },
+        "boardConfig": {
+          "$ref": "#/definitions/BoardConfig"
+        },
+        "trapConfig": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TrapConfig"
+          },
+          "description": "陷阱配置列表"
+        },
+        "boardContent": {
+          "$ref": "#/definitions/BoardContent"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "PlayerSettings": {
+      "type": "object",
+      "required": ["playerCount", "playerNames"],
+      "properties": {
+        "playerCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8,
+          "description": "玩家数量"
+        },
+        "playerNames": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "minItems": 1,
+          "maxItems": 8,
+          "description": "玩家名称列表"
+        }
+      }
+    },
+    "PunishmentConfig": {
+      "type": "object",
+      "required": [
+        "tools",
+        "bodyParts",
+        "positions",
+        "minStrikes",
+        "maxStrikes",
+        "step",
+        "maxTakeoffFailures"
+      ],
+      "properties": {
+        "tools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Tool"
+          },
+          "minItems": 1,
+          "description": "惩罚工具列表"
+        },
+        "bodyParts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BodyPart"
+          },
+          "minItems": 1,
+          "description": "身体部位列表"
+        },
+        "positions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Position"
+          },
+          "minItems": 1,
+          "description": "姿势列表"
+        },
+        "minStrikes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "最小打击次数"
+        },
+        "maxStrikes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "最大打击次数"
+        },
+        "step": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "打击次数步长"
+        },
+        "maxTakeoffFailures": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "最大起飞失败次数"
+        }
+      }
+    },
+    "Tool": {
+      "type": "object",
+      "required": ["id", "name", "intensity", "ratio"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z_]+$",
+          "description": "工具唯一标识符"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50,
+          "description": "工具显示名称"
+        },
+        "intensity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "工具强度等级 (1-10)"
+        },
+        "ratio": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "工具出现概率权重"
+        }
+      }
+    },
+    "BodyPart": {
+      "type": "object",
+      "required": ["id", "name", "sensitivity", "ratio"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z_]+$",
+          "description": "身体部位唯一标识符"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50,
+          "description": "身体部位显示名称"
+        },
+        "sensitivity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "敏感度等级 (1-10)"
+        },
+        "ratio": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "部位选择概率权重"
+        }
+      }
+    },
+    "Position": {
+      "type": "object",
+      "required": ["id", "name", "ratio"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z_]+$",
+          "description": "姿势唯一标识符"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50,
+          "description": "姿势显示名称"
+        },
+        "ratio": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "姿势选择概率权重"
+        }
+      }
+    },
+    "BoardConfig": {
+      "type": "object",
+      "required": [
+        "punishmentCells",
+        "bonusCells",
+        "reverseCells",
+        "restCells",
+        "restartCells",
+        "trapCells",
+        "totalCells"
+      ],
+      "properties": {
+        "punishmentCells": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "惩罚格子数量"
+        },
+        "bonusCells": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "奖励格子数量"
+        },
+        "reverseCells": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "后退格子数量"
+        },
+        "restCells": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "休息格子数量"
+        },
+        "restartCells": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "重新开始格子数量"
+        },
+        "trapCells": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "陷阱格子数量"
+        },
+        "totalCells": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "总格子数量"
+        }
+      }
+    },
+    "TrapConfig": {
+      "type": "object",
+      "required": ["id", "name", "description"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z_0-9]+$",
+          "description": "陷阱唯一标识符"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "陷阱名称"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "陷阱描述"
+        }
+      }
+    },
+    "BoardContent": {
+      "type": "object",
+      "required": ["seed", "board"],
+      "properties": {
+        "seed": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+$",
+          "description": "棋盘生成种子"
+        },
+        "board": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BoardCell"
+          },
+          "minItems": 1,
+          "description": "棋盘格子列表"
+        }
+      }
+    },
+    "BoardCell": {
+      "type": "object",
+      "required": ["id", "type", "position", "effect"],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "格子唯一ID"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["bonus", "punishment", "restart", "special", "trap"],
+          "description": "格子类型"
+        },
+        "position": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "格子在棋盘上的位置"
+        },
+        "effect": {
+          "$ref": "#/definitions/CellEffect"
+        }
+      }
+    },
+    "CellEffect": {
+      "type": "object",
+      "required": ["type", "value", "description"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["move", "punishment", "restart", "reverse", "rest", "trap"],
+          "description": "效果类型"
+        },
+        "value": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "效果数值"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "效果描述"
+        },
+        "punishment": {
+          "$ref": "#/definitions/PunishmentDetail",
+          "description": "惩罚详情（仅当type为punishment时存在）"
+        }
+      }
+    },
+    "PunishmentDetail": {
+      "type": "object",
+      "required": ["tool", "bodyPart", "position", "description"],
+      "properties": {
+        "tool": {
+          "$ref": "#/definitions/Tool"
+        },
+        "bodyPart": {
+          "$ref": "#/definitions/BodyPart"
+        },
+        "position": {
+          "$ref": "#/definitions/Position"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "惩罚描述"
+        }
+      }
+    }
+  }
+}
