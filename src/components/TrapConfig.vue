@@ -2,6 +2,7 @@
   import { ref, computed } from 'vue'
   import type { TrapAction } from '../types/game'
   import { GAME_CONFIG } from '../config/gameConfig'
+  import { GameService } from '../services/gameService'
 
   interface Props {
     traps: TrapAction[]
@@ -20,7 +21,6 @@
   // 添加新机关
   const addTrap = () => {
     const newTrap: TrapAction = {
-      id: `trap_${Date.now()}`,
       name: `新机关${localTraps.value.length + 1}`,
       description: '请输入机关描述',
     }
@@ -41,7 +41,7 @@
 
   // 重置为默认值
   const resetToDefault = () => {
-    localTraps.value = [...GAME_CONFIG.DEFAULT_TRAPS]
+    localTraps.value = GameService.trapsToArray(GAME_CONFIG.DEFAULT_TRAPS)
     updateTraps()
   }
 
@@ -64,7 +64,7 @@
 
       <!-- 机关列表 -->
       <div class="traps-list">
-        <div v-for="(trap, index) in localTraps" :key="trap.id" class="trap-item">
+        <div v-for="(trap, index) in localTraps" :key="index" class="trap-item">
           <div class="trap-header">
             <h4>机关 {{ index + 1 }}</h4>
             <button

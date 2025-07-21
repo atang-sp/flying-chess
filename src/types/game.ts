@@ -10,29 +10,26 @@ export interface Player {
 }
 
 export interface PunishmentTool {
-  id: string
   name: string
   intensity: number // 1-5 强度等级
   ratio: number // 出现比例 (0-100)
 }
 
 export interface PunishmentBodyPart {
-  id: string
   name: string
   sensitivity: number // 1-5 耐受度等级
   ratio: number // 出现比例 (0-100)
 }
 
 export interface PunishmentPosition {
-  id: string
   name: string
   ratio: number // 出现比例 (0-100)
 }
 
 export interface PunishmentConfig {
-  tools: PunishmentTool[]
-  bodyParts: PunishmentBodyPart[]
-  positions: PunishmentPosition[]
+  tools: Record<string, PunishmentTool>
+  bodyParts: Record<string, PunishmentBodyPart>
+  positions: Record<string, PunishmentPosition>
   minStrikes: number // 最小惩罚次数
   maxStrikes: number // 最大惩罚次数
   step: number // 惩罚次数步长
@@ -116,7 +113,6 @@ export interface DiceAnimation {
 }
 
 export interface TrapAction {
-  id: string
   name: string
   description: string
 }

@@ -76,7 +76,7 @@
   const currentPunishmentExecutor = ref<Player | null>(null)
 
   // 机关配置状态
-  const trapConfig = ref<TrapAction[]>([...GAME_CONFIG.DEFAULT_TRAPS])
+  const trapConfig = ref<TrapAction[]>(GameService.trapsToArray(GAME_CONFIG.DEFAULT_TRAPS))
 
   // 持久化：监听配置变化并保存到 localStorage（12 个月过期）
   watch(
@@ -371,7 +371,7 @@
     gameState.punishmentConfig = GameService.createPunishmentConfig()
     gameState.boardConfig = GameService.createBoardConfig()
     gameState.pendingEffect = null
-    trapConfig.value = [...GAME_CONFIG.DEFAULT_TRAPS]
+    trapConfig.value = GameService.trapsToArray(GAME_CONFIG.DEFAULT_TRAPS)
 
     // 在配置设置后创建棋盘
     gameState.board = GameService.createBoard(

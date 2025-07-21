@@ -1,0 +1,29 @@
+{
+  "name": "飞行棋游戏",
+  "short_name": "飞行棋",
+  "description": "一个有趣的飞行棋游戏，支持多人游戏和陷阱设置",
+  "start_url": "/flying-chess/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "lang": "zh-CN",
+  "scope": "/flying-chess/",
+  "icons": [
+    {
+      "src": "pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
