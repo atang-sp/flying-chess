@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>移动端扫码功能测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #3b82f6;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .content {
+            padding: 20px;
+        }
+        
+        .section {
+            margin-bottom: 24px;
+        }
+        
+        .section h3 {
+            color: #1f2937;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 12px;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .device-info {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #64748b;
+        }
+        
+        .result {
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+        
+        .result.success {
+            background: #dcfce7;
+            border: 1px solid #16a34a;
+            color: #15803d;
+        }
+        
+        .result.error {
+            background: #fef2f2;
+            border: 1px solid #dc2626;
+            color: #dc2626;
+        }
+        
+        .result.info {
+            background: #eff6ff;
+            border: 1px solid #3b82f6;
+            color: #1d4ed8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 移动端扫码测试</h1>
+            <p>验证扫码功能是否正常工作</p>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h3>📋 设备信息</h3>
+                <div id="device-info" class="device-info">
+                    检测中...
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>🔧 功能测试</h3>
+                <button class="btn btn-primary" onclick="testCameraAccess()">
+                    📷 测试摄像头权限
+                </button>
+                <button class="btn btn-success" onclick="openMainApp()">
+                    🎮 打开主应用测试
+                </button>
+            </div>
+            
+            <div class="section">
+                <h3>📊 测试结果</h3>
+                <div id="result" class="result info">
+                    等待测试...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const result = document.getElementById('result');
+            result.className = `result ${type}`;
+            result.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            console.log(message);
+        }
+        
+        // 检测设备信息
+        function detectDevice() {
+            const userAgent = navigator.userAgent;
+            const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+            const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+            const isHTTPS = location.protocol === 'https:' || location.hostname === 'localhost';
+            
+            const deviceInfo = document.getElementById('device-info');
+            deviceInfo.innerHTML = `
+                <strong>设备类型:</strong> ${isMobile ? '📱 移动设备' : '💻 桌面设备'}<br>
+                <strong>摄像头API:</strong> ${hasGetUserMedia ? '✅ 支持' : '❌ 不支持'}<br>
+                <strong>HTTPS:</strong> ${isHTTPS ? '✅ 安全连接' : '❌ 需要HTTPS'}<br>
+                <strong>浏览器:</strong> ${getBrowserName()}<br>
+                <strong>屏幕:</strong> ${screen.width}x${screen.height}
+            `;
+            
+            log(`设备检测完成 - 移动设备: ${isMobile}, 摄像头API: ${hasGetUserMedia}, HTTPS: ${isHTTPS}`);
+        }
+        
+        // 获取浏览器名称
+        function getBrowserName() {
+            const userAgent = navigator.userAgent;
+            if (userAgent.includes('Chrome')) return 'Chrome';
+            if (userAgent.includes('Firefox')) return 'Firefox';
+            if (userAgent.includes('Safari')) return 'Safari';
+            if (userAgent.includes('Edge')) return 'Edge';
+            return '未知浏览器';
+        }
+        
+        // 测试摄像头权限
+        async function testCameraAccess() {
+            log('开始测试摄像头权限...');
+            
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                log('设备不支持摄像头API', 'error');
+                return;
+            }
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment' // 后置摄像头
+                    } 
+                });
+                
+                log('✅ 摄像头权限获取成功！\n可以正常使用扫码功能。', 'success');
+                
+                // 停止摄像头流
+                stream.getTracks().forEach(track => track.stop());
+                
+                // 延迟2秒后提示用户测试主应用
+                setTimeout(() => {
+                    log('请点击"打开主应用测试"按钮，在主应用中测试完整的扫码功能。', 'info');
+                }, 2000);
+                
+            } catch (error) {
+                let errorMessage = '摄像头权限获取失败: ';
+                
+                if (error.name === 'NotAllowedError') {
+                    errorMessage += '用户拒绝了摄像头权限';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage += '未找到摄像头设备';
+                } else if (error.name === 'NotSupportedError') {
+                    errorMessage += '浏览器不支持摄像头';
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                log(errorMessage, 'error');
+                
+                // 提供解决建议
+                setTimeout(() => {
+                    log('解决建议:\n1. 确保允许网站访问摄像头\n2. 检查浏览器设置中的权限\n3. 尝试刷新页面重新授权', 'info');
+                }, 1000);
+            }
+        }
+        
+        // 打开主应用
+        function openMainApp() {
+            log('正在打开主应用...');
+            
+            // 在新标签页中打开主应用
+            const mainAppUrl = window.location.origin + window.location.pathname.replace('mobile-scan-simple.html', '');
+            window.open(mainAppUrl, '_blank');
+            
+            log('主应用已在新标签页中打开。\n请在主应用中:\n1. 点击右下角"导出"按钮\n2. 切换到"导入"标签\n3. 使用"扫码导入"功能', 'success');
+        }
+        
+        // 页面加载完成
+        window.onload = function() {
+            detectDevice();
+            
+            // 检查是否为移动设备
+            const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
+            
+            if (isMobile) {
+                log('✅ 检测到移动设备，可以使用扫码功能！');
+            } else {
+                log('ℹ️ 检测到桌面设备，扫码功能主要为移动端设计。', 'info');
+            }
+        };
+    </script>
+</body>
+</html>

@@ -221,12 +221,15 @@
         </div>
     </div>
 
-    <script type="module">
-        import QrScanner from '/node_modules/qr-scanner/qr-scanner.min.js';
-        import QRCode from 'https://unpkg.com/qrcode@1.5.4/build/qrcode.min.js';
+    <script src="https://unpkg.com/qrcode@1.5.4/build/qrcode.min.js"></script>
+    <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.min.js"></script>
+
+    <script>
         
         // 设置 worker 路径
-        QrScanner.WORKER_PATH = '/qr-scanner-worker.min.js';
+        if (typeof QrScanner !== 'undefined') {
+            QrScanner.WORKER_PATH = '/qr-scanner-worker.min.js';
+        }
         
         let qrScanner = null;
         
