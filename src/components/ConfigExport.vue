@@ -1488,7 +1488,6 @@
     .scanner-video video {
       height: 250px;
     }
-  }
 
     .export-modal {
       max-height: 95vh;
