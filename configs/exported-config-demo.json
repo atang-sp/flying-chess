@@ -9,139 +9,95 @@
       "playerNames": ["1111111玩家1", "玩家2", "玩家3"]
     },
     "punishmentConfig": {
-      "tools": [
-        {
-          "id": "hand",
-          "name": "手掌",
+      "tools": {
+        "手掌": {
           "intensity": 2,
           "ratio": 8
         },
-        {
-          "id": "ruler",
-          "name": "尺子",
+        "尺子": {
           "intensity": 3,
           "ratio": 8
         },
-        {
-          "id": "wooden_board",
-          "name": "木板",
+        "木板": {
           "intensity": 5,
           "ratio": 8
         },
-        {
-          "id": "cane",
-          "name": "藤条",
+        "藤条": {
           "intensity": 7,
           "ratio": 8
         },
-        {
-          "id": "discipline_ruler",
-          "name": "戒尺",
+        "戒尺": {
           "intensity": 5,
           "ratio": 8
         },
-        {
-          "id": "little_red",
-          "name": "小红",
+        "小红": {
           "intensity": 7,
           "ratio": 8
         },
-        {
-          "id": "little_green",
-          "name": "小绿",
+        "小绿": {
           "intensity": 7,
           "ratio": 8
         },
-        {
-          "id": "hot_glue",
-          "name": "热熔胶",
+        "热熔胶": {
           "intensity": 9,
           "ratio": 6
         },
-        {
-          "id": "data_cable",
-          "name": "数据线",
+        "数据线": {
           "intensity": 9,
           "ratio": 8
         },
-        {
-          "id": "hair_brush",
-          "name": "发刷",
+        "发刷": {
           "intensity": 5,
           "ratio": 8
         },
-        {
-          "id": "leather_paddle",
-          "name": "皮拍",
+        "皮拍": {
           "intensity": 7,
           "ratio": 8
         },
-        {
-          "id": "acrylic_board",
-          "name": "亚克力板",
+        "亚克力板": {
           "intensity": 7,
           "ratio": 6
         }
-      ],
-      "bodyParts": [
-        {
-          "id": "butt",
-          "name": "屁股",
+      },
+      "bodyParts": {
+        "屁股": {
           "sensitivity": 10,
           "ratio": 80
         },
-        {
-          "id": "back",
-          "name": "后背",
+        "后背": {
           "sensitivity": 7,
           "ratio": 5
         },
-        {
-          "id": "thighs",
-          "name": "大腿",
+        "大腿": {
           "sensitivity": 5,
           "ratio": 5
         },
-        {
-          "id": "butt_crack",
-          "name": "臀缝",
+        "臀缝": {
           "sensitivity": 2,
           "ratio": 5
         },
-        {
-          "id": "hands",
-          "name": "手心",
+        "手心": {
           "sensitivity": 2,
           "ratio": 5
         }
-      ],
-      "positions": [
-        {
-          "id": "standing",
-          "name": "站立",
+      },
+      "positions": {
+        "站立": {
           "ratio": 20
         },
-        {
-          "id": "wall_lean",
-          "name": "手扶墙",
+        "手扶墙": {
           "ratio": 20
         },
-        {
-          "id": "table_lean",
-          "name": "趴在桌子上",
+        "趴在桌子上": {
           "ratio": 20
         },
-        {
-          "id": "knee_grab",
-          "name": "手抓膝盖",
+        "手抓膝盖": {
           "ratio": 20
         },
-        {
-          "id": "kneeling",
-          "name": "跪趴",
+        "跪趴": {
           "ratio": 20
         }
-      ],
+      },
       "minStrikes": 10,
       "maxStrikes": 30,
       "step": 5,
@@ -195,23 +151,9 @@
             "value": 0,
             "description": "用小绿打屁股，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "little_green",
-                "name": "小绿",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "小绿",
+              "bodyPart": "屁股",
+              "position": "手扶墙",
               "description": "用小绿打屁股，姿势：手扶墙"
             }
           }
@@ -225,23 +167,9 @@
             "value": 0,
             "description": "用戒尺打屁股，姿势：跪趴",
             "punishment": {
-              "tool": {
-                "id": "discipline_ruler",
-                "name": "戒尺",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "kneeling",
-                "name": "跪趴",
-                "ratio": 20
-              },
+              "tool": "戒尺",
+              "bodyPart": "屁股",
+              "position": "跪趴",
               "description": "用戒尺打屁股，姿势：跪趴"
             }
           }
@@ -255,23 +183,9 @@
             "value": 0,
             "description": "用发刷打屁股，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "hair_brush",
-                "name": "发刷",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "发刷",
+              "bodyPart": "屁股",
+              "position": "手扶墙",
               "description": "用发刷打屁股，姿势：手扶墙"
             }
           }
@@ -305,23 +219,9 @@
             "value": 0,
             "description": "用亚克力板打手心，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "acrylic_board",
-                "name": "亚克力板",
-                "intensity": 7,
-                "ratio": 6
-              },
-              "bodyPart": {
-                "id": "hands",
-                "name": "手心",
-                "sensitivity": 2,
-                "ratio": 5
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "亚克力板",
+              "bodyPart": "手心",
+              "position": "手抓膝盖",
               "description": "用亚克力板打手心，姿势：手抓膝盖"
             }
           }
@@ -335,23 +235,9 @@
             "value": 0,
             "description": "用皮拍打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "leather_paddle",
-                "name": "皮拍",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "皮拍",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用皮拍打屁股，姿势：趴在桌子上"
             }
           }
@@ -365,23 +251,9 @@
             "value": 0,
             "description": "用手掌打手心，姿势：跪趴",
             "punishment": {
-              "tool": {
-                "id": "hand",
-                "name": "手掌",
-                "intensity": 2,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "hands",
-                "name": "手心",
-                "sensitivity": 2,
-                "ratio": 5
-              },
-              "position": {
-                "id": "kneeling",
-                "name": "跪趴",
-                "ratio": 20
-              },
+              "tool": "手掌",
+              "bodyPart": "手心",
+              "position": "跪趴",
               "description": "用手掌打手心，姿势：跪趴"
             }
           }
@@ -395,23 +267,9 @@
             "value": 0,
             "description": "用皮拍打屁股，姿势：跪趴",
             "punishment": {
-              "tool": {
-                "id": "leather_paddle",
-                "name": "皮拍",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "kneeling",
-                "name": "跪趴",
-                "ratio": 20
-              },
+              "tool": "皮拍",
+              "bodyPart": "屁股",
+              "position": "跪趴",
               "description": "用皮拍打屁股，姿势：跪趴"
             }
           }
@@ -425,23 +283,9 @@
             "value": 0,
             "description": "用小红打屁股，姿势：站立",
             "punishment": {
-              "tool": {
-                "id": "little_red",
-                "name": "小红",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "standing",
-                "name": "站立",
-                "ratio": 20
-              },
+              "tool": "小红",
+              "bodyPart": "屁股",
+              "position": "站立",
               "description": "用小红打屁股，姿势：站立"
             }
           }
@@ -455,23 +299,9 @@
             "value": 0,
             "description": "用戒尺打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "discipline_ruler",
-                "name": "戒尺",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "戒尺",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用戒尺打屁股，姿势：趴在桌子上"
             }
           }
@@ -485,23 +315,9 @@
             "value": 0,
             "description": "用亚克力板打屁股，姿势：站立",
             "punishment": {
-              "tool": {
-                "id": "acrylic_board",
-                "name": "亚克力板",
-                "intensity": 7,
-                "ratio": 6
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "standing",
-                "name": "站立",
-                "ratio": 20
-              },
+              "tool": "亚克力板",
+              "bodyPart": "屁股",
+              "position": "站立",
               "description": "用亚克力板打屁股，姿势：站立"
             }
           }
@@ -515,23 +331,9 @@
             "value": 0,
             "description": "用木板打屁股，姿势：跪趴",
             "punishment": {
-              "tool": {
-                "id": "wooden_board",
-                "name": "木板",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "kneeling",
-                "name": "跪趴",
-                "ratio": 20
-              },
+              "tool": "木板",
+              "bodyPart": "屁股",
+              "position": "跪趴",
               "description": "用木板打屁股，姿势：跪趴"
             }
           }
@@ -545,23 +347,9 @@
             "value": 0,
             "description": "用戒尺打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "discipline_ruler",
-                "name": "戒尺",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "戒尺",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用戒尺打屁股，姿势：趴在桌子上"
             }
           }
@@ -575,23 +363,9 @@
             "value": 0,
             "description": "用小红打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "little_red",
-                "name": "小红",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "小红",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用小红打屁股，姿势：趴在桌子上"
             }
           }
@@ -605,23 +379,9 @@
             "value": 0,
             "description": "用皮拍打大腿，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "leather_paddle",
-                "name": "皮拍",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "thighs",
-                "name": "大腿",
-                "sensitivity": 5,
-                "ratio": 5
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "皮拍",
+              "bodyPart": "大腿",
+              "position": "手抓膝盖",
               "description": "用皮拍打大腿，姿势：手抓膝盖"
             }
           }
@@ -635,23 +395,9 @@
             "value": 0,
             "description": "用小绿打屁股，姿势：跪趴",
             "punishment": {
-              "tool": {
-                "id": "little_green",
-                "name": "小绿",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "kneeling",
-                "name": "跪趴",
-                "ratio": 20
-              },
+              "tool": "小绿",
+              "bodyPart": "屁股",
+              "position": "跪趴",
               "description": "用小绿打屁股，姿势：跪趴"
             }
           }
@@ -675,23 +421,9 @@
             "value": 0,
             "description": "用皮拍打屁股，姿势：跪趴",
             "punishment": {
-              "tool": {
-                "id": "leather_paddle",
-                "name": "皮拍",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "kneeling",
-                "name": "跪趴",
-                "ratio": 20
-              },
+              "tool": "皮拍",
+              "bodyPart": "屁股",
+              "position": "跪趴",
               "description": "用皮拍打屁股，姿势：跪趴"
             }
           }
@@ -705,23 +437,9 @@
             "value": 0,
             "description": "用亚克力板打屁股，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "acrylic_board",
-                "name": "亚克力板",
-                "intensity": 7,
-                "ratio": 6
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "亚克力板",
+              "bodyPart": "屁股",
+              "position": "手扶墙",
               "description": "用亚克力板打屁股，姿势：手扶墙"
             }
           }
@@ -745,23 +463,9 @@
             "value": 0,
             "description": "用木板打屁股，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "wooden_board",
-                "name": "木板",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "木板",
+              "bodyPart": "屁股",
+              "position": "手抓膝盖",
               "description": "用木板打屁股，姿势：手抓膝盖"
             }
           }
@@ -775,23 +479,9 @@
             "value": 0,
             "description": "用木板打屁股，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "wooden_board",
-                "name": "木板",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "木板",
+              "bodyPart": "屁股",
+              "position": "手抓膝盖",
               "description": "用木板打屁股，姿势：手抓膝盖"
             }
           }
@@ -825,23 +515,9 @@
             "value": 0,
             "description": "用手掌打后背，姿势：跪趴",
             "punishment": {
-              "tool": {
-                "id": "hand",
-                "name": "手掌",
-                "intensity": 2,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "back",
-                "name": "后背",
-                "sensitivity": 7,
-                "ratio": 5
-              },
-              "position": {
-                "id": "kneeling",
-                "name": "跪趴",
-                "ratio": 20
-              },
+              "tool": "手掌",
+              "bodyPart": "后背",
+              "position": "跪趴",
               "description": "用手掌打后背，姿势：跪趴"
             }
           }
@@ -875,23 +551,9 @@
             "value": 0,
             "description": "用手掌打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "hand",
-                "name": "手掌",
-                "intensity": 2,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "手掌",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用手掌打屁股，姿势：趴在桌子上"
             }
           }
@@ -915,23 +577,9 @@
             "value": 0,
             "description": "用手掌打屁股，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "hand",
-                "name": "手掌",
-                "intensity": 2,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "手掌",
+              "bodyPart": "屁股",
+              "position": "手扶墙",
               "description": "用手掌打屁股，姿势：手扶墙"
             }
           }
@@ -955,23 +603,9 @@
             "value": 0,
             "description": "用热熔胶打屁股，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "hot_glue",
-                "name": "热熔胶",
-                "intensity": 9,
-                "ratio": 6
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "热熔胶",
+              "bodyPart": "屁股",
+              "position": "手抓膝盖",
               "description": "用热熔胶打屁股，姿势：手抓膝盖"
             }
           }
@@ -985,23 +619,9 @@
             "value": 0,
             "description": "用藤条打屁股，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "cane",
-                "name": "藤条",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "藤条",
+              "bodyPart": "屁股",
+              "position": "手抓膝盖",
               "description": "用藤条打屁股，姿势：手抓膝盖"
             }
           }
@@ -1015,23 +635,9 @@
             "value": 0,
             "description": "用手掌打后背，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "hand",
-                "name": "手掌",
-                "intensity": 2,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "back",
-                "name": "后背",
-                "sensitivity": 7,
-                "ratio": 5
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "手掌",
+              "bodyPart": "后背",
+              "position": "手抓膝盖",
               "description": "用手掌打后背，姿势：手抓膝盖"
             }
           }
@@ -1055,23 +661,9 @@
             "value": 0,
             "description": "用热熔胶打屁股，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "hot_glue",
-                "name": "热熔胶",
-                "intensity": 9,
-                "ratio": 6
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "热熔胶",
+              "bodyPart": "屁股",
+              "position": "手扶墙",
               "description": "用热熔胶打屁股，姿势：手扶墙"
             }
           }
@@ -1085,23 +677,9 @@
             "value": 0,
             "description": "用小红打屁股，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "little_red",
-                "name": "小红",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "小红",
+              "bodyPart": "屁股",
+              "position": "手扶墙",
               "description": "用小红打屁股，姿势：手扶墙"
             }
           }
@@ -1155,23 +733,9 @@
             "value": 0,
             "description": "用戒尺打屁股，姿势：站立",
             "punishment": {
-              "tool": {
-                "id": "discipline_ruler",
-                "name": "戒尺",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "standing",
-                "name": "站立",
-                "ratio": 20
-              },
+              "tool": "戒尺",
+              "bodyPart": "屁股",
+              "position": "站立",
               "description": "用戒尺打屁股，姿势：站立"
             }
           }
@@ -1185,23 +749,9 @@
             "value": 0,
             "description": "用亚克力板打屁股，姿势：跪趴",
             "punishment": {
-              "tool": {
-                "id": "acrylic_board",
-                "name": "亚克力板",
-                "intensity": 7,
-                "ratio": 6
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "kneeling",
-                "name": "跪趴",
-                "ratio": 20
-              },
+              "tool": "亚克力板",
+              "bodyPart": "屁股",
+              "position": "跪趴",
               "description": "用亚克力板打屁股，姿势：跪趴"
             }
           }
@@ -1225,23 +775,9 @@
             "value": 0,
             "description": "用手掌打屁股，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "hand",
-                "name": "手掌",
-                "intensity": 2,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "手掌",
+              "bodyPart": "屁股",
+              "position": "手抓膝盖",
               "description": "用手掌打屁股，姿势：手抓膝盖"
             }
           }
@@ -1255,23 +791,9 @@
             "value": 0,
             "description": "用戒尺打屁股，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "discipline_ruler",
-                "name": "戒尺",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "戒尺",
+              "bodyPart": "屁股",
+              "position": "手扶墙",
               "description": "用戒尺打屁股，姿势：手扶墙"
             }
           }
@@ -1285,23 +807,9 @@
             "value": 0,
             "description": "用戒尺打屁股，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "discipline_ruler",
-                "name": "戒尺",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "戒尺",
+              "bodyPart": "屁股",
+              "position": "手抓膝盖",
               "description": "用戒尺打屁股，姿势：手抓膝盖"
             }
           }
@@ -1315,23 +823,9 @@
             "value": 0,
             "description": "用发刷打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "hair_brush",
-                "name": "发刷",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "发刷",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用发刷打屁股，姿势：趴在桌子上"
             }
           }
@@ -1355,23 +849,9 @@
             "value": 0,
             "description": "用小绿打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "little_green",
-                "name": "小绿",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "小绿",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用小绿打屁股，姿势：趴在桌子上"
             }
           }
@@ -1385,23 +865,9 @@
             "value": 0,
             "description": "用藤条打屁股，姿势：跪趴",
             "punishment": {
-              "tool": {
-                "id": "cane",
-                "name": "藤条",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "kneeling",
-                "name": "跪趴",
-                "ratio": 20
-              },
+              "tool": "藤条",
+              "bodyPart": "屁股",
+              "position": "跪趴",
               "description": "用藤条打屁股，姿势：跪趴"
             }
           }
@@ -1415,23 +881,9 @@
             "value": 0,
             "description": "用亚克力板打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "acrylic_board",
-                "name": "亚克力板",
-                "intensity": 7,
-                "ratio": 6
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "亚克力板",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用亚克力板打屁股，姿势：趴在桌子上"
             }
           }
@@ -1445,23 +897,9 @@
             "value": 0,
             "description": "用皮拍打屁股，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "leather_paddle",
-                "name": "皮拍",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "皮拍",
+              "bodyPart": "屁股",
+              "position": "手扶墙",
               "description": "用皮拍打屁股，姿势：手扶墙"
             }
           }
@@ -1475,23 +913,9 @@
             "value": 0,
             "description": "用藤条打屁股，姿势：跪趴",
             "punishment": {
-              "tool": {
-                "id": "cane",
-                "name": "藤条",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "kneeling",
-                "name": "跪趴",
-                "ratio": 20
-              },
+              "tool": "藤条",
+              "bodyPart": "屁股",
+              "position": "跪趴",
               "description": "用藤条打屁股，姿势：跪趴"
             }
           }
@@ -1515,23 +939,9 @@
             "value": 0,
             "description": "用皮拍打屁股，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "leather_paddle",
-                "name": "皮拍",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "皮拍",
+              "bodyPart": "屁股",
+              "position": "手抓膝盖",
               "description": "用皮拍打屁股，姿势：手抓膝盖"
             }
           }
@@ -1555,23 +965,9 @@
             "value": 0,
             "description": "用木板打手心，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "wooden_board",
-                "name": "木板",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "hands",
-                "name": "手心",
-                "sensitivity": 2,
-                "ratio": 5
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "木板",
+              "bodyPart": "手心",
+              "position": "手抓膝盖",
               "description": "用木板打手心，姿势：手抓膝盖"
             }
           }
@@ -1585,23 +981,9 @@
             "value": 0,
             "description": "用藤条打手心，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "cane",
-                "name": "藤条",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "hands",
-                "name": "手心",
-                "sensitivity": 2,
-                "ratio": 5
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "藤条",
+              "bodyPart": "手心",
+              "position": "趴在桌子上",
               "description": "用藤条打手心，姿势：趴在桌子上"
             }
           }
@@ -1615,23 +997,9 @@
             "value": 0,
             "description": "用小红打屁股，姿势：站立",
             "punishment": {
-              "tool": {
-                "id": "little_red",
-                "name": "小红",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "standing",
-                "name": "站立",
-                "ratio": 20
-              },
+              "tool": "小红",
+              "bodyPart": "屁股",
+              "position": "站立",
               "description": "用小红打屁股，姿势：站立"
             }
           }
@@ -1645,23 +1013,9 @@
             "value": 0,
             "description": "用木板打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "wooden_board",
-                "name": "木板",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "木板",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用木板打屁股，姿势：趴在桌子上"
             }
           }
@@ -1685,23 +1039,9 @@
             "value": 0,
             "description": "用小绿打臀缝，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "little_green",
-                "name": "小绿",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt_crack",
-                "name": "臀缝",
-                "sensitivity": 2,
-                "ratio": 5
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "小绿",
+              "bodyPart": "臀缝",
+              "position": "手扶墙",
               "description": "用小绿打臀缝，姿势：手扶墙"
             }
           }
@@ -1715,23 +1055,9 @@
             "value": 0,
             "description": "用数据线打屁股，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "data_cable",
-                "name": "数据线",
-                "intensity": 9,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "数据线",
+              "bodyPart": "屁股",
+              "position": "手扶墙",
               "description": "用数据线打屁股，姿势：手扶墙"
             }
           }
@@ -1745,23 +1071,9 @@
             "value": 0,
             "description": "用手掌打屁股，姿势：跪趴",
             "punishment": {
-              "tool": {
-                "id": "hand",
-                "name": "手掌",
-                "intensity": 2,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "kneeling",
-                "name": "跪趴",
-                "ratio": 20
-              },
+              "tool": "手掌",
+              "bodyPart": "屁股",
+              "position": "跪趴",
               "description": "用手掌打屁股，姿势：跪趴"
             }
           }
@@ -1775,23 +1087,9 @@
             "value": 0,
             "description": "用小绿打屁股，姿势：站立",
             "punishment": {
-              "tool": {
-                "id": "little_green",
-                "name": "小绿",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "standing",
-                "name": "站立",
-                "ratio": 20
-              },
+              "tool": "小绿",
+              "bodyPart": "屁股",
+              "position": "站立",
               "description": "用小绿打屁股，姿势：站立"
             }
           }
@@ -1805,23 +1103,9 @@
             "value": 0,
             "description": "用发刷打屁股，姿势：跪趴",
             "punishment": {
-              "tool": {
-                "id": "hair_brush",
-                "name": "发刷",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "kneeling",
-                "name": "跪趴",
-                "ratio": 20
-              },
+              "tool": "发刷",
+              "bodyPart": "屁股",
+              "position": "跪趴",
               "description": "用发刷打屁股，姿势：跪趴"
             }
           }
@@ -1835,23 +1119,9 @@
             "value": 0,
             "description": "用木板打臀缝，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "wooden_board",
-                "name": "木板",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt_crack",
-                "name": "臀缝",
-                "sensitivity": 2,
-                "ratio": 5
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "木板",
+              "bodyPart": "臀缝",
+              "position": "趴在桌子上",
               "description": "用木板打臀缝，姿势：趴在桌子上"
             }
           }
@@ -1865,23 +1135,9 @@
             "value": 0,
             "description": "用小红打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "little_red",
-                "name": "小红",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "小红",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用小红打屁股，姿势：趴在桌子上"
             }
           }
@@ -1895,23 +1151,9 @@
             "value": 0,
             "description": "用亚克力板打屁股，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "acrylic_board",
-                "name": "亚克力板",
-                "intensity": 7,
-                "ratio": 6
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "亚克力板",
+              "bodyPart": "屁股",
+              "position": "手抓膝盖",
               "description": "用亚克力板打屁股，姿势：手抓膝盖"
             }
           }
@@ -1925,23 +1167,9 @@
             "value": 0,
             "description": "用热熔胶打屁股，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "hot_glue",
-                "name": "热熔胶",
-                "intensity": 9,
-                "ratio": 6
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "热熔胶",
+              "bodyPart": "屁股",
+              "position": "手抓膝盖",
               "description": "用热熔胶打屁股，姿势：手抓膝盖"
             }
           }
@@ -1955,23 +1183,9 @@
             "value": 0,
             "description": "用手掌打屁股，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "hand",
-                "name": "手掌",
-                "intensity": 2,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "手掌",
+              "bodyPart": "屁股",
+              "position": "手抓膝盖",
               "description": "用手掌打屁股，姿势：手抓膝盖"
             }
           }
@@ -2005,23 +1219,9 @@
             "value": 0,
             "description": "用木板打屁股，姿势：站立",
             "punishment": {
-              "tool": {
-                "id": "wooden_board",
-                "name": "木板",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "standing",
-                "name": "站立",
-                "ratio": 20
-              },
+              "tool": "木板",
+              "bodyPart": "屁股",
+              "position": "站立",
               "description": "用木板打屁股，姿势：站立"
             }
           }
@@ -2035,23 +1235,9 @@
             "value": 0,
             "description": "用数据线打大腿，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "data_cable",
-                "name": "数据线",
-                "intensity": 9,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "thighs",
-                "name": "大腿",
-                "sensitivity": 5,
-                "ratio": 5
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "数据线",
+              "bodyPart": "大腿",
+              "position": "趴在桌子上",
               "description": "用数据线打大腿，姿势：趴在桌子上"
             }
           }
@@ -2065,23 +1251,9 @@
             "value": 0,
             "description": "用藤条打臀缝，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "cane",
-                "name": "藤条",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt_crack",
-                "name": "臀缝",
-                "sensitivity": 2,
-                "ratio": 5
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "藤条",
+              "bodyPart": "臀缝",
+              "position": "手抓膝盖",
               "description": "用藤条打臀缝，姿势：手抓膝盖"
             }
           }
@@ -2105,23 +1277,9 @@
             "value": 0,
             "description": "用亚克力板打屁股，姿势：站立",
             "punishment": {
-              "tool": {
-                "id": "acrylic_board",
-                "name": "亚克力板",
-                "intensity": 7,
-                "ratio": 6
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "standing",
-                "name": "站立",
-                "ratio": 20
-              },
+              "tool": "亚克力板",
+              "bodyPart": "屁股",
+              "position": "站立",
               "description": "用亚克力板打屁股，姿势：站立"
             }
           }
@@ -2135,23 +1293,9 @@
             "value": 0,
             "description": "用皮拍打屁股，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "leather_paddle",
-                "name": "皮拍",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "皮拍",
+              "bodyPart": "屁股",
+              "position": "手扶墙",
               "description": "用皮拍打屁股，姿势：手扶墙"
             }
           }
@@ -2165,23 +1309,9 @@
             "value": 0,
             "description": "用亚克力板打屁股，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "acrylic_board",
-                "name": "亚克力板",
-                "intensity": 7,
-                "ratio": 6
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "亚克力板",
+              "bodyPart": "屁股",
+              "position": "手扶墙",
               "description": "用亚克力板打屁股，姿势：手扶墙"
             }
           }
@@ -2195,23 +1325,9 @@
             "value": 0,
             "description": "用藤条打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "cane",
-                "name": "藤条",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "藤条",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用藤条打屁股，姿势：趴在桌子上"
             }
           }
@@ -2225,23 +1341,9 @@
             "value": 0,
             "description": "用尺子打屁股，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "ruler",
-                "name": "尺子",
-                "intensity": 3,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "尺子",
+              "bodyPart": "屁股",
+              "position": "手抓膝盖",
               "description": "用尺子打屁股，姿势：手抓膝盖"
             }
           }
@@ -2265,23 +1367,9 @@
             "value": 0,
             "description": "用发刷打屁股，姿势：站立",
             "punishment": {
-              "tool": {
-                "id": "hair_brush",
-                "name": "发刷",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "standing",
-                "name": "站立",
-                "ratio": 20
-              },
+              "tool": "发刷",
+              "bodyPart": "屁股",
+              "position": "站立",
               "description": "用发刷打屁股，姿势：站立"
             }
           }
@@ -2305,23 +1393,9 @@
             "value": 0,
             "description": "用发刷打后背，姿势：站立",
             "punishment": {
-              "tool": {
-                "id": "hair_brush",
-                "name": "发刷",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "back",
-                "name": "后背",
-                "sensitivity": 7,
-                "ratio": 5
-              },
-              "position": {
-                "id": "standing",
-                "name": "站立",
-                "ratio": 20
-              },
+              "tool": "发刷",
+              "bodyPart": "后背",
+              "position": "站立",
               "description": "用发刷打后背，姿势：站立"
             }
           }
@@ -2335,23 +1409,9 @@
             "value": 0,
             "description": "用戒尺打屁股，姿势：站立",
             "punishment": {
-              "tool": {
-                "id": "discipline_ruler",
-                "name": "戒尺",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "standing",
-                "name": "站立",
-                "ratio": 20
-              },
+              "tool": "戒尺",
+              "bodyPart": "屁股",
+              "position": "站立",
               "description": "用戒尺打屁股，姿势：站立"
             }
           }
@@ -2365,23 +1425,9 @@
             "value": 0,
             "description": "用尺子打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "ruler",
-                "name": "尺子",
-                "intensity": 3,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "尺子",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用尺子打屁股，姿势：趴在桌子上"
             }
           }
@@ -2395,23 +1441,9 @@
             "value": 0,
             "description": "用发刷打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "hair_brush",
-                "name": "发刷",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "发刷",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用发刷打屁股，姿势：趴在桌子上"
             }
           }
@@ -2425,23 +1457,9 @@
             "value": 0,
             "description": "用木板打臀缝，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "wooden_board",
-                "name": "木板",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt_crack",
-                "name": "臀缝",
-                "sensitivity": 2,
-                "ratio": 5
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "木板",
+              "bodyPart": "臀缝",
+              "position": "趴在桌子上",
               "description": "用木板打臀缝，姿势：趴在桌子上"
             }
           }
@@ -2455,23 +1473,9 @@
             "value": 0,
             "description": "用手掌打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "hand",
-                "name": "手掌",
-                "intensity": 2,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "手掌",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用手掌打屁股，姿势：趴在桌子上"
             }
           }
@@ -2485,23 +1489,9 @@
             "value": 0,
             "description": "用藤条打屁股，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "cane",
-                "name": "藤条",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "藤条",
+              "bodyPart": "屁股",
+              "position": "手扶墙",
               "description": "用藤条打屁股，姿势：手扶墙"
             }
           }
@@ -2515,23 +1505,9 @@
             "value": 0,
             "description": "用尺子打屁股，姿势：站立",
             "punishment": {
-              "tool": {
-                "id": "ruler",
-                "name": "尺子",
-                "intensity": 3,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "standing",
-                "name": "站立",
-                "ratio": 20
-              },
+              "tool": "尺子",
+              "bodyPart": "屁股",
+              "position": "站立",
               "description": "用尺子打屁股，姿势：站立"
             }
           }
@@ -2545,23 +1521,9 @@
             "value": 0,
             "description": "用藤条打屁股，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "cane",
-                "name": "藤条",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "藤条",
+              "bodyPart": "屁股",
+              "position": "手扶墙",
               "description": "用藤条打屁股，姿势：手扶墙"
             }
           }
@@ -2575,23 +1537,9 @@
             "value": 0,
             "description": "用小红打屁股，姿势：手抓膝盖",
             "punishment": {
-              "tool": {
-                "id": "little_red",
-                "name": "小红",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "knee_grab",
-                "name": "手抓膝盖",
-                "ratio": 20
-              },
+              "tool": "小红",
+              "bodyPart": "屁股",
+              "position": "手抓膝盖",
               "description": "用小红打屁股，姿势：手抓膝盖"
             }
           }
@@ -2605,23 +1553,9 @@
             "value": 0,
             "description": "用藤条打屁股，姿势：站立",
             "punishment": {
-              "tool": {
-                "id": "cane",
-                "name": "藤条",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "standing",
-                "name": "站立",
-                "ratio": 20
-              },
+              "tool": "藤条",
+              "bodyPart": "屁股",
+              "position": "站立",
               "description": "用藤条打屁股，姿势：站立"
             }
           }
@@ -2635,23 +1569,9 @@
             "value": 0,
             "description": "用藤条打屁股，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "cane",
-                "name": "藤条",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "藤条",
+              "bodyPart": "屁股",
+              "position": "手扶墙",
               "description": "用藤条打屁股，姿势：手扶墙"
             }
           }
@@ -2665,23 +1585,9 @@
             "value": 0,
             "description": "用数据线打大腿，姿势：跪趴",
             "punishment": {
-              "tool": {
-                "id": "data_cable",
-                "name": "数据线",
-                "intensity": 9,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "thighs",
-                "name": "大腿",
-                "sensitivity": 5,
-                "ratio": 5
-              },
-              "position": {
-                "id": "kneeling",
-                "name": "跪趴",
-                "ratio": 20
-              },
+              "tool": "数据线",
+              "bodyPart": "大腿",
+              "position": "跪趴",
               "description": "用数据线打大腿，姿势：跪趴"
             }
           }
@@ -2695,23 +1601,9 @@
             "value": 0,
             "description": "用手掌打屁股，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "hand",
-                "name": "手掌",
-                "intensity": 2,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "手掌",
+              "bodyPart": "屁股",
+              "position": "手扶墙",
               "description": "用手掌打屁股，姿势：手扶墙"
             }
           }
@@ -2725,23 +1617,9 @@
             "value": 0,
             "description": "用藤条打屁股，姿势：跪趴",
             "punishment": {
-              "tool": {
-                "id": "cane",
-                "name": "藤条",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "kneeling",
-                "name": "跪趴",
-                "ratio": 20
-              },
+              "tool": "藤条",
+              "bodyPart": "屁股",
+              "position": "跪趴",
               "description": "用藤条打屁股，姿势：跪趴"
             }
           }
@@ -2755,23 +1633,9 @@
             "value": 0,
             "description": "用数据线打屁股，姿势：手扶墙",
             "punishment": {
-              "tool": {
-                "id": "data_cable",
-                "name": "数据线",
-                "intensity": 9,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "wall_lean",
-                "name": "手扶墙",
-                "ratio": 20
-              },
+              "tool": "数据线",
+              "bodyPart": "屁股",
+              "position": "手扶墙",
               "description": "用数据线打屁股，姿势：手扶墙"
             }
           }
@@ -2785,23 +1649,9 @@
             "value": 0,
             "description": "用小红打屁股，姿势：跪趴",
             "punishment": {
-              "tool": {
-                "id": "little_red",
-                "name": "小红",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "kneeling",
-                "name": "跪趴",
-                "ratio": 20
-              },
+              "tool": "小红",
+              "bodyPart": "屁股",
+              "position": "跪趴",
               "description": "用小红打屁股，姿势：跪趴"
             }
           }
@@ -2815,23 +1665,9 @@
             "value": 0,
             "description": "用亚克力板打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "acrylic_board",
-                "name": "亚克力板",
-                "intensity": 7,
-                "ratio": 6
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "亚克力板",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用亚克力板打屁股，姿势：趴在桌子上"
             }
           }
@@ -2845,23 +1681,9 @@
             "value": 0,
             "description": "用热熔胶打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "hot_glue",
-                "name": "热熔胶",
-                "intensity": 9,
-                "ratio": 6
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "热熔胶",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用热熔胶打屁股，姿势：趴在桌子上"
             }
           }
@@ -2875,23 +1697,9 @@
             "value": 0,
             "description": "用木板打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "wooden_board",
-                "name": "木板",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "木板",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用木板打屁股，姿势：趴在桌子上"
             }
           }
@@ -2905,23 +1713,9 @@
             "value": 0,
             "description": "用小红打臀缝，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "little_red",
-                "name": "小红",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt_crack",
-                "name": "臀缝",
-                "sensitivity": 2,
-                "ratio": 5
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "小红",
+              "bodyPart": "臀缝",
+              "position": "趴在桌子上",
               "description": "用小红打臀缝，姿势：趴在桌子上"
             }
           }
@@ -2935,23 +1729,9 @@
             "value": 0,
             "description": "用藤条打屁股，姿势：跪趴",
             "punishment": {
-              "tool": {
-                "id": "cane",
-                "name": "藤条",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "kneeling",
-                "name": "跪趴",
-                "ratio": 20
-              },
+              "tool": "藤条",
+              "bodyPart": "屁股",
+              "position": "跪趴",
               "description": "用藤条打屁股，姿势：跪趴"
             }
           }
@@ -2965,23 +1745,9 @@
             "value": 0,
             "description": "用亚克力板打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "acrylic_board",
-                "name": "亚克力板",
-                "intensity": 7,
-                "ratio": 6
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "亚克力板",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用亚克力板打屁股，姿势：趴在桌子上"
             }
           }
@@ -2995,23 +1761,9 @@
             "value": 0,
             "description": "用藤条打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "cane",
-                "name": "藤条",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "藤条",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用藤条打屁股，姿势：趴在桌子上"
             }
           }
@@ -3035,23 +1787,9 @@
             "value": 0,
             "description": "用热熔胶打臀缝，姿势：站立",
             "punishment": {
-              "tool": {
-                "id": "hot_glue",
-                "name": "热熔胶",
-                "intensity": 9,
-                "ratio": 6
-              },
-              "bodyPart": {
-                "id": "butt_crack",
-                "name": "臀缝",
-                "sensitivity": 2,
-                "ratio": 5
-              },
-              "position": {
-                "id": "standing",
-                "name": "站立",
-                "ratio": 20
-              },
+              "tool": "热熔胶",
+              "bodyPart": "臀缝",
+              "position": "站立",
               "description": "用热熔胶打臀缝，姿势：站立"
             }
           }
@@ -3065,23 +1803,9 @@
             "value": 0,
             "description": "用数据线打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "data_cable",
-                "name": "数据线",
-                "intensity": 9,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "数据线",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用数据线打屁股，姿势：趴在桌子上"
             }
           }
@@ -3095,23 +1819,9 @@
             "value": 0,
             "description": "用发刷打屁股，姿势：趴在桌子上",
             "punishment": {
-              "tool": {
-                "id": "hair_brush",
-                "name": "发刷",
-                "intensity": 5,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "table_lean",
-                "name": "趴在桌子上",
-                "ratio": 20
-              },
+              "tool": "发刷",
+              "bodyPart": "屁股",
+              "position": "趴在桌子上",
               "description": "用发刷打屁股，姿势：趴在桌子上"
             }
           }
@@ -3135,23 +1845,9 @@
             "value": 0,
             "description": "用皮拍打屁股，姿势：站立",
             "punishment": {
-              "tool": {
-                "id": "leather_paddle",
-                "name": "皮拍",
-                "intensity": 7,
-                "ratio": 8
-              },
-              "bodyPart": {
-                "id": "butt",
-                "name": "屁股",
-                "sensitivity": 10,
-                "ratio": 80
-              },
-              "position": {
-                "id": "standing",
-                "name": "站立",
-                "ratio": 20
-              },
+              "tool": "皮拍",
+              "bodyPart": "屁股",
+              "position": "站立",
               "description": "用皮拍打屁股，姿势：站立"
             }
           }

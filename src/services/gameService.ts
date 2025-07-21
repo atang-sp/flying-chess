@@ -21,7 +21,7 @@ export class GameService {
     // 1. 读取配置
     const config = punishmentConfig || this.createPunishmentConfig()
     const boardConf = boardConfig || GAME_CONFIG.DEFAULT_BOARD_CONFIG
-    const traps = customTraps || GAME_CONFIG.DEFAULT_TRAPS
+    const traps = customTraps || this.trapsToArray(GAME_CONFIG.DEFAULT_TRAPS)
 
     // 始终使用随机分配逻辑，确保所有格子都严格按照棋盘配置来生成
     return this.createBoardRandom(config, boardConf, traps)
@@ -117,9 +117,9 @@ export class GameService {
 
     // 填充惩罚格子
     punishmentPositions.forEach(pos => {
-      const tool = this.selectByRatio(config.tools)
-      const bodyPart = this.selectByRatio(config.bodyParts)
-      const position = this.selectByRatio(config.positions)
+      const tool = this.selectByRatio(this.configToArray(config.tools))
+      const bodyPart = this.selectByRatio(this.configToArray(config.bodyParts))
+      const position = this.selectByRatio(this.configToArray(config.positions))
 
       const punishment: PunishmentAction = {
         tool,
@@ -331,10 +331,26 @@ export class GameService {
   }
 
   static createPunishmentConfig(): PunishmentConfig {
+    // 将配置对象转换为包含 name 属性的格式
+    const tools: Record<string, PunishmentTool> = {}
+    Object.entries(GAME_CONFIG.DEFAULT_TOOLS).forEach(([name, tool]) => {
+      tools[name] = { ...tool, name }
+    })
+
+    const bodyParts: Record<string, PunishmentBodyPart> = {}
+    Object.entries(GAME_CONFIG.DEFAULT_BODY_PARTS).forEach(([name, bodyPart]) => {
+      bodyParts[name] = { ...bodyPart, name }
+    })
+
+    const positions: Record<string, PunishmentPosition> = {}
+    Object.entries(GAME_CONFIG.DEFAULT_POSITIONS).forEach(([name, position]) => {
+      positions[name] = { ...position, name }
+    })
+
     return {
-      tools: [...GAME_CONFIG.DEFAULT_TOOLS],
-      bodyParts: [...GAME_CONFIG.DEFAULT_BODY_PARTS],
-      positions: [...GAME_CONFIG.DEFAULT_POSITIONS],
+      tools,
+      bodyParts,
+      positions,
       minStrikes: GAME_CONFIG.DEFAULT_PUNISHMENT_STRIKES.min,
       maxStrikes: GAME_CONFIG.DEFAULT_PUNISHMENT_STRIKES.max,
       step: GAME_CONFIG.DEFAULT_PUNISHMENT_STRIKES.step,
@@ -452,13 +468,13 @@ export class GameService {
             canTakeOff,
             executorIndex,
             forcedTakeoffDueToFailure: true,
-          } as PunishmentAction & { forcedTakeoffDueToFailure: boolean } // casting to allow extra prop
+          }
         }
 
         // 未达到上限，继续惩罚流程
-        const tool = this.selectByRatio(punishmentConfig.tools)
-        const bodyPart = this.selectByRatio(punishmentConfig.bodyParts)
-        const position = this.selectByRatio(punishmentConfig.positions)
+        const tool = this.selectByRatio(this.configToArray(punishmentConfig.tools))
+        const bodyPart = this.selectByRatio(this.configToArray(punishmentConfig.bodyParts))
+        const position = this.selectByRatio(this.configToArray(punishmentConfig.positions))
 
         // 生成惩罚次数，确保是步长的倍数
         const minStrikes = Math.max(1, punishmentConfig.minStrikes || 10)
@@ -733,6 +749,24 @@ export class GameService {
     return 'punishment' // 默认返回惩罚格子
   }
 
+  // 将配置对象转换为数组（添加 name 属性）
+  static configToArray<T extends { ratio: number }>(
+    config: Record<string, T>
+  ): Array<T & { name: string }> {
+    return Object.entries(config).map(([name, item]) => ({
+      ...item,
+      name,
+    }))
+  }
+
+  // 将 trap 配置对象转换为数组
+  static trapsToArray(config: Record<string, { description: string }>): TrapAction[] {
+    return Object.entries(config).map(([name, item]) => ({
+      name,
+      description: item.description,
+    }))
+  }
+
   // 根据比例随机选择项目
   static selectByRatio<T extends { ratio: number }>(items: T[]): T {
     const validItems = items.filter(it => it.ratio > 0)
@@ -823,22 +857,25 @@ export class GameService {
   // 生成随机惩罚组合
   static generateRandomPunishment(config: PunishmentConfig): PunishmentAction {
     // 随机选择工具
-    const tool = this.selectByRatio(config.tools)
+    const toolsArray = this.configToArray(config.tools)
+    const tool = this.selectByRatio(toolsArray)
 
     // 根据工具强度选择合适的部位
-    const validBodyParts = config.bodyParts.filter(b => b.sensitivity >= tool.intensity)
-    let bodyPart: PunishmentBodyPart
+    const bodyPartsArray = this.configToArray(config.bodyParts)
+    const validBodyParts = bodyPartsArray.filter(b => b.sensitivity >= tool.intensity)
+    let bodyPart: PunishmentBodyPart & { name: string }
     if (validBodyParts.length > 0) {
       bodyPart = this.selectByRatio(validBodyParts)
     } else {
       // 如果没有合适的部位，选择耐受度最高的部位
-      bodyPart = config.bodyParts.reduce((max, current) =>
+      bodyPart = bodyPartsArray.reduce((max, current) =>
         current.sensitivity > max.sensitivity ? current : max
       )
     }
 
     // 随机选择姿势
-    const position = this.selectByRatio(config.positions)
+    const positionsArray = this.configToArray(config.positions)
+    const position = this.selectByRatio(positionsArray)
 
     // 在配置的范围内随机生成惩罚次数，确保是步长的倍数
     const minStrikes = Math.max(1, config.minStrikes || 10)
@@ -869,8 +906,11 @@ export class GameService {
     requiredSensitivity?: number
   } {
     // 检查是否有可用的工具和部位组合
-    for (const tool of config.tools) {
-      const hasValidBodyPart = config.bodyParts.some(b => b.sensitivity >= tool.intensity)
+    const toolsArray = this.configToArray(config.tools)
+    const bodyPartsArray = this.configToArray(config.bodyParts)
+
+    for (const tool of toolsArray) {
+      const hasValidBodyPart = bodyPartsArray.some(b => b.sensitivity >= tool.intensity)
       if (!hasValidBodyPart) {
         return {
           isValid: false,
@@ -880,8 +920,8 @@ export class GameService {
       }
     }
 
-    for (const bodyPart of config.bodyParts) {
-      const hasValidTool = config.tools.some(t => t.intensity <= bodyPart.sensitivity)
+    for (const bodyPart of bodyPartsArray) {
+      const hasValidTool = toolsArray.some(t => t.intensity <= bodyPart.sensitivity)
       if (!hasValidTool) {
         return {
           isValid: false,
@@ -895,13 +935,17 @@ export class GameService {
 
   // 应用均等比例
   static applyEqualRatio(config: PunishmentConfig): void {
-    const toolRatio = 100 / config.tools.length
-    const bodyPartRatio = 100 / config.bodyParts.length
-    const positionRatio = 100 / config.positions.length
+    const toolsArray = Object.keys(config.tools)
+    const bodyPartsArray = Object.keys(config.bodyParts)
+    const positionsArray = Object.keys(config.positions)
 
-    config.tools.forEach(tool => (tool.ratio = toolRatio))
-    config.bodyParts.forEach(bodyPart => (bodyPart.ratio = bodyPartRatio))
-    config.positions.forEach(position => (position.ratio = positionRatio))
+    const toolRatio = 100 / toolsArray.length
+    const bodyPartRatio = 100 / bodyPartsArray.length
+    const positionRatio = 100 / positionsArray.length
+
+    Object.values(config.tools).forEach(tool => (tool.ratio = toolRatio))
+    Object.values(config.bodyParts).forEach(bodyPart => (bodyPart.ratio = bodyPartRatio))
+    Object.values(config.positions).forEach(position => (position.ratio = positionRatio))
   }
 
   // 生成多个惩罚组合定义供玩家确认（不包含次数）
@@ -913,9 +957,13 @@ export class GameService {
     const usedCombinations = new Set<string>() // 用于去重的集合
 
     // 获取有效的配置项（ratio > 0）
-    const validTools = config.tools.filter(tool => tool.ratio > 0)
-    const validBodyParts = config.bodyParts.filter(bodyPart => bodyPart.ratio > 0)
-    const validPositions = config.positions.filter(position => position.ratio > 0)
+    const validTools = this.configToArray(config.tools).filter(tool => tool.ratio > 0)
+    const validBodyParts = this.configToArray(config.bodyParts).filter(
+      bodyPart => bodyPart.ratio > 0
+    )
+    const validPositions = this.configToArray(config.positions).filter(
+      position => position.ratio > 0
+    )
 
     // 如果任何一类没有有效配置，返回空数组
     if (validTools.length === 0 || validBodyParts.length === 0 || validPositions.length === 0) {
@@ -959,7 +1007,7 @@ export class GameService {
     const shuffled = [...allPossibleCombinations].sort(() => Math.random() - 0.5)
     for (let i = 0; i < Math.min(count, shuffled.length); i++) {
       const combination = shuffled[i]
-      const key = `${combination.tool.id}-${combination.bodyPart.id}-${combination.position.id}`
+      const key = `${combination.tool.name}-${combination.bodyPart.name}-${combination.position.name}`
       if (!usedCombinations.has(key)) {
         combinations.push(combination)
         usedCombinations.add(key)
@@ -978,9 +1026,13 @@ export class GameService {
     const usedCombinations = new Set<string>() // 用于去重的集合
 
     // 获取有效的配置项（ratio > 0）
-    const validTools = config.tools.filter(tool => tool.ratio > 0)
-    const validBodyParts = config.bodyParts.filter(bodyPart => bodyPart.ratio > 0)
-    const validPositions = config.positions.filter(position => position.ratio > 0)
+    const validTools = this.configToArray(config.tools).filter(tool => tool.ratio > 0)
+    const validBodyParts = this.configToArray(config.bodyParts).filter(
+      bodyPart => bodyPart.ratio > 0
+    )
+    const validPositions = this.configToArray(config.positions).filter(
+      position => position.ratio > 0
+    )
 
     // 如果任何一类没有有效配置，返回空数组
     if (validTools.length === 0 || validBodyParts.length === 0 || validPositions.length === 0) {
@@ -1027,7 +1079,7 @@ export class GameService {
     for (const combination of shuffledCombinations) {
       if (combinations.length >= count) break
 
-      const combinationKey = `${combination.tool.id}-${combination.bodyPart.id}-${combination.position.id}`
+      const combinationKey = `${combination.tool.name}-${combination.bodyPart.name}-${combination.position.name}`
 
       if (!usedCombinations.has(combinationKey)) {
         usedCombinations.add(combinationKey)
@@ -1100,19 +1152,19 @@ export class GameService {
 
     // 检查工具重复（权重最高）
     const toolRepeats = windowCombinations.filter(
-      combo => combo.tool.id === candidate.tool.id
+      combo => combo.tool.name === candidate.tool.name
     ).length
     score -= toolRepeats * 30 // 工具重复扣30分
 
     // 检查部位重复（权重中等）
     const bodyPartRepeats = windowCombinations.filter(
-      combo => combo.bodyPart.id === candidate.bodyPart.id
+      combo => combo.bodyPart.name === candidate.bodyPart.name
     ).length
     score -= bodyPartRepeats * 20 // 部位重复扣20分
 
     // 检查姿势重复（权重最低）
     const positionRepeats = windowCombinations.filter(
-      combo => combo.position.id === candidate.position.id
+      combo => combo.position.name === candidate.position.name
     ).length
     score -= positionRepeats * 10 // 姿势重复扣10分
 
@@ -1128,13 +1180,13 @@ export class GameService {
 
     // 计算各维度的重复数量
     const toolRepeats = windowCombinations.filter(
-      combo => combo.tool.id === candidate.tool.id
+      combo => combo.tool.name === candidate.tool.name
     ).length
     const bodyPartRepeats = windowCombinations.filter(
-      combo => combo.bodyPart.id === candidate.bodyPart.id
+      combo => combo.bodyPart.name === candidate.bodyPart.name
     ).length
     const positionRepeats = windowCombinations.filter(
-      combo => combo.position.id === candidate.position.id
+      combo => combo.position.name === candidate.position.name
     ).length
 
     // 计算不同维度的数量
@@ -1385,9 +1437,13 @@ export class GameService {
     const usedCombinations = new Set<string>() // 用于去重的集合
 
     // 获取有效的配置项（ratio > 0）
-    const validTools = config.tools.filter(tool => tool.ratio > 0)
-    const validBodyParts = config.bodyParts.filter(bodyPart => bodyPart.ratio > 0)
-    const validPositions = config.positions.filter(position => position.ratio > 0)
+    const validTools = this.configToArray(config.tools).filter(tool => tool.ratio > 0)
+    const validBodyParts = this.configToArray(config.bodyParts).filter(
+      bodyPart => bodyPart.ratio > 0
+    )
+    const validPositions = this.configToArray(config.positions).filter(
+      position => position.ratio > 0
+    )
 
     // 如果任何一类没有有效配置，返回空数组
     if (validTools.length === 0 || validBodyParts.length === 0 || validPositions.length === 0) {
@@ -1461,7 +1517,7 @@ export class GameService {
 
       // 创建组合定义
       const combination = this.createPunishmentCombinationDefinition(tool, bodyPart, position)
-      const key = `${tool.id}-${bodyPart.id}-${position.id}`
+      const key = `${tool.name}-${bodyPart.name}-${position.name}`
 
       // 检查是否已存在相同组合
       if (!usedCombinations.has(key)) {
@@ -1476,7 +1532,7 @@ export class GameService {
     while (combinations.length < count && allPossibleCombinations.length > 0) {
       const randomCombination =
         allPossibleCombinations[Math.floor(Math.random() * allPossibleCombinations.length)]
-      const key = `${randomCombination.tool.id}-${randomCombination.bodyPart.id}-${randomCombination.position.id}`
+      const key = `${randomCombination.tool.name}-${randomCombination.bodyPart.name}-${randomCombination.position.name}`
 
       if (!usedCombinations.has(key)) {
         combinations.push(randomCombination)
@@ -1496,9 +1552,13 @@ export class GameService {
     const usedCombinations = new Set<string>() // 用于去重的集合
 
     // 获取有效的配置项（ratio > 0）
-    const validTools = config.tools.filter(tool => tool.ratio > 0)
-    const validBodyParts = config.bodyParts.filter(bodyPart => bodyPart.ratio > 0)
-    const validPositions = config.positions.filter(position => position.ratio > 0)
+    const validTools = this.configToArray(config.tools).filter(tool => tool.ratio > 0)
+    const validBodyParts = this.configToArray(config.bodyParts).filter(
+      bodyPart => bodyPart.ratio > 0
+    )
+    const validPositions = this.configToArray(config.positions).filter(
+      position => position.ratio > 0
+    )
 
     // 如果任何一类没有有效配置，返回空数组
     if (validTools.length === 0 || validBodyParts.length === 0 || validPositions.length === 0) {
@@ -1571,7 +1631,7 @@ export class GameService {
       )
 
       // 创建组合的唯一标识符
-      const combinationKey = `${tool.id}-${bodyPart.id}-${position.id}`
+      const combinationKey = `${tool.name}-${bodyPart.name}-${position.name}`
 
       // 检查是否已经存在相同的组合
       if (!usedCombinations.has(combinationKey)) {
@@ -1592,7 +1652,7 @@ export class GameService {
       for (const combination of shuffledCombinations) {
         if (combinations.length >= count) break
 
-        const combinationKey = `${combination.tool.id}-${combination.bodyPart.id}-${combination.position.id}`
+        const combinationKey = `${combination.tool.name}-${combination.bodyPart.name}-${combination.position.name}`
 
         if (!usedCombinations.has(combinationKey)) {
           usedCombinations.add(combinationKey)
