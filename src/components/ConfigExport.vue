@@ -64,6 +64,9 @@
   const showScanner = ref(false)
   const scannerError = ref('')
   const isMobile = ref(false)
+  const scannerSuccess = ref(false)
+  const scannerMessage = ref('')
+  let currentQrScanner: QrScanner | null = null
 
   // 检查各配置项是否可用
   const availableOptions = computed(() => {
@@ -292,6 +295,8 @@
     isScanning.value = true
     showScanner.value = true
     scannerError.value = ''
+    scannerSuccess.value = false
+    scannerMessage.value = '请将二维码对准扫描框...'
 
     try {
       // 创建视频元素
@@ -300,18 +305,28 @@
       video.style.height = '300px'
       video.style.objectFit = 'cover'
 
-      // 创建扫码器
-      const qrScanner = new QrScanner(
+      // 创建扫码器 - 修复结果处理逻辑
+      currentQrScanner = new QrScanner(
         video,
         result => {
-          console.log('扫码成功:', result.data)
-          handleScanResult(result.data)
-          stopScanning(qrScanner)
+          // 正确处理扫码结果
+          const qrData = typeof result === 'string' ? result : result.data
+          console.log('扫码识别成功:', qrData)
+
+          // 显示识别成功状态
+          scannerSuccess.value = true
+          scannerMessage.value = '识别成功！正在导入配置...'
+
+          // 延迟处理，给用户视觉反馈
+          setTimeout(() => {
+            handleScanResult(qrData)
+          }, 800)
         },
         {
           returnDetailedScanResult: true,
           highlightScanRegion: true,
           highlightCodeOutline: true,
+          maxScansPerSecond: 5, // 限制扫描频率，避免重复识别
         }
       )
 
@@ -322,24 +337,35 @@
         scannerContainer.appendChild(video)
       }
 
-      await qrScanner.start()
+      await currentQrScanner.start()
+      console.log('扫码器启动成功')
     } catch (error) {
       console.error('启动扫码失败:', error)
       scannerError.value = `启动扫码失败: ${error instanceof Error ? error.message : '未知错误'}`
       isScanning.value = false
       showScanner.value = false
+      scannerMessage.value = ''
     }
   }
 
   // 停止扫码
   const stopScanning = (qrScanner?: QrScanner) => {
-    if (qrScanner) {
-      qrScanner.stop()
-      qrScanner.destroy()
+    const scannerToStop = qrScanner || currentQrScanner
+    if (scannerToStop) {
+      try {
+        scannerToStop.stop()
+        scannerToStop.destroy()
+      } catch (error) {
+        console.warn('停止扫码器时出错:', error)
+      }
     }
+
+    currentQrScanner = null
     isScanning.value = false
     showScanner.value = false
     scannerError.value = ''
+    scannerSuccess.value = false
+    scannerMessage.value = ''
 
     const scannerContainer = document.getElementById('scanner-container')
     if (scannerContainer) {
@@ -352,26 +378,36 @@
     console.log('处理扫码结果:', data)
 
     try {
+      // 停止扫码器
+      stopScanning()
+
       // 尝试解析为JSON
       const parsedData = JSON.parse(data)
+      console.log('解析的配置数据:', parsedData)
 
       // 验证是否为有效的配置数据
       if (parsedData.version && parsedData.data) {
+        console.log('配置数据验证通过，开始导入...')
+
         // 使用现有的导入逻辑
         const result = importFromJson(data)
 
         if (result.success) {
-          emit('import-success', '扫码导入成功！')
+          console.log('扫码导入成功')
+          emit('import-success', '扫码导入成功！配置已应用')
           emit('close')
         } else {
+          console.error('导入失败:', result.error)
           emit('import-error', result.error || '扫码导入失败')
         }
       } else {
-        emit('import-error', '扫码内容不是有效的配置数据')
+        console.error('无效的配置数据结构:', parsedData)
+        emit('import-error', '扫码内容不是有效的配置数据，请确保是游戏生成的配置二维码')
       }
     } catch (error) {
       console.error('扫码结果解析失败:', error)
-      emit('import-error', '扫码内容格式不正确，请确保是有效的配置二维码')
+      const errorMessage = error instanceof Error ? error.message : '未知错误'
+      emit('import-error', `扫码内容格式不正确: ${errorMessage}。请确保是有效的配置二维码`)
     }
   }
 
@@ -602,10 +638,27 @@
                 <!-- 扫码器容器 -->
                 <div v-if="showScanner" class="scanner-container">
                   <div class="scanner-header">
-                    <h5>对准二维码进行扫描</h5>
+                    <h5>{{ scannerMessage || '对准二维码进行扫描' }}</h5>
                     <button class="close-scanner-btn" @click="stopScanning">✕</button>
                   </div>
-                  <div id="scanner-container" class="scanner-video"></div>
+                  <div
+                    id="scanner-container"
+                    class="scanner-video"
+                    :class="{ 'scanner-success': scannerSuccess }"
+                  ></div>
+
+                  <!-- 扫码状态指示器 -->
+                  <div class="scanner-status">
+                    <div v-if="scannerSuccess" class="status-success">
+                      <span class="status-icon">✅</span>
+                      <span>识别成功！正在导入...</span>
+                    </div>
+                    <div v-else-if="isScanning" class="status-scanning">
+                      <span class="status-icon">📷</span>
+                      <span>正在扫描中...</span>
+                    </div>
+                  </div>
+
                   <div v-if="scannerError" class="scanner-error">
                     {{ scannerError }}
                   </div>
@@ -1474,6 +1527,64 @@
     color: #dc2626;
     font-size: 14px;
     border-top: 1px solid #fecaca;
+  }
+
+  /* 扫码成功状态 */
+  .scanner-video.scanner-success {
+    border: 3px solid #10b981;
+    border-radius: 8px;
+    animation: scannerSuccess 0.5s ease-in-out;
+  }
+
+  @keyframes scannerSuccess {
+    0% {
+      border-color: #10b981;
+    }
+    50% {
+      border-color: #059669;
+    }
+    100% {
+      border-color: #10b981;
+    }
+  }
+
+  /* 扫码状态指示器 */
+  .scanner-status {
+    padding: 8px 16px;
+    background: #f9fafb;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .status-success,
+  .status-scanning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .status-success {
+    color: #059669;
+  }
+
+  .status-scanning {
+    color: #3b82f6;
+  }
+
+  .status-icon {
+    font-size: 16px;
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
   }
 
   @media (max-width: 640px) {
