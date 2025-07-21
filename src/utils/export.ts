@@ -13,88 +13,16 @@ import { EXPORT_VERSION } from '../types/export'
 import type { BoardCell } from '../types/game'
 import { loadPlayerSettings, loadConfig, savePlayerSettings, saveConfig } from './cache'
 import QRCode from 'qrcode'
-import QrScanner from 'qr-scanner'
-
-// 设置 QrScanner 的 worker 路径
-// 在开发环境和生产环境中都能正确找到 worker 文件
-const workerPath = import.meta.env.DEV
-  ? '/qr-scanner-worker.min.js'
-  : '/flying-chess/qr-scanner-worker.min.js'
-
-QrScanner.WORKER_PATH = workerPath
+import jsQR from 'jsqr'
 
 // 生成随机种子
 function generateSeed(): string {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
 }
 
-// 简化的二维码解析函数
-async function parseQRCodeWithQrScanner(file: File): Promise<string> {
-  console.log('开始使用 qr-scanner 解析二维码...', {
-    fileName: file.name,
-    fileSize: file.size,
-    fileType: file.type,
-    workerPath: QrScanner.WORKER_PATH,
-  })
-
-  // 尝试多种解析方法
-  const methods = [
-    // 方法1: 基本解析
-    async () => {
-      console.log('尝试方法1: 基本解析')
-      return await QrScanner.scanImage(file, { returnDetailedScanResult: false })
-    },
-
-    // 方法2: 禁用高亮
-    async () => {
-      console.log('尝试方法2: 禁用高亮')
-      return await QrScanner.scanImage(file, {
-        returnDetailedScanResult: false,
-        highlightScanRegion: false,
-        highlightCodeOutline: false,
-      })
-    },
-
-    // 方法3: 无选项
-    async () => {
-      console.log('尝试方法3: 无选项')
-      return await QrScanner.scanImage(file)
-    },
-
-    // 方法4: 使用Canvas预处理
-    async () => {
-      console.log('尝试方法4: Canvas预处理')
-      const processedFile = await preprocessImageSimple(file)
-      return await QrScanner.scanImage(processedFile, { returnDetailedScanResult: false })
-    },
-  ]
-
-  let lastError: Error | null = null
-
-  for (let i = 0; i < methods.length; i++) {
-    try {
-      const result = await methods[i]()
-      console.log(`方法${i + 1}解析成功:`, {
-        dataLength: result.length,
-        preview: `${result.substring(0, 100)}...`,
-      })
-      return result
-    } catch (error) {
-      lastError = error as Error
-      console.warn(`方法${i + 1}失败:`, error.message)
-    }
-  }
-
-  // 所有方法都失败了
-  console.error('所有解析方法都失败了')
-
-  const errorMessage = lastError?.message || '未知错误'
-  throw new Error(`无法从图片中识别二维码: ${errorMessage}。请确保图片清晰且包含有效的二维码。`)
-}
-
-// 简化的图片预处理
-async function preprocessImageSimple(file: File): Promise<File> {
-  return new Promise(resolve => {
+// 使用 jsQR 库解析二维码图片
+async function parseQRCodeFromImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
     const img = new Image()
@@ -103,38 +31,28 @@ async function preprocessImageSimple(file: File): Promise<File> {
       try {
         canvas.width = img.width
         canvas.height = img.height
-
-        // 绘制原图
         ctx!.drawImage(img, 0, 0)
 
-        // 转换为高对比度
+        // 获取图像数据
         const imageData = ctx!.getImageData(0, 0, canvas.width, canvas.height)
-        const data = imageData.data
 
-        for (let i = 0; i < data.length; i += 4) {
-          const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114
-          const value = gray > 128 ? 255 : 0
-          data[i] = data[i + 1] = data[i + 2] = value
+        // 使用 jsQR 解析二维码
+        const code = jsQR(imageData.data, imageData.width, imageData.height)
+
+        if (code) {
+          console.log('二维码解析成功:', `${code.data.substring(0, 100)}...`)
+          resolve(code.data)
+        } else {
+          reject(new Error('未在图片中找到有效的二维码'))
         }
-
-        ctx!.putImageData(imageData, 0, 0)
-
-        canvas.toBlob(blob => {
-          if (blob) {
-            resolve(new File([blob], 'processed.png', { type: 'image/png' }))
-          } else {
-            resolve(file) // 如果处理失败，返回原文件
-          }
-        }, 'image/png')
       } catch (error) {
-        console.warn('图片预处理失败:', error)
-        resolve(file) // 如果处理失败，返回原文件
+        console.error('二维码解析失败:', error)
+        reject(new Error('二维码解析失败，请确保图片清晰且包含有效的二维码'))
       }
     }
 
     img.onerror = () => {
-      console.warn('图片加载失败')
-      resolve(file) // 如果加载失败，返回原文件
+      reject(new Error('图片加载失败，请选择有效的图片文件'))
     }
 
     img.src = URL.createObjectURL(file)
@@ -521,12 +439,12 @@ export function importFromJson(
   }
 }
 
-// 从二维码导入配置
+// 从二维码图片导入配置
 export async function importFromQRCode(
   imageFile: File,
   options: Partial<ImportOptions> = {}
 ): Promise<ImportResult> {
-  console.log('开始二维码导入，文件信息:', {
+  console.log('开始二维码图片导入，文件信息:', {
     name: imageFile.name,
     type: imageFile.type,
     size: imageFile.size,
@@ -538,13 +456,12 @@ export async function importFromQRCode(
       throw new Error('请选择有效的图片文件')
     }
 
-    // 使用 qr-scanner 解析二维码
+    // 使用浏览器原生 API 解析二维码
     let qrCodeData: string
     try {
       console.log('开始解析二维码图片...')
-      qrCodeData = await parseQRCodeWithQrScanner(imageFile)
+      qrCodeData = await parseQRCodeFromImage(imageFile)
       console.log('二维码解析成功，数据长度:', qrCodeData.length)
-      console.log('二维码原始数据预览:', `${qrCodeData.substring(0, 200)}...`)
     } catch (scanError) {
       console.error('二维码扫描失败:', scanError)
       throw new Error(
@@ -557,10 +474,9 @@ export async function importFromQRCode(
     try {
       console.log('开始解析JSON数据...')
       parsedData = JSON.parse(qrCodeData)
-      console.log('JSON解析成功，数据结构:', Object.keys(parsedData))
+      console.log('JSON解析成功')
     } catch (parseError) {
       console.error('JSON解析失败:', parseError)
-      console.log('原始数据:', qrCodeData)
       throw new Error(
         `二维码中的数据格式不正确: ${parseError instanceof Error ? parseError.message : '未知错误'}。请确保是有效的配置数据。`
       )

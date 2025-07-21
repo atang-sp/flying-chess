@@ -13,7 +13,6 @@
     DEFAULT_QRCODE_OPTIONS,
   } from '../utils/export'
   import { loadPlayerSettings, loadConfig } from '../utils/cache'
-  import QrScanner from 'qr-scanner'
 
   interface Props {
     currentBoard?: BoardCell[]
@@ -58,15 +57,6 @@
   const importJsonText = ref('')
   const showImportDialog = ref(false)
   const showDocumentation = ref(false)
-
-  // 扫码相关
-  const isScanning = ref(false)
-  const showScanner = ref(false)
-  const scannerError = ref('')
-  const isMobile = ref(false)
-  const scannerSuccess = ref(false)
-  const scannerMessage = ref('')
-  let currentQrScanner: QrScanner | null = null
 
   // 检查各配置项是否可用
   const availableOptions = computed(() => {
@@ -276,177 +266,19 @@
     }
   }
 
-  // 检测是否为移动设备
-  const detectMobile = () => {
-    const userAgent =
-      navigator.userAgent || navigator.vendor || (window as { opera?: string }).opera
-    isMobile.value = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
-      userAgent.toLowerCase()
-    )
-  }
-
-  // 开始扫码
-  const startScanning = async () => {
-    if (!QrScanner.hasCamera()) {
-      scannerError.value = '设备不支持摄像头或摄像头权限被拒绝'
-      return
-    }
-
-    isScanning.value = true
-    showScanner.value = true
-    scannerError.value = ''
-    scannerSuccess.value = false
-    scannerMessage.value = '请将二维码对准扫描框...'
-
-    try {
-      // 创建视频元素
-      const video = document.createElement('video')
-      video.style.width = '100%'
-      video.style.height = '300px'
-      video.style.objectFit = 'cover'
-
-      // 创建扫码器 - 修复结果处理逻辑
-      currentQrScanner = new QrScanner(
-        video,
-        result => {
-          // 正确处理扫码结果
-          const qrData = typeof result === 'string' ? result : result.data
-          console.log('扫码识别成功:', qrData)
-
-          // 显示识别成功状态
-          scannerSuccess.value = true
-          scannerMessage.value = '识别成功！正在导入配置...'
-
-          // 延迟处理，给用户视觉反馈
-          setTimeout(() => {
-            handleScanResult(qrData)
-          }, 800)
-        },
-        {
-          returnDetailedScanResult: true,
-          highlightScanRegion: true,
-          highlightCodeOutline: true,
-          maxScansPerSecond: 5, // 限制扫描频率，避免重复识别
-        }
-      )
-
-      // 将视频元素添加到扫码容器
-      const scannerContainer = document.getElementById('scanner-container')
-      if (scannerContainer) {
-        scannerContainer.innerHTML = ''
-        scannerContainer.appendChild(video)
-      }
-
-      await currentQrScanner.start()
-      console.log('扫码器启动成功')
-    } catch (error) {
-      console.error('启动扫码失败:', error)
-      scannerError.value = `启动扫码失败: ${error instanceof Error ? error.message : '未知错误'}`
-      isScanning.value = false
-      showScanner.value = false
-      scannerMessage.value = ''
-    }
-  }
-
-  // 停止扫码
-  const stopScanning = (qrScanner?: QrScanner) => {
-    const scannerToStop = qrScanner || currentQrScanner
-    if (scannerToStop) {
-      try {
-        scannerToStop.stop()
-        scannerToStop.destroy()
-      } catch (error) {
-        console.warn('停止扫码器时出错:', error)
-      }
-    }
-
-    currentQrScanner = null
-    isScanning.value = false
-    showScanner.value = false
-    scannerError.value = ''
-    scannerSuccess.value = false
-    scannerMessage.value = ''
-
-    const scannerContainer = document.getElementById('scanner-container')
-    if (scannerContainer) {
-      scannerContainer.innerHTML = ''
-    }
-  }
-
-  // 处理扫码结果
-  const handleScanResult = async (data: string) => {
-    console.log('处理扫码结果:', data)
-
-    try {
-      // 停止扫码器
-      stopScanning()
-
-      // 尝试解析为JSON
-      const parsedData = JSON.parse(data)
-      console.log('解析的配置数据:', parsedData)
-
-      // 验证是否为有效的配置数据
-      if (parsedData.version && parsedData.data) {
-        console.log('配置数据验证通过，开始导入...')
-
-        // 使用现有的导入逻辑
-        const result = importFromJson(data)
-
-        if (result.success) {
-          console.log('扫码导入成功')
-          emit('import-success', '扫码导入成功！配置已应用')
-          emit('close')
-        } else {
-          console.error('导入失败:', result.error)
-          emit('import-error', result.error || '扫码导入失败')
-        }
-      } else {
-        console.error('无效的配置数据结构:', parsedData)
-        emit('import-error', '扫码内容不是有效的配置数据，请确保是游戏生成的配置二维码')
-      }
-    } catch (error) {
-      console.error('扫码结果解析失败:', error)
-      const errorMessage = error instanceof Error ? error.message : '未知错误'
-      emit('import-error', `扫码内容格式不正确: ${errorMessage}。请确保是有效的配置二维码`)
-    }
-  }
-
   // 切换模式
   const switchMode = (mode: 'export' | 'import') => {
     currentMode.value = mode
     showQRCode.value = false
     showImportDialog.value = false
-    showScanner.value = false
     qrCodeDataURL.value = ''
     importJsonText.value = ''
-    scannerError.value = ''
-
-    // 停止可能正在进行的扫码
-    if (isScanning.value) {
-      stopScanning()
-    }
   }
 
   // 关闭对话框
   const handleClose = () => {
-    // 停止可能正在进行的扫码
-    if (isScanning.value) {
-      stopScanning()
-    }
     emit('close')
   }
-
-  // 组件挂载时检测设备类型
-  onMounted(() => {
-    detectMobile()
-  })
-
-  // 组件卸载时清理扫码器
-  onUnmounted(() => {
-    if (isScanning.value) {
-      stopScanning()
-    }
-  })
 </script>
 
 <template>
@@ -620,51 +452,6 @@
                 </label>
               </div>
               <p class="method-desc">支持 .json 文件和二维码图片（PNG、JPG等格式）</p>
-            </div>
-
-            <!-- 扫码导入 (仅移动端显示) -->
-            <div v-if="isMobile" class="import-method">
-              <h4>📷 扫码导入</h4>
-              <div class="scan-import">
-                <button
-                  class="scan-btn"
-                  :disabled="isImporting || isScanning"
-                  @click="startScanning"
-                >
-                  <span v-if="isScanning">扫码中...</span>
-                  <span v-else>📱 开始扫码</span>
-                </button>
-
-                <!-- 扫码器容器 -->
-                <div v-if="showScanner" class="scanner-container">
-                  <div class="scanner-header">
-                    <h5>{{ scannerMessage || '对准二维码进行扫描' }}</h5>
-                    <button class="close-scanner-btn" @click="stopScanning">✕</button>
-                  </div>
-                  <div
-                    id="scanner-container"
-                    class="scanner-video"
-                    :class="{ 'scanner-success': scannerSuccess }"
-                  ></div>
-
-                  <!-- 扫码状态指示器 -->
-                  <div class="scanner-status">
-                    <div v-if="scannerSuccess" class="status-success">
-                      <span class="status-icon">✅</span>
-                      <span>识别成功！正在导入...</span>
-                    </div>
-                    <div v-else-if="isScanning" class="status-scanning">
-                      <span class="status-icon">📷</span>
-                      <span>正在扫描中...</span>
-                    </div>
-                  </div>
-
-                  <div v-if="scannerError" class="scanner-error">
-                    {{ scannerError }}
-                  </div>
-                </div>
-              </div>
-              <p class="method-desc">使用摄像头直接扫描二维码配置</p>
             </div>
 
             <div class="import-method">
@@ -1436,168 +1223,9 @@
     background: #2563eb;
   }
 
-  /* 扫码功能样式 */
-  .scan-import {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .scan-btn {
-    padding: 12px 24px;
-    background: #10b981;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-  }
-
-  .scan-btn:hover:not(:disabled) {
-    background: #059669;
-  }
-
-  .scan-btn:disabled {
-    background: #9ca3af;
-    cursor: not-allowed;
-  }
-
-  .scanner-container {
-    border: 2px solid #e5e7eb;
-    border-radius: 12px;
-    overflow: hidden;
-    background: #f9fafb;
-  }
-
-  .scanner-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 16px;
-    background: #f3f4f6;
-    border-bottom: 1px solid #e5e7eb;
-  }
-
-  .scanner-header h5 {
-    margin: 0;
-    font-size: 14px;
-    font-weight: 500;
-    color: #374151;
-  }
-
-  .close-scanner-btn {
-    background: none;
-    border: none;
-    font-size: 18px;
-    color: #6b7280;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    transition: all 0.2s;
-  }
-
-  .close-scanner-btn:hover {
-    background: #e5e7eb;
-    color: #374151;
-  }
-
-  .scanner-video {
-    position: relative;
-    min-height: 300px;
-    background: #000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .scanner-video video {
-    width: 100%;
-    height: 300px;
-    object-fit: cover;
-  }
-
-  .scanner-error {
-    padding: 12px 16px;
-    background: #fef2f2;
-    color: #dc2626;
-    font-size: 14px;
-    border-top: 1px solid #fecaca;
-  }
-
-  /* 扫码成功状态 */
-  .scanner-video.scanner-success {
-    border: 3px solid #10b981;
-    border-radius: 8px;
-    animation: scannerSuccess 0.5s ease-in-out;
-  }
-
-  @keyframes scannerSuccess {
-    0% {
-      border-color: #10b981;
-    }
-    50% {
-      border-color: #059669;
-    }
-    100% {
-      border-color: #10b981;
-    }
-  }
-
-  /* 扫码状态指示器 */
-  .scanner-status {
-    padding: 8px 16px;
-    background: #f9fafb;
-    border-top: 1px solid #e5e7eb;
-  }
-
-  .status-success,
-  .status-scanning {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    font-weight: 500;
-  }
-
-  .status-success {
-    color: #059669;
-  }
-
-  .status-scanning {
-    color: #3b82f6;
-  }
-
-  .status-icon {
-    font-size: 16px;
-    animation: pulse 1.5s infinite;
-  }
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.6;
-    }
-  }
-
   @media (max-width: 640px) {
     .export-overlay {
       padding: 10px;
-    }
-
-    .scanner-video {
-      min-height: 250px;
-    }
-
-    .scanner-video video {
-      height: 250px;
     }
 
     .export-modal {
