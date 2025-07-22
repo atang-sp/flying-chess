@@ -1,10 +1,5 @@
 <script setup lang="ts">
-  interface PunishmentAction {
-    tool: { name: string }
-    bodyPart: { name: string }
-    position: { name: string }
-    strikes?: number
-  }
+  import type { PunishmentAction } from '../types/game'
 
   interface Props {
     visible: boolean

@@ -242,8 +242,60 @@
         console.log('已加载棋盘配置:', cached.boardConfig)
       }
       if (cached.punishmentConfig) {
-        gameState.punishmentConfig = cached.punishmentConfig
-        console.log('已加载惩罚配置:', cached.punishmentConfig)
+        // 检查并转换旧格式的惩罚配置（数组格式 -> 对象格式）
+        const punishmentConfig = cached.punishmentConfig
+
+        // 检查是否为旧格式（数组格式）
+        if (
+          Array.isArray(punishmentConfig.tools) ||
+          Array.isArray(punishmentConfig.bodyParts) ||
+          Array.isArray(punishmentConfig.positions)
+        ) {
+          console.log('检测到旧格式的惩罚配置，正在转换为新格式...', punishmentConfig)
+
+          // 转换工具配置
+          if (Array.isArray(punishmentConfig.tools)) {
+            const toolsObj: Record<string, any> = {}
+            punishmentConfig.tools.forEach((tool: any) => {
+              toolsObj[tool.name] = {
+                name: tool.name,
+                intensity: tool.intensity,
+                ratio: tool.ratio,
+              }
+            })
+            punishmentConfig.tools = toolsObj
+          }
+
+          // 转换部位配置
+          if (Array.isArray(punishmentConfig.bodyParts)) {
+            const bodyPartsObj: Record<string, any> = {}
+            punishmentConfig.bodyParts.forEach((bodyPart: any) => {
+              bodyPartsObj[bodyPart.name] = {
+                name: bodyPart.name,
+                sensitivity: bodyPart.sensitivity,
+                ratio: bodyPart.ratio,
+              }
+            })
+            punishmentConfig.bodyParts = bodyPartsObj
+          }
+
+          // 转换姿势配置
+          if (Array.isArray(punishmentConfig.positions)) {
+            const positionsObj: Record<string, any> = {}
+            punishmentConfig.positions.forEach((position: any) => {
+              positionsObj[position.name] = {
+                name: position.name,
+                ratio: position.ratio,
+              }
+            })
+            punishmentConfig.positions = positionsObj
+          }
+
+          console.log('惩罚配置格式转换完成')
+        }
+
+        gameState.punishmentConfig = punishmentConfig
+        console.log('已加载惩罚配置:', punishmentConfig)
       }
       if (cached.trapConfig) {
         trapConfig.value = cached.trapConfig
@@ -1544,7 +1596,59 @@
 
     if (config) {
       if (config.punishmentConfig) {
-        gameState.punishmentConfig = config.punishmentConfig
+        // 检查并转换旧格式的惩罚配置（数组格式 -> 对象格式）
+        const punishmentConfig = config.punishmentConfig
+
+        // 检查是否为旧格式（数组格式）
+        if (
+          Array.isArray(punishmentConfig.tools) ||
+          Array.isArray(punishmentConfig.bodyParts) ||
+          Array.isArray(punishmentConfig.positions)
+        ) {
+          console.log('检测到旧格式的惩罚配置，正在转换为新格式...', punishmentConfig)
+
+          // 转换工具配置
+          if (Array.isArray(punishmentConfig.tools)) {
+            const toolsObj: Record<string, any> = {}
+            punishmentConfig.tools.forEach((tool: any) => {
+              toolsObj[tool.name] = {
+                name: tool.name,
+                intensity: tool.intensity,
+                ratio: tool.ratio,
+              }
+            })
+            punishmentConfig.tools = toolsObj
+          }
+
+          // 转换部位配置
+          if (Array.isArray(punishmentConfig.bodyParts)) {
+            const bodyPartsObj: Record<string, any> = {}
+            punishmentConfig.bodyParts.forEach((bodyPart: any) => {
+              bodyPartsObj[bodyPart.name] = {
+                name: bodyPart.name,
+                sensitivity: bodyPart.sensitivity,
+                ratio: bodyPart.ratio,
+              }
+            })
+            punishmentConfig.bodyParts = bodyPartsObj
+          }
+
+          // 转换姿势配置
+          if (Array.isArray(punishmentConfig.positions)) {
+            const positionsObj: Record<string, any> = {}
+            punishmentConfig.positions.forEach((position: any) => {
+              positionsObj[position.name] = {
+                name: position.name,
+                ratio: position.ratio,
+              }
+            })
+            punishmentConfig.positions = positionsObj
+          }
+
+          console.log('惩罚配置格式转换完成')
+        }
+
+        gameState.punishmentConfig = punishmentConfig
         console.log('惩罚配置已更新')
         configUpdated = true
       }
