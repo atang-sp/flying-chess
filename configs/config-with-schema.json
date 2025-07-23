@@ -10,46 +10,40 @@
       "playerNames": ["玩家1", "玩家2"]
     },
     "punishmentConfig": {
-      "tools": [
-        {
-          "id": "hand",
+      "tools": {
+        "手掌": {
           "name": "手掌",
           "intensity": 2,
           "ratio": 10
         },
-        {
-          "id": "ruler",
+        "尺子": {
           "name": "尺子",
           "intensity": 3,
           "ratio": 8
         }
-      ],
-      "bodyParts": [
-        {
-          "id": "butt",
+      },
+      "bodyParts": {
+        "屁股": {
           "name": "屁股",
           "sensitivity": 10,
           "ratio": 80
         },
-        {
-          "id": "hands",
+        "手心": {
           "name": "手心",
           "sensitivity": 2,
           "ratio": 20
         }
-      ],
-      "positions": [
-        {
-          "id": "standing",
+      },
+      "positions": {
+        "站立": {
           "name": "站立",
           "ratio": 50
         },
-        {
-          "id": "kneeling",
+        "跪趴": {
           "name": "跪趴",
           "ratio": 50
         }
-      ],
+      },
       "minStrikes": 5,
       "maxStrikes": 15,
       "step": 5,

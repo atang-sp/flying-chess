@@ -48,9 +48,9 @@
   // 检查配置是否有效
   const isConfigValid = computed(() => {
     return (
-      localConfig.value.tools.length > 0 &&
-      localConfig.value.bodyParts.length > 0 &&
-      localConfig.value.positions.length > 0
+      Object.keys(localConfig.value.tools).length > 0 &&
+      Object.keys(localConfig.value.bodyParts).length > 0 &&
+      Object.keys(localConfig.value.positions).length > 0
     )
   })
 
@@ -143,7 +143,8 @@
     const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
 
     // 先更新UI显示新值
-    autoDistributeRatio(localConfig.value.tools, idx, value)
+    const toolsArray = Object.values(localConfig.value.tools)
+    autoDistributeRatio(toolsArray, idx, value)
 
     // 验证配置
     const validation = GameService.validatePunishmentConfig(localConfig.value)
@@ -167,7 +168,8 @@
     const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
 
     // 先更新UI显示新值
-    autoDistributeRatio(localConfig.value.bodyParts, idx, value)
+    const bodyPartsArray = Object.values(localConfig.value.bodyParts)
+    autoDistributeRatio(bodyPartsArray, idx, value)
 
     // 验证配置
     const validation = GameService.validatePunishmentConfig(localConfig.value)
@@ -191,7 +193,8 @@
     const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
 
     // 先更新UI显示新值
-    autoDistributeRatio(localConfig.value.positions, idx, value)
+    const positionsArray = Object.values(localConfig.value.positions)
+    autoDistributeRatio(positionsArray, idx, value)
 
     // 验证配置
     const validation = GameService.validatePunishmentConfig(localConfig.value)
@@ -210,8 +213,8 @@
     }
   }
 
-  const updateToolIntensity = async (toolId: string, newIntensity: number) => {
-    const tool = localConfig.value.tools.find(t => t.id === toolId)
+  const updateToolIntensity = async (toolName: string, newIntensity: number) => {
+    const tool = localConfig.value.tools[toolName]
     if (tool && newIntensity >= 1 && newIntensity <= 10) {
       // 记录修改前的值
       const originalIntensity = tool.intensity
@@ -237,17 +240,18 @@
     }
   }
 
-  const removeTool = async (toolId: string) => {
+  const removeTool = async (toolName: string) => {
     // 记录修改前的配置
     const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
 
-    const index = localConfig.value.tools.findIndex(t => t.id === toolId)
-    if (index > -1) {
+    if (toolName in localConfig.value.tools) {
       // 先更新UI显示新值
-      localConfig.value.tools.splice(index, 1)
+      delete localConfig.value.tools[toolName]
+
       // 重新分配比例
-      if (localConfig.value.tools.length > 0) {
-        autoDistributeRatio(localConfig.value.tools, 0, localConfig.value.tools[0].ratio)
+      const toolsArray = Object.values(localConfig.value.tools)
+      if (toolsArray.length > 0) {
+        autoDistributeRatio(toolsArray, 0, toolsArray[0].ratio)
       }
 
       // 验证配置
@@ -271,20 +275,33 @@
 
   const addTool = async () => {
     if (newToolName.value.trim()) {
+      const toolName = newToolName.value.trim()
+
+      // 检查是否已存在同名工具
+      if (toolName in localConfig.value.tools) {
+        return // 已存在，不添加
+      }
+
       // 记录修改前的配置
       const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
 
       // 先更新UI显示新值
-      const n = localConfig.value.tools.length + 1
+      const toolsArray = Object.values(localConfig.value.tools)
+      const n = toolsArray.length + 1
       const ratio = 100 / n
-      localConfig.value.tools.forEach(t => (t.ratio = ratio))
+
+      // 更新现有工具的比例
+      toolsArray.forEach(t => (t.ratio = ratio))
+
+      // 创建新工具
       const newTool: PunishmentTool = {
-        id: `tool_${Date.now()}`,
-        name: newToolName.value.trim(),
+        name: toolName,
         intensity: Math.max(1, Math.min(10, newToolIntensity.value)),
         ratio,
       }
-      localConfig.value.tools.push(newTool)
+
+      // 添加新工具
+      localConfig.value.tools[toolName] = newTool
 
       // 验证配置
       const validation = GameService.validatePunishmentConfig(localConfig.value)
@@ -306,8 +323,8 @@
     }
   }
 
-  const updateBodyPartSensitivity = async (bodyPartId: string, newSensitivity: number) => {
-    const bodyPart = localConfig.value.bodyParts.find(b => b.id === bodyPartId)
+  const updateBodyPartSensitivity = async (bodyPartName: string, newSensitivity: number) => {
+    const bodyPart = localConfig.value.bodyParts[bodyPartName]
     if (bodyPart && newSensitivity >= 1 && newSensitivity <= 10) {
       // 记录修改前的值
       const originalSensitivity = bodyPart.sensitivity
@@ -333,16 +350,18 @@
     }
   }
 
-  const removeBodyPart = async (bodyPartId: string) => {
+  const removeBodyPart = async (bodyPartName: string) => {
     // 记录修改前的配置
     const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
 
-    const index = localConfig.value.bodyParts.findIndex(b => b.id === bodyPartId)
-    if (index > -1) {
+    if (bodyPartName in localConfig.value.bodyParts) {
       // 先更新UI显示新值
-      localConfig.value.bodyParts.splice(index, 1)
-      if (localConfig.value.bodyParts.length > 0) {
-        autoDistributeRatio(localConfig.value.bodyParts, 0, localConfig.value.bodyParts[0].ratio)
+      delete localConfig.value.bodyParts[bodyPartName]
+
+      // 重新分配比例
+      const bodyPartsArray = Object.values(localConfig.value.bodyParts)
+      if (bodyPartsArray.length > 0) {
+        autoDistributeRatio(bodyPartsArray, 0, bodyPartsArray[0].ratio)
       }
 
       // 验证配置
@@ -366,20 +385,33 @@
 
   const addBodyPart = async () => {
     if (newBodyPartName.value.trim()) {
+      const bodyPartName = newBodyPartName.value.trim()
+
+      // 检查是否已存在同名部位
+      if (bodyPartName in localConfig.value.bodyParts) {
+        return // 已存在，不添加
+      }
+
       // 记录修改前的配置
       const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
 
       // 先更新UI显示新值
-      const n = localConfig.value.bodyParts.length + 1
+      const bodyPartsArray = Object.values(localConfig.value.bodyParts)
+      const n = bodyPartsArray.length + 1
       const ratio = 100 / n
-      localConfig.value.bodyParts.forEach(b => (b.ratio = ratio))
+
+      // 更新现有部位的比例
+      bodyPartsArray.forEach(b => (b.ratio = ratio))
+
+      // 创建新部位
       const newBodyPart: PunishmentBodyPart = {
-        id: `bodypart_${Date.now()}`,
-        name: newBodyPartName.value.trim(),
+        name: bodyPartName,
         sensitivity: Math.max(1, Math.min(10, newBodyPartSensitivity.value)),
         ratio,
       }
-      localConfig.value.bodyParts.push(newBodyPart)
+
+      // 添加新部位
+      localConfig.value.bodyParts[bodyPartName] = newBodyPart
 
       // 验证配置
       const validation = GameService.validatePunishmentConfig(localConfig.value)
@@ -401,16 +433,18 @@
     }
   }
 
-  const removePosition = async (positionId: string) => {
+  const removePosition = async (positionName: string) => {
     // 记录修改前的配置
     const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
 
-    const index = localConfig.value.positions.findIndex(p => p.id === positionId)
-    if (index > -1) {
+    if (positionName in localConfig.value.positions) {
       // 先更新UI显示新值
-      localConfig.value.positions.splice(index, 1)
-      if (localConfig.value.positions.length > 0) {
-        autoDistributeRatio(localConfig.value.positions, 0, localConfig.value.positions[0].ratio)
+      delete localConfig.value.positions[positionName]
+
+      // 重新分配比例
+      const positionsArray = Object.values(localConfig.value.positions)
+      if (positionsArray.length > 0) {
+        autoDistributeRatio(positionsArray, 0, positionsArray[0].ratio)
       }
 
       // 验证配置
@@ -434,19 +468,32 @@
 
   const addPosition = async () => {
     if (newPositionName.value.trim()) {
+      const positionName = newPositionName.value.trim()
+
+      // 检查是否已存在同名姿势
+      if (positionName in localConfig.value.positions) {
+        return // 已存在，不添加
+      }
+
       // 记录修改前的配置
       const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
 
       // 先更新UI显示新值
-      const n = localConfig.value.positions.length + 1
+      const positionsArray = Object.values(localConfig.value.positions)
+      const n = positionsArray.length + 1
       const ratio = 100 / n
-      localConfig.value.positions.forEach(p => (p.ratio = ratio))
+
+      // 更新现有姿势的比例
+      positionsArray.forEach(p => (p.ratio = ratio))
+
+      // 创建新姿势
       const newPosition: PunishmentPosition = {
-        id: `position_${Date.now()}`,
-        name: newPositionName.value.trim(),
+        name: positionName,
         ratio,
       }
-      localConfig.value.positions.push(newPosition)
+
+      // 添加新姿势
+      localConfig.value.positions[positionName] = newPosition
 
       // 验证配置
       const validation = GameService.validatePunishmentConfig(localConfig.value)
@@ -572,14 +619,18 @@
       <div class="config-section">
         <div class="section-header">
           <h4>🛠️ 工具设置</h4>
-          <div class="section-summary">{{ localConfig.tools.length }}个工具</div>
+          <div class="section-summary">{{ Object.keys(localConfig.tools).length }}个工具</div>
         </div>
 
         <div class="items-grid">
-          <div v-for="(tool, idx) in localConfig.tools" :key="tool.id" class="item-card">
+          <div
+            v-for="(tool, idx) in Object.values(localConfig.tools)"
+            :key="tool.name"
+            class="item-card"
+          >
             <div class="item-header">
               <span class="item-name">{{ tool.name }}</span>
-              <button class="btn-remove" @click="removeTool(tool.id)">×</button>
+              <button class="btn-remove" @click="removeTool(tool.name)">×</button>
             </div>
 
             <div class="item-stats">
@@ -589,7 +640,7 @@
                   <button
                     :disabled="tool.intensity <= 1"
                     class="btn-stat"
-                    @click="updateToolIntensity(tool.id, tool.intensity - 1)"
+                    @click="updateToolIntensity(tool.name, tool.intensity - 1)"
                   >
                     -
                   </button>
@@ -597,7 +648,7 @@
                   <button
                     :disabled="tool.intensity >= 10"
                     class="btn-stat"
-                    @click="updateToolIntensity(tool.id, tool.intensity + 1)"
+                    @click="updateToolIntensity(tool.name, tool.intensity + 1)"
                   >
                     +
                   </button>
@@ -642,18 +693,18 @@
       <div class="config-section">
         <div class="section-header">
           <h4>🎯 部位设置</h4>
-          <div class="section-summary">{{ localConfig.bodyParts.length }}个部位</div>
+          <div class="section-summary">{{ Object.keys(localConfig.bodyParts).length }}个部位</div>
         </div>
 
         <div class="items-grid">
           <div
-            v-for="(bodyPart, idx) in localConfig.bodyParts"
-            :key="bodyPart.id"
+            v-for="(bodyPart, idx) in Object.values(localConfig.bodyParts)"
+            :key="bodyPart.name"
             class="item-card"
           >
             <div class="item-header">
               <span class="item-name">{{ bodyPart.name }}</span>
-              <button class="btn-remove" @click="removeBodyPart(bodyPart.id)">×</button>
+              <button class="btn-remove" @click="removeBodyPart(bodyPart.name)">×</button>
             </div>
 
             <div class="item-stats">
@@ -663,7 +714,7 @@
                   <button
                     :disabled="bodyPart.sensitivity <= 1"
                     class="btn-stat"
-                    @click="updateBodyPartSensitivity(bodyPart.id, bodyPart.sensitivity - 1)"
+                    @click="updateBodyPartSensitivity(bodyPart.name, bodyPart.sensitivity - 1)"
                   >
                     -
                   </button>
@@ -671,7 +722,7 @@
                   <button
                     :disabled="bodyPart.sensitivity >= 10"
                     class="btn-stat"
-                    @click="updateBodyPartSensitivity(bodyPart.id, bodyPart.sensitivity + 1)"
+                    @click="updateBodyPartSensitivity(bodyPart.name, bodyPart.sensitivity + 1)"
                   >
                     +
                   </button>
@@ -716,18 +767,18 @@
       <div class="config-section">
         <div class="section-header">
           <h4>🧘 姿势设置</h4>
-          <div class="section-summary">{{ localConfig.positions.length }}个姿势</div>
+          <div class="section-summary">{{ Object.keys(localConfig.positions).length }}个姿势</div>
         </div>
 
         <div class="items-grid">
           <div
-            v-for="(position, idx) in localConfig.positions"
-            :key="position.id"
+            v-for="(position, idx) in Object.values(localConfig.positions)"
+            :key="position.name"
             class="item-card"
           >
             <div class="item-header">
               <span class="item-name">{{ position.name }}</span>
-              <button class="btn-remove" @click="removePosition(position.id)">×</button>
+              <button class="btn-remove" @click="removePosition(position.name)">×</button>
             </div>
 
             <div class="item-stats">
