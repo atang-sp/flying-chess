@@ -30,9 +30,9 @@
     <div class="bounce-content">
       <div class="bounce-message">
         <p class="main-message">
-          超出终点🏁(第{{ endPoint }}格)，所以倒退{{ overflowSteps }}格，最后是第{{
-            finalPosition
-          }}格
+          超出终点🏁(第{{ endPoint }}格) {{ overflowSteps }}格子，所以倒退{{
+            overflowSteps
+          }}格，最后是第{{ finalPosition }}格
         </p>
       </div>
 
