@@ -2120,6 +2120,7 @@
       :target-position="bounceTargetPosition"
       :final-position="bounceFinalPosition"
       :overflow-steps="bounceOverflowSteps"
+      :end-point="gameState.board.length"
       @confirm="confirmBounce"
     />
 
