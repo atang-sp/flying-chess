@@ -122,11 +122,25 @@ export class GameService {
       const bodyPart = this.selectByRatio(this.configToArray(config.bodyParts))
       const position = this.selectByRatio(this.configToArray(config.positions))
 
+      // 在配置的范围内随机生成惩罚次数，确保是步长的倍数
+      const minStrikes = Math.max(1, config.minStrikes || 10)
+      const maxStrikes = Math.max(minStrikes, config.maxStrikes || 30)
+      const step = config.step || 5
+
+      // 确保最小值和最大值都是步长的倍数
+      const minMultiple = Math.ceil(minStrikes / step)
+      const maxMultiple = Math.floor(maxStrikes / step)
+
+      // 在有效的倍数范围内随机选择
+      const randomMultiple = SecureRandom.randomInt(minMultiple, maxMultiple)
+      const strikes = randomMultiple * step
+
       const punishment: PunishmentAction = {
         tool,
         bodyPart,
         position,
-        description: `用${tool.name}打${bodyPart.name}，姿势：${position.name}`,
+        strikes,
+        description: `用${tool.name}打${bodyPart.name}${strikes}下，姿势：${position.name}`,
       }
 
       cellMap.set(pos, {
