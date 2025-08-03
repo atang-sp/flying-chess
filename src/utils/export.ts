@@ -12,12 +12,13 @@ import type {
 import { EXPORT_VERSION } from '../types/export'
 import type { BoardCell } from '../types/game'
 import { loadPlayerSettings, loadConfig, savePlayerSettings, saveConfig } from './cache'
+import { SecureRandom } from './secureRandom'
 import QRCode from 'qrcode'
 import jsQR from 'jsqr'
 
 // 生成随机种子
 function generateSeed(): string {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+  return SecureRandom.randomId(26)
 }
 
 // 使用 jsQR 库解析二维码图片

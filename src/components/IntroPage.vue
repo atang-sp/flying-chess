@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { ref, onMounted, onUnmounted, watch } from 'vue'
   import { savePlayerSettings, loadPlayerSettings } from '../utils/cache'
+  import { SecureRandom } from '../utils/secureRandom'
   import VersionDisplay from './VersionDisplay.vue'
 
   interface Emits {
@@ -130,12 +131,12 @@
 
   const initParticles = () => {
     particles.value = Array.from({ length: 50 }, () => ({
-      x: Math.random() * window.innerWidth,
-      y: Math.random() * window.innerHeight,
-      vx: (Math.random() - 0.5) * 0.5,
-      vy: (Math.random() - 0.5) * 0.5,
-      size: Math.random() * 3 + 1,
-      opacity: Math.random() * 0.5 + 0.1,
+      x: SecureRandom.random() * window.innerWidth,
+      y: SecureRandom.random() * window.innerHeight,
+      vx: (SecureRandom.random() - 0.5) * 0.5,
+      vy: (SecureRandom.random() - 0.5) * 0.5,
+      size: SecureRandom.random() * 3 + 1,
+      opacity: SecureRandom.random() * 0.5 + 0.1,
     }))
   }
 

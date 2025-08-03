@@ -11,6 +11,7 @@ import type {
   TrapAction,
 } from '../types/game'
 import { GAME_CONFIG } from '../config/gameConfig'
+import { SecureRandom } from '../utils/secureRandom'
 
 export class GameService {
   static createBoard(
@@ -46,7 +47,7 @@ export class GameService {
 
     // 随机打乱
     for (let i = availablePositions.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
+      const j = SecureRandom.randomIntBelow(i + 1)
       ;[availablePositions[i], availablePositions[j]] = [
         availablePositions[j],
         availablePositions[i],
@@ -147,7 +148,7 @@ export class GameService {
         { value: 2, description: '前进2步' },
         { value: 3, description: '前进3步' },
       ]
-      const randomBonus = bonusTypes[Math.floor(Math.random() * bonusTypes.length)]
+      const randomBonus = SecureRandom.choice(bonusTypes)
 
       cellMap.set(pos, {
         id: pos,
@@ -167,7 +168,7 @@ export class GameService {
         { type: 'reverse', value: 2, description: '后退2步' },
         { type: 'reverse', value: 3, description: '后退3步' },
       ]
-      const randomReverse = reverseTypes[Math.floor(Math.random() * reverseTypes.length)]
+      const randomReverse = SecureRandom.choice(reverseTypes)
 
       cellMap.set(pos, {
         id: pos,
@@ -212,7 +213,7 @@ export class GameService {
     // 机关格子
     trapPositions.forEach(pos => {
       // 从机关中随机选择一个
-      const randomTrap = traps[Math.floor(Math.random() * traps.length)]
+      const randomTrap = SecureRandom.choice(traps)
 
       cellMap.set(pos, {
         id: pos,
@@ -384,10 +385,8 @@ export class GameService {
   }
 
   static rollDice(): number {
-    return (
-      Math.floor(Math.random() * (GAME_CONFIG.DICE.MAX_VALUE - GAME_CONFIG.DICE.MIN_VALUE + 1)) +
-      GAME_CONFIG.DICE.MIN_VALUE
-    )
+    // 使用密码学安全的随机数生成器，完全不依赖 Math.random()
+    return SecureRandom.randomInt(GAME_CONFIG.DICE.MIN_VALUE, GAME_CONFIG.DICE.MAX_VALUE)
   }
 
   static movePlayer(
@@ -486,8 +485,7 @@ export class GameService {
         const maxMultiple = Math.floor(maxStrikes / step)
 
         // 在有效的倍数范围内随机选择
-        const randomMultiple =
-          Math.floor(Math.random() * (maxMultiple - minMultiple + 1)) + minMultiple
+        const randomMultiple = SecureRandom.randomInt(minMultiple, maxMultiple)
         const strikes = randomMultiple * step
 
         // 计算惩罚执行者 - 等概率随机选择其他玩家
@@ -501,8 +499,7 @@ export class GameService {
             }
           }
           // 等概率随机选择一个其他玩家
-          const randomIndex = Math.floor(Math.random() * otherPlayerIndices.length)
-          executorIndex = otherPlayerIndices[randomIndex]
+          executorIndex = SecureRandom.choice(otherPlayerIndices)
         }
 
         punishment = {
@@ -771,17 +768,10 @@ export class GameService {
   static selectByRatio<T extends { ratio: number }>(items: T[]): T {
     const validItems = items.filter(it => it.ratio > 0)
     const list = validItems.length > 0 ? validItems : items
-    const totalRatio = list.reduce((sum, item) => sum + item.ratio, 0)
-    if (totalRatio === 0) return list[0]
-    const random = Math.random() * totalRatio
-    let currentSum = 0
-    for (const item of list) {
-      currentSum += item.ratio
-      if (random <= currentSum) {
-        return item
-      }
-    }
-    return list[0]
+    if (list.length === 0) throw new Error('无法从空列表中选择项目')
+
+    const weights = list.map(item => item.ratio)
+    return SecureRandom.weightedChoice(list, weights)
   }
 
   // 创建惩罚组合定义（不包含次数）
@@ -815,7 +805,7 @@ export class GameService {
     const maxMultiple = Math.floor(maxStrikes / step)
 
     // 在有效的倍数范围内随机选择
-    const randomMultiple = Math.floor(Math.random() * (maxMultiple - minMultiple + 1)) + minMultiple
+    const randomMultiple = SecureRandom.randomInt(minMultiple, maxMultiple)
     const strikes = randomMultiple * step
 
     return {
@@ -842,7 +832,7 @@ export class GameService {
     const maxMultiple = Math.floor(maxStrikes / step)
 
     // 在有效的倍数范围内随机选择
-    const randomMultiple = Math.floor(Math.random() * (maxMultiple - minMultiple + 1)) + minMultiple
+    const randomMultiple = SecureRandom.randomInt(minMultiple, maxMultiple)
     const strikes = randomMultiple * step
 
     return {
@@ -887,7 +877,7 @@ export class GameService {
     const maxMultiple = Math.floor(maxStrikes / step)
 
     // 在有效的倍数范围内随机选择
-    const randomMultiple = Math.floor(Math.random() * (maxMultiple - minMultiple + 1)) + minMultiple
+    const randomMultiple = SecureRandom.randomInt(minMultiple, maxMultiple)
     const strikes = randomMultiple * step
 
     return {
@@ -1004,7 +994,7 @@ export class GameService {
     }
 
     // 随机选择指定数量的组合，确保不重复
-    const shuffled = [...allPossibleCombinations].sort(() => Math.random() - 0.5)
+    const shuffled = SecureRandom.shuffle(allPossibleCombinations)
     for (let i = 0; i < Math.min(count, shuffled.length); i++) {
       const combination = shuffled[i]
       const key = `${combination.tool.name}-${combination.bodyPart.name}-${combination.position.name}`
@@ -1073,7 +1063,7 @@ export class GameService {
     }
 
     // 随机打乱所有可能的组合
-    const shuffledCombinations = [...allPossibleCombinations].sort(() => Math.random() - 0.5)
+    const shuffledCombinations = SecureRandom.shuffle(allPossibleCombinations)
 
     // 选择前count个不重复的组合
     for (const combination of shuffledCombinations) {
@@ -1091,8 +1081,7 @@ export class GameService {
     if (combinations.length < count) {
       const remainingCount = count - combinations.length
       for (let i = 0; i < remainingCount; i++) {
-        const randomCombination =
-          shuffledCombinations[Math.floor(Math.random() * shuffledCombinations.length)]
+        const randomCombination = SecureRandom.choice(shuffledCombinations)
         combinations.push(randomCombination)
       }
     }
@@ -1242,8 +1231,7 @@ export class GameService {
     }
 
     // 如果有多个最高评分的组合，进行随机选择
-    const randomIndex = Math.floor(Math.random() * topCombinations.length)
-    return topCombinations[randomIndex].combination
+    return SecureRandom.choice(topCombinations).combination
   }
 
   // 智能分配组合到惩罚格子（考虑连续6格的多样性）
@@ -1530,8 +1518,7 @@ export class GameService {
 
     // 如果仍然没有达到目标数量，用随机选择填充剩余位置
     while (combinations.length < count && allPossibleCombinations.length > 0) {
-      const randomCombination =
-        allPossibleCombinations[Math.floor(Math.random() * allPossibleCombinations.length)]
+      const randomCombination = SecureRandom.choice(allPossibleCombinations)
       const key = `${randomCombination.tool.name}-${randomCombination.bodyPart.name}-${randomCombination.position.name}`
 
       if (!usedCombinations.has(key)) {
@@ -1647,7 +1634,7 @@ export class GameService {
 
     // 如果按比例选择后还是不够，从所有可能组合中随机补充
     if (combinations.length < count) {
-      const shuffledCombinations = [...allPossibleCombinations].sort(() => Math.random() - 0.5)
+      const shuffledCombinations = SecureRandom.shuffle(allPossibleCombinations)
 
       for (const combination of shuffledCombinations) {
         if (combinations.length >= count) break

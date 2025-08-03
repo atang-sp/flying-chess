@@ -31,6 +31,7 @@
   import TakeoffReliefDisplay from './components/TakeoffReliefDisplay.vue'
   import ConfigExport from './components/ConfigExport.vue'
   import { saveConfig, loadConfig, loadPlayerSettings } from './utils/cache'
+  import { SecureRandom } from './utils/secureRandom'
   import { driver as createDriver } from 'driver.js'
 
   // 游戏状态
@@ -682,8 +683,7 @@
             (_, index) => index !== gameState.currentPlayerIndex
           )
           if (otherPlayers.length > 0) {
-            const randomIndex = Math.floor(Math.random() * otherPlayers.length)
-            currentPunishmentExecutor.value = otherPlayers[randomIndex]
+            currentPunishmentExecutor.value = SecureRandom.choice(otherPlayers)
           } else {
             currentPunishmentExecutor.value = null
           }
