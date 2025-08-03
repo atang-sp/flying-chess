@@ -542,11 +542,39 @@ export class GameService {
       }
     } else {
       // 已经起飞，正常移动
-      newPosition = player.position + diceValue
+      const originalTargetPosition = player.position + diceValue
+      newPosition = originalTargetPosition
 
-      // 处理环形移动
+      // 处理飞行棋反弹逻辑
       if (newPosition > boardSize) {
-        newPosition = boardSize // 到达终点
+        // 计算超出的格子数，然后反弹
+        const overflow = newPosition - boardSize
+        newPosition = boardSize - overflow
+        // 确保不会反弹到起点之前
+        if (newPosition < 1) {
+          newPosition = 1
+        }
+
+        // 创建反弹效果
+        const bounceEffect = {
+          type: 'bounce' as const,
+          value: overflow,
+          description: `第${player.position}格 → 第${originalTargetPosition}格 → 第${newPosition}格`,
+        }
+
+        // 确保清除移动状态
+        clearTimeout(movingTimer)
+        clearMovingState()
+
+        return {
+          newPosition,
+          effect: `超出终点${overflow}格，反弹到第${newPosition}格`,
+          punishment,
+          targetPlayerIndex,
+          cellEffect: bounceEffect,
+          canTakeOff,
+          executorIndex,
+        }
       }
     }
 
@@ -662,10 +690,23 @@ export class GameService {
     let effect = ''
 
     switch (cellEffect.type) {
-      case 'move':
-        newPosition = Math.min(player.position + cellEffect.value, boardSize)
-        effect = cellEffect.description || `前进${cellEffect.value}步`
+      case 'move': {
+        const originalTargetPosition = player.position + cellEffect.value
+        newPosition = originalTargetPosition
+        // 处理飞行棋反弹逻辑
+        if (newPosition > boardSize) {
+          const overflow = newPosition - boardSize
+          newPosition = boardSize - overflow
+          // 确保不会反弹到起点之前
+          if (newPosition < 1) {
+            newPosition = 1
+          }
+          effect = `前进${cellEffect.value}步，超出终点${overflow}格，反弹到第${newPosition}格`
+        } else {
+          effect = cellEffect.description || `前进${cellEffect.value}步`
+        }
         break
+      }
       case 'reverse':
         newPosition = Math.max(player.position - cellEffect.value, 1)
         effect = cellEffect.description || `后退${cellEffect.value}步`

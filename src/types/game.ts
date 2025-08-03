@@ -60,7 +60,7 @@ export interface BoardCell {
   id: number
   type: 'punishment' | 'bonus' | 'special' | 'restart' | 'trap'
   effect?: {
-    type: 'punishment' | 'move' | 'rest' | 'reverse' | 'restart' | 'trap'
+    type: 'punishment' | 'move' | 'rest' | 'reverse' | 'restart' | 'trap' | 'bounce'
     value: number
     description: string
     punishment?: PunishmentAction
@@ -71,7 +71,7 @@ export interface BoardCell {
 }
 
 export interface CellEffect {
-  type: 'move' | 'rest' | 'reverse' | 'restart'
+  type: 'move' | 'rest' | 'reverse' | 'restart' | 'bounce'
   value: number
   description: string
 }

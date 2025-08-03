@@ -29,6 +29,7 @@
   import TrapDisplay from './components/TrapDisplay.vue'
   import VictoryScreen from './components/VictoryScreen.vue'
   import TakeoffReliefDisplay from './components/TakeoffReliefDisplay.vue'
+  import BounceDisplay from './components/BounceDisplay.vue'
   import ConfigExport from './components/ConfigExport.vue'
   import { saveConfig, loadConfig, loadPlayerSettings } from './utils/cache'
   import { SecureRandom } from './utils/secureRandom'
@@ -97,6 +98,13 @@
   const showTrapDisplay = ref(false)
   const currentTrapPunishment = ref<PunishmentAction | null>(null)
   const currentTrapDescription = ref<string>('')
+
+  // 反弹效果弹窗状态
+  const showBounceDisplay = ref(false)
+  const bounceFromPosition = ref<number>(0)
+  const bounceTargetPosition = ref<number>(0)
+  const bounceFinalPosition = ref<number>(0)
+  const bounceOverflowSteps = ref<number>(0)
 
   // 胜利结算画面状态
   const showVictoryScreen = ref(false)
@@ -564,6 +572,13 @@
     showTakeoffPunishmentDisplay.value = false
     currentTakeoffPunishment.value = null
 
+    // 清除反弹效果状态
+    showBounceDisplay.value = false
+    bounceFromPosition.value = 0
+    bounceTargetPosition.value = 0
+    bounceFinalPosition.value = 0
+    bounceOverflowSteps.value = 0
+
     // 清除胜利结算画面状态
     showVictoryScreen.value = false
 
@@ -701,6 +716,18 @@
         return
       }
 
+      // 检查是否是反弹效果
+      if (cellEffect && cellEffect.type === 'bounce') {
+        // 设置反弹显示信息
+        bounceFromPosition.value = fromPosition
+        bounceTargetPosition.value = fromPosition + diceValue // 原始目标位置
+        bounceFinalPosition.value = newPosition
+        bounceOverflowSteps.value = cellEffect.value
+        showBounceDisplay.value = true
+        // 保持moving状态，等待用户确认反弹
+        return
+      }
+
       // 检查是否有需要显示效果的非惩罚格子
       if (
         cellEffect &&
@@ -810,7 +837,8 @@
         effectType === 'move' ||
         effectType === 'reverse' ||
         effectType === 'restart' ||
-        effectType === 'rest'
+        effectType === 'rest' ||
+        effectType === 'bounce'
       ) {
         const moveDescription = getThreeStepMoveDescription(
           originalPosition,
@@ -1171,6 +1199,30 @@
       showTrapDisplay.value = false
       currentTrapPunishment.value = null
       currentTrapDescription.value = ''
+    }
+  }
+
+  // 确认反弹效果
+  const confirmBounce = async () => {
+    try {
+      showBounceDisplay.value = false
+      bounceFromPosition.value = 0
+      bounceTargetPosition.value = 0
+      bounceFinalPosition.value = 0
+      bounceOverflowSteps.value = 0
+      gameState.gameStatus = 'waiting'
+
+      // 继续游戏流程
+      await continueAfterMove()
+    } catch (error) {
+      console.error('确认反弹时发生错误:', error)
+      // 确保在发生错误时重置游戏状态
+      gameState.gameStatus = 'waiting'
+      showBounceDisplay.value = false
+      bounceFromPosition.value = 0
+      bounceTargetPosition.value = 0
+      bounceFinalPosition.value = 0
+      bounceOverflowSteps.value = 0
     }
   }
 
@@ -2059,6 +2111,16 @@
       :show="showTrapDisplay"
       :trap-description="currentTrapDescription"
       @confirm="confirmTrap"
+    />
+
+    <!-- 反弹效果弹窗 -->
+    <BounceDisplay
+      :visible="showBounceDisplay"
+      :from-position="bounceFromPosition"
+      :target-position="bounceTargetPosition"
+      :final-position="bounceFinalPosition"
+      :overflow-steps="bounceOverflowSteps"
+      @confirm="confirmBounce"
     />
 
     <!-- 胜利结算画面 -->

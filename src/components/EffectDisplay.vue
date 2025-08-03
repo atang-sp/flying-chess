@@ -73,6 +73,7 @@
         return '😴'
       case 'reverse':
         return '⬅️'
+
       default:
         return '✨'
     }
@@ -90,6 +91,7 @@
         return '休息一回合'
       case 'reverse':
         return '后退效果'
+
       default:
         return '特殊效果'
     }
