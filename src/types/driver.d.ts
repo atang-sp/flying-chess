@@ -4,6 +4,8 @@ declare module 'driver.js' {
   }
 
   interface DriverInstance {
+    setSteps(steps: unknown[]): void
+    drive(stepIndex?: number): void
     [key: string]: unknown
   }
 

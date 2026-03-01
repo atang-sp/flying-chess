@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, computed, watch, onMounted } from 'vue'
+  import { ref, watch } from 'vue'
   import { GAME_CONFIG } from '../config/gameConfig'
 
   interface Props {

@@ -5,7 +5,6 @@
   const showPanel = ref(false)
   const isRunningBenchmark = ref(false)
   const benchmarkResults = ref<BenchmarkResult[]>([])
-  const selectedTestSize = ref(1000)
   const customTestSize = ref(1000)
 
   // 预定义的测试规模

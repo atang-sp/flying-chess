@@ -1,6 +1,6 @@
 <script setup lang="ts">
-  import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-  import type { ExportOptions, ExportStats, QRCodeOptions, ImportOptions } from '../types/export'
+  import { ref, computed, watch } from 'vue'
+  import type { ExportOptions, ExportStats, QRCodeOptions } from '../types/export'
   import type { BoardCell } from '../types/game'
   import {
     exportToJson,
@@ -53,7 +53,6 @@
 
   // 导入相关
   const isImporting = ref(false)
-  const importFile = ref<File | null>(null)
   const importJsonText = ref('')
   const showImportDialog = ref(false)
   const showDocumentation = ref(false)

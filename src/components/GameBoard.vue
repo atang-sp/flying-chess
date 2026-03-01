@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { computed, ref } from 'vue'
   import type { BoardCell, Player } from '../types/game'
-  import { CELL_ICONS, CELL_COLORS, GAME_CONFIG } from '../config/gameConfig'
+  import { CELL_ICONS } from '../config/gameConfig'
 
   interface Props {
     board: BoardCell[]

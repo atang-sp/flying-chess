@@ -11,9 +11,16 @@ import type {
 } from '../types/export'
 import { EXPORT_VERSION } from '../types/export'
 import type { BoardCell } from '../types/game'
-import { loadPlayerSettings, loadConfig, savePlayerSettings, saveConfig } from './cache'
+import {
+  loadPlayerSettings,
+  loadConfig,
+  savePlayerSettings,
+  saveConfig,
+  type CachedConfig,
+} from './cache'
 import { SecureRandom } from './secureRandom'
 import { devLog } from './logger'
+import type { QRCodeToDataURLOptions } from 'qrcode'
 import QRCode from 'qrcode'
 import jsQR from 'jsqr'
 
@@ -196,15 +203,26 @@ export async function generateQRCode(
     errorCorrectionLevel = 'H' // 小数据使用高错误纠正级别
   }
 
+  const commonQrOptions = {
+    errorCorrectionLevel,
+    margin: qrOptions.margin,
+    color: qrOptions.color,
+    width: qrOptions.width,
+  }
+  const qrCodeOptions: QRCodeToDataURLOptions =
+    qrOptions.type === 'image/jpeg' || qrOptions.type === 'image/webp'
+      ? {
+          ...commonQrOptions,
+          type: qrOptions.type,
+          rendererOpts: { quality: qrOptions.quality },
+        }
+      : {
+          ...commonQrOptions,
+          type: qrOptions.type,
+        }
+
   try {
-    const qrCodeDataURL = await QRCode.toDataURL(jsonString, {
-      errorCorrectionLevel,
-      type: qrOptions.type,
-      quality: qrOptions.quality,
-      margin: qrOptions.margin,
-      color: qrOptions.color,
-      width: qrOptions.width,
-    })
+    const qrCodeDataURL = await QRCode.toDataURL(jsonString, qrCodeOptions)
     return qrCodeDataURL
   } catch (error) {
     throw new Error(`二维码生成失败: ${error instanceof Error ? error.message : '未知错误'}`)
@@ -290,27 +308,31 @@ export function validateImportData(data: unknown): ValidationResult {
     errors.push('无效的数据格式')
     return { isValid: false, errors, warnings, suggestions }
   }
+  const obj = data as Record<string, unknown>
 
   // 检查版本
-  if (!data.version) {
+  const version = obj.version
+  if (typeof version !== 'string') {
     warnings.push('缺少版本信息')
-  } else if (data.version !== EXPORT_VERSION) {
-    warnings.push(`版本不匹配，当前支持版本: ${EXPORT_VERSION}，文件版本: ${data.version}`)
+  } else if (version !== EXPORT_VERSION) {
+    warnings.push(`版本不匹配，当前支持版本: ${EXPORT_VERSION}，文件版本: ${version}`)
   }
 
   // 检查数据字段
-  if (!data.data || typeof data.data !== 'object') {
+  const rawConfigData = obj.data
+  if (!rawConfigData || typeof rawConfigData !== 'object') {
     errors.push('缺少配置数据')
     return { isValid: false, errors, warnings, suggestions }
   }
 
-  const { data: configData } = data
+  const configData = rawConfigData as Record<string, unknown>
 
   // 验证玩家设置
-  if (configData.playerSettings) {
-    const playerSettings = configData.playerSettings
+  const rawPlayerSettings = configData.playerSettings
+  if (rawPlayerSettings && typeof rawPlayerSettings === 'object') {
+    const playerSettings = rawPlayerSettings as { playerCount?: unknown; playerNames?: unknown }
     if (
-      !playerSettings.playerCount ||
+      typeof playerSettings.playerCount !== 'number' ||
       playerSettings.playerCount < 2 ||
       playerSettings.playerCount > 4
     ) {
@@ -376,8 +398,12 @@ function performImport(data: ExportData, options: Partial<ImportOptions> = {}): 
     }
 
     if (configData.punishmentConfig || configData.boardConfig || configData.trapConfig) {
-      const currentConfig = loadConfig() || {}
-      const newConfig = { ...currentConfig }
+      const currentConfig = loadConfig()
+      const newConfig: Partial<Omit<CachedConfig, 'savedAt'>> = {
+        punishmentConfig: currentConfig?.punishmentConfig,
+        boardConfig: currentConfig?.boardConfig,
+        trapConfig: currentConfig?.trapConfig,
+      }
 
       if (configData.punishmentConfig) {
         newConfig.punishmentConfig = configData.punishmentConfig
@@ -389,7 +415,15 @@ function performImport(data: ExportData, options: Partial<ImportOptions> = {}): 
         newConfig.trapConfig = configData.trapConfig
       }
 
-      saveConfig(newConfig)
+      if (newConfig.punishmentConfig && newConfig.boardConfig && newConfig.trapConfig) {
+        saveConfig({
+          punishmentConfig: newConfig.punishmentConfig,
+          boardConfig: newConfig.boardConfig,
+          trapConfig: newConfig.trapConfig,
+        })
+      } else {
+        warnings.push('配置数据不完整，已跳过部分配置保存')
+      }
     }
 
     if (configData.boardContent) {
@@ -494,7 +528,7 @@ export async function importFromQRCode(
 
     devLog('数据验证通过，开始执行导入...')
     // 执行导入
-    const result = performImport(parsedData, options)
+    const result = performImport(parsedData as ExportData, options)
     devLog('导入完成，结果:', result)
     return result
   } catch (error) {

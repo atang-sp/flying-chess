@@ -1,12 +1,11 @@
 <script setup lang="ts">
-  import { ref, computed, watch, nextTick } from 'vue'
+  import { ref, watch, nextTick } from 'vue'
   import type {
     PunishmentConfig,
     PunishmentTool,
     PunishmentBodyPart,
     PunishmentPosition,
   } from '../types/game'
-  import { GAME_CONFIG } from '../config/gameConfig'
   import { GameService } from '../services/gameService'
   import ConfigErrorModal from './ConfigErrorModal.vue'
 
@@ -45,43 +44,8 @@
   const newBodyPartSensitivity = ref(5)
   const newPositionName = ref('')
 
-  // 检查配置是否有效
-  const isConfigValid = computed(() => {
-    return (
-      Object.keys(localConfig.value.tools).length > 0 &&
-      Object.keys(localConfig.value.bodyParts).length > 0 &&
-      Object.keys(localConfig.value.positions).length > 0
-    )
-  })
-
-  // 验证配置并处理结果
-  const validateAndUpdate = async (newConfig: PunishmentConfig) => {
-    const validation = GameService.validatePunishmentConfig(newConfig)
-    if (validation.isValid) {
-      localConfig.value = newConfig
-      emit('update', newConfig)
-    } else {
-      // 验证失败时，立即恢复本地状态到上一个有效状态
-      localConfig.value = JSON.parse(JSON.stringify(props.config))
-
-      // 等待DOM更新后显示错误提示
-      await nextTick()
-
-      // 显示错误提示
-      errorMessage.value = validation.errorMessage || '配置验证失败'
-      requiredSensitivity.value = validation.requiredSensitivity
-      showErrorModal.value = true
-      // 同时发送validation-failed事件给父组件
-      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
-    }
-  }
-
   const closeErrorModal = () => {
     showErrorModal.value = false
-  }
-
-  const updateConfig = async () => {
-    await validateAndUpdate(localConfig.value)
   }
 
   // 比例自动分配算法

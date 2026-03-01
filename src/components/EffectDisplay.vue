@@ -2,7 +2,7 @@
   import { computed } from 'vue'
 
   interface Effect {
-    type: 'move' | 'skip' | 'reverse' | 'restart' | 'rest'
+    type: 'move' | 'skip' | 'reverse' | 'restart' | 'rest' | 'bounce'
     value: number
     description: string
   }
@@ -27,7 +27,8 @@
       (props.effect.type === 'move' ||
         props.effect.type === 'reverse' ||
         props.effect.type === 'restart' ||
-        props.effect.type === 'rest')
+        props.effect.type === 'rest' ||
+        props.effect.type === 'bounce')
     )
   })
 
@@ -36,7 +37,8 @@
       props.effect &&
       (props.effect.type === 'move' ||
         props.effect.type === 'reverse' ||
-        props.effect.type === 'restart')
+        props.effect.type === 'restart' ||
+        props.effect.type === 'bounce')
     )
   })
 
