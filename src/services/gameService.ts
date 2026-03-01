@@ -12,8 +12,11 @@ import type {
 } from '../types/game'
 import { GAME_CONFIG } from '../config/gameConfig'
 import { SecureRandom } from '../utils/secureRandom'
+import { devLog } from '../utils/logger'
 
 export class GameService {
+  private static latestBoard: BoardCell[] = []
+
   static createBoard(
     punishmentConfig?: PunishmentConfig,
     boardConfig?: BoardConfig,
@@ -25,7 +28,9 @@ export class GameService {
     const traps = customTraps || this.trapsToArray(GAME_CONFIG.DEFAULT_TRAPS)
 
     // 始终使用随机分配逻辑，确保所有格子都严格按照棋盘配置来生成
-    return this.createBoardRandom(config, boardConf, traps)
+    const board = this.createBoardRandom(config, boardConf, traps)
+    this.latestBoard = board
+    return board
   }
 
   // 随机分配棋盘（自定义配置）
@@ -281,7 +286,7 @@ export class GameService {
     const restartCount = board.filter(c => c.type === 'restart').length
     const trapCount = board.filter(c => c.type === 'trap').length
 
-    console.log(title, {
+    devLog(title, {
       totalCells: board.length,
       punishmentCount,
       bonusCount,
@@ -295,7 +300,7 @@ export class GameService {
 
     // 输出每个格子
     board.forEach(cell => {
-      console.log(`位置 ${cell.position}: ${cell.type} - ${cell.effect?.description || '无效果'}`)
+      devLog(`位置 ${cell.position}: ${cell.type} - ${cell.effect?.description || '无效果'}`)
     })
   }
 
@@ -601,7 +606,7 @@ export class GameService {
       }
 
       // 如果到达第1格（飞机场），不触发任何格子效果
-      if (newPosition === 1) {
+      if (newPosition === 1 && !canTakeOff) {
         effect = '到达飞机场！安全区域'
 
         // 确保清除移动状态
@@ -749,24 +754,29 @@ export class GameService {
   }
 
   // 获取玩家在环形棋盘上的显示位置
-  static getPlayerDisplayPosition(position: number): { row: number; col: number } {
+  static getPlayerDisplayPosition(
+    position: number,
+    totalCells: number = this.latestBoard.length || GAME_CONFIG.DEFAULT_BOARD_CONFIG.totalCells
+  ): { row: number; col: number } {
     if (position === 0) return { row: -1, col: -1 } // 起始位置
 
-    // 环形布局：外圈-内圈
-    const outerRing = 20 // 外圈20格
-    const innerRing = 20 // 内圈20格
+    const boardSize = Math.max(2, totalCells)
+    const outerRing = Math.ceil(boardSize / 2)
+    const innerRing = boardSize - outerRing
+    const outerCols = 5
+    const innerCols = 5
 
     if (position <= outerRing) {
-      // 外圈：5x4的矩形
+      // 外圈：按当前总格数动态分布
       const index = position - 1
-      const row = Math.floor(index / 5)
-      const col = index % 5
+      const row = Math.floor(index / outerCols)
+      const col = index % outerCols
       return { row, col }
     } else if (position <= outerRing + innerRing) {
-      // 内圈：5x4的矩形
+      // 内圈：按当前总格数动态分布
       const index = position - outerRing - 1
-      const row = Math.floor(index / 5) + 1
-      const col = (index % 5) + 1
+      const row = Math.floor(index / innerCols) + 1
+      const col = (index % innerCols) + 1
       return { row, col }
     } else {
       // 超出范围，返回默认位置
@@ -774,31 +784,34 @@ export class GameService {
     }
   }
 
+  private static getBoardCellByPosition(
+    position: number,
+    board: BoardCell[] = this.latestBoard
+  ): BoardCell | undefined {
+    return board.find(cell => cell.position === position)
+  }
+
   // 检查是否为特殊格子
-  static isSpecialCell(position: number): boolean {
-    return (
-      position in GAME_CONFIG.PUNISHMENT_CELLS ||
-      position in GAME_CONFIG.BONUS_CELLS ||
-      position in GAME_CONFIG.REVERSE_CELLS ||
-      position in GAME_CONFIG.REST_CELLS
-    )
+  static isSpecialCell(position: number, board: BoardCell[] = this.latestBoard): boolean {
+    const cell = this.getBoardCellByPosition(position, board)
+    if (!cell?.effect) {
+      return false
+    }
+
+    // 起点/终点的 move(0) 不算特殊格
+    return !(cell.effect.type === 'move' && cell.effect.value === 0)
   }
 
   // 获取格子类型
-  static getCellType(position: number): 'punishment' | 'bonus' | 'special' | 'restart' | 'trap' {
-    if (
-      position in GAME_CONFIG.PUNISHMENT_CELLS ||
-      position in GAME_CONFIG.DYNAMIC_PUNISHMENT_CELLS
-    ) {
-      return 'punishment'
-    } else if (position in GAME_CONFIG.BONUS_CELLS) {
+  static getCellType(
+    position: number,
+    board: BoardCell[] = this.latestBoard
+  ): 'punishment' | 'bonus' | 'special' | 'restart' | 'trap' {
+    const cell = this.getBoardCellByPosition(position, board)
+    if (!cell) {
       return 'bonus'
-    } else if (position in GAME_CONFIG.REVERSE_CELLS || position in GAME_CONFIG.REST_CELLS) {
-      return 'special'
-    } else if (position in GAME_CONFIG.RESTART_CELLS) {
-      return 'restart'
     }
-    return 'punishment' // 默认返回惩罚格子
+    return cell.type
   }
 
   // 将配置对象转换为数组（添加 name 属性）
@@ -1336,6 +1349,7 @@ export class GameService {
 
     if (combinations.length === 0) {
       console.warn('没有可用的惩罚组合定义')
+      this.latestBoard = updatedBoard
       return updatedBoard
     }
 
@@ -1402,6 +1416,7 @@ export class GameService {
       }
     })
 
+    this.latestBoard = updatedBoard
     return updatedBoard
   }
 
@@ -1468,6 +1483,7 @@ export class GameService {
       }
     })
 
+    this.latestBoard = updatedBoard
     return updatedBoard
   }
 

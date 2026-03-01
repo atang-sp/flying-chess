@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import './assets/main.css'
 import 'driver.js/dist/driver.css'
+import { devLog } from './utils/logger'
 
 // PrimeVue imports
 import PrimeVue from 'primevue/config'
@@ -56,10 +57,10 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker
       .register('/flying-chess/sw.js')
       .then(registration => {
-        console.log('SW registered: ', registration)
+        devLog('SW registered: ', registration)
       })
       .catch(registrationError => {
-        console.log('SW registration failed: ', registrationError)
+        devLog('SW registration failed: ', registrationError)
       })
   })
 }

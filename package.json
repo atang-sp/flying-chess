@@ -22,7 +22,8 @@
     "prepare": "husky",
     "validate-config": "node scripts/validate-config.js",
     "validate-demo": "node scripts/validate-config.js configs/exported-config-demo.json",
-    "validate-example": "node scripts/validate-config.js examples/config-with-schema.json"
+    "validate-example": "node scripts/validate-config.js examples/config-with-schema.json",
+    "test": "vitest run"
   },
   "lint-staged": {
     "*.{js,ts,vue}": [
@@ -35,8 +36,6 @@
   },
   "dependencies": {
     "@primevue/themes": "^4.3.6",
-    "@types/qrcode": "^1.5.5",
-    "@types/three": "^0.178.1",
     "driver.js": "^1.3.6",
     "jsqr": "^1.4.0",
     "primeicons": "^7.0.0",
@@ -47,6 +46,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@types/qrcode": "^1.5.6",
+    "@types/three": "^0.183.1",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "@vitejs/plugin-vue": "^5.2.3",
@@ -62,6 +63,7 @@
     "vite": "^6.2.4",
     "vite-plugin-pwa": "^1.0.1",
     "vite-plugin-vue-devtools": "^7.7.2",
-    "vue-tsc": "^1.8.5"
+    "vitest": "^4.0.18",
+    "vue-tsc": "^3.2.5"
   }
 }

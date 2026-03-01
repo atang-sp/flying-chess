@@ -1,6 +1,6 @@
 <script setup lang="ts">
   /* eslint-disable @typescript-eslint/ban-ts-comment */
-  import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
+  import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
   import { GameService } from './services/gameService'
   import { GAME_CONFIG } from './config/gameConfig'
   import type {
@@ -10,7 +10,6 @@
     PunishmentConfig,
     PunishmentAction,
     PunishmentCombination,
-    CellEffect,
     BoardConfig,
     TrapAction,
   } from './types/game'
@@ -33,6 +32,10 @@
   import ConfigExport from './components/ConfigExport.vue'
   import { saveConfig, loadConfig, loadPlayerSettings } from './utils/cache'
   import { SecureRandom } from './utils/secureRandom'
+  import { devLog } from './utils/logger'
+  import { usePlayerState } from './composables/usePlayerState'
+  import { usePunishmentConfigNormalizer } from './composables/usePunishmentConfigNormalizer'
+  import { useImportFeedbackDialog } from './composables/useImportFeedbackDialog'
   import { driver as createDriver } from 'driver.js'
 
   // 游戏状态
@@ -80,6 +83,18 @@
   // 机关配置状态
   const trapConfig = ref<TrapAction[]>(GameService.trapsToArray(GAME_CONFIG.DEFAULT_TRAPS))
 
+  const { createPlayersFromSettings, createPlayersForReset } = usePlayerState()
+  const { normalizePunishmentConfig } = usePunishmentConfigNormalizer()
+  const {
+    importFeedbackVisible,
+    importFeedbackTitle,
+    importFeedbackMessage,
+    importFeedbackType,
+    showImportSuccess,
+    showImportError,
+    closeImportFeedback,
+  } = useImportFeedbackDialog()
+
   // 持久化：监听配置变化并保存到 localStorage（12 个月过期）
   watch(
     () => [gameState.boardConfig, gameState.punishmentConfig, trapConfig.value],
@@ -105,9 +120,145 @@
   const bounceTargetPosition = ref<number>(0)
   const bounceFinalPosition = ref<number>(0)
   const bounceOverflowSteps = ref<number>(0)
+  const MAX_EFFECT_CHAIN_COUNT = 5
+  const effectChainCount = ref(0)
 
   // 胜利结算画面状态
   const showVictoryScreen = ref(false)
+
+  const resetEffectChainCount = () => {
+    effectChainCount.value = 0
+  }
+
+  const getCellEffectByPosition = (position: number) => {
+    const targetCell = gameState.board.find(cell => cell.position === position)
+    return targetCell?.effect
+  }
+
+  interface LandingEffectPayload {
+    currentPlayer: Player
+    fromPosition: number
+    newPosition: number
+    punishment?: PunishmentAction
+    cellEffect?: BoardCell['effect']
+    executorIndex?: number
+    diceValue?: number
+  }
+
+  const handleLandingCellEffect = async ({
+    currentPlayer,
+    fromPosition,
+    newPosition,
+    punishment,
+    cellEffect,
+    executorIndex,
+    diceValue,
+  }: LandingEffectPayload) => {
+    const resolvedCellEffect = cellEffect ?? getCellEffectByPosition(newPosition)
+    const resolvedPunishment =
+      punishment ||
+      (resolvedCellEffect?.type === 'punishment' ? resolvedCellEffect.punishment : undefined)
+
+    const hasLandingTrigger =
+      Boolean(resolvedPunishment) ||
+      Boolean(resolvedCellEffect && resolvedCellEffect.type !== 'bounce')
+
+    if (hasLandingTrigger) {
+      if (effectChainCount.value >= MAX_EFFECT_CHAIN_COUNT) {
+        lastEffect.value = `连锁效果超过${MAX_EFFECT_CHAIN_COUNT}次，已强制结束本回合`
+        await continueAfterMove()
+        return
+      }
+      effectChainCount.value++
+    }
+
+    // 当玩家尚未起飞(仍停留在起点)且出现惩罚时，视为未起飞惩罚
+    if (resolvedPunishment && !currentPlayer.hasTakenOff) {
+      currentTakeoffPunishment.value = resolvedPunishment
+      currentTakeoffDiceValue.value = diceValue ?? gameState.diceValue ?? 0
+      currentTakeoffExecutorIndex.value = executorIndex !== undefined ? executorIndex : -1
+      showTakeoffPunishmentDisplay.value = true
+      handleTakeoffPunishmentDisplay()
+      return
+    }
+
+    if (resolvedPunishment) {
+      currentPunishment.value = resolvedPunishment
+      if (
+        executorIndex !== undefined &&
+        executorIndex >= 0 &&
+        executorIndex < gameState.players.length
+      ) {
+        currentPunishmentExecutor.value = gameState.players[executorIndex]
+      } else {
+        const otherPlayers = gameState.players.filter(
+          (_, index) => index !== gameState.currentPlayerIndex
+        )
+        currentPunishmentExecutor.value =
+          otherPlayers.length > 0 ? SecureRandom.choice(otherPlayers) : null
+      }
+      gameState.gameStatus = 'configuring'
+      return
+    }
+
+    if (resolvedCellEffect && resolvedCellEffect.type === 'trap') {
+      currentTrapDescription.value = resolvedCellEffect.description || '未知机关'
+      showTrapDisplay.value = true
+      return
+    }
+
+    if (resolvedCellEffect && resolvedCellEffect.type === 'bounce') {
+      bounceFromPosition.value = fromPosition
+      bounceTargetPosition.value = fromPosition + (diceValue ?? gameState.diceValue ?? 0)
+      bounceFinalPosition.value = newPosition
+      bounceOverflowSteps.value = resolvedCellEffect.value
+      showBounceDisplay.value = true
+      return
+    }
+
+    if (
+      resolvedCellEffect &&
+      resolvedCellEffect.type !== 'punishment' &&
+      (resolvedCellEffect.type === 'move' ||
+        resolvedCellEffect.type === 'reverse' ||
+        resolvedCellEffect.type === 'restart' ||
+        resolvedCellEffect.type === 'rest')
+    ) {
+      // 到达第1格（飞机场）时，不显示效果确认弹窗
+      if (newPosition === 1) {
+        await continueAfterMove()
+        return
+      }
+
+      const effectType = resolvedCellEffect.type as 'move' | 'reverse' | 'restart' | 'rest'
+      const finalPosition =
+        newPosition +
+        (effectType === 'move'
+          ? resolvedCellEffect.value
+          : effectType === 'reverse'
+            ? -resolvedCellEffect.value
+            : effectType === 'restart'
+              ? -newPosition
+              : 0)
+
+      gameState.pendingEffect = {
+        type: effectType,
+        value: resolvedCellEffect.value,
+        description: getThreeStepMoveDescription(
+          fromPosition,
+          newPosition,
+          finalPosition,
+          effectType
+        ),
+      }
+      effectFromPosition.value = fromPosition
+      effectToPosition.value = newPosition
+      gameState.gameStatus = 'showing_effect'
+      return
+    }
+
+    await continueAfterMove()
+  }
 
   // 计算属性
   const canRollDice = computed(() => {
@@ -180,65 +331,80 @@
     currentTakeoffPunishment.value = null
     effectFromPosition.value = undefined
     effectToPosition.value = undefined
+    resetEffectChainCount()
 
-    console.log('游戏状态已重置')
+    devLog('游戏状态已重置')
+  }
+
+  const healthCheckIntervalId = ref<number | null>(null)
+  const movingStateEnteredAt = ref<number | null>(null)
+  const playerMovingTimeoutMap = new Map<number, number>()
+
+  const clearAllPlayerMovingTimeouts = () => {
+    playerMovingTimeoutMap.forEach(timeoutId => {
+      clearTimeout(timeoutId)
+    })
+    playerMovingTimeoutMap.clear()
   }
 
   // 状态检查机制
   const checkGameStateHealth = () => {
-    // 检查是否卡在moving状态超过5秒
-    // 但是如果有起飞惩罚弹窗显示，则不触发自动重置
+    // 检查是否卡在 moving 状态超过 5 秒
     if (gameState.gameStatus === 'moving' && !showTakeoffPunishmentDisplay.value) {
-      const movingStartTime = Date.now()
-
-      // 设置一个检查定时器
-      const checkTimer = setInterval(() => {
-        if (gameState.gameStatus === 'moving' && !showTakeoffPunishmentDisplay.value) {
-          const elapsed = Date.now() - movingStartTime
-          if (elapsed > 5000) {
-            // 5秒后仍然在moving状态
-            console.warn('检测到游戏卡在moving状态超过5秒，正在重置...')
-            clearInterval(checkTimer)
-            resetGameStateOnError()
-          }
-        } else {
-          // 状态已恢复正常，清除检查定时器
-          clearInterval(checkTimer)
-        }
-      }, 1000) // 每秒检查一次
+      if (movingStateEnteredAt.value === null) {
+        movingStateEnteredAt.value = Date.now()
+      } else if (Date.now() - movingStateEnteredAt.value > 5000) {
+        console.warn('检测到游戏卡在moving状态超过5秒，正在重置...')
+        movingStateEnteredAt.value = null
+        resetGameStateOnError()
+      }
+    } else {
+      movingStateEnteredAt.value = null
     }
 
     // 检查玩家移动状态是否异常
-    const stuckPlayers = gameState.players.filter(player => player.isMoving)
-    if (stuckPlayers.length > 0) {
-      // 如果玩家移动状态持续超过3秒，清除移动状态
-      setTimeout(() => {
-        stuckPlayers.forEach(player => {
-          if (player.isMoving) {
-            console.warn(`玩家 ${player.name} 的移动状态异常，正在清除...`)
-            player.isMoving = false
-          }
-        })
-      }, 3000)
-    }
+    gameState.players.forEach(player => {
+      if (player.isMoving) {
+        if (!playerMovingTimeoutMap.has(player.id)) {
+          const timeoutId = window.setTimeout(() => {
+            playerMovingTimeoutMap.delete(player.id)
+            if (player.isMoving) {
+              console.warn(`玩家 ${player.name} 的移动状态异常，正在清除...`)
+              player.isMoving = false
+            }
+          }, 3000)
+          playerMovingTimeoutMap.set(player.id, timeoutId)
+        }
+      } else {
+        const timeoutId = playerMovingTimeoutMap.get(player.id)
+        if (timeoutId !== undefined) {
+          clearTimeout(timeoutId)
+          playerMovingTimeoutMap.delete(player.id)
+        }
+      }
+    })
+  }
+
+  const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+    console.error('未处理的Promise错误:', event.reason)
+    resetGameStateOnError()
+  }
+
+  const handleGlobalError = (event: ErrorEvent) => {
+    console.error('全局错误:', event.error)
+    resetGameStateOnError()
   }
 
   // 添加全局错误监听
   onMounted(() => {
-    // 监听未捕获的Promise错误
-    window.addEventListener('unhandledrejection', event => {
-      console.error('未处理的Promise错误:', event.reason)
-      resetGameStateOnError()
-    })
+    // 监听未捕获的 Promise 错误
+    window.addEventListener('unhandledrejection', handleUnhandledRejection)
 
     // 监听全局错误
-    window.addEventListener('error', event => {
-      console.error('全局错误:', event.error)
-      resetGameStateOnError()
-    })
+    window.addEventListener('error', handleGlobalError)
 
     // 定期检查游戏状态健康度
-    setInterval(checkGameStateHealth, 2000) // 每2秒检查一次
+    healthCheckIntervalId.value = window.setInterval(checkGameStateHealth, 2000) // 每2秒检查一次
 
     // 组件挂载时初始化游戏
     initializeGame()
@@ -248,67 +414,15 @@
     if (cached) {
       if (cached.boardConfig) {
         gameState.boardConfig = cached.boardConfig
-        console.log('已加载棋盘配置:', cached.boardConfig)
+        devLog('已加载棋盘配置:', cached.boardConfig)
       }
       if (cached.punishmentConfig) {
-        // 检查并转换旧格式的惩罚配置（数组格式 -> 对象格式）
-        const punishmentConfig = cached.punishmentConfig
-
-        // 检查是否为旧格式（数组格式）
-        if (
-          Array.isArray(punishmentConfig.tools) ||
-          Array.isArray(punishmentConfig.bodyParts) ||
-          Array.isArray(punishmentConfig.positions)
-        ) {
-          console.log('检测到旧格式的惩罚配置，正在转换为新格式...', punishmentConfig)
-
-          // 转换工具配置
-          if (Array.isArray(punishmentConfig.tools)) {
-            const toolsObj: Record<string, any> = {}
-            punishmentConfig.tools.forEach((tool: any) => {
-              toolsObj[tool.name] = {
-                name: tool.name,
-                intensity: tool.intensity,
-                ratio: tool.ratio,
-              }
-            })
-            punishmentConfig.tools = toolsObj
-          }
-
-          // 转换部位配置
-          if (Array.isArray(punishmentConfig.bodyParts)) {
-            const bodyPartsObj: Record<string, any> = {}
-            punishmentConfig.bodyParts.forEach((bodyPart: any) => {
-              bodyPartsObj[bodyPart.name] = {
-                name: bodyPart.name,
-                sensitivity: bodyPart.sensitivity,
-                ratio: bodyPart.ratio,
-              }
-            })
-            punishmentConfig.bodyParts = bodyPartsObj
-          }
-
-          // 转换姿势配置
-          if (Array.isArray(punishmentConfig.positions)) {
-            const positionsObj: Record<string, any> = {}
-            punishmentConfig.positions.forEach((position: any) => {
-              positionsObj[position.name] = {
-                name: position.name,
-                ratio: position.ratio,
-              }
-            })
-            punishmentConfig.positions = positionsObj
-          }
-
-          console.log('惩罚配置格式转换完成')
-        }
-
-        gameState.punishmentConfig = punishmentConfig
-        console.log('已加载惩罚配置:', punishmentConfig)
+        gameState.punishmentConfig = normalizePunishmentConfig(cached.punishmentConfig)
+        devLog('已加载惩罚配置:', gameState.punishmentConfig)
       }
       if (cached.trapConfig) {
         trapConfig.value = cached.trapConfig
-        console.log('已加载机关配置:', cached.trapConfig)
+        devLog('已加载机关配置:', cached.trapConfig)
       }
 
       // 根据缓存重新生成棋盘
@@ -322,17 +436,8 @@
     // 加载玩家设置
     const cachedPlayerSettings = loadPlayerSettings()
     if (cachedPlayerSettings) {
-      console.log('已加载玩家设置:', cachedPlayerSettings)
-      // 更新玩家数量和姓名
-      gameState.players = Array.from({ length: cachedPlayerSettings.playerCount }, (_, i) => ({
-        id: i + 1,
-        name: cachedPlayerSettings.playerNames[i] || `玩家${i + 1}`,
-        color: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4'][i] || '#999',
-        position: 0,
-        isWinner: false,
-        hasTakenOff: false,
-        failedTakeoffAttempts: 0,
-      }))
+      devLog('已加载玩家设置:', cachedPlayerSettings)
+      gameState.players = createPlayersFromSettings(cachedPlayerSettings)
     }
 
     // 将游戏状态暴露到全局作用域，方便调试
@@ -404,9 +509,9 @@
     // 使用nextTick立即检查一次
     nextTick(() => {
       const currentStatus = gameState.gameStatus
-      console.log(`nextTick检查，当前状态: ${currentStatus}`)
+      devLog(`nextTick检查，当前状态: ${currentStatus}`)
       if (['intro', 'board_settings', 'settings'].includes(currentStatus)) {
-        console.log(`立即触发自动引导检查`)
+        devLog(`立即触发自动引导检查`)
         showAutoGuide(currentStatus)
       }
     })
@@ -414,12 +519,23 @@
     // 延迟检查作为备用
     setTimeout(() => {
       const currentStatus = gameState.gameStatus
-      console.log(`页面加载完成，当前状态: ${currentStatus}`)
+      devLog(`页面加载完成，当前状态: ${currentStatus}`)
       if (['intro', 'board_settings', 'settings'].includes(currentStatus)) {
-        console.log(`触发页面加载时的自动引导检查`)
+        devLog(`触发页面加载时的自动引导检查`)
         showAutoGuide(currentStatus)
       }
     }, 1200) // 延迟1.2秒确保页面完全渲染
+  })
+
+  onBeforeUnmount(() => {
+    window.removeEventListener('unhandledrejection', handleUnhandledRejection)
+    window.removeEventListener('error', handleGlobalError)
+
+    if (healthCheckIntervalId.value !== null) {
+      clearInterval(healthCheckIntervalId.value)
+      healthCheckIntervalId.value = null
+    }
+    clearAllPlayerMovingTimeouts()
   })
 
   // 初始化游戏
@@ -451,6 +567,7 @@
     // 清除惩罚组合确认状态
     showPunishmentConfirmation.value = false
     punishmentCombinations.value = []
+    resetEffectChainCount()
   }
 
   // 更新惩罚配置
@@ -546,13 +663,13 @@
   // 重置游戏
   const resetGame = () => {
     // 重置游戏状态但保持配置
-    gameState.players = GameService.createPlayers()
+    const cachedPlayerSettings = loadPlayerSettings()
+    gameState.players = createPlayersForReset(gameState.players, cachedPlayerSettings)
     gameState.board = GameService.createBoard(
       gameState.punishmentConfig,
       gameState.boardConfig,
       trapConfig.value
     )
-    gameState.punishmentConfig = GameService.createPunishmentConfig() // 新增：重置惩罚配置
     gameState.currentPlayerIndex = 0
     gameState.diceValue = null
     gameState.winner = null
@@ -581,6 +698,7 @@
 
     // 清除胜利结算画面状态
     showVictoryScreen.value = false
+    resetEffectChainCount()
 
     // 直接跳转到棋盘设置页面
     gameState.gameStatus = 'board_settings'
@@ -590,6 +708,7 @@
   const handleDiceRoll = async () => {
     if (!canRollDice.value) return
 
+    resetEffectChainCount()
     gameState.gameStatus = 'rolling'
     gameState.diceValue = GameService.rollDice()
 
@@ -657,6 +776,7 @@
         gameState.gameStatus = 'finished'
         gameFinished.value = true
         showVictoryScreen.value = true
+        resetEffectChainCount()
         return
       }
 
@@ -668,123 +788,15 @@
         return
       }
 
-      // 检查是否有起飞惩罚
-      // 条件：当玩家尚未起飞(仍停留在起点)且出现惩罚时，无论是否存在执行者索引，都视为未起飞惩罚
-      if (punishment && !currentPlayer.hasTakenOff) {
-        currentTakeoffPunishment.value = punishment
-        currentTakeoffDiceValue.value = diceValue
-        // 如果有指定执行者索引，则使用；否则设为-1 表示无执行者
-        currentTakeoffExecutorIndex.value = executorIndex !== undefined ? executorIndex : -1
-        showTakeoffPunishmentDisplay.value = true
-        // 处理起飞惩罚显示逻辑（等待玩家确认）
-        handleTakeoffPunishmentDisplay()
-        // 保持moving状态，等待用户处理起飞惩罚
-        return
-      }
-
-      // 检查是否有普通惩罚
-      if (punishment) {
-        currentPunishment.value = punishment
-        // 设置执行惩罚的玩家（如果有executorIndex）
-        if (
-          executorIndex !== undefined &&
-          executorIndex >= 0 &&
-          executorIndex < gameState.players.length
-        ) {
-          currentPunishmentExecutor.value = gameState.players[executorIndex]
-        } else {
-          // 如果没有指定执行者，随机选择一个其他玩家
-          const otherPlayers = gameState.players.filter(
-            (_, index) => index !== gameState.currentPlayerIndex
-          )
-          if (otherPlayers.length > 0) {
-            currentPunishmentExecutor.value = SecureRandom.choice(otherPlayers)
-          } else {
-            currentPunishmentExecutor.value = null
-          }
-        }
-        gameState.gameStatus = 'configuring'
-        return // 等待用户处理惩罚
-      }
-
-      // 检查是否是机关陷阱（机关格子没有punishment，但有cellEffect）
-      if (cellEffect && cellEffect.type === 'trap') {
-        // 显示机关陷阱弹窗，机关不再有复杂的惩罚对象
-        currentTrapDescription.value = cellEffect.description || '未知机关'
-        showTrapDisplay.value = true
-        // 保持moving状态，等待用户处理机关陷阱
-        return
-      }
-
-      // 检查是否是反弹效果
-      if (cellEffect && cellEffect.type === 'bounce') {
-        // 设置反弹显示信息
-        bounceFromPosition.value = fromPosition
-        bounceTargetPosition.value = fromPosition + diceValue // 原始目标位置
-        bounceFinalPosition.value = newPosition
-        bounceOverflowSteps.value = cellEffect.value
-        showBounceDisplay.value = true
-        // 保持moving状态，等待用户确认反弹
-        return
-      }
-
-      // 检查是否有需要显示效果的非惩罚格子
-      if (
-        cellEffect &&
-        cellEffect.type !== 'punishment' &&
-        (cellEffect.type === 'move' ||
-          cellEffect.type === 'reverse' ||
-          cellEffect.type === 'restart')
-      ) {
-        // 如果到达第1格（飞机场），不显示效果确认弹窗
-        if (newPosition === 1) {
-          // 直接继续游戏流程
-          await continueAfterMove()
-          return
-        }
-
-        // 创建符合CellEffect类型的对象
-        const cellEffectForPending: CellEffect = {
-          type: cellEffect.type as 'move' | 'reverse' | 'restart',
-          value: cellEffect.value,
-          description: cellEffect.description,
-        }
-
-        gameState.pendingEffect = cellEffectForPending
-        // 设置效果显示的起始和结束位置
-        effectFromPosition.value = fromPosition // 原始位置（骰子移动前）
-        effectToPosition.value = newPosition // 骰子移动后的位置
-
-        // 计算最终位置用于显示三段路径
-        const finalPosition =
-          newPosition +
-          (cellEffect.type === 'move'
-            ? cellEffect.value
-            : cellEffect.type === 'reverse'
-              ? -cellEffect.value
-              : cellEffect.type === 'restart'
-                ? -newPosition
-                : 0)
-
-        // 创建包含三段路径信息的effect对象
-        const effectWithPath: CellEffect = {
-          type: cellEffect.type as 'move' | 'reverse' | 'restart',
-          value: cellEffect.value,
-          description: getThreeStepMoveDescription(
-            fromPosition,
-            newPosition,
-            finalPosition,
-            cellEffect.type
-          ),
-        }
-        gameState.pendingEffect = effectWithPath
-
-        gameState.gameStatus = 'showing_effect'
-        return // 等待用户确认效果
-      }
-
-      // 如果没有特殊效果，直接继续
-      await continueAfterMove()
+      await handleLandingCellEffect({
+        currentPlayer,
+        fromPosition,
+        newPosition,
+        punishment,
+        cellEffect,
+        executorIndex,
+        diceValue,
+      })
     } catch (error) {
       console.error('移动玩家时发生错误:', error)
       // 确保在发生错误时重置游戏状态
@@ -807,6 +819,7 @@
       }
 
       const currentPlayer = gameState.players[gameState.currentPlayerIndex]
+      const landingPositionBeforeEffect = currentPlayer.position
 
       // 保存效果类型，因为后面会清除pendingEffect
       const effectType = gameState.pendingEffect.type
@@ -860,11 +873,21 @@
         gameState.gameStatus = 'finished'
         gameFinished.value = true
         showVictoryScreen.value = true
+        resetEffectChainCount()
         return
       }
 
-      // 继续游戏流程
-      await continueAfterMove()
+      // 连锁结算：继续检查当前落点是否还有效果
+      if (landingPositionBeforeEffect === newPosition) {
+        await continueAfterMove()
+        return
+      }
+
+      await handleLandingCellEffect({
+        currentPlayer,
+        fromPosition: landingPositionBeforeEffect,
+        newPosition,
+      })
     } catch (error) {
       console.error('确认效果时发生错误:', error)
       // 确保在发生错误时重置游戏状态
@@ -936,6 +959,7 @@
   const continueAfterMove = async () => {
     try {
       const currentPlayer = gameState.players[gameState.currentPlayerIndex]
+      resetEffectChainCount()
 
       // 检查是否获胜
       if (GameService.checkWinner(currentPlayer, gameState.board.length)) {
@@ -1017,6 +1041,7 @@
   const continueAfterPunishment = async () => {
     try {
       const currentPlayer = gameState.players[gameState.currentPlayerIndex]
+      resetEffectChainCount()
 
       // 检查是否获胜
       if (GameService.checkWinner(currentPlayer, gameState.board.length)) {
@@ -1060,7 +1085,7 @@
 
   // 处理格子点击（可选功能）
   const handleCellClick = (cell: BoardCell) => {
-    console.log('点击格子:', cell)
+    devLog('点击格子:', cell)
     // 可以在这里添加查看格子详情的功能
   }
 
@@ -1096,8 +1121,8 @@
 
   // 从统计页面开始游戏
   const startGameWithStats = () => {
-    console.log('startGameWithStats called')
-    console.log('Before: gameStarted =', gameStarted.value, 'gameStatus =', gameState.gameStatus)
+    devLog('startGameWithStats called')
+    devLog('Before: gameStarted =', gameStarted.value, 'gameStatus =', gameState.gameStatus)
 
     showPunishmentStats.value = false
 
@@ -1108,7 +1133,7 @@
       turnCount.value = 1
     }
 
-    console.log('After: gameStarted =', gameStarted.value, 'gameStatus =', gameState.gameStatus)
+    devLog('After: gameStarted =', gameStarted.value, 'gameStatus =', gameState.gameStatus)
   }
 
   // 从统计页面重新生成组合
@@ -1141,7 +1166,7 @@
 
   // 添加validation-failed事件处理
   const handleValidationFailed = (errorMessage: string) => {
-    console.log('惩罚配置验证失败:', errorMessage)
+    devLog('惩罚配置验证失败:', errorMessage)
     // 不需要重置游戏状态，只需要显示错误提示即可
     // 错误提示已经在PunishmentConfig组件中处理了
   }
@@ -1205,6 +1230,10 @@
   // 确认反弹效果
   const confirmBounce = async () => {
     try {
+      const currentPlayer = gameState.players[gameState.currentPlayerIndex]
+      const landingPosition = currentPlayer.position
+      const bounceStartPosition = bounceFromPosition.value || landingPosition
+
       showBounceDisplay.value = false
       bounceFromPosition.value = 0
       bounceTargetPosition.value = 0
@@ -1212,8 +1241,12 @@
       bounceOverflowSteps.value = 0
       gameState.gameStatus = 'waiting'
 
-      // 继续游戏流程
-      await continueAfterMove()
+      // 反弹确认后继续结算反弹落点格子的效果
+      await handleLandingCellEffect({
+        currentPlayer,
+        fromPosition: bounceStartPosition,
+        newPosition: landingPosition,
+      })
     } catch (error) {
       console.error('确认反弹时发生错误:', error)
       // 确保在发生错误时重置游戏状态
@@ -1544,15 +1577,15 @@
   const showConfigExport = ref(false)
 
   const showAutoGuide = (pageType: string) => {
-    console.log(
+    devLog(
       `检查自动引导 - 页面类型: ${pageType}, 自动引导开启: ${autoGuideEnabled.value}, 已显示过: ${hasShownGuide.value.has(pageType)}`
     )
 
     if (autoGuideEnabled.value && !hasShownGuide.value.has(pageType)) {
-      console.log(`准备显示自动引导 - 页面: ${pageType}`)
+      devLog(`准备显示自动引导 - 页面: ${pageType}`)
       // 延迟一下确保页面元素已经渲染
       setTimeout(() => {
-        console.log(`执行自动引导 - 页面: ${pageType}`)
+        devLog(`执行自动引导 - 页面: ${pageType}`)
         // 针对特定页面，直接调用专门的引导函数
         if (pageType === 'punishment_confirmation') {
           startPunishmentConfirmationGuide()
@@ -1569,7 +1602,7 @@
   // 切换自动引导开关
   const toggleAutoGuide = () => {
     autoGuideEnabled.value = !autoGuideEnabled.value
-    console.log(`自动引导开关切换为: ${autoGuideEnabled.value}`)
+    devLog(`自动引导开关切换为: ${autoGuideEnabled.value}`)
     // 保存到localStorage
     localStorage.setItem('autoGuideEnabled', autoGuideEnabled.value.toString())
   }
@@ -1578,7 +1611,7 @@
   const resetGuideStatus = () => {
     hasShownGuide.value.clear()
     localStorage.removeItem('hasShownGuide')
-    console.log('引导状态已重置')
+    devLog('引导状态已重置')
   }
 
   // 配置导出功能
@@ -1591,7 +1624,7 @@
   }
 
   const handleExportSuccess = (filename: string) => {
-    console.log(`配置导出成功: ${filename}`)
+    devLog(`配置导出成功: ${filename}`)
     // 可以在这里添加成功提示
   }
 
@@ -1601,36 +1634,27 @@
   }
 
   const handleImportSuccess = async (message: string) => {
-    console.log(`配置导入成功: ${message}`)
+    devLog(`配置导入成功: ${message}`)
 
     // 重新加载玩家设置
     const playerSettings = loadPlayerSettings()
-    console.log('从localStorage加载的玩家设置:', playerSettings)
+    devLog('从localStorage加载的玩家设置:', playerSettings)
 
     if (playerSettings) {
-      console.log('更新游戏状态中的玩家信息')
+      devLog('更新游戏状态中的玩家信息')
 
       // 使用nextTick确保响应式更新
       await nextTick()
 
-      // 更新玩家数量和姓名
-      gameState.players = Array.from({ length: playerSettings.playerCount }, (_, i) => ({
-        id: i + 1,
-        name: playerSettings.playerNames[i] || `玩家${i + 1}`,
-        color: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4'][i] || '#999',
-        position: 0,
-        isWinner: false,
-        hasTakenOff: false,
-        failedTakeoffAttempts: 0,
-      }))
+      gameState.players = createPlayersFromSettings(playerSettings)
 
       // 重置游戏状态
       gameState.currentPlayerIndex = 0
       gameState.diceValue = null
       gameState.winner = null
 
-      console.log('玩家设置已更新:', playerSettings)
-      console.log('新的游戏玩家列表:', gameState.players)
+      devLog('玩家设置已更新:', playerSettings)
+      devLog('新的游戏玩家列表:', gameState.players)
 
       // 触发自定义事件通知其他组件
       window.dispatchEvent(
@@ -1639,7 +1663,7 @@
         })
       )
     } else {
-      console.log('没有找到玩家设置数据')
+      devLog('没有找到玩家设置数据')
     }
 
     // 重新加载其他配置
@@ -1648,77 +1672,27 @@
 
     if (config) {
       if (config.punishmentConfig) {
-        // 检查并转换旧格式的惩罚配置（数组格式 -> 对象格式）
-        const punishmentConfig = config.punishmentConfig
-
-        // 检查是否为旧格式（数组格式）
-        if (
-          Array.isArray(punishmentConfig.tools) ||
-          Array.isArray(punishmentConfig.bodyParts) ||
-          Array.isArray(punishmentConfig.positions)
-        ) {
-          console.log('检测到旧格式的惩罚配置，正在转换为新格式...', punishmentConfig)
-
-          // 转换工具配置
-          if (Array.isArray(punishmentConfig.tools)) {
-            const toolsObj: Record<string, any> = {}
-            punishmentConfig.tools.forEach((tool: any) => {
-              toolsObj[tool.name] = {
-                name: tool.name,
-                intensity: tool.intensity,
-                ratio: tool.ratio,
-              }
-            })
-            punishmentConfig.tools = toolsObj
-          }
-
-          // 转换部位配置
-          if (Array.isArray(punishmentConfig.bodyParts)) {
-            const bodyPartsObj: Record<string, any> = {}
-            punishmentConfig.bodyParts.forEach((bodyPart: any) => {
-              bodyPartsObj[bodyPart.name] = {
-                name: bodyPart.name,
-                sensitivity: bodyPart.sensitivity,
-                ratio: bodyPart.ratio,
-              }
-            })
-            punishmentConfig.bodyParts = bodyPartsObj
-          }
-
-          // 转换姿势配置
-          if (Array.isArray(punishmentConfig.positions)) {
-            const positionsObj: Record<string, any> = {}
-            punishmentConfig.positions.forEach((position: any) => {
-              positionsObj[position.name] = {
-                name: position.name,
-                ratio: position.ratio,
-              }
-            })
-            punishmentConfig.positions = positionsObj
-          }
-
-          console.log('惩罚配置格式转换完成')
-        }
-
-        gameState.punishmentConfig = punishmentConfig
-        console.log('惩罚配置已更新')
+        gameState.punishmentConfig = normalizePunishmentConfig(config.punishmentConfig)
+        devLog('惩罚配置已更新')
         configUpdated = true
       }
       if (config.boardConfig) {
         gameState.boardConfig = config.boardConfig
-        console.log('棋盘配置已更新')
+        devLog('棋盘配置已更新')
         configUpdated = true
       }
       if (config.trapConfig) {
         trapConfig.value = config.trapConfig
-        console.log('机关配置已更新')
+        devLog('机关配置已更新')
         configUpdated = true
       }
     }
 
+    const boardRegenerated = configUpdated || Boolean(playerSettings)
+
     // 如果配置有更新，重新生成棋盘
-    if (configUpdated || playerSettings) {
-      console.log('重新生成棋盘...')
+    if (boardRegenerated) {
+      devLog('重新生成棋盘...')
 
       // 使用nextTick确保所有响应式更新完成
       await nextTick()
@@ -1728,7 +1702,7 @@
         gameState.boardConfig,
         trapConfig.value
       )
-      console.log('棋盘已重新生成')
+      devLog('棋盘已重新生成')
 
       // 重置游戏状态
       if (gameStarted.value) {
@@ -1738,32 +1712,28 @@
         gameStarted.value = false
         gameFinished.value = false
         turnCount.value = 0
-        console.log('游戏状态已重置')
+        devLog('游戏状态已重置')
       }
     }
 
     // 再次使用nextTick确保所有DOM更新完成
     await nextTick()
 
-    // 显示成功提示
-    alert(
-      `✅ ${message}\n配置已成功应用到游戏中！${configUpdated || playerSettings ? '\n棋盘已重新生成。' : ''}`
-    )
+    showImportSuccess(message, boardRegenerated)
 
-    console.log('导入处理完成，所有更新已应用')
+    devLog('导入处理完成，所有更新已应用')
   }
 
   const handleImportError = (error: string) => {
     console.error(`配置导入失败: ${error}`)
-    // 显示错误提示
-    alert(`❌ 配置导入失败\n${error}`)
+    showImportError(error)
   }
 
   // 监听游戏状态变化，自动显示引导
   watch(
     () => gameState.gameStatus,
     (newStatus, oldStatus) => {
-      console.log(`游戏状态变化: ${oldStatus} -> ${newStatus}`)
+      devLog(`游戏状态变化: ${oldStatus} -> ${newStatus}`)
       if (oldStatus && newStatus !== oldStatus) {
         // 仅在特定页面自动显示引导
         if (['intro', 'board_settings', 'settings'].includes(newStatus)) {
@@ -1785,7 +1755,7 @@
   watch(
     () => showPunishmentConfirmation.value,
     newValue => {
-      console.log(`惩罚确认弹窗显示状态变化: ${newValue}`)
+      devLog(`惩罚确认弹窗显示状态变化: ${newValue}`)
       if (newValue) {
         // 延迟显示引导，确保弹窗已完全渲染
         setTimeout(() => {
@@ -2201,6 +2171,21 @@
       @import-success="handleImportSuccess"
       @import-error="handleImportError"
     />
+
+    <PDialog
+      v-model:visible="importFeedbackVisible"
+      modal
+      :header="importFeedbackTitle"
+      :style="{ width: 'min(92vw, 420px)' }"
+      @hide="closeImportFeedback"
+    >
+      <div class="import-feedback" :class="`import-feedback--${importFeedbackType}`">
+        <span class="import-feedback-icon">
+          {{ importFeedbackType === 'success' ? '✅' : '❌' }}
+        </span>
+        <p class="import-feedback-message">{{ importFeedbackMessage }}</p>
+      </div>
+    </PDialog>
   </div>
 </template>
 
@@ -2208,6 +2193,28 @@
   .app {
     min-height: 100vh;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .import-feedback {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .import-feedback-icon {
+    font-size: 1.2rem;
+    line-height: 1.5rem;
+  }
+
+  .import-feedback-message {
+    margin: 0;
+    white-space: pre-line;
+    line-height: 1.5;
+    color: #2f3542;
+  }
+
+  .import-feedback--error .import-feedback-message {
+    color: #c0392b;
   }
 
   .page-container {

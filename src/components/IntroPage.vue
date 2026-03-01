@@ -2,6 +2,7 @@
   import { ref, onMounted, onUnmounted, watch } from 'vue'
   import { savePlayerSettings, loadPlayerSettings } from '../utils/cache'
   import { SecureRandom } from '../utils/secureRandom'
+  import { devLog } from '../utils/logger'
   import VersionDisplay from './VersionDisplay.vue'
 
   interface Emits {
@@ -18,7 +19,7 @@
   const loadAndApplyPlayerSettings = () => {
     const cachedSettings = loadPlayerSettings()
     if (cachedSettings) {
-      console.log('IntroPage: 加载玩家设置', cachedSettings)
+      devLog('IntroPage: 加载玩家设置', cachedSettings)
       playerCount.value = cachedSettings.playerCount
       playerNames.value = [...cachedSettings.playerNames]
     }
@@ -69,7 +70,7 @@
 
   // 监听玩家设置更新事件
   const handlePlayerSettingsUpdate = (event: CustomEvent) => {
-    console.log('IntroPage: 收到玩家设置更新事件', event.detail)
+    devLog('IntroPage: 收到玩家设置更新事件', event.detail)
     loadAndApplyPlayerSettings()
   }
 
@@ -94,7 +95,7 @@
         showClearSuccess.value = false
       }, 3000)
 
-      console.log('缓存已清空，引导将重新触发')
+      devLog('缓存已清空，引导将重新触发')
     } catch (error) {
       console.error('清空缓存时出错:', error)
     }
@@ -116,7 +117,7 @@
 
     // 监听玩家设置更新事件
     window.addEventListener('playerSettingsUpdated', handlePlayerSettingsUpdate as EventListener)
-    console.log('IntroPage: 已注册玩家设置更新监听器')
+    devLog('IntroPage: 已注册玩家设置更新监听器')
   })
 
   onUnmounted(() => {
@@ -126,7 +127,7 @@
 
     // 移除事件监听器
     window.removeEventListener('playerSettingsUpdated', handlePlayerSettingsUpdate as EventListener)
-    console.log('IntroPage: 已移除玩家设置更新监听器')
+    devLog('IntroPage: 已移除玩家设置更新监听器')
   })
 
   const initParticles = () => {

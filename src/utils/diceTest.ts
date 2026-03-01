@@ -1,6 +1,7 @@
 // 骰子随机数分布测试工具
 import { GAME_CONFIG } from '../config/gameConfig'
 import { SecureRandom } from './secureRandom'
+import { devLog } from './logger'
 
 export interface DiceTestResult {
   totalRolls: number
@@ -145,7 +146,7 @@ export class DiceTestUtility {
 
   // 快速测试（在控制台输出结果）
   static quickTest(): void {
-    console.log('🎲 开始骰子随机性快速测试...\n')
+    devLog('🎲 开始骰子随机性快速测试...\n')
 
     const methods: Array<'original' | 'improved' | 'timeSeed' | 'secure'> = [
       'secure',
@@ -156,8 +157,8 @@ export class DiceTestUtility {
 
     methods.forEach(method => {
       const result = this.testDistribution(6000, method)
-      console.log(result.report)
-      console.log(`\n${'='.repeat(50)}\n`)
+      devLog(result.report)
+      devLog(`\n${'='.repeat(50)}\n`)
     })
   }
 
@@ -213,4 +214,4 @@ export class DiceTestUtility {
 
 // 导出便捷测试函数
 export const testDiceRandomness = () => DiceTestUtility.quickTest()
-export const simulateRealGame = () => console.log(DiceTestUtility.realGameSimulation())
+export const simulateRealGame = () => devLog(DiceTestUtility.realGameSimulation())

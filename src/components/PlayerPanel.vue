@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { ref, watch, nextTick, onMounted } from 'vue'
   import type { Player } from '../types/game'
+  import { devLog } from '../utils/logger'
 
   interface Props {
     players: Player[]
@@ -28,18 +29,18 @@
     playerCardRefs.value[index] = el
 
     // 调试信息
-    console.log(`Setting ref for player ${index}:`, !!el)
+    devLog(`Setting ref for player ${index}:`, !!el)
   }
 
   // 自动滚动到当前玩家
   const scrollToCurrentPlayer = () => {
-    console.log('=== scrollToCurrentPlayer called ===')
-    console.log('currentPlayerIndex:', props.currentPlayerIndex)
-    console.log('players.length:', props.players.length)
+    devLog('=== scrollToCurrentPlayer called ===')
+    devLog('currentPlayerIndex:', props.currentPlayerIndex)
+    devLog('players.length:', props.players.length)
 
     // 检测是否在移动设备上
     const isMobile = window.innerWidth <= 768
-    console.log('📱 Device info:', {
+    devLog('📱 Device info:', {
       isMobile,
       windowWidth: window.innerWidth,
       windowHeight: window.innerHeight,
@@ -47,25 +48,25 @@
     })
 
     if (!playersContainer.value) {
-      console.log('❌ playersContainer not found')
+      devLog('❌ playersContainer not found')
       return
     }
 
     if (!playerCardRefs.value || playerCardRefs.value.length === 0) {
-      console.log('❌ playerCardRefs array is empty or null')
-      console.log('playerCardRefs.value:', playerCardRefs.value)
+      devLog('❌ playerCardRefs array is empty or null')
+      devLog('playerCardRefs.value:', playerCardRefs.value)
       return
     }
 
     if (props.currentPlayerIndex < 0 || props.currentPlayerIndex >= props.players.length) {
-      console.log('❌ Invalid currentPlayerIndex:', props.currentPlayerIndex)
+      devLog('❌ Invalid currentPlayerIndex:', props.currentPlayerIndex)
       return
     }
 
     const currentElement = playerCardRefs.value[props.currentPlayerIndex]
     if (!currentElement) {
-      console.log('❌ currentElement not found for index:', props.currentPlayerIndex)
-      console.log(
+      devLog('❌ currentElement not found for index:', props.currentPlayerIndex)
+      devLog(
         'Available refs:',
         playerCardRefs.value.map((ref, i) => ({ index: i, exists: !!ref }))
       )
@@ -89,7 +90,7 @@
     // 也计算相对位置作为备用
     const relativeTop = elementRect.top - containerRect.top + containerScrollTop
 
-    console.log('📊 Scroll calculation data:', {
+    devLog('📊 Scroll calculation data:', {
       containerHeight,
       containerScrollTop,
       containerScrollHeight,
@@ -105,7 +106,7 @@
     const useRelativePosition = Math.abs(relativeTop - elementTop) > 10
     const actualElementTop = useRelativePosition ? relativeTop : elementTop
 
-    console.log('📍 Using position:', useRelativePosition ? 'relative' : 'offset', actualElementTop)
+    devLog('📍 Using position:', useRelativePosition ? 'relative' : 'offset', actualElementTop)
 
     // 计算目标滚动位置：让当前玩家卡片的顶部对齐到容器顶部，并留出一些边距
     // 移动端使用更小的边距，确保更多内容可见
@@ -116,7 +117,7 @@
     const maxScrollTop = containerScrollHeight - containerHeight
     const finalScrollTop = Math.max(0, Math.min(targetScrollTop, maxScrollTop))
 
-    console.log('🎯 Scroll target:', {
+    devLog('🎯 Scroll target:', {
       targetScrollTop,
       finalScrollTop,
       maxScrollTop,
@@ -126,12 +127,12 @@
     // 只有当滚动距离足够大时才执行滚动
     const minScrollDistance = 5
     if (Math.abs(finalScrollTop - containerScrollTop) < minScrollDistance) {
-      console.log('⏭️ Scroll distance too small, skipping')
+      devLog('⏭️ Scroll distance too small, skipping')
       return
     }
 
     // 执行滚动
-    console.log('🚀 Executing scroll from', containerScrollTop, 'to', finalScrollTop)
+    devLog('🚀 Executing scroll from', containerScrollTop, 'to', finalScrollTop)
 
     try {
       container.scrollTo({
@@ -151,8 +152,8 @@
     // 验证滚动结果
     setTimeout(() => {
       const newScrollTop = container.scrollTop
-      console.log('✅ Scroll completed. New position:', newScrollTop)
-      console.log('Expected:', finalScrollTop, 'Actual:', newScrollTop)
+      devLog('✅ Scroll completed. New position:', newScrollTop)
+      devLog('Expected:', finalScrollTop, 'Actual:', newScrollTop)
 
       // 如果滚动没有达到预期位置，尝试备用方案
       const scrollDifference = Math.abs(newScrollTop - finalScrollTop)
@@ -171,34 +172,34 @@
   watch(
     () => props.currentPlayerIndex,
     (newIndex, oldIndex) => {
-      console.log('🔄 === WATCH TRIGGERED ===')
-      console.log('currentPlayerIndex changed from', oldIndex, 'to', newIndex)
-      console.log('Total players:', props.players.length)
+      devLog('🔄 === WATCH TRIGGERED ===')
+      devLog('currentPlayerIndex changed from', oldIndex, 'to', newIndex)
+      devLog('Total players:', props.players.length)
 
       if (newIndex < 0 || newIndex >= props.players.length) {
-        console.log('❌ Invalid player index:', newIndex)
+        devLog('❌ Invalid player index:', newIndex)
         return
       }
 
       // 使用多重延迟确保DOM完全更新
       nextTick(() => {
-        console.log('⏳ nextTick executed, waiting for DOM update...')
+        devLog('⏳ nextTick executed, waiting for DOM update...')
 
         // 第一次延迟：等待DOM更新
         setTimeout(() => {
-          console.log('⏳ First timeout executed, checking refs...')
+          devLog('⏳ First timeout executed, checking refs...')
 
           // 检查refs是否已经准备好
           if (!playerCardRefs.value || !playerCardRefs.value[newIndex]) {
-            console.log('⚠️ Refs not ready, waiting longer...')
+            devLog('⚠️ Refs not ready, waiting longer...')
 
             // 第二次延迟：等待refs准备好
             setTimeout(() => {
-              console.log('⏳ Second timeout executed, calling scrollToCurrentPlayer')
+              devLog('⏳ Second timeout executed, calling scrollToCurrentPlayer')
               scrollToCurrentPlayer()
             }, 200)
           } else {
-            console.log('✅ Refs ready, calling scrollToCurrentPlayer')
+            devLog('✅ Refs ready, calling scrollToCurrentPlayer')
             scrollToCurrentPlayer()
           }
         }, 100)
@@ -211,14 +212,14 @@
   watch(
     () => props.players.length,
     (newLength, oldLength) => {
-      console.log('👥 Players length changed from', oldLength, 'to', newLength)
+      devLog('👥 Players length changed from', oldLength, 'to', newLength)
       if (newLength > 0 && newLength !== oldLength) {
         // 重置refs数组以匹配新的玩家数量
         playerCardRefs.value = new Array(newLength).fill(null)
 
         nextTick(() => {
           setTimeout(() => {
-            console.log('🔄 Scrolling after players array change')
+            devLog('🔄 Scrolling after players array change')
             scrollToCurrentPlayer()
           }, 300)
         })
@@ -228,9 +229,9 @@
 
   // 组件挂载后初始化
   onMounted(() => {
-    console.log('🚀 PlayerPanel mounted')
-    console.log('Initial players:', props.players.length)
-    console.log('Initial currentPlayerIndex:', props.currentPlayerIndex)
+    devLog('🚀 PlayerPanel mounted')
+    devLog('Initial players:', props.players.length)
+    devLog('Initial currentPlayerIndex:', props.currentPlayerIndex)
 
     // 初始化refs数组
     if (props.players.length > 0) {
@@ -240,7 +241,7 @@
     // 初始化时也执行一次滚动，给更多时间让DOM完全渲染
     nextTick(() => {
       setTimeout(() => {
-        console.log('🎯 Initial scroll after mount')
+        devLog('🎯 Initial scroll after mount')
         scrollToCurrentPlayer()
       }, 500)
     })
@@ -248,18 +249,18 @@
 
   // 暴露方法供调试使用
   const debugScroll = () => {
-    console.log('🔍 === Debug Scroll Info ===')
-    console.log('playersContainer.value:', !!playersContainer.value)
-    console.log(
+    devLog('🔍 === Debug Scroll Info ===')
+    devLog('playersContainer.value:', !!playersContainer.value)
+    devLog(
       'playerCardRefs.value:',
       playerCardRefs.value?.map((ref, i) => ({ index: i, exists: !!ref }))
     )
-    console.log('props.currentPlayerIndex:', props.currentPlayerIndex)
-    console.log('props.players.length:', props.players.length)
+    devLog('props.currentPlayerIndex:', props.currentPlayerIndex)
+    devLog('props.players.length:', props.players.length)
 
     if (playersContainer.value) {
       const container = playersContainer.value
-      console.log('Container info:', {
+      devLog('Container info:', {
         clientHeight: container.clientHeight,
         scrollHeight: container.scrollHeight,
         scrollTop: container.scrollTop,
@@ -272,7 +273,7 @@
 
   // 强制滚动方法（使用scrollIntoView）
   const forceScrollToCurrentPlayer = () => {
-    console.log('🔧 Force scroll using scrollIntoView')
+    devLog('🔧 Force scroll using scrollIntoView')
     const currentElement = playerCardRefs.value?.[props.currentPlayerIndex]
     if (currentElement) {
       currentElement.scrollIntoView({
@@ -281,7 +282,7 @@
         inline: 'nearest',
       })
     } else {
-      console.log('❌ No element found for force scroll')
+      devLog('❌ No element found for force scroll')
     }
   }
 

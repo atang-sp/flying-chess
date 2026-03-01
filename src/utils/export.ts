@@ -13,6 +13,7 @@ import { EXPORT_VERSION } from '../types/export'
 import type { BoardCell } from '../types/game'
 import { loadPlayerSettings, loadConfig, savePlayerSettings, saveConfig } from './cache'
 import { SecureRandom } from './secureRandom'
+import { devLog } from './logger'
 import QRCode from 'qrcode'
 import jsQR from 'jsqr'
 
@@ -41,7 +42,7 @@ async function parseQRCodeFromImage(file: File): Promise<string> {
         const code = jsQR(imageData.data, imageData.width, imageData.height)
 
         if (code) {
-          console.log('二维码解析成功:', `${code.data.substring(0, 100)}...`)
+          devLog('二维码解析成功:', `${code.data.substring(0, 100)}...`)
           resolve(code.data)
         } else {
           reject(new Error('未在图片中找到有效的二维码'))
@@ -366,12 +367,12 @@ function performImport(data: ExportData, options: Partial<ImportOptions> = {}): 
     const { data: configData } = data
     const warnings: string[] = []
 
-    console.log('开始应用配置数据:', configData)
+    devLog('开始应用配置数据:', configData)
 
     if (configData.playerSettings) {
-      console.log('保存玩家设置:', configData.playerSettings)
+      devLog('保存玩家设置:', configData.playerSettings)
       savePlayerSettings(configData.playerSettings)
-      console.log('玩家设置已保存到localStorage')
+      devLog('玩家设置已保存到localStorage')
     }
 
     if (configData.punishmentConfig || configData.boardConfig || configData.trapConfig) {
@@ -445,7 +446,7 @@ export async function importFromQRCode(
   imageFile: File,
   options: Partial<ImportOptions> = {}
 ): Promise<ImportResult> {
-  console.log('开始二维码图片导入，文件信息:', {
+  devLog('开始二维码图片导入，文件信息:', {
     name: imageFile.name,
     type: imageFile.type,
     size: imageFile.size,
@@ -460,9 +461,9 @@ export async function importFromQRCode(
     // 使用浏览器原生 API 解析二维码
     let qrCodeData: string
     try {
-      console.log('开始解析二维码图片...')
+      devLog('开始解析二维码图片...')
       qrCodeData = await parseQRCodeFromImage(imageFile)
-      console.log('二维码解析成功，数据长度:', qrCodeData.length)
+      devLog('二维码解析成功，数据长度:', qrCodeData.length)
     } catch (scanError) {
       console.error('二维码扫描失败:', scanError)
       throw new Error(
@@ -473,9 +474,9 @@ export async function importFromQRCode(
     // 解析二维码中的JSON数据
     let parsedData: unknown
     try {
-      console.log('开始解析JSON数据...')
+      devLog('开始解析JSON数据...')
       parsedData = JSON.parse(qrCodeData)
-      console.log('JSON解析成功')
+      devLog('JSON解析成功')
     } catch (parseError) {
       console.error('JSON解析失败:', parseError)
       throw new Error(
@@ -484,17 +485,17 @@ export async function importFromQRCode(
     }
 
     // 验证数据格式
-    console.log('开始验证数据格式...')
+    devLog('开始验证数据格式...')
     const validation = validateImportData(parsedData)
     if (!validation.isValid) {
       console.error('数据验证失败:', validation.errors)
       throw new Error(`配置数据验证失败：${validation.errors.join(', ')}`)
     }
 
-    console.log('数据验证通过，开始执行导入...')
+    devLog('数据验证通过，开始执行导入...')
     // 执行导入
     const result = performImport(parsedData, options)
-    console.log('导入完成，结果:', result)
+    devLog('导入完成，结果:', result)
     return result
   } catch (error) {
     console.error('二维码导入过程中发生错误:', error)

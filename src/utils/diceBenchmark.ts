@@ -1,5 +1,6 @@
 // 骰子随机性基准测试工具
 import { GameService } from '../services/gameService'
+import { devLog } from './logger'
 
 export interface BenchmarkResult {
   totalRolls: number
@@ -14,7 +15,7 @@ export interface BenchmarkResult {
 export class DiceBenchmark {
   // 执行基准测试
   static runBenchmark(rollCount: number): BenchmarkResult {
-    console.log(`🎲 开始基准测试：${rollCount.toLocaleString()}次投掷...`)
+    devLog(`🎲 开始基准测试：${rollCount.toLocaleString()}次投掷...`)
 
     const startTime = performance.now()
 
@@ -79,7 +80,7 @@ export class DiceBenchmark {
       duration
     )
 
-    console.log(`✅ 基准测试完成，耗时: ${duration.toFixed(2)}ms`)
+    devLog(`✅ 基准测试完成，耗时: ${duration.toFixed(2)}ms`)
 
     return {
       totalRolls: rollCount,
@@ -94,7 +95,7 @@ export class DiceBenchmark {
 
   // 批量测试不同规模
   static runBatchBenchmark(rollCounts: number[] = [6, 36, 100, 216, 500, 1000]): BenchmarkResult[] {
-    console.log('🚀 开始批量基准测试...')
+    devLog('🚀 开始批量基准测试...')
 
     const results: BenchmarkResult[] = []
 
@@ -103,7 +104,7 @@ export class DiceBenchmark {
       results.push(result)
     }
 
-    console.log('📊 批量测试完成！')
+    devLog('📊 批量测试完成！')
     return results
   }
 
@@ -299,23 +300,23 @@ export class DiceBenchmark {
 
   // 快速测试（控制台输出）
   static quickTest(): void {
-    console.log('🎲 开始快速基准测试...\n')
+    devLog('🎲 开始快速基准测试...\n')
 
     const testSizes = [6, 36, 100, 216, 500, 1000]
     const results = this.runBatchBenchmark(testSizes)
 
-    console.log('\n📊 测试结果总览:')
+    devLog('\n📊 测试结果总览:')
     results.forEach(result => {
-      console.log(result.summary)
+      devLog(result.summary)
     })
 
-    console.log('\n📈 对比分析:')
-    console.log(this.compareBenchmarks(results))
+    devLog('\n📈 对比分析:')
+    devLog(this.compareBenchmarks(results))
 
-    console.log('\n📋 详细报告:')
+    devLog('\n📋 详细报告:')
     results.forEach((result, index) => {
-      console.log(`\n[${index + 1}/${results.length}] ${result.totalRolls}次投掷详细报告:`)
-      console.log(result.detailedReport)
+      devLog(`\n[${index + 1}/${results.length}] ${result.totalRolls}次投掷详细报告:`)
+      devLog(result.detailedReport)
     })
   }
 }
