@@ -1556,7 +1556,9 @@ export class GameService {
     // 确保工具、姿势分布符合用户设置的比例（仅使用有效配置）
     const toolDistribution = this.calculateDistribution(validTools, count)
     const positionDistribution = this.calculateDistribution(validPositions, count)
-    const toolPool = SecureRandom.shuffle(this.expandItemsByDistribution(validTools, toolDistribution))
+    const toolPool = SecureRandom.shuffle(
+      this.expandItemsByDistribution(validTools, toolDistribution)
+    )
     const remainingPositions = SecureRandom.shuffle(
       this.expandItemsByDistribution(validPositions, positionDistribution)
     )
@@ -1693,7 +1695,9 @@ export class GameService {
     count: number = 10
   ): PunishmentAction[] {
     const definitions = this.generateBalancedPunishmentCombinationDefinitions(config, count)
-    return definitions.map(definition => this.createPunishmentActionFromCombination(definition, config))
+    return definitions.map(definition =>
+      this.createPunishmentActionFromCombination(definition, config)
+    )
   }
 
   private static expandItemsByDistribution<T>(items: T[], distribution: number[]): T[] {
@@ -1740,7 +1744,7 @@ export class GameService {
 
     const exactCounts = normalizedRatios.map(ratio => (ratio / totalRatio) * totalCount)
     const distribution = exactCounts.map(value => Math.floor(value))
-    let remainingCount = totalCount - distribution.reduce((sum, value) => sum + value, 0)
+    const remainingCount = totalCount - distribution.reduce((sum, value) => sum + value, 0)
 
     const remainders = exactCounts
       .map((value, index) => ({
