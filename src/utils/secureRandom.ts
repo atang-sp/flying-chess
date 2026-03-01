@@ -135,7 +135,7 @@ export class SecureRandom {
 
     for (let i = 0; i < items.length; i++) {
       currentWeight += weights[i]
-      if (randomValue <= currentWeight) {
+      if (randomValue < currentWeight) {
         return items[i]
       }
     }

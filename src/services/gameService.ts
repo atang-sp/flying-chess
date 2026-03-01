@@ -1298,8 +1298,15 @@ export class GameService {
       return topCombinations[0].combination
     }
 
-    // 如果有多个最高评分的组合，进行随机选择
-    return SecureRandom.choice(topCombinations).combination
+    // 如果有多个最高评分的组合，按工具比例加权选择，避免放大池内组合数量差异
+    const weightedCombinations = topCombinations.map(item => item.combination)
+    const weights = weightedCombinations.map(combination => Math.max(0, combination.tool.ratio))
+    if (weights.some(weight => weight > 0)) {
+      return SecureRandom.weightedChoice(weightedCombinations, weights)
+    }
+
+    // 兜底：如果权重异常，退化为等概率随机
+    return SecureRandom.choice(weightedCombinations)
   }
 
   // 智能分配组合到惩罚格子（考虑连续6格的多样性）
@@ -1492,6 +1499,10 @@ export class GameService {
     config: PunishmentConfig,
     count: number = 10
   ): PunishmentCombination[] {
+    if (count <= 0) {
+      return []
+    }
+
     const combinations: PunishmentCombination[] = []
     const usedCombinations = new Set<string>() // 用于去重的集合
 
@@ -1542,59 +1553,134 @@ export class GameService {
       return allPossibleCombinations
     }
 
-    // 确保工具、部位、姿势的分布符合用户设置的比例（仅使用有效配置）
+    // 确保工具、姿势分布符合用户设置的比例（仅使用有效配置）
     const toolDistribution = this.calculateDistribution(validTools, count)
     const positionDistribution = this.calculateDistribution(validPositions, count)
+    const toolPool = SecureRandom.shuffle(this.expandItemsByDistribution(validTools, toolDistribution))
+    const remainingPositions = SecureRandom.shuffle(
+      this.expandItemsByDistribution(validPositions, positionDistribution)
+    )
 
-    // 按比例选择组合
-    let attempts = 0
-    const maxAttempts = count * 5
+    // 第一阶段：先满足工具与姿势的目标分布，再结合部位约束构造组合
+    for (const tool of toolPool) {
+      if (combinations.length >= count || remainingPositions.length === 0) {
+        break
+      }
 
-    while (combinations.length < count && attempts < maxAttempts) {
-      // 根据分布选择工具
-      const tool = this.selectByDistribution(validTools, toolDistribution, combinations.length)
-
-      // 根据工具强度选择合适的部位（考虑比例，但仅在有效部位中选择）
       const validBodyPartsForTool = validBodyParts.filter(b => b.sensitivity >= tool.intensity)
-      let bodyPart: PunishmentBodyPart
-      if (validBodyPartsForTool.length > 0) {
-        // 在有效部位中按比例选择
-        bodyPart = this.selectByRatio(validBodyPartsForTool)
-      } else {
-        // 如果没有合适的部位，选择耐受度最高的有效部位
-        bodyPart = validBodyParts.reduce((max, current) =>
-          current.sensitivity > max.sensitivity ? current : max
-        )
+      const bodyPartCandidates =
+        validBodyPartsForTool.length > 0
+          ? validBodyPartsForTool
+          : [
+              validBodyParts.reduce((max, current) =>
+                current.sensitivity > max.sensitivity ? current : max
+              ),
+            ]
+
+      const candidates: Array<{
+        bodyPart: PunishmentBodyPart
+        position: PunishmentPosition
+        positionIndex: number
+        weight: number
+      }> = []
+
+      for (let positionIndex = 0; positionIndex < remainingPositions.length; positionIndex++) {
+        const position = remainingPositions[positionIndex]
+        for (const bodyPart of bodyPartCandidates) {
+          const key = `${tool.name}-${bodyPart.name}-${position.name}`
+          if (!usedCombinations.has(key)) {
+            candidates.push({
+              bodyPart,
+              position,
+              positionIndex,
+              weight: Math.max(1, bodyPart.ratio),
+            })
+          }
+        }
       }
 
-      // 根据分布选择姿势
-      const position = this.selectByDistribution(
-        validPositions,
-        positionDistribution,
-        combinations.length
+      if (candidates.length === 0) {
+        continue
+      }
+
+      const selected = SecureRandom.weightedChoice(
+        candidates,
+        candidates.map(candidate => candidate.weight)
       )
+      const combination = this.createPunishmentCombinationDefinition(
+        tool,
+        selected.bodyPart,
+        selected.position
+      )
+      const key = `${tool.name}-${selected.bodyPart.name}-${selected.position.name}`
 
-      // 创建组合定义
-      const combination = this.createPunishmentCombinationDefinition(tool, bodyPart, position)
-      const key = `${tool.name}-${bodyPart.name}-${position.name}`
-
-      // 检查是否已存在相同组合
-      if (!usedCombinations.has(key)) {
-        combinations.push(combination)
-        usedCombinations.add(key)
-      }
-
-      attempts++
+      combinations.push(combination)
+      usedCombinations.add(key)
+      remainingPositions.splice(selected.positionIndex, 1)
     }
 
-    // 如果仍然没有达到目标数量，用随机选择填充剩余位置
-    while (combinations.length < count && allPossibleCombinations.length > 0) {
-      const randomCombination = SecureRandom.choice(allPossibleCombinations)
-      const key = `${randomCombination.tool.name}-${randomCombination.bodyPart.name}-${randomCombination.position.name}`
+    // 第二阶段：优先按剩余姿势槽位补齐，避免忽略姿势分布
+    while (combinations.length < count && remainingPositions.length > 0) {
+      const positionIndexes = SecureRandom.shuffle(remainingPositions.map((_, index) => index))
+      let selectedPositionIndex = -1
+      let selectedCombination: PunishmentCombination | null = null
 
-      if (!usedCombinations.has(key)) {
-        combinations.push(randomCombination)
+      for (const positionIndex of positionIndexes) {
+        const position = remainingPositions[positionIndex]
+        const availableCombinations = allPossibleCombinations.filter(combination => {
+          if (combination.position.name !== position.name) return false
+          const key = `${combination.tool.name}-${combination.bodyPart.name}-${combination.position.name}`
+          return !usedCombinations.has(key)
+        })
+
+        if (availableCombinations.length === 0) {
+          continue
+        }
+
+        selectedPositionIndex = positionIndex
+        selectedCombination = SecureRandom.weightedChoice(
+          availableCombinations,
+          availableCombinations.map(combination => Math.max(1, combination.tool.ratio))
+        )
+        break
+      }
+
+      if (!selectedCombination || selectedPositionIndex === -1) {
+        break
+      }
+
+      const key = `${selectedCombination.tool.name}-${selectedCombination.bodyPart.name}-${selectedCombination.position.name}`
+      combinations.push(selectedCombination)
+      usedCombinations.add(key)
+      remainingPositions.splice(selectedPositionIndex, 1)
+    }
+
+    // 第三阶段：如果仍不足，从剩余未使用组合中补齐（按工具比例加权）
+    if (combinations.length < count) {
+      const remainingCandidates = allPossibleCombinations.filter(combination => {
+        const key = `${combination.tool.name}-${combination.bodyPart.name}-${combination.position.name}`
+        return !usedCombinations.has(key)
+      })
+
+      while (combinations.length < count && remainingCandidates.length > 0) {
+        const selected = SecureRandom.weightedChoice(
+          remainingCandidates,
+          remainingCandidates.map(combination => Math.max(1, combination.tool.ratio))
+        )
+        const key = `${selected.tool.name}-${selected.bodyPart.name}-${selected.position.name}`
+
+        combinations.push(selected)
         usedCombinations.add(key)
+
+        const selectedIndex = remainingCandidates.findIndex(
+          combination =>
+            combination.tool.name === selected.tool.name &&
+            combination.bodyPart.name === selected.bodyPart.name &&
+            combination.position.name === selected.position.name
+        )
+        if (selectedIndex !== -1) {
+          remainingCandidates.splice(selectedIndex, 1)
+        }
       }
     }
 
@@ -1606,120 +1692,22 @@ export class GameService {
     config: PunishmentConfig,
     count: number = 10
   ): PunishmentAction[] {
-    const combinations: PunishmentAction[] = []
-    const usedCombinations = new Set<string>() // 用于去重的集合
+    const definitions = this.generateBalancedPunishmentCombinationDefinitions(config, count)
+    return definitions.map(definition => this.createPunishmentActionFromCombination(definition, config))
+  }
 
-    // 获取有效的配置项（ratio > 0）
-    const validTools = this.configToArray(config.tools).filter(tool => tool.ratio > 0)
-    const validBodyParts = this.configToArray(config.bodyParts).filter(
-      bodyPart => bodyPart.ratio > 0
-    )
-    const validPositions = this.configToArray(config.positions).filter(
-      position => position.ratio > 0
-    )
+  private static expandItemsByDistribution<T>(items: T[], distribution: number[]): T[] {
+    const expanded: T[] = []
 
-    // 如果任何一类没有有效配置，返回空数组
-    if (validTools.length === 0 || validBodyParts.length === 0 || validPositions.length === 0) {
-      return []
-    }
-
-    // 生成所有可能的有效组合（优先考虑强度限制）
-    const allPossibleCombinations: PunishmentAction[] = []
-
-    for (const tool of validTools) {
-      for (const bodyPart of validBodyParts) {
-        // 检查工具强度是否适合部位耐受度
-        if (tool.intensity <= bodyPart.sensitivity) {
-          for (const position of validPositions) {
-            const combination = this.createPunishmentCombination(tool, bodyPart, position, config)
-            allPossibleCombinations.push(combination)
-          }
-        }
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      const repeatCount = distribution[i] ?? 0
+      for (let j = 0; j < repeatCount; j++) {
+        expanded.push(item)
       }
     }
 
-    // 如果严格限制下的组合数量不足，放宽强度限制（但仍然只使用有效配置）
-    if (allPossibleCombinations.length < count) {
-      allPossibleCombinations.length = 0 // 清空数组
-      for (const tool of validTools) {
-        for (const bodyPart of validBodyParts) {
-          for (const position of validPositions) {
-            const combination = this.createPunishmentCombination(tool, bodyPart, position, config)
-            allPossibleCombinations.push(combination)
-          }
-        }
-      }
-    }
-
-    // 如果组合数量仍然不足，直接返回所有可能的组合
-    if (allPossibleCombinations.length <= count) {
-      return allPossibleCombinations
-    }
-
-    // 确保工具、部位、姿势的分布符合用户设置的比例（仅使用有效配置）
-    const toolDistribution = this.calculateDistribution(validTools, count)
-    const positionDistribution = this.calculateDistribution(validPositions, count)
-
-    // 按比例选择组合
-    let attempts = 0
-    const maxAttempts = count * 5
-
-    while (combinations.length < count && attempts < maxAttempts) {
-      // 根据分布选择工具
-      const tool = this.selectByDistribution(validTools, toolDistribution, combinations.length)
-
-      // 根据工具强度选择合适的部位（考虑比例，但仅在有效部位中选择）
-      const validBodyPartsForTool = validBodyParts.filter(b => b.sensitivity >= tool.intensity)
-      let bodyPart: PunishmentBodyPart
-      if (validBodyPartsForTool.length > 0) {
-        // 在有效部位中按比例选择
-        bodyPart = this.selectByRatio(validBodyPartsForTool)
-      } else {
-        // 如果没有合适的部位，选择耐受度最高的有效部位
-        bodyPart = validBodyParts.reduce((max, current) =>
-          current.sensitivity > max.sensitivity ? current : max
-        )
-      }
-
-      // 根据分布选择姿势
-      const position = this.selectByDistribution(
-        validPositions,
-        positionDistribution,
-        combinations.length
-      )
-
-      // 创建组合的唯一标识符
-      const combinationKey = `${tool.name}-${bodyPart.name}-${position.name}`
-
-      // 检查是否已经存在相同的组合
-      if (!usedCombinations.has(combinationKey)) {
-        usedCombinations.add(combinationKey)
-
-        const combination = this.createPunishmentCombination(tool, bodyPart, position, config)
-
-        combinations.push(combination)
-      }
-
-      attempts++
-    }
-
-    // 如果按比例选择后还是不够，从所有可能组合中随机补充
-    if (combinations.length < count) {
-      const shuffledCombinations = SecureRandom.shuffle(allPossibleCombinations)
-
-      for (const combination of shuffledCombinations) {
-        if (combinations.length >= count) break
-
-        const combinationKey = `${combination.tool.name}-${combination.bodyPart.name}-${combination.position.name}`
-
-        if (!usedCombinations.has(combinationKey)) {
-          usedCombinations.add(combinationKey)
-          combinations.push(combination)
-        }
-      }
-    }
-
-    return combinations
+    return expanded
   }
 
   // 计算分布
@@ -1727,53 +1715,51 @@ export class GameService {
     items: T[],
     totalCount: number
   ): number[] {
-    const distribution: number[] = []
+    if (items.length === 0 || totalCount <= 0) {
+      return []
+    }
 
-    // 如果只有一个选项，直接分配所有数量
     if (items.length === 1) {
-      distribution.push(totalCount)
-      return distribution
+      return [totalCount]
     }
 
-    let remainingCount = totalCount
+    const normalizedRatios = items.map(item => Math.max(0, item.ratio))
+    const totalRatio = normalizedRatios.reduce((sum, ratio) => sum + ratio, 0)
 
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i]
-      const count = Math.round((item.ratio / 100) * totalCount)
-      const actualCount = Math.min(count, remainingCount)
-      distribution.push(actualCount)
-      remainingCount -= actualCount
+    if (totalRatio <= 0) {
+      const baseCount = Math.floor(totalCount / items.length)
+      let remainingCount = totalCount % items.length
+      return items.map(() => {
+        const assigned = baseCount + (remainingCount > 0 ? 1 : 0)
+        if (remainingCount > 0) {
+          remainingCount--
+        }
+        return assigned
+      })
     }
 
-    // 如果还有剩余，分配给比例最高的项目
-    while (remainingCount > 0) {
-      const maxRatioIndex = items.reduce(
-        (maxIndex, item, index) => (item.ratio > items[maxIndex].ratio ? index : maxIndex),
-        0
-      )
-      distribution[maxRatioIndex]++
-      remainingCount--
+    const exactCounts = normalizedRatios.map(ratio => (ratio / totalRatio) * totalCount)
+    const distribution = exactCounts.map(value => Math.floor(value))
+    let remainingCount = totalCount - distribution.reduce((sum, value) => sum + value, 0)
+
+    const remainders = exactCounts
+      .map((value, index) => ({
+        index,
+        remainder: value - distribution[index],
+        tieBreaker: SecureRandom.random(),
+      }))
+      .sort((a, b) => {
+        if (b.remainder !== a.remainder) {
+          return b.remainder - a.remainder
+        }
+        return b.tieBreaker - a.tieBreaker
+      })
+
+    for (let i = 0; i < remainingCount; i++) {
+      const target = remainders[i % remainders.length]
+      distribution[target.index]++
     }
 
     return distribution
-  }
-
-  // 根据分布选择项目
-  private static selectByDistribution<T extends { ratio: number }>(
-    items: T[],
-    distribution: number[],
-    currentIndex: number
-  ): T {
-    let cumulativeCount = 0
-
-    for (let i = 0; i < items.length; i++) {
-      cumulativeCount += distribution[i]
-      if (currentIndex < cumulativeCount) {
-        return items[i]
-      }
-    }
-
-    // 兜底返回第一个
-    return items[0]
   }
 }
