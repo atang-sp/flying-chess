@@ -55,6 +55,9 @@ export default defineConfig(async ({ command, mode }) => {
   return {
     plugins,
     base: '/flying-chess/',
+    test: {
+      setupFiles: ['src/tests/setup.ts'],
+    },
     server: {
       // 允许内网访问
       host: '0.0.0.0',
