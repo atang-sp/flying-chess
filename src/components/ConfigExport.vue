@@ -81,6 +81,20 @@
     return selectedCount.value > 0 && !isExporting.value
   })
 
+  const qrCapacityExceeded = computed(() => exportStats.value?.estimatedQRCodeSize === -1)
+
+  const qrCapacityHint = computed(() => {
+    if (!qrCapacityExceeded.value) {
+      return ''
+    }
+    if (exportOptions.value.boardContent) {
+      return '当前选择包含棋盘布局，二维码容量超限，请改用 JSON 导出。'
+    }
+    return '当前选择的数据超过二维码容量，请减少导出项后重试。'
+  })
+
+  const canGenerateQRCode = computed(() => canExport.value && !qrCapacityExceeded.value)
+
   // 监听选项变化，更新统计信息
   watch(
     () => [exportOptions.value, props.currentBoard],
@@ -130,7 +144,7 @@
 
   // 生成二维码预览
   const handleGenerateQRCode = async () => {
-    if (!canExport.value) return
+    if (!canGenerateQRCode.value) return
 
     isExporting.value = true
 
@@ -390,7 +404,9 @@
                 <span class="option-icon">🎲</span>
                 <div class="option-info">
                   <div class="option-title">棋盘布局</div>
-                  <div class="option-desc">当前棋盘的完整布局（包含随机种子）</div>
+                  <div class="option-desc">
+                    当前棋盘的完整布局（包含随机种子，仅建议 JSON 导出）
+                  </div>
                 </div>
                 <div v-if="!availableOptions.boardContent" class="option-status">无棋盘</div>
               </label>
@@ -408,13 +424,21 @@
                 <span class="stat-label">文件大小</span>
                 <span class="stat-value">{{ formatFileSize(exportStats.totalSize) }}</span>
               </div>
-              <div v-if="exportStats.estimatedQRCodeSize" class="stat-item">
+              <div v-if="exportStats.estimatedQRCodeSize !== undefined" class="stat-item">
                 <span class="stat-label">二维码大小</span>
-                <span class="stat-value">
-                  {{ formatFileSize(exportStats.estimatedQRCodeSize) }}
+                <span
+                  class="stat-value"
+                  :class="{ danger: exportStats.estimatedQRCodeSize === -1 }"
+                >
+                  {{
+                    exportStats.estimatedQRCodeSize === -1
+                      ? '超限'
+                      : formatFileSize(exportStats.estimatedQRCodeSize)
+                  }}
                 </span>
               </div>
             </div>
+            <p v-if="qrCapacityExceeded" class="qrcode-warning">{{ qrCapacityHint }}</p>
           </div>
 
           <!-- 二维码预览 -->
@@ -487,7 +511,7 @@
         <div v-if="currentMode === 'export'" class="export-buttons">
           <button
             class="export-btn secondary"
-            :disabled="!canExport"
+            :disabled="!canGenerateQRCode"
             :class="{ loading: isExporting }"
             @click="handleGenerateQRCode"
           >
@@ -506,7 +530,7 @@
           <button
             v-if="showQRCode"
             class="export-btn secondary"
-            :disabled="!qrCodeDataURL"
+            :disabled="!qrCodeDataURL || qrCapacityExceeded"
             @click="handleExportQRCode"
           >
             💾 保存二维码
@@ -886,6 +910,17 @@
     color: #1f2937;
   }
 
+  .stat-value.danger {
+    color: #dc2626;
+  }
+
+  .qrcode-warning {
+    margin: 12px 0 0 0;
+    font-size: 13px;
+    color: #dc2626;
+    line-height: 1.4;
+  }
+
   /* 二维码预览样式 */
   .qrcode-preview {
     background: #f8faff;
@@ -911,8 +946,9 @@
   }
 
   .qrcode-image {
-    max-width: 200px;
-    max-height: 200px;
+    width: min(420px, 80vw);
+    max-width: 80%;
+    height: auto;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }

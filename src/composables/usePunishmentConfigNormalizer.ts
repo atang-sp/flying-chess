@@ -5,10 +5,14 @@ import type {
   PunishmentTool,
 } from '../types/game'
 
+type LegacyPosition = Omit<PunishmentPosition, 'compatibleBodyParts'> & {
+  compatibleBodyParts?: string[]
+}
+
 type LegacyConfigEntries = {
   tools: PunishmentConfig['tools'] | PunishmentTool[]
   bodyParts: PunishmentConfig['bodyParts'] | PunishmentBodyPart[]
-  positions: PunishmentConfig['positions'] | PunishmentPosition[]
+  positions: Record<string, LegacyPosition> | LegacyPosition[]
 }
 
 const normalizeNamedEntries = <T extends { name: string }>(
@@ -24,6 +28,26 @@ const normalizeNamedEntries = <T extends { name: string }>(
   }, {})
 }
 
+function normalizePositions(
+  entries: Record<string, LegacyPosition> | LegacyPosition[]
+): Record<string, PunishmentPosition> {
+  const normalized = Array.isArray(entries)
+    ? entries.reduce<Record<string, LegacyPosition>>((acc, entry) => {
+        acc[entry.name] = entry
+        return acc
+      }, {})
+    : entries
+
+  const result: Record<string, PunishmentPosition> = {}
+  for (const [key, pos] of Object.entries(normalized)) {
+    result[key] = {
+      ...pos,
+      compatibleBodyParts: pos.compatibleBodyParts ?? [],
+    }
+  }
+  return result
+}
+
 export function usePunishmentConfigNormalizer() {
   const normalizePunishmentConfig = (config: PunishmentConfig): PunishmentConfig => {
     const legacyConfig = config as PunishmentConfig & LegacyConfigEntries
@@ -32,7 +56,7 @@ export function usePunishmentConfigNormalizer() {
       ...config,
       tools: normalizeNamedEntries(legacyConfig.tools),
       bodyParts: normalizeNamedEntries(legacyConfig.bodyParts),
-      positions: normalizeNamedEntries(legacyConfig.positions),
+      positions: normalizePositions(legacyConfig.positions),
     }
   }
 

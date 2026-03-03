@@ -53,11 +53,11 @@ export const GAME_CONFIG = {
 
   // 默认受罚姿势
   DEFAULT_POSITIONS: {
-    站立: { ratio: 20 },
-    手扶墙: { ratio: 20 },
-    趴在桌子上: { ratio: 20 },
-    手抓膝盖: { ratio: 20 },
-    跪趴: { ratio: 20 },
+    站立: { ratio: 20, compatibleBodyParts: ['屁股', '后背', '大腿', '臀缝', '手心'] },
+    手扶墙: { ratio: 20, compatibleBodyParts: ['屁股', '后背', '大腿', '臀缝'] },
+    趴在桌子上: { ratio: 20, compatibleBodyParts: ['屁股', '后背', '大腿', '臀缝'] },
+    手抓膝盖: { ratio: 20, compatibleBodyParts: ['屁股', '大腿', '臀缝'] },
+    跪趴: { ratio: 20, compatibleBodyParts: ['屁股', '后背', '大腿', '臀缝'] },
   },
 
   // 惩罚格子配置 - 增加更多惩罚格子

@@ -23,6 +23,68 @@ import { devLog } from './logger'
 import type { QRCodeToDataURLOptions } from 'qrcode'
 import QRCode from 'qrcode'
 import jsQR from 'jsqr'
+import { saveAs } from 'file-saver'
+import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate'
+
+const QR_CODE_MAX_BYTES = 2953
+const COMPRESSED_QR_PREFIX = 'GZ:'
+
+function toBase64(bytes: Uint8Array): string {
+  const chunkSize = 0x8000
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize)
+    binary += String.fromCharCode(...chunk)
+  }
+  return btoa(binary)
+}
+
+function fromBase64(base64: string): Uint8Array {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
+}
+
+function compressJsonData(data: ExportData): string {
+  const jsonString = JSON.stringify(data)
+  const compressedBytes = gzipSync(strToU8(jsonString))
+  return `${COMPRESSED_QR_PREFIX}${toBase64(compressedBytes)}`
+}
+
+function decodeQrPayload(payload: string): string {
+  // 兼容旧版二维码：旧版直接存的是 JSON 字符串。
+  if (!payload.startsWith(COMPRESSED_QR_PREFIX)) {
+    return payload
+  }
+
+  const base64Data = payload.slice(COMPRESSED_QR_PREFIX.length)
+  const compressedBytes = fromBase64(base64Data)
+  return strFromU8(gunzipSync(compressedBytes))
+}
+
+function getQRCodePayloadSize(payload: string): number {
+  return new Blob([payload]).size
+}
+
+function ensureQRCodePayloadWithinLimit(payload: string): void {
+  const payloadSize = getQRCodePayloadSize(payload)
+  if (payloadSize > QR_CODE_MAX_BYTES) {
+    throw new Error(
+      `二维码数据超出容量限制（${payloadSize}B > ${QR_CODE_MAX_BYTES}B），请减少导出内容（尤其是棋盘布局）或改用 JSON 导出。`
+    )
+  }
+}
+
+async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
+  const response = await fetch(dataUrl)
+  if (!response.ok) {
+    throw new Error('二维码图片转换失败')
+  }
+  return response.blob()
+}
 
 // 生成随机种子
 function generateSeed(): string {
@@ -35,6 +97,7 @@ async function parseQRCodeFromImage(file: File): Promise<string> {
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
     const img = new Image()
+    const objectUrl = URL.createObjectURL(file)
 
     img.onload = () => {
       try {
@@ -57,14 +120,17 @@ async function parseQRCodeFromImage(file: File): Promise<string> {
       } catch (error) {
         console.error('二维码解析失败:', error)
         reject(new Error('二维码解析失败，请确保图片清晰且包含有效的二维码'))
+      } finally {
+        URL.revokeObjectURL(objectUrl)
       }
     }
 
     img.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
       reject(new Error('图片加载失败，请选择有效的图片文件'))
     }
 
-    img.src = URL.createObjectURL(file)
+    img.src = objectUrl
   })
 }
 
@@ -135,7 +201,7 @@ export function generateExportFilename(options: ExportOptions): string {
 // 计算导出统计信息
 export function calculateExportStats(data: ExportData): ExportStats {
   const jsonString = JSON.stringify(data, null, 2)
-  const compressedString = JSON.stringify(data) // 压缩版本
+  const compressedString = compressJsonData(data) // 真正压缩后的二维码载荷
   const totalSize = new Blob([jsonString]).size
   const compressedSize = new Blob([compressedString]).size
 
@@ -148,7 +214,7 @@ export function calculateExportStats(data: ExportData): ExportStats {
 
   // 二维码容量估算（基于QR Code标准）
   let estimatedQRCodeSize = compressedSize
-  if (compressedSize > 2953) {
+  if (compressedSize > QR_CODE_MAX_BYTES) {
     // QR Code Version 40 最大容量
     estimatedQRCodeSize = -1 // 表示超出二维码容量
   }
@@ -171,20 +237,7 @@ export const DEFAULT_QRCODE_OPTIONS: QRCodeOptions = {
     dark: '#000000',
     light: '#FFFFFF',
   },
-  width: 512,
-}
-
-// 压缩JSON数据
-function compressJsonData(data: ExportData): string {
-  // 移除不必要的空格和换行
-  const jsonString = JSON.stringify(data)
-
-  // 如果数据太大，可以考虑进一步优化
-  if (jsonString.length > 2000) {
-    console.warn('配置数据较大，建议减少导出项目或使用JSON文件导出')
-  }
-
-  return jsonString
+  width: 1024,
 }
 
 // 生成二维码
@@ -193,14 +246,17 @@ export async function generateQRCode(
   options: Partial<QRCodeOptions> = {}
 ): Promise<string> {
   const qrOptions = { ...DEFAULT_QRCODE_OPTIONS, ...options }
-  const jsonString = compressJsonData(data)
+  const qrPayload = compressJsonData(data)
+  const payloadSize = getQRCodePayloadSize(qrPayload)
+
+  ensureQRCodePayloadWithinLimit(qrPayload)
 
   // 根据数据大小自动调整错误纠正级别
-  let errorCorrectionLevel = qrOptions.errorCorrectionLevel
-  if (jsonString.length > 1500) {
-    errorCorrectionLevel = 'L' // 大数据使用低错误纠正级别
-  } else if (jsonString.length < 500) {
-    errorCorrectionLevel = 'H' // 小数据使用高错误纠正级别
+  let errorCorrectionLevel: QRCodeOptions['errorCorrectionLevel'] = 'M'
+  if (payloadSize < 700) {
+    errorCorrectionLevel = 'H'
+  } else if (payloadSize < 1500) {
+    errorCorrectionLevel = 'Q'
   }
 
   const commonQrOptions = {
@@ -222,7 +278,7 @@ export async function generateQRCode(
         }
 
   try {
-    const qrCodeDataURL = await QRCode.toDataURL(jsonString, qrCodeOptions)
+    const qrCodeDataURL = await QRCode.toDataURL(qrPayload, qrCodeOptions)
     return qrCodeDataURL
   } catch (error) {
     throw new Error(`二维码生成失败: ${error instanceof Error ? error.message : '未知错误'}`)
@@ -235,19 +291,10 @@ export function exportToJson(options: ExportOptions, currentBoard?: BoardCell[])
     const data = collectExportData(options, currentBoard)
     const filename = generateExportFilename(options)
 
-    // 创建下载链接
+    // 通过 file-saver 统一处理浏览器下载兼容性
     const jsonString = JSON.stringify(data, null, 2)
-    const blob = new Blob([jsonString], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-
-    // 触发下载
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' })
+    saveAs(blob, filename)
 
     return {
       success: true,
@@ -271,18 +318,13 @@ export async function exportToQRCode(
   try {
     const data = collectExportData(options, currentBoard)
     const qrCodeDataURL = await generateQRCode(data, qrOptions)
+    const imageBlob = await dataUrlToBlob(qrCodeDataURL)
 
     // 生成文件名
     const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')
     const filename = `飞行棋配置二维码-${timestamp}.png`
 
-    // 创建下载链接
-    const link = document.createElement('a')
-    link.href = qrCodeDataURL
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    saveAs(imageBlob, filename)
 
     return {
       success: true,
@@ -509,7 +551,8 @@ export async function importFromQRCode(
     let parsedData: unknown
     try {
       devLog('开始解析JSON数据...')
-      parsedData = JSON.parse(qrCodeData)
+      const decodedPayload = decodeQrPayload(qrCodeData)
+      parsedData = JSON.parse(decodedPayload)
       devLog('JSON解析成功')
     } catch (parseError) {
       console.error('JSON解析失败:', parseError)

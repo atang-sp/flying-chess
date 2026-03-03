@@ -28,7 +28,7 @@ const createPlayer = (position: number): Player => ({
 const createPunishmentAction = (): PunishmentAction => ({
   tool: { name: '手掌', intensity: 1, ratio: 100 },
   bodyPart: { name: '屁股', sensitivity: 1, ratio: 100 },
-  position: { name: '站立', ratio: 100 },
+  position: { name: '站立', ratio: 100, compatibleBodyParts: [] },
   strikes: 5,
   description: '测试惩罚',
 })
