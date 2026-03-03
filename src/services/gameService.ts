@@ -17,6 +17,16 @@ import { devLog } from '../utils/logger'
 export class GameService {
   private static latestBoard: BoardCell[] = []
 
+  static isPositionCompatibleWithBodyPart(
+    position: PunishmentPosition,
+    bodyPart: PunishmentBodyPart
+  ): boolean {
+    if (!position.compatibleBodyParts || position.compatibleBodyParts.length === 0) {
+      return true
+    }
+    return position.compatibleBodyParts.includes(bodyPart.name)
+  }
+
   static createBoard(
     punishmentConfig?: PunishmentConfig,
     boardConfig?: BoardConfig,
@@ -931,9 +941,15 @@ export class GameService {
       )
     }
 
-    // 随机选择姿势
+    // 随机选择姿势（考虑姿势-部位兼容性）
     const positionsArray = this.configToArray(config.positions)
-    const position = this.selectByRatio(positionsArray)
+    const compatiblePositions = positionsArray.filter(p =>
+      this.isPositionCompatibleWithBodyPart(p, bodyPart)
+    )
+    const position =
+      compatiblePositions.length > 0
+        ? this.selectByRatio(compatiblePositions)
+        : this.selectByRatio(positionsArray)
 
     // 在配置的范围内随机生成惩罚次数，确保是步长的倍数
     const minStrikes = Math.max(1, config.minStrikes || 10)
@@ -963,9 +979,9 @@ export class GameService {
     errorMessage?: string
     requiredSensitivity?: number
   } {
-    // 检查是否有可用的工具和部位组合
     const toolsArray = this.configToArray(config.tools)
     const bodyPartsArray = this.configToArray(config.bodyParts)
+    const positionsArray = this.configToArray(config.positions)
 
     for (const tool of toolsArray) {
       const hasValidBodyPart = bodyPartsArray.some(b => b.sensitivity >= tool.intensity)
@@ -984,6 +1000,20 @@ export class GameService {
         return {
           isValid: false,
           errorMessage: `部位"${bodyPart.name}"的耐受度(${bodyPart.sensitivity})过低，没有工具可以使用。需要强度不超过${bodyPart.sensitivity}的工具。`,
+        }
+      }
+    }
+
+    for (const position of positionsArray) {
+      if (position.compatibleBodyParts && position.compatibleBodyParts.length > 0) {
+        const hasCompatibleBodyPart = position.compatibleBodyParts.some(
+          name => name in config.bodyParts
+        )
+        if (!hasCompatibleBodyPart) {
+          return {
+            isValid: false,
+            errorMessage: `姿势"${position.name}"没有兼容的部位。请至少添加一个兼容部位，或修改该姿势的兼容部位设置。`,
+          }
         }
       }
     }
@@ -1012,9 +1042,8 @@ export class GameService {
     count: number = 10
   ): PunishmentCombination[] {
     const combinations: PunishmentCombination[] = []
-    const usedCombinations = new Set<string>() // 用于去重的集合
+    const usedCombinations = new Set<string>()
 
-    // 获取有效的配置项（ratio > 0）
     const validTools = this.configToArray(config.tools).filter(tool => tool.ratio > 0)
     const validBodyParts = this.configToArray(config.bodyParts).filter(
       bodyPart => bodyPart.ratio > 0
@@ -1023,45 +1052,43 @@ export class GameService {
       position => position.ratio > 0
     )
 
-    // 如果任何一类没有有效配置，返回空数组
     if (validTools.length === 0 || validBodyParts.length === 0 || validPositions.length === 0) {
       return []
     }
 
-    // 生成所有可能的有效组合（优先考虑强度限制）
     const allPossibleCombinations: PunishmentCombination[] = []
 
     for (const tool of validTools) {
       for (const bodyPart of validBodyParts) {
-        // 检查工具强度是否适合部位耐受度
         if (tool.intensity <= bodyPart.sensitivity) {
           for (const position of validPositions) {
-            const combination = this.createPunishmentCombinationDefinition(tool, bodyPart, position)
-            allPossibleCombinations.push(combination)
+            if (this.isPositionCompatibleWithBodyPart(position, bodyPart)) {
+              const combination = this.createPunishmentCombinationDefinition(
+                tool,
+                bodyPart,
+                position
+              )
+              allPossibleCombinations.push(combination)
+            }
           }
         }
       }
     }
 
-    // 如果严格限制下的组合数量不足，放宽强度限制（但仍然只使用有效配置）
-    if (allPossibleCombinations.length < count) {
-      allPossibleCombinations.length = 0 // 清空数组
-      for (const tool of validTools) {
-        for (const bodyPart of validBodyParts) {
-          for (const position of validPositions) {
-            const combination = this.createPunishmentCombinationDefinition(tool, bodyPart, position)
-            allPossibleCombinations.push(combination)
-          }
-        }
-      }
+    if (allPossibleCombinations.length === 0) {
+      devLog('警告: 当前配置下无法生成任何合法惩罚组合，请检查工具/部位/姿势兼容性设置')
+      return []
     }
 
-    // 如果组合数量仍然不足，直接返回所有可能的组合
     if (allPossibleCombinations.length <= count) {
+      if (allPossibleCombinations.length < count) {
+        devLog(
+          `注意: 合法组合数(${allPossibleCombinations.length})不足请求数(${count})，已返回全部可用组合`
+        )
+      }
       return allPossibleCombinations
     }
 
-    // 随机选择指定数量的组合，确保不重复
     const shuffled = SecureRandom.shuffle(allPossibleCombinations)
     for (let i = 0; i < Math.min(count, shuffled.length); i++) {
       const combination = shuffled[i]
@@ -1081,9 +1108,8 @@ export class GameService {
     count: number = 10
   ): PunishmentAction[] {
     const combinations: PunishmentAction[] = []
-    const usedCombinations = new Set<string>() // 用于去重的集合
+    const usedCombinations = new Set<string>()
 
-    // 获取有效的配置项（ratio > 0）
     const validTools = this.configToArray(config.tools).filter(tool => tool.ratio > 0)
     const validBodyParts = this.configToArray(config.bodyParts).filter(
       bodyPart => bodyPart.ratio > 0
@@ -1092,48 +1118,32 @@ export class GameService {
       position => position.ratio > 0
     )
 
-    // 如果任何一类没有有效配置，返回空数组
     if (validTools.length === 0 || validBodyParts.length === 0 || validPositions.length === 0) {
       return []
     }
 
-    // 生成所有可能的有效组合（优先考虑强度限制）
     const allPossibleCombinations: PunishmentAction[] = []
 
     for (const tool of validTools) {
       for (const bodyPart of validBodyParts) {
-        // 检查工具强度是否适合部位耐受度
         if (tool.intensity <= bodyPart.sensitivity) {
           for (const position of validPositions) {
-            const combination = this.createPunishmentCombination(tool, bodyPart, position, config)
-            allPossibleCombinations.push(combination)
+            if (this.isPositionCompatibleWithBodyPart(position, bodyPart)) {
+              const combination = this.createPunishmentCombination(tool, bodyPart, position, config)
+              allPossibleCombinations.push(combination)
+            }
           }
         }
       }
     }
 
-    // 如果严格限制下的组合数量不足，放宽强度限制（但仍然只使用有效配置）
-    if (allPossibleCombinations.length < count) {
-      allPossibleCombinations.length = 0 // 清空数组
-      for (const tool of validTools) {
-        for (const bodyPart of validBodyParts) {
-          for (const position of validPositions) {
-            const combination = this.createPunishmentCombination(tool, bodyPart, position, config)
-            allPossibleCombinations.push(combination)
-          }
-        }
-      }
-    }
-
-    // 如果还是没有组合，返回空数组
     if (allPossibleCombinations.length === 0) {
+      devLog('警告: 当前配置下无法生成任何合法惩罚组合，请检查工具/部位/姿势兼容性设置')
       return []
     }
 
-    // 随机打乱所有可能的组合
     const shuffledCombinations = SecureRandom.shuffle(allPossibleCombinations)
 
-    // 选择前count个不重复的组合
     for (const combination of shuffledCombinations) {
       if (combinations.length >= count) break
 
@@ -1145,7 +1155,6 @@ export class GameService {
       }
     }
 
-    // 如果还是不够，允许重复（但仍然只使用有效配置）
     if (combinations.length < count) {
       const remainingCount = count - combinations.length
       for (let i = 0; i < remainingCount; i++) {
@@ -1504,9 +1513,8 @@ export class GameService {
     }
 
     const combinations: PunishmentCombination[] = []
-    const usedCombinations = new Set<string>() // 用于去重的集合
+    const usedCombinations = new Set<string>()
 
-    // 获取有效的配置项（ratio > 0）
     const validTools = this.configToArray(config.tools).filter(tool => tool.ratio > 0)
     const validBodyParts = this.configToArray(config.bodyParts).filter(
       bodyPart => bodyPart.ratio > 0
@@ -1515,41 +1523,40 @@ export class GameService {
       position => position.ratio > 0
     )
 
-    // 如果任何一类没有有效配置，返回空数组
     if (validTools.length === 0 || validBodyParts.length === 0 || validPositions.length === 0) {
       return []
     }
 
-    // 生成所有可能的有效组合（优先考虑强度限制）
     const allPossibleCombinations: PunishmentCombination[] = []
 
     for (const tool of validTools) {
       for (const bodyPart of validBodyParts) {
-        // 检查工具强度是否适合部位耐受度
         if (tool.intensity <= bodyPart.sensitivity) {
           for (const position of validPositions) {
-            const combination = this.createPunishmentCombinationDefinition(tool, bodyPart, position)
-            allPossibleCombinations.push(combination)
+            if (this.isPositionCompatibleWithBodyPart(position, bodyPart)) {
+              const combination = this.createPunishmentCombinationDefinition(
+                tool,
+                bodyPart,
+                position
+              )
+              allPossibleCombinations.push(combination)
+            }
           }
         }
       }
     }
 
-    // 如果严格限制下的组合数量不足，放宽强度限制（但仍然只使用有效配置）
-    if (allPossibleCombinations.length < count) {
-      allPossibleCombinations.length = 0 // 清空数组
-      for (const tool of validTools) {
-        for (const bodyPart of validBodyParts) {
-          for (const position of validPositions) {
-            const combination = this.createPunishmentCombinationDefinition(tool, bodyPart, position)
-            allPossibleCombinations.push(combination)
-          }
-        }
-      }
+    if (allPossibleCombinations.length === 0) {
+      devLog('警告: 当前配置下无法生成任何合法惩罚组合，请检查工具/部位/姿势兼容性设置')
+      return []
     }
 
-    // 如果组合数量仍然不足，直接返回所有可能的组合
     if (allPossibleCombinations.length <= count) {
+      if (allPossibleCombinations.length < count) {
+        devLog(
+          `注意: 合法组合数(${allPossibleCombinations.length})不足请求数(${count})，已返回全部可用组合`
+        )
+      }
       return allPossibleCombinations
     }
 
@@ -1589,6 +1596,7 @@ export class GameService {
       for (let positionIndex = 0; positionIndex < remainingPositions.length; positionIndex++) {
         const position = remainingPositions[positionIndex]
         for (const bodyPart of bodyPartCandidates) {
+          if (!this.isPositionCompatibleWithBodyPart(position, bodyPart)) continue
           const key = `${tool.name}-${bodyPart.name}-${position.name}`
           if (!usedCombinations.has(key)) {
             candidates.push({

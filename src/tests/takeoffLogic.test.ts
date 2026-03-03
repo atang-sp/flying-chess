@@ -28,7 +28,7 @@ describe('起飞逻辑测试', () => {
         屁股: { name: '屁股', sensitivity: 3, ratio: 100 },
       },
       positions: {
-        站立: { name: '站立', ratio: 100 },
+        站立: { name: '站立', ratio: 100, compatibleBodyParts: [] },
       },
       minStrikes: 5,
       maxStrikes: 15,

@@ -24,6 +24,7 @@ export interface PunishmentBodyPart {
 export interface PunishmentPosition {
   name: string
   ratio: number // 出现比例 (0-100)
+  compatibleBodyParts: string[] // 兼容的身体部位名称列表，空数组表示兼容所有
 }
 
 export interface PunishmentConfig {

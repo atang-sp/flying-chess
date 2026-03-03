@@ -450,10 +450,11 @@
       // 更新现有姿势的比例
       positionsArray.forEach(p => (p.ratio = ratio))
 
-      // 创建新姿势
+      // 创建新姿势（默认兼容所有当前部位）
       const newPosition: PunishmentPosition = {
         name: positionName,
         ratio,
+        compatibleBodyParts: Object.keys(localConfig.value.bodyParts),
       }
 
       // 添加新姿势
@@ -475,6 +476,43 @@
         showErrorModal.value = true
         emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
       }
+    }
+  }
+
+  const isBodyPartCompatible = (position: PunishmentPosition, bodyPartName: string): boolean => {
+    if (!position.compatibleBodyParts || position.compatibleBodyParts.length === 0) {
+      return true
+    }
+    return position.compatibleBodyParts.includes(bodyPartName)
+  }
+
+  const toggleCompatibleBodyPart = async (positionName: string, bodyPartName: string) => {
+    const position = localConfig.value.positions[positionName]
+    if (!position) return
+
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+
+    if (!position.compatibleBodyParts || position.compatibleBodyParts.length === 0) {
+      const allNames = Object.values(localConfig.value.bodyParts).map(bp => bp.name)
+      position.compatibleBodyParts = allNames.filter(n => n !== bodyPartName)
+    } else {
+      const idx = position.compatibleBodyParts.indexOf(bodyPartName)
+      if (idx >= 0) {
+        position.compatibleBodyParts.splice(idx, 1)
+      } else {
+        position.compatibleBodyParts.push(bodyPartName)
+      }
+    }
+
+    const validation = GameService.validatePunishmentConfig(localConfig.value)
+    if (validation.isValid) {
+      emit('update', localConfig.value)
+    } else {
+      localConfig.value = originalConfig
+      errorMessage.value = validation.errorMessage || '配置验证失败'
+      requiredSensitivity.value = validation.requiredSensitivity
+      showErrorModal.value = true
+      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
     }
   }
 
@@ -758,6 +796,25 @@
                   @input="onPositionRatioInput(idx, Math.round(position.ratio / 5) * 5)"
                 />
               </div>
+
+              <div class="stat-item compatible-body-parts">
+                <span class="stat-label">兼容部位</span>
+                <div class="body-part-chips">
+                  <label
+                    v-for="bp in Object.values(localConfig.bodyParts)"
+                    :key="bp.name"
+                    class="chip-label"
+                    :class="{ active: isBodyPartCompatible(position, bp.name) }"
+                  >
+                    <input
+                      type="checkbox"
+                      :checked="isBodyPartCompatible(position, bp.name)"
+                      @change="toggleCompatibleBodyPart(position.name, bp.name)"
+                    />
+                    {{ bp.name }}
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -988,6 +1045,47 @@
     font-size: 0.85rem;
     color: #666;
     min-width: 60px;
+  }
+
+  .compatible-body-parts {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .body-part-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.3rem;
+  }
+
+  .chip-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    background: #f5f5f5;
+    color: #666;
+    transition: all 0.2s ease;
+    user-select: none;
+  }
+
+  .chip-label input[type='checkbox'] {
+    display: none;
+  }
+
+  .chip-label.active {
+    background: #4ecdc4;
+    color: white;
+    border-color: #44a08d;
+  }
+
+  .chip-label:hover {
+    border-color: #4ecdc4;
   }
 
   .stat-controls {

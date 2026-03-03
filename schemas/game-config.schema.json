@@ -213,6 +213,15 @@
           "minimum": 1,
           "maximum": 100,
           "description": "姿势选择概率权重"
+        },
+        "compatibleBodyParts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "description": "兼容的身体部位名称列表，空数组表示兼容所有部位"
         }
       }
     },
