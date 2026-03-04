@@ -57,6 +57,8 @@ export default defineConfig(async ({ command, mode }) => {
     base: '/flying-chess/',
     test: {
       setupFiles: ['src/tests/setup.ts'],
+      include: ['src/tests/**/*.test.ts'],
+      exclude: ['scripts/**', '**/e2e/**', 'node_modules/**'],
     },
     server: {
       // 允许内网访问
