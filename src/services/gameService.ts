@@ -13,6 +13,7 @@ import type {
 import { GAME_CONFIG } from '../config/gameConfig'
 import { SecureRandom } from '../utils/secureRandom'
 import { devLog } from '../utils/logger'
+import { createCompatiblePunishmentAction } from './ruleResolution'
 
 type BoardEffectCountField = Exclude<keyof BoardConfig, 'totalCells'>
 
@@ -139,30 +140,7 @@ export class GameService {
 
     // 填充惩罚格子
     punishmentPositions.forEach(pos => {
-      const tool = this.selectByRatio(this.configToArray(config.tools))
-      const bodyPart = this.selectByRatio(this.configToArray(config.bodyParts))
-      const position = this.selectByRatio(this.configToArray(config.positions))
-
-      // 在配置的范围内随机生成惩罚次数，确保是步长的倍数
-      const minStrikes = Math.max(1, config.minStrikes || 10)
-      const maxStrikes = Math.max(minStrikes, config.maxStrikes || 30)
-      const step = config.step || 5
-
-      // 确保最小值和最大值都是步长的倍数
-      const minMultiple = Math.ceil(minStrikes / step)
-      const maxMultiple = Math.floor(maxStrikes / step)
-
-      // 在有效的倍数范围内随机选择
-      const randomMultiple = SecureRandom.randomInt(minMultiple, maxMultiple)
-      const strikes = randomMultiple * step
-
-      const punishment: PunishmentAction = {
-        tool,
-        bodyPart,
-        position,
-        strikes,
-        description: `用${tool.name}打${bodyPart.name}${strikes}下，姿势：${position.name}`,
-      }
+      const punishment = createCompatiblePunishmentAction(config)
 
       cellMap.set(pos, {
         id: pos,
@@ -553,22 +531,7 @@ export class GameService {
         }
 
         // 未达到上限，继续惩罚流程
-        const tool = this.selectByRatio(this.configToArray(punishmentConfig.tools))
-        const bodyPart = this.selectByRatio(this.configToArray(punishmentConfig.bodyParts))
-        const position = this.selectByRatio(this.configToArray(punishmentConfig.positions))
-
-        // 生成惩罚次数，确保是步长的倍数
-        const minStrikes = Math.max(1, punishmentConfig.minStrikes || 10)
-        const maxStrikes = Math.max(minStrikes, punishmentConfig.maxStrikes || 30)
-        const step = punishmentConfig.step || 5
-
-        // 确保最小值和最大值都是步长的倍数
-        const minMultiple = Math.ceil(minStrikes / step)
-        const maxMultiple = Math.floor(maxStrikes / step)
-
-        // 在有效的倍数范围内随机选择
-        const randomMultiple = SecureRandom.randomInt(minMultiple, maxMultiple)
-        const strikes = randomMultiple * step
+        const generatedPunishment = createCompatiblePunishmentAction(punishmentConfig)
 
         // 计算惩罚执行者 - 等概率随机选择其他玩家
         const otherPlayersCount = totalPlayers - 1
@@ -585,11 +548,8 @@ export class GameService {
         }
 
         punishment = {
-          tool,
-          bodyPart,
-          position,
-          strikes,
-          description: `未起飞，被惩罚：用${tool.name}打${bodyPart.name}${strikes}下，姿势：${position.name}`,
+          ...generatedPunishment,
+          description: `未起飞，被惩罚：${generatedPunishment.description}`,
         }
 
         effect = `未起飞！被惩罚`
