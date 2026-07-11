@@ -37,6 +37,10 @@ export class GameService {
     const boardConf = boardConfig || GAME_CONFIG.DEFAULT_BOARD_CONFIG
     const traps = customTraps || this.trapsToArray(GAME_CONFIG.DEFAULT_TRAPS)
 
+    if (!this.validateBoardConfig(boardConf)) {
+      throw new Error('棋盘配置无效：格子数量必须为整数，且需要为起点和终点预留两个格子')
+    }
+
     // 始终使用随机分配逻辑，确保所有格子都严格按照棋盘配置来生成
     const board = this.createBoardRandom(config, boardConf, traps)
     this.latestBoard = board
@@ -393,23 +397,22 @@ export class GameService {
   }
 
   static validateBoardConfig(config: BoardConfig): boolean {
-    const totalUsed =
-      config.punishmentCells +
-      config.bonusCells +
-      config.reverseCells +
-      config.restCells +
-      config.restartCells +
-      config.trapCells
+    const assignedCounts = [
+      config.punishmentCells,
+      config.bonusCells,
+      config.reverseCells,
+      config.restCells,
+      config.restartCells,
+      config.trapCells,
+    ]
+    const totalUsed = assignedCounts.reduce((sum, count) => sum + count, 0)
 
     return (
-      totalUsed <= config.totalCells &&
-      config.punishmentCells >= 0 &&
-      config.bonusCells >= 0 &&
-      config.reverseCells >= 0 &&
-      config.restCells >= 0 &&
-      config.restartCells >= 0 &&
-      config.trapCells >= 0 &&
-      config.totalCells >= 20
+      Number.isInteger(config.totalCells) &&
+      config.totalCells >= 20 &&
+      config.totalCells <= 100 &&
+      assignedCounts.every(count => Number.isInteger(count) && count >= 0) &&
+      totalUsed <= config.totalCells - 2
     )
   }
 

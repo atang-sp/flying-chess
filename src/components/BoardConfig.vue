@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { ref, computed } from 'vue'
   import type { BoardConfig } from '../types/game'
+  import { GameService } from '../services/gameService'
 
   interface Props {
     config: BoardConfig
@@ -30,24 +31,23 @@
 
   // 检查配置是否有效
   const isConfigValid = computed(() => {
-    return (
-      remainingCells.value >= 0 &&
-      localConfig.value.punishmentCells >= 0 &&
-      localConfig.value.bonusCells >= 0 &&
-      localConfig.value.reverseCells >= 0 &&
-      localConfig.value.restCells >= 0 &&
-      localConfig.value.restartCells >= 0 &&
-      localConfig.value.trapCells >= 0
-    )
+    return GameService.validateBoardConfig(localConfig.value)
   })
 
   // 更新配置
   const updateConfig = () => {
-    emit('update', { ...localConfig.value })
+    if (isConfigValid.value) {
+      emit('update', { ...localConfig.value })
+    }
   }
 
   // 处理输入变化，自动调整后面格子
   const handleCellInput = (field: keyof BoardConfig) => {
+    if (field === 'totalCells') {
+      updateConfig()
+      return
+    }
+
     // 顺序：punishmentCells -> bonusCells -> reverseCells -> restCells -> restartCells -> trapCells
     const order: (keyof BoardConfig)[] = [
       'punishmentCells',
@@ -65,8 +65,9 @@
       used += Number(localConfig.value[order[i]])
     }
     // 如果超出总格子数，依次减少后面项
-    if (used > localConfig.value.totalCells) {
-      let remain = used - localConfig.value.totalCells
+    const assignableCells = localConfig.value.totalCells - 2
+    if (used > assignableCells) {
+      let remain = used - assignableCells
       for (let i = idx + 1; i < order.length; i++) {
         const v = Number(localConfig.value[order[i]])
         if (v >= remain) {
