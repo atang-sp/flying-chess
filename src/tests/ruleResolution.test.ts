@@ -24,6 +24,17 @@ const players: Player[] = [
   },
 ]
 
+const threePlayers: Player[] = [
+  ...players,
+  {
+    id: 3,
+    name: '绿方',
+    color: '#22c55e',
+    position: 10,
+    isWinner: false,
+  },
+]
+
 const boardAction: PunishmentAction = {
   tool: { name: '皮拍', intensity: 3, ratio: 100 },
   bodyPart: { name: '臀部', sensitivity: 4, ratio: 100 },
@@ -70,6 +81,7 @@ describe('规则结果解析', () => {
       source: 'board_punishment',
       actorIndex: 1,
       players,
+      punishmentConfig: compatibilityConfig,
       boardAction,
     })
 
@@ -120,5 +132,61 @@ describe('规则结果解析', () => {
       ).toBe(true)
       expect((action?.strikes ?? 0) % compatibilityConfig.step).toBe(0)
     }
+  })
+
+  it.each([
+    ['previous_player', 0, 2],
+    ['next_player', 2, 0],
+    ['previous_player', 0, 0],
+  ] as const)('按环状玩家顺序解析 %s 目标', (dynamicType, actorIndex, targetPlayerIndex) => {
+    const activePlayers = actorIndex === 0 && targetPlayerIndex === 0 ? [players[0]] : threePlayers
+    const result = resolveRule({
+      source: 'board_punishment',
+      actorIndex,
+      players: activePlayers,
+      punishmentConfig: compatibilityConfig,
+      boardAction: { ...boardAction, dynamicType },
+    })
+
+    expect(result.targetPlayerIndex).toBe(targetPlayerIndex)
+  })
+
+  it('把骰子倍数规则解析为固定次数', () => {
+    const result = resolveRule({
+      source: 'board_punishment',
+      actorIndex: 1,
+      players: threePlayers,
+      punishmentConfig: compatibilityConfig,
+      diceValue: 4,
+      boardAction: { ...boardAction, dynamicType: 'dice_multiplier', multiplier: 3 },
+    })
+
+    expect(result).toMatchObject({
+      targetPlayerIndex: 1,
+      count: { kind: 'fixed', value: 12 },
+      action: { strikes: 12 },
+    })
+  })
+
+  it('把其他玩家决定次数保留为待外部决定状态', () => {
+    const result = resolveRule({
+      source: 'board_punishment',
+      actorIndex: 1,
+      players: threePlayers,
+      punishmentConfig: compatibilityConfig,
+      boardAction: { ...boardAction, dynamicType: 'other_player_choice' },
+    })
+
+    expect(result).toMatchObject({
+      targetPlayerIndex: 1,
+      action: { strikes: undefined },
+      count: {
+        kind: 'awaiting_external_count',
+        minimum: 5,
+        maximum: 15,
+        step: 5,
+        eligibleChooserIndices: [0, 2],
+      },
+    })
   })
 })

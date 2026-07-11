@@ -5,6 +5,7 @@ import type {
   PunishmentConfig,
   PunishmentPosition,
   PunishmentTool,
+  ResolvedPunishmentAction,
   ResolvedPunishmentResult,
 } from '../types/game'
 import { SecureRandom } from '../utils/secureRandom'
@@ -14,12 +15,16 @@ export type PunishmentRuleInput =
       source: 'board_punishment'
       actorIndex: number
       players: readonly Player[]
+      punishmentConfig: PunishmentConfig
+      diceValue?: number
       boardAction: PunishmentAction
     }
   | {
       source: 'takeoff_failure'
       actorIndex: number
       players: readonly Player[]
+      punishmentConfig: PunishmentConfig
+      diceValue?: number
       punishmentAction: PunishmentAction
     }
 
@@ -110,9 +115,13 @@ export const createCompatiblePunishmentAction = (
   }
 }
 
-const copyAction = (action: PunishmentAction): Readonly<PunishmentAction> =>
+const copyAction = (
+  action: PunishmentAction,
+  strikes: number | undefined
+): ResolvedPunishmentAction =>
   Object.freeze({
     ...action,
+    strikes,
     tool: Object.freeze({ ...action.tool }),
     bodyPart: Object.freeze({ ...action.bodyPart }),
     position: Object.freeze({
@@ -127,18 +136,54 @@ export const resolveRule = (input: PunishmentRuleInput): ResolvedPunishmentResul
   }
 
   const action = input.source === 'board_punishment' ? input.boardAction : input.punishmentAction
-  const strikes = action.strikes
-  if (strikes === undefined) {
-    throw new Error('静态惩罚动作需要固定次数')
+  const playerCount = input.players.length
+  let targetPlayerIndex = input.actorIndex
+  let actionStrikes = action.strikes
+  let count: ResolvedPunishmentResult['count'] | undefined
+
+  switch (action.dynamicType) {
+    case 'dice_multiplier': {
+      if (input.diceValue === undefined || action.multiplier === undefined) {
+        throw new Error('骰子倍数惩罚需要骰子点数和倍数')
+      }
+      actionStrikes = input.diceValue * action.multiplier
+      count = Object.freeze({ kind: 'fixed', value: actionStrikes })
+      break
+    }
+    case 'previous_player':
+      targetPlayerIndex = (input.actorIndex + playerCount - 1) % playerCount
+      break
+    case 'next_player':
+      targetPlayerIndex = (input.actorIndex + 1) % playerCount
+      break
+    case 'other_player_choice':
+      actionStrikes = undefined
+      count = Object.freeze({
+        kind: 'awaiting_external_count',
+        minimum: input.punishmentConfig.minStrikes,
+        maximum: input.punishmentConfig.maxStrikes,
+        step: input.punishmentConfig.step,
+        eligibleChooserIndices: input.players.flatMap((_, index) =>
+          index === input.actorIndex ? [] : [index]
+        ),
+      })
+      break
+  }
+
+  if (!count) {
+    if (actionStrikes === undefined) {
+      throw new Error('静态惩罚动作需要固定次数')
+    }
+    count = Object.freeze({ kind: 'fixed', value: actionStrikes })
   }
 
   return Object.freeze({
     kind: 'punishment',
     source: input.source,
     actorIndex: input.actorIndex,
-    targetPlayerIndex: input.actorIndex,
-    action: copyAction(action),
-    count: Object.freeze({ kind: 'fixed', value: strikes }),
+    targetPlayerIndex,
+    action: copyAction(action, actionStrikes),
+    count,
     turnConsequence: Object.freeze({ kind: 'none' }),
   })
 }

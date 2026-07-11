@@ -77,13 +77,23 @@ export type TurnConsequence =
   | Readonly<{ kind: 'none' }>
   | Readonly<{ kind: 'skip_next_turns'; count: number }>
 
+export type ResolvedPunishmentAction = Readonly<
+  Omit<PunishmentAction, 'tool' | 'bodyPart' | 'position'>
+> & {
+  readonly tool: Readonly<PunishmentTool>
+  readonly bodyPart: Readonly<PunishmentBodyPart>
+  readonly position: Readonly<Omit<PunishmentPosition, 'compatibleBodyParts'>> & {
+    readonly compatibleBodyParts: readonly string[]
+  }
+}
+
 export interface ResolvedPunishmentResult {
   readonly kind: 'punishment'
   readonly source: 'takeoff_failure' | 'board_punishment'
   readonly actorIndex: number
   readonly targetPlayerIndex: number
   readonly executorIndex?: number
-  readonly action: Readonly<PunishmentAction>
+  readonly action: ResolvedPunishmentAction
   readonly count: ResolvedPunishmentCount
   readonly turnConsequence: TurnConsequence
 }
