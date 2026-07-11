@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { ref, onMounted, onUnmounted, watch } from 'vue'
-  import { savePlayerSettings, loadPlayerSettings } from '../utils/cache'
+  import { savePlayerSettings, loadPlayerSettings, clearAllLocalGameData } from '../utils/cache'
   import { SecureRandom } from '../utils/secureRandom'
   import { devLog } from '../utils/logger'
   import VersionDisplay from './VersionDisplay.vue'
@@ -77,15 +77,7 @@
   // 清空缓存功能
   const clearCache = () => {
     try {
-      // 清空localStorage中的引导相关数据
-      localStorage.removeItem('hasShownGuide')
-      localStorage.removeItem('autoGuideEnabled')
-
-      // 清空玩家设置缓存
-      localStorage.removeItem('playerSettings')
-
-      // 清空游戏配置缓存
-      localStorage.removeItem('gameConfig')
+      clearAllLocalGameData()
 
       // 显示成功提示
       showClearSuccess.value = true
@@ -95,7 +87,7 @@
         showClearSuccess.value = false
       }, 3000)
 
-      devLog('缓存已清空，引导将重新触发')
+      devLog('本地游戏数据已清空')
     } catch (error) {
       console.error('清空缓存时出错:', error)
     }
@@ -335,19 +327,19 @@
         <div class="cache-controls">
           <button
             class="clear-cache-btn"
-            title="清空所有缓存数据，重新触发引导"
+            title="清除保存在此设备上的游戏配置、玩家设置和引导偏好"
             @click="clearCache"
           >
             <span class="btn-icon">🧹</span>
-            <span class="btn-text">重置新手引导</span>
+            <span class="btn-text">清除本地游戏数据</span>
           </button>
-          <p class="cache-hint">刷新页面可重新体验新手引导</p>
+          <p class="cache-hint">清除后刷新页面即可从默认配置重新开始</p>
         </div>
 
         <!-- 清空成功提示 -->
         <div v-if="showClearSuccess" class="clear-success-toast">
           <span class="toast-icon">✅</span>
-          <span class="toast-text">已重置！新手引导将重新触发</span>
+          <span class="toast-text">本地游戏数据已清除</span>
         </div>
       </div>
     </div>

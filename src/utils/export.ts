@@ -16,6 +16,7 @@ import {
   loadConfig,
   savePlayerSettings,
   saveConfig,
+  CONFIG_BACKUP_STORAGE_KEY,
   type CachedConfig,
 } from './cache'
 import { SecureRandom } from './secureRandom'
@@ -423,7 +424,7 @@ function performImport(data: ExportData, options: Partial<ImportOptions> = {}): 
           },
           undefined
         )
-        localStorage.setItem('flying-chess-config-backup', JSON.stringify(backupData))
+        localStorage.setItem(CONFIG_BACKUP_STORAGE_KEY, JSON.stringify(backupData))
       }
     }
 
@@ -586,7 +587,7 @@ export async function importFromQRCode(
 // 恢复备份配置
 export function restoreBackup(): ImportResult {
   try {
-    const backupString = localStorage.getItem('flying-chess-config-backup')
+    const backupString = localStorage.getItem(CONFIG_BACKUP_STORAGE_KEY)
     if (!backupString) {
       return {
         success: false,
