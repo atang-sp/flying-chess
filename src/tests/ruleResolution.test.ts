@@ -85,9 +85,9 @@ const disabledCompatibilityConfig: PunishmentConfig = {
 }
 
 const deterministicRandom = {
-  weightedChoice: <T,>(entries: readonly T[]) => entries[0],
+  weightedChoice: <T>(entries: readonly T[]) => entries[0],
   randomInt: (minimum: number) => minimum,
-  choice: <T,>(entries: readonly T[]) => entries[entries.length - 1],
+  choice: <T>(entries: readonly T[]) => entries[entries.length - 1],
 }
 
 afterEach(() => {
@@ -128,7 +128,10 @@ describe('规则结果解析', () => {
   })
 
   it('忽略会令组合失效的零比例部位和姿势', () => {
-    const action = createCompatiblePunishmentAction(disabledCompatibilityConfig, deterministicRandom)
+    const action = createCompatiblePunishmentAction(
+      disabledCompatibilityConfig,
+      deterministicRandom
+    )
 
     expect(action.tool.name).toBe('低强度工具')
     expect(action.bodyPart.name).toBe('低耐受部位')

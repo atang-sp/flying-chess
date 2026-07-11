@@ -89,8 +89,9 @@ export const createCompatiblePunishmentAction = (
     tool =>
       tool.ratio > 0 &&
       enabledBodyParts.some(
-      bodyPart =>
-          bodyPart.sensitivity >= tool.intensity && hasCompatiblePosition(enabledPositions, bodyPart)
+        bodyPart =>
+          bodyPart.sensitivity >= tool.intensity &&
+          hasCompatiblePosition(enabledPositions, bodyPart)
       )
   )
   const tool = chooseWeighted(viableTools, randomSource)
