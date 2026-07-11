@@ -64,6 +64,81 @@ test('total cell changes update the generated board', async ({ page }, testInfo)
   expect(state).toEqual({ configuredTotalCells: 80, boardLength: 80 })
 })
 
+test('automatic board distribution reserves start and finish', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  await page.locator('.start-btn').click()
+  const totalCellsInput = page.locator('.config-item', { hasText: '总格子数' }).locator('input')
+  await totalCellsInput.fill('80')
+  await page.getByRole('button', { name: /自动分配/ }).click()
+
+  const boardConfig = await page.evaluate(() => {
+    return (
+      window as typeof window & {
+        gameState: {
+          boardConfig: {
+            punishmentCells: number
+            bonusCells: number
+            reverseCells: number
+            restCells: number
+            restartCells: number
+            trapCells: number
+            totalCells: number
+          }
+        }
+      }
+    ).gameState.boardConfig
+  })
+  const assignedCells =
+    boardConfig.punishmentCells +
+    boardConfig.bonusCells +
+    boardConfig.reverseCells +
+    boardConfig.restCells +
+    boardConfig.restartCells +
+    boardConfig.trapCells
+
+  expect(assignedCells).toBe(boardConfig.totalCells - 2)
+})
+
+test('default board reports no unassigned effect cells', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  await page.locator('.start-btn').click()
+
+  await expect(page.getByText('剩余可用格子：0 格')).toBeVisible()
+})
+
+test('movement watchdog preserves a turn while a trap overlay is active', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: { gameStatus: string }
+      showTrapDisplay: { value: boolean }
+    }
+    debugWindow.gameState.gameStatus = 'moving'
+    debugWindow.showTrapDisplay.value = true
+  })
+
+  // 先让 watchdog 运行一次，再把时间推进超过恢复阈值。
+  await page.waitForTimeout(2200)
+  await page.evaluate(() => {
+    const future = Date.now() + 6000
+    Date.now = () => future
+  })
+  await page.waitForTimeout(2200)
+
+  const status = await page.evaluate(() => {
+    return (window as typeof window & { gameState: { gameStatus: string } }).gameState.gameStatus
+  })
+  expect(status).toBe('moving')
+})
+
 test('clear local game data removes every persisted game key', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chrome')
 

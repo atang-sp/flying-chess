@@ -475,20 +475,16 @@ export function importFromJson(
   jsonString: string,
   options: Partial<ImportOptions> = {}
 ): ImportResult {
-  const importOptions = { ...DEFAULT_IMPORT_OPTIONS, ...options }
-
   try {
     // 解析JSON
     const data = JSON.parse(jsonString)
 
-    // 验证数据
-    if (importOptions.validateData) {
-      const validation = validateImportData(data)
-      if (!validation.isValid) {
-        return {
-          success: false,
-          error: `数据验证失败: ${validation.errors.join(', ')}`,
-        }
+    // 所有公共导入都必须先验证，避免任何选项绕过持久化边界
+    const validation = validateImportData(data)
+    if (!validation.isValid) {
+      return {
+        success: false,
+        error: `数据验证失败: ${validation.errors.join(', ')}`,
       }
     }
 

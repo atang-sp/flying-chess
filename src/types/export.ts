@@ -77,7 +77,7 @@ export interface QRCodeOptions {
 
 // 导入选项
 export interface ImportOptions {
-  validateData: boolean // 是否验证数据
+  validateData: boolean // 向后兼容字段；公共导入始终验证数据
   mergeMode: 'replace' | 'merge' | 'selective' // 导入模式
   backupCurrent: boolean // 是否备份当前配置
 }

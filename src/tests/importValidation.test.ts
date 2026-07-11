@@ -116,6 +116,27 @@ describe('导入配置校验', () => {
     expect(validateImportData(data).isValid).toBe(false)
   })
 
+  it.each(['tools', 'bodyParts', 'positions'] as const)('拒绝所有 %s 权重均为零', field => {
+    const data = cloneValidImport()
+    const entries = data.data.punishmentConfig[field] as Record<string, { ratio: number }>
+    Object.values(entries).forEach(entry => {
+      entry.ratio = 0
+    })
+
+    expect(validateImportData(data).isValid).toBe(false)
+  })
+
+  it('拒绝旧数组格式中全部为零的权重', () => {
+    const data = cloneValidImport()
+    data.data.punishmentConfig.tools = [{ name: '手掌', intensity: 2, ratio: 0 }] as never
+    data.data.punishmentConfig.bodyParts = [{ name: '手心', sensitivity: 3, ratio: 0 }] as never
+    data.data.punishmentConfig.positions = [
+      { name: '站立', ratio: 0, compatibleBodyParts: ['手心'] },
+    ] as never
+
+    expect(validateImportData(data).isValid).toBe(false)
+  })
+
   it('无效数据不会改写现有本地存储', () => {
     const values = new Map<string, string>([
       ['ludo_game_config', 'existing-config'],
@@ -132,6 +153,27 @@ describe('导入配置校验', () => {
     data.data.boardConfig.totalCells = 19
 
     const result = importFromJson(JSON.stringify(data))
+
+    expect(result.success).toBe(false)
+    expect([...values.entries()]).toEqual(before)
+  })
+
+  it('即使调用方关闭校验选项，无效数据仍不会写入本地存储', () => {
+    const values = new Map<string, string>([
+      ['ludo_game_config', 'existing-config'],
+      ['ludo_player_settings', 'existing-players'],
+      ['flying-chess-config-backup', 'existing-backup'],
+    ])
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    })
+    const before = [...values.entries()]
+    const data = cloneValidImport()
+    data.data.boardConfig.totalCells = 19
+
+    const result = importFromJson(JSON.stringify(data), { validateData: false })
 
     expect(result.success).toBe(false)
     expect([...values.entries()]).toEqual(before)

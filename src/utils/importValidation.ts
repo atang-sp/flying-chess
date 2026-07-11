@@ -66,6 +66,18 @@ function readNamedEntries(raw: unknown, path: string, errors: string[]): NamedEn
   })
 }
 
+function requirePositiveWeight(entries: NamedEntry[], path: string, errors: string[]): void {
+  if (
+    entries.length > 0 &&
+    !entries.some(({ value }) => validateWeightWithoutReporting(value.ratio))
+  ) {
+    errors.push(`${path} 至少需要一个大于 0 的 ratio`)
+  }
+}
+
+const validateWeightWithoutReporting = (value: unknown): boolean =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= 100
+
 function validatePlayerSettings(raw: unknown, errors: string[]): void {
   if (!isRecord(raw)) {
     errors.push('data.playerSettings 必须是对象')
@@ -132,6 +144,7 @@ function validatePunishmentConfig(raw: unknown, errors: string[]): void {
       max: 100,
     })
   })
+  requirePositiveWeight(tools, 'data.punishmentConfig.tools', errors)
 
   bodyParts.forEach(({ name, value }) => {
     validateNumber(
@@ -145,6 +158,7 @@ function validatePunishmentConfig(raw: unknown, errors: string[]): void {
       max: 100,
     })
   })
+  requirePositiveWeight(bodyParts, 'data.punishmentConfig.bodyParts', errors)
 
   const bodyPartNames = new Set(bodyParts.map(entry => entry.name))
   positions.forEach(({ name, value }) => {
@@ -169,6 +183,7 @@ function validatePunishmentConfig(raw: unknown, errors: string[]): void {
       }
     })
   })
+  requirePositiveWeight(positions, 'data.punishmentConfig.positions', errors)
 
   const minStrikes = raw.minStrikes
   const maxStrikes = raw.maxStrikes
