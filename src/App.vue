@@ -33,6 +33,11 @@
   import { saveConfig, loadConfig, loadPlayerSettings } from './utils/cache'
   import { SecureRandom } from './utils/secureRandom'
   import { devLog } from './utils/logger'
+  import {
+    hasBlockingOverlay,
+    shouldRecoverMovingState,
+    type BlockingOverlayState,
+  } from './services/gameStateHealth'
   import { usePlayerState } from './composables/usePlayerState'
   import { usePunishmentConfigNormalizer } from './composables/usePunishmentConfigNormalizer'
   import { useImportFeedbackDialog } from './composables/useImportFeedbackDialog'
@@ -349,11 +354,24 @@
 
   // 状态检查机制
   const checkGameStateHealth = () => {
+    const blockingOverlays: BlockingOverlayState = {
+      takeoffPunishment: showTakeoffPunishmentDisplay.value,
+      trap: showTrapDisplay.value,
+      bounce: showBounceDisplay.value,
+      takeoffRelief: showTakeoffReliefDisplay.value,
+    }
+
     // 检查是否卡在 moving 状态超过 5 秒
-    if (gameState.gameStatus === 'moving' && !showTakeoffPunishmentDisplay.value) {
+    if (gameState.gameStatus === 'moving' && !hasBlockingOverlay(blockingOverlays)) {
       if (movingStateEnteredAt.value === null) {
         movingStateEnteredAt.value = Date.now()
-      } else if (Date.now() - movingStateEnteredAt.value > 5000) {
+      } else if (
+        shouldRecoverMovingState(
+          gameState.gameStatus,
+          Date.now() - movingStateEnteredAt.value,
+          blockingOverlays
+        )
+      ) {
         console.warn('检测到游戏卡在moving状态超过5秒，正在重置...')
         movingStateEnteredAt.value = null
         resetGameStateOnError()
@@ -412,9 +430,15 @@
     // 初始化后尝试读取本地缓存配置并应用
     const cached = loadConfig()
     if (cached) {
+      let shouldRepairCachedConfig = false
       if (cached.boardConfig) {
-        gameState.boardConfig = cached.boardConfig
-        devLog('已加载棋盘配置:', cached.boardConfig)
+        if (GameService.validateBoardConfig(cached.boardConfig)) {
+          gameState.boardConfig = cached.boardConfig
+          devLog('已加载棋盘配置:', cached.boardConfig)
+        } else {
+          shouldRepairCachedConfig = true
+          console.warn('忽略不兼容的旧棋盘配置，已恢复默认棋盘')
+        }
       }
       if (cached.punishmentConfig) {
         gameState.punishmentConfig = normalizePunishmentConfig(cached.punishmentConfig)
@@ -423,6 +447,14 @@
       if (cached.trapConfig) {
         trapConfig.value = cached.trapConfig
         devLog('已加载机关配置:', cached.trapConfig)
+      }
+
+      if (shouldRepairCachedConfig) {
+        saveConfig({
+          boardConfig: gameState.boardConfig,
+          punishmentConfig: gameState.punishmentConfig,
+          trapConfig: trapConfig.value,
+        })
       }
 
       // 根据缓存重新生成棋盘
@@ -464,6 +496,7 @@
         showTrapDisplay: typeof showTrapDisplay
         currentTrapPunishment: typeof currentTrapPunishment
         currentTrapDescription: typeof currentTrapDescription
+        checkGameStateHealth: typeof checkGameStateHealth
       }
 
       debugWindow.gameState = gameState
@@ -487,6 +520,7 @@
       debugWindow.showTrapDisplay = showTrapDisplay
       debugWindow.currentTrapPunishment = currentTrapPunishment
       debugWindow.currentTrapDescription = currentTrapDescription
+      debugWindow.checkGameStateHealth = checkGameStateHealth
     }
 
     // 从localStorage恢复设置

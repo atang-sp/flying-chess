@@ -1,7 +1,16 @@
-import { BoardConfig, PunishmentConfig, TrapAction } from '../types/game'
+import type { BoardConfig, PunishmentConfig, TrapAction } from '../types/game'
 
 // 缓存键名
-const STORAGE_KEY = 'ludo_game_config'
+export const GAME_CONFIG_STORAGE_KEY = 'ludo_game_config'
+export const PLAYER_SETTINGS_STORAGE_KEY = 'ludo_player_settings'
+export const CONFIG_BACKUP_STORAGE_KEY = 'flying-chess-config-backup'
+export const LOCAL_GAME_STORAGE_KEYS = [
+  GAME_CONFIG_STORAGE_KEY,
+  PLAYER_SETTINGS_STORAGE_KEY,
+  CONFIG_BACKUP_STORAGE_KEY,
+  'hasShownGuide',
+  'autoGuideEnabled',
+] as const
 // 12 个月有效期（毫秒）
 const DEFAULT_TTL = 1000 * 60 * 60 * 24 * 365
 
@@ -18,7 +27,7 @@ export interface CachedConfig {
 export function saveConfig(data: Omit<CachedConfig, 'savedAt'>) {
   const payload: CachedConfig = { ...data, savedAt: Date.now() }
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
+    localStorage.setItem(GAME_CONFIG_STORAGE_KEY, JSON.stringify(payload))
   } catch (err) {
     console.warn('保存配置到 localStorage 失败:', err)
   }
@@ -30,13 +39,13 @@ export function saveConfig(data: Omit<CachedConfig, 'savedAt'>) {
  * @returns 配置或 null
  */
 export function loadConfig(ttl: number = DEFAULT_TTL): CachedConfig | null {
-  const raw = localStorage.getItem(STORAGE_KEY)
+  const raw = localStorage.getItem(GAME_CONFIG_STORAGE_KEY)
   if (!raw) return null
   try {
     const cached: CachedConfig = JSON.parse(raw)
     if (Date.now() - cached.savedAt > ttl) {
       // 过期，清理
-      localStorage.removeItem(STORAGE_KEY)
+      localStorage.removeItem(GAME_CONFIG_STORAGE_KEY)
       return null
     }
     return cached
@@ -50,7 +59,11 @@ export function loadConfig(ttl: number = DEFAULT_TTL): CachedConfig | null {
  * 清除本地缓存配置
  */
 export function clearConfig() {
-  localStorage.removeItem(STORAGE_KEY)
+  localStorage.removeItem(GAME_CONFIG_STORAGE_KEY)
+}
+
+export function clearAllLocalGameData(storage: Pick<Storage, 'removeItem'> = localStorage): void {
+  LOCAL_GAME_STORAGE_KEYS.forEach(key => storage.removeItem(key))
 }
 
 // ================= 玩家设置缓存 =================
@@ -60,18 +73,16 @@ export interface PlayerSettings {
   playerNames: string[]
 }
 
-const PLAYER_KEY = 'ludo_player_settings'
-
 export function savePlayerSettings(settings: PlayerSettings) {
   try {
-    localStorage.setItem(PLAYER_KEY, JSON.stringify(settings))
+    localStorage.setItem(PLAYER_SETTINGS_STORAGE_KEY, JSON.stringify(settings))
   } catch (err) {
     console.warn('保存玩家设置失败:', err)
   }
 }
 
 export function loadPlayerSettings(): PlayerSettings | null {
-  const raw = localStorage.getItem(PLAYER_KEY)
+  const raw = localStorage.getItem(PLAYER_SETTINGS_STORAGE_KEY)
   if (!raw) return null
   try {
     return JSON.parse(raw) as PlayerSettings

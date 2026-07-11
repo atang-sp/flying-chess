@@ -16,10 +16,12 @@ import {
   loadConfig,
   savePlayerSettings,
   saveConfig,
+  CONFIG_BACKUP_STORAGE_KEY,
   type CachedConfig,
 } from './cache'
 import { SecureRandom } from './secureRandom'
 import { devLog } from './logger'
+import { validateImportedConfigData } from './importValidation'
 import type { QRCodeToDataURLOptions } from 'qrcode'
 import QRCode from 'qrcode'
 import jsQR from 'jsqr'
@@ -369,24 +371,7 @@ export function validateImportData(data: unknown): ValidationResult {
 
   const configData = rawConfigData as Record<string, unknown>
 
-  // 验证玩家设置
-  const rawPlayerSettings = configData.playerSettings
-  if (rawPlayerSettings && typeof rawPlayerSettings === 'object') {
-    const playerSettings = rawPlayerSettings as { playerCount?: unknown; playerNames?: unknown }
-    if (
-      typeof playerSettings.playerCount !== 'number' ||
-      playerSettings.playerCount < 2 ||
-      playerSettings.playerCount > 4
-    ) {
-      errors.push('玩家数量必须在2-4之间')
-    }
-    if (
-      !Array.isArray(playerSettings.playerNames) ||
-      playerSettings.playerNames.length !== playerSettings.playerCount
-    ) {
-      errors.push('玩家姓名数量与玩家数量不匹配')
-    }
-  }
+  errors.push(...validateImportedConfigData(configData))
 
   return {
     isValid: errors.length === 0,
@@ -423,7 +408,7 @@ function performImport(data: ExportData, options: Partial<ImportOptions> = {}): 
           },
           undefined
         )
-        localStorage.setItem('flying-chess-config-backup', JSON.stringify(backupData))
+        localStorage.setItem(CONFIG_BACKUP_STORAGE_KEY, JSON.stringify(backupData))
       }
     }
 
@@ -490,20 +475,16 @@ export function importFromJson(
   jsonString: string,
   options: Partial<ImportOptions> = {}
 ): ImportResult {
-  const importOptions = { ...DEFAULT_IMPORT_OPTIONS, ...options }
-
   try {
     // 解析JSON
     const data = JSON.parse(jsonString)
 
-    // 验证数据
-    if (importOptions.validateData) {
-      const validation = validateImportData(data)
-      if (!validation.isValid) {
-        return {
-          success: false,
-          error: `数据验证失败: ${validation.errors.join(', ')}`,
-        }
+    // 所有公共导入都必须先验证，避免任何选项绕过持久化边界
+    const validation = validateImportData(data)
+    if (!validation.isValid) {
+      return {
+        success: false,
+        error: `数据验证失败: ${validation.errors.join(', ')}`,
       }
     }
 
@@ -586,7 +567,7 @@ export async function importFromQRCode(
 // 恢复备份配置
 export function restoreBackup(): ImportResult {
   try {
-    const backupString = localStorage.getItem('flying-chess-config-backup')
+    const backupString = localStorage.getItem(CONFIG_BACKUP_STORAGE_KEY)
     if (!backupString) {
       return {
         success: false,

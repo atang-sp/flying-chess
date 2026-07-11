@@ -23,7 +23,8 @@
     "validate-config": "node scripts/validate-config.js",
     "validate-demo": "node scripts/validate-config.js configs/exported-config-demo.json",
     "validate-example": "node scripts/validate-config.js examples/config-with-schema.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test tests/e2e"
   },
   "lint-staged": {
     "*.{js,ts,vue}": [

@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { ref, computed } from 'vue'
   import type { BoardConfig } from '../types/game'
+  import { GameService } from '../services/gameService'
 
   interface Props {
     config: BoardConfig
@@ -25,29 +26,28 @@
       localConfig.value.restCells +
       localConfig.value.restartCells +
       localConfig.value.trapCells
-    return localConfig.value.totalCells - used
+    return localConfig.value.totalCells - 2 - used
   })
 
   // 检查配置是否有效
   const isConfigValid = computed(() => {
-    return (
-      remainingCells.value >= 0 &&
-      localConfig.value.punishmentCells >= 0 &&
-      localConfig.value.bonusCells >= 0 &&
-      localConfig.value.reverseCells >= 0 &&
-      localConfig.value.restCells >= 0 &&
-      localConfig.value.restartCells >= 0 &&
-      localConfig.value.trapCells >= 0
-    )
+    return GameService.validateBoardConfig(localConfig.value)
   })
 
   // 更新配置
   const updateConfig = () => {
-    emit('update', { ...localConfig.value })
+    if (isConfigValid.value) {
+      emit('update', { ...localConfig.value })
+    }
   }
 
   // 处理输入变化，自动调整后面格子
   const handleCellInput = (field: keyof BoardConfig) => {
+    if (field === 'totalCells') {
+      updateConfig()
+      return
+    }
+
     // 顺序：punishmentCells -> bonusCells -> reverseCells -> restCells -> restartCells -> trapCells
     const order: (keyof BoardConfig)[] = [
       'punishmentCells',
@@ -65,8 +65,9 @@
       used += Number(localConfig.value[order[i]])
     }
     // 如果超出总格子数，依次减少后面项
-    if (used > localConfig.value.totalCells) {
-      let remain = used - localConfig.value.totalCells
+    const assignableCells = localConfig.value.totalCells - 2
+    if (used > assignableCells) {
+      let remain = used - assignableCells
       for (let i = idx + 1; i < order.length; i++) {
         const v = Number(localConfig.value[order[i]])
         if (v >= remain) {
@@ -98,30 +99,7 @@
 
   // 自动分配格子
   const autoDistribute = () => {
-    const total = localConfig.value.totalCells
-    // 按指定比例分配：惩罚格子75%，回到起点格子10%，前进格子2.5%，后退格子5%，休息格子2.5%，机关格子5%
-    localConfig.value.punishmentCells = Math.floor(total * 0.75)
-    localConfig.value.restartCells = Math.floor(total * 0.1)
-    localConfig.value.bonusCells = Math.floor(total * 0.025)
-    localConfig.value.reverseCells = Math.floor(total * 0.05)
-    localConfig.value.restCells = Math.floor(total * 0.025)
-    localConfig.value.trapCells = Math.floor(total * 0.05)
-
-    // 计算已分配的格子总数
-    const assigned =
-      localConfig.value.punishmentCells +
-      localConfig.value.restartCells +
-      localConfig.value.bonusCells +
-      localConfig.value.reverseCells +
-      localConfig.value.restCells +
-      localConfig.value.trapCells
-
-    // 将剩余的格子分配给惩罚格子，确保总和等于总数
-    const remaining = total - assigned
-    if (remaining > 0) {
-      localConfig.value.punishmentCells += remaining
-    }
-
+    localConfig.value = GameService.createAutoBoardConfig(localConfig.value.totalCells)
     updateConfig()
   }
 </script>

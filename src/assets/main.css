@@ -25,21 +25,6 @@ a,
   }
 }
 
-/* 桌面端布局 */
-@media (min-width: 1024px) {
-  body {
-    display: flex;
-    place-items: center;
-  }
-
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
-    max-width: 1280px;
-  }
-}
-
 /* 平板端布局 */
 @media (max-width: 1023px) and (min-width: 768px) {
   #app {
