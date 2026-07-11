@@ -21,6 +21,7 @@ import {
 } from './cache'
 import { SecureRandom } from './secureRandom'
 import { devLog } from './logger'
+import { validateImportedConfigData } from './importValidation'
 import type { QRCodeToDataURLOptions } from 'qrcode'
 import QRCode from 'qrcode'
 import jsQR from 'jsqr'
@@ -370,24 +371,7 @@ export function validateImportData(data: unknown): ValidationResult {
 
   const configData = rawConfigData as Record<string, unknown>
 
-  // 验证玩家设置
-  const rawPlayerSettings = configData.playerSettings
-  if (rawPlayerSettings && typeof rawPlayerSettings === 'object') {
-    const playerSettings = rawPlayerSettings as { playerCount?: unknown; playerNames?: unknown }
-    if (
-      typeof playerSettings.playerCount !== 'number' ||
-      playerSettings.playerCount < 2 ||
-      playerSettings.playerCount > 4
-    ) {
-      errors.push('玩家数量必须在2-4之间')
-    }
-    if (
-      !Array.isArray(playerSettings.playerNames) ||
-      playerSettings.playerNames.length !== playerSettings.playerCount
-    ) {
-      errors.push('玩家姓名数量与玩家数量不匹配')
-    }
-  }
+  errors.push(...validateImportedConfigData(configData))
 
   return {
     isValid: errors.length === 0,
