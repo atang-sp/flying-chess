@@ -1,8 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import {
-  createCompatiblePunishmentAction,
-  resolveRule,
-} from '../services/ruleResolution'
+import { createCompatiblePunishmentAction, resolveRule } from '../services/ruleResolution'
 import { GameService } from '../services/gameService'
 import { SecureRandom } from '../utils/secureRandom'
 import type { BoardConfig, Player, PunishmentAction, PunishmentConfig } from '../types/game'
@@ -125,7 +122,9 @@ describe('规则结果解析', () => {
 
     for (const action of [boardPunishment, takeoffPunishment]) {
       expect(action).toBeDefined()
-      expect(action?.bodyPart.sensitivity).toBeGreaterThanOrEqual(action?.tool.intensity ?? Infinity)
+      expect(action?.bodyPart.sensitivity).toBeGreaterThanOrEqual(
+        action?.tool.intensity ?? Infinity
+      )
       expect(
         action?.position.compatibleBodyParts.length === 0 ||
           action?.position.compatibleBodyParts.includes(action?.bodyPart.name ?? '')

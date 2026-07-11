@@ -57,11 +57,7 @@ export interface PunishmentAction {
   targetPlayer?: 'current' | 'previous' | 'next' | 'other'
 }
 
-export type RuleResolutionSource =
-  | 'takeoff_failure'
-  | 'board_punishment'
-  | 'trap'
-  | 'cell_effect'
+export type RuleResolutionSource = 'takeoff_failure' | 'board_punishment' | 'trap' | 'cell_effect'
 
 export type ResolvedPunishmentCount =
   | Readonly<{ kind: 'fixed'; value: number }>
