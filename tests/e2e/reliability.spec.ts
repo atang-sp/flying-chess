@@ -23,3 +23,16 @@ test('desktop app fills the viewport width', async ({ page }, testInfo) => {
 
   expect(appWidth).toBeGreaterThanOrEqual(viewportWidth - 1)
 })
+
+test('mobile page has no horizontal overflow', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chrome')
+
+  await page.goto('/flying-chess/')
+
+  const dimensions = await page.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    documentWidth: document.documentElement.scrollWidth,
+  }))
+
+  expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth)
+})
