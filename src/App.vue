@@ -33,6 +33,11 @@
   import { saveConfig, loadConfig, loadPlayerSettings } from './utils/cache'
   import { SecureRandom } from './utils/secureRandom'
   import { devLog } from './utils/logger'
+  import {
+    hasBlockingOverlay,
+    shouldRecoverMovingState,
+    type BlockingOverlayState,
+  } from './services/gameStateHealth'
   import { usePlayerState } from './composables/usePlayerState'
   import { usePunishmentConfigNormalizer } from './composables/usePunishmentConfigNormalizer'
   import { useImportFeedbackDialog } from './composables/useImportFeedbackDialog'
@@ -349,11 +354,24 @@
 
   // 状态检查机制
   const checkGameStateHealth = () => {
+    const blockingOverlays: BlockingOverlayState = {
+      takeoffPunishment: showTakeoffPunishmentDisplay.value,
+      trap: showTrapDisplay.value,
+      bounce: showBounceDisplay.value,
+      takeoffRelief: showTakeoffReliefDisplay.value,
+    }
+
     // 检查是否卡在 moving 状态超过 5 秒
-    if (gameState.gameStatus === 'moving' && !showTakeoffPunishmentDisplay.value) {
+    if (gameState.gameStatus === 'moving' && !hasBlockingOverlay(blockingOverlays)) {
       if (movingStateEnteredAt.value === null) {
         movingStateEnteredAt.value = Date.now()
-      } else if (Date.now() - movingStateEnteredAt.value > 5000) {
+      } else if (
+        shouldRecoverMovingState(
+          gameState.gameStatus,
+          Date.now() - movingStateEnteredAt.value,
+          blockingOverlays
+        )
+      ) {
         console.warn('检测到游戏卡在moving状态超过5秒，正在重置...')
         movingStateEnteredAt.value = null
         resetGameStateOnError()
