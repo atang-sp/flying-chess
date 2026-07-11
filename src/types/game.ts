@@ -66,7 +66,7 @@ export type ResolvedPunishmentCount =
       minimum: number
       maximum: number
       step: number
-      eligibleChooserIndices: number[]
+      eligibleChooserIndices: readonly number[]
     }>
 
 export type TurnConsequence =

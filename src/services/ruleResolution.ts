@@ -17,6 +17,7 @@ export type PunishmentRuleInput =
       players: readonly Player[]
       punishmentConfig: PunishmentConfig
       diceValue?: number
+      randomSource?: RuleRandomSource
       boardAction: PunishmentAction
     }
   | {
@@ -25,17 +26,20 @@ export type PunishmentRuleInput =
       players: readonly Player[]
       punishmentConfig: PunishmentConfig
       diceValue?: number
+      randomSource?: RuleRandomSource
       punishmentAction: PunishmentAction
     }
 
 export interface RuleRandomSource {
   weightedChoice<T>(entries: readonly T[], weights: readonly number[]): T
   randomInt(minimum: number, maximum: number): number
+  choice<T>(entries: readonly T[]): T
 }
 
 const secureRandomSource: RuleRandomSource = {
   weightedChoice: (entries, weights) => SecureRandom.weightedChoice([...entries], [...weights]),
   randomInt: (minimum, maximum) => SecureRandom.randomInt(minimum, maximum),
+  choice: entries => SecureRandom.choice([...entries]),
 }
 
 type NamedRatioEntry = { name: string; ratio: number }
@@ -78,21 +82,28 @@ export const createCompatiblePunishmentAction = (
   const tools = entriesWithNames<PunishmentTool>(config.tools)
   const bodyParts = entriesWithNames<PunishmentBodyPart>(config.bodyParts)
   const positions = entriesWithNames<PunishmentPosition>(config.positions)
+  const enabledBodyParts = bodyParts.filter(bodyPart => bodyPart.ratio > 0)
+  const enabledPositions = positions.filter(position => position.ratio > 0)
 
-  const viableTools = tools.filter(tool =>
-    bodyParts.some(
+  const viableTools = tools.filter(
+    tool =>
+      tool.ratio > 0 &&
+      enabledBodyParts.some(
       bodyPart =>
-        bodyPart.sensitivity >= tool.intensity && hasCompatiblePosition(positions, bodyPart)
-    )
+          bodyPart.sensitivity >= tool.intensity && hasCompatiblePosition(enabledPositions, bodyPart)
+      )
   )
   const tool = chooseWeighted(viableTools, randomSource)
 
-  const compatibleBodyParts = bodyParts.filter(
-    bodyPart => bodyPart.sensitivity >= tool.intensity && hasCompatiblePosition(positions, bodyPart)
+  const compatibleBodyParts = enabledBodyParts.filter(
+    bodyPart =>
+      bodyPart.sensitivity >= tool.intensity && hasCompatiblePosition(enabledPositions, bodyPart)
   )
   const bodyPart = chooseWeighted(compatibleBodyParts, randomSource)
 
-  const compatiblePositions = positions.filter(position => isPositionCompatible(position, bodyPart))
+  const compatiblePositions = enabledPositions.filter(position =>
+    isPositionCompatible(position, bodyPart)
+  )
   const position = chooseWeighted(compatiblePositions, randomSource)
 
   const step = Math.max(1, config.step || 1)
@@ -135,6 +146,7 @@ export const resolveRule = (input: PunishmentRuleInput): ResolvedPunishmentResul
   }
 
   const action = input.source === 'board_punishment' ? input.boardAction : input.punishmentAction
+  const randomSource = input.randomSource ?? secureRandomSource
   const playerCount = input.players.length
   let targetPlayerIndex = input.actorIndex
   let actionStrikes = action.strikes
@@ -162,8 +174,8 @@ export const resolveRule = (input: PunishmentRuleInput): ResolvedPunishmentResul
         minimum: input.punishmentConfig.minStrikes,
         maximum: input.punishmentConfig.maxStrikes,
         step: input.punishmentConfig.step,
-        eligibleChooserIndices: input.players.flatMap((_, index) =>
-          index === input.actorIndex ? [] : [index]
+        eligibleChooserIndices: Object.freeze(
+          input.players.flatMap((_, index) => (index === input.actorIndex ? [] : [index]))
         ),
       })
       break
@@ -176,11 +188,18 @@ export const resolveRule = (input: PunishmentRuleInput): ResolvedPunishmentResul
     count = Object.freeze({ kind: 'fixed', value: actionStrikes })
   }
 
+  const executorCandidates = input.players.flatMap((_, index) =>
+    index === targetPlayerIndex ? [] : [index]
+  )
+  const executorIndex =
+    executorCandidates.length > 0 ? randomSource.choice(executorCandidates) : undefined
+
   return Object.freeze({
     kind: 'punishment',
     source: input.source,
     actorIndex: input.actorIndex,
     targetPlayerIndex,
+    executorIndex,
     action: copyAction(action, actionStrikes),
     count,
     turnConsequence: Object.freeze({ kind: 'none' }),

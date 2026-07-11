@@ -68,6 +68,28 @@ const boardConfig: BoardConfig = {
   totalCells: 20,
 }
 
+const disabledCompatibilityConfig: PunishmentConfig = {
+  ...compatibilityConfig,
+  tools: {
+    高强度工具: { name: '高强度工具', intensity: 5, ratio: 100 },
+    低强度工具: { name: '低强度工具', intensity: 1, ratio: 1 },
+  },
+  bodyParts: {
+    高耐受部位: { name: '高耐受部位', sensitivity: 5, ratio: 100 },
+    低耐受部位: { name: '低耐受部位', sensitivity: 1, ratio: 1 },
+  },
+  positions: {
+    已禁用姿势: { name: '已禁用姿势', ratio: 0, compatibleBodyParts: ['高耐受部位'] },
+    可用姿势: { name: '可用姿势', ratio: 1, compatibleBodyParts: ['低耐受部位'] },
+  },
+}
+
+const deterministicRandom = {
+  weightedChoice: <T,>(entries: readonly T[]) => entries[0],
+  randomInt: (minimum: number) => minimum,
+  choice: <T,>(entries: readonly T[]) => entries[entries.length - 1],
+}
+
 afterEach(() => {
   vi.restoreAllMocks()
 })
@@ -96,12 +118,21 @@ describe('规则结果解析', () => {
     const action = createCompatiblePunishmentAction(compatibilityConfig, {
       weightedChoice: entries => entries[0],
       randomInt: minimum => minimum,
+      choice: entries => entries[0],
     })
 
     expect(action.tool.name).toBe('皮拍')
     expect(action.bodyPart.name).toBe('臀部')
     expect(action.position.name).toBe('仰卧')
     expect(action.strikes).toBe(5)
+  })
+
+  it('忽略会令组合失效的零比例部位和姿势', () => {
+    const action = createCompatiblePunishmentAction(disabledCompatibilityConfig, deterministicRandom)
+
+    expect(action.tool.name).toBe('低强度工具')
+    expect(action.bodyPart.name).toBe('低耐受部位')
+    expect(action.position.name).toBe('可用姿势')
   })
 
   it('让随机棋盘和起飞失败共用兼容组合规则', () => {
@@ -187,5 +218,34 @@ describe('规则结果解析', () => {
         eligibleChooserIndices: [0, 2],
       },
     })
+
+    if (!('eligibleChooserIndices' in result.count)) {
+      throw new Error('预期得到待外部决定次数')
+    }
+    const eligibleChooserIndices = result.count.eligibleChooserIndices
+    expect(Object.isFrozen(eligibleChooserIndices)).toBe(true)
+    expect(() => (eligibleChooserIndices as number[]).push(7)).toThrow(TypeError)
+  })
+
+  it('在规则结果中解析执行者并安全处理单人局', () => {
+    const multiplayerResult = resolveRule({
+      source: 'board_punishment',
+      actorIndex: 1,
+      players: threePlayers,
+      punishmentConfig: compatibilityConfig,
+      randomSource: deterministicRandom,
+      boardAction,
+    })
+    const singlePlayerResult = resolveRule({
+      source: 'board_punishment',
+      actorIndex: 0,
+      players: [players[0]],
+      punishmentConfig: compatibilityConfig,
+      randomSource: deterministicRandom,
+      boardAction,
+    })
+
+    expect(multiplayerResult.executorIndex).toBe(2)
+    expect(singlePlayerResult.executorIndex).toBeUndefined()
   })
 })
