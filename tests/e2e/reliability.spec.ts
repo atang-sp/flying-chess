@@ -63,3 +63,68 @@ test('total cell changes update the generated board', async ({ page }, testInfo)
 
   expect(state).toEqual({ configuredTotalCells: 80, boardLength: 80 })
 })
+
+test('clear local game data removes every persisted game key', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  const storageKeys = [
+    'ludo_game_config',
+    'ludo_player_settings',
+    'flying-chess-config-backup',
+    'hasShownGuide',
+    'autoGuideEnabled',
+  ]
+  await page.evaluate(keys => {
+    keys.forEach(key => localStorage.setItem(key, 'persisted'))
+  }, storageKeys)
+
+  await page.locator('.clear-cache-btn').click()
+
+  const remainingValues = await page.evaluate(
+    keys => keys.map(key => localStorage.getItem(key)),
+    storageKeys
+  )
+  expect(remainingValues).toEqual(storageKeys.map(() => null))
+  await expect(page.locator('.clear-success-toast')).toContainText('本地游戏数据已清除')
+})
+
+test('invalid import leaves existing local data unchanged', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  const existingData = {
+    ludo_game_config: 'existing-config',
+    ludo_player_settings: 'existing-players',
+    'flying-chess-config-backup': 'existing-backup',
+  }
+  await page.evaluate(entries => {
+    Object.entries(entries).forEach(([key, value]) => localStorage.setItem(key, value))
+  }, existingData)
+
+  await page.locator('.guide-controls .export-btn').click()
+  await page.getByRole('button', { name: '导入', exact: true }).click()
+  await page.locator('.json-textarea').fill(
+    JSON.stringify({
+      version: '1.0.0',
+      data: {
+        boardConfig: {
+          punishmentCells: 18,
+          bonusCells: 0,
+          reverseCells: 0,
+          restCells: 0,
+          restartCells: 0,
+          trapCells: 0,
+          totalCells: 19,
+        },
+      },
+    })
+  )
+  await page.locator('.import-text-btn').click()
+
+  await expect(page.locator('.import-feedback--error')).toBeVisible()
+  const storedData = await page.evaluate(keys => {
+    return Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)]))
+  }, Object.keys(existingData))
+  expect(storedData).toEqual(existingData)
+})
