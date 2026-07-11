@@ -90,15 +90,15 @@ test('automatic board distribution reserves start and finish', async ({ page }, 
       }
     ).gameState.boardConfig
   })
-  const assignedCells =
-    boardConfig.punishmentCells +
-    boardConfig.bonusCells +
-    boardConfig.reverseCells +
-    boardConfig.restCells +
-    boardConfig.restartCells +
-    boardConfig.trapCells
-
-  expect(assignedCells).toBe(boardConfig.totalCells - 2)
+  expect(boardConfig).toEqual({
+    punishmentCells: 58,
+    bonusCells: 2,
+    reverseCells: 4,
+    restCells: 2,
+    restartCells: 8,
+    trapCells: 4,
+    totalCells: 80,
+  })
 })
 
 test('default board reports no unassigned effect cells', async ({ page }, testInfo) => {
@@ -116,27 +116,42 @@ test('movement watchdog preserves a turn while a trap overlay is active', async 
   test.skip(testInfo.project.name !== 'desktop-chrome')
 
   await page.goto('/flying-chess/')
-  await page.evaluate(() => {
+  const states = await page.evaluate(() => {
     const debugWindow = window as typeof window & {
       gameState: { gameStatus: string }
       showTrapDisplay: { value: boolean }
+      checkGameStateHealth: () => void
     }
-    debugWindow.gameState.gameStatus = 'moving'
-    debugWindow.showTrapDisplay.value = true
+    const originalNow = Date.now
+    const startedAt = originalNow()
+
+    try {
+      Date.now = () => startedAt
+      debugWindow.gameState.gameStatus = 'moving'
+      debugWindow.showTrapDisplay.value = true
+      debugWindow.checkGameStateHealth()
+      Date.now = () => startedAt + 6001
+      debugWindow.checkGameStateHealth()
+      const withOverlay = debugWindow.gameState.gameStatus
+
+      debugWindow.showTrapDisplay.value = false
+      debugWindow.checkGameStateHealth()
+      Date.now = () => startedAt + 12002
+      debugWindow.checkGameStateHealth()
+
+      return {
+        withOverlay,
+        afterOverlay: debugWindow.gameState.gameStatus,
+      }
+    } finally {
+      Date.now = originalNow
+    }
   })
 
-  // 先让 watchdog 运行一次，再把时间推进超过恢复阈值。
-  await page.waitForTimeout(2200)
-  await page.evaluate(() => {
-    const future = Date.now() + 6000
-    Date.now = () => future
+  expect(states).toEqual({
+    withOverlay: 'moving',
+    afterOverlay: 'waiting',
   })
-  await page.waitForTimeout(2200)
-
-  const status = await page.evaluate(() => {
-    return (window as typeof window & { gameState: { gameStatus: string } }).gameState.gameStatus
-  })
-  expect(status).toBe('moving')
 })
 
 test('clear local game data removes every persisted game key', async ({ page }, testInfo) => {
@@ -202,4 +217,62 @@ test('invalid import leaves existing local data unchanged', async ({ page }, tes
     return Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)]))
   }, Object.keys(existingData))
   expect(storedData).toEqual(existingData)
+})
+
+test('invalid legacy board cache does not break startup', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  const migrationPage = await page.context().newPage()
+  const pageErrors: string[] = []
+  migrationPage.on('pageerror', error => pageErrors.push(error.message))
+  await migrationPage.addInitScript(() => {
+    localStorage.setItem(
+      'ludo_game_config',
+      JSON.stringify({
+        boardConfig: {
+          punishmentCells: 30,
+          bonusCells: 1,
+          reverseCells: 2,
+          restCells: 1,
+          restartCells: 4,
+          trapCells: 2,
+          totalCells: 40,
+        },
+        savedAt: Date.now(),
+      })
+    )
+  })
+
+  await migrationPage.goto('/flying-chess/')
+  await expect(migrationPage.locator('.start-btn')).toBeVisible()
+  const boardState = await migrationPage.evaluate(() => {
+    const gameState = (
+      window as typeof window & {
+        gameState: { boardConfig: { totalCells: number }; board: unknown[] }
+      }
+    ).gameState
+    return {
+      totalCells: gameState.boardConfig.totalCells,
+      boardLength: gameState.board.length,
+    }
+  })
+
+  expect(boardState).toEqual({ totalCells: 40, boardLength: 40 })
+  const repairedBoardConfig = await migrationPage.evaluate(() => {
+    const cached = JSON.parse(localStorage.getItem('ludo_game_config') ?? '{}') as {
+      boardConfig?: unknown
+    }
+    return cached.boardConfig
+  })
+  expect(repairedBoardConfig).toEqual({
+    punishmentCells: 28,
+    bonusCells: 1,
+    reverseCells: 2,
+    restCells: 1,
+    restartCells: 4,
+    trapCells: 2,
+    totalCells: 40,
+  })
+  expect(pageErrors).toEqual([])
+  await migrationPage.close()
 })

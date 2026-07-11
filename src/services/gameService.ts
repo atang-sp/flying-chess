@@ -14,6 +14,8 @@ import { GAME_CONFIG } from '../config/gameConfig'
 import { SecureRandom } from '../utils/secureRandom'
 import { devLog } from '../utils/logger'
 
+type BoardEffectCountField = Exclude<keyof BoardConfig, 'totalCells'>
+
 export class GameService {
   private static latestBoard: BoardCell[] = []
 
@@ -414,6 +416,54 @@ export class GameService {
       assignedCounts.every(count => Number.isInteger(count) && count >= 0) &&
       totalUsed <= config.totalCells - 2
     )
+  }
+
+  static createAutoBoardConfig(totalCells: number): BoardConfig {
+    if (!Number.isInteger(totalCells) || totalCells < 20 || totalCells > 100) {
+      throw new Error('自动分配要求总格子数为 20-100 范围内的整数')
+    }
+
+    const assignableCells = totalCells - 2
+    const targets: Array<{ field: BoardEffectCountField; ratio: number }> = [
+      { field: 'punishmentCells', ratio: 0.75 },
+      { field: 'restartCells', ratio: 0.1 },
+      { field: 'bonusCells', ratio: 0.025 },
+      { field: 'reverseCells', ratio: 0.05 },
+      { field: 'restCells', ratio: 0.025 },
+      { field: 'trapCells', ratio: 0.05 },
+    ]
+    const allocations = targets.map((target, index) => {
+      const exact = assignableCells * target.ratio
+      return {
+        ...target,
+        index,
+        count: Math.floor(exact),
+        remainder: exact - Math.floor(exact),
+      }
+    })
+    const assigned = allocations.reduce((sum, allocation) => sum + allocation.count, 0)
+    const remaining = assignableCells - assigned
+    const remainderOrder = [...allocations].sort(
+      (a, b) => b.remainder - a.remainder || a.index - b.index
+    )
+
+    for (let index = 0; index < remaining; index++) {
+      remainderOrder[index].count += 1
+    }
+
+    const config: BoardConfig = {
+      punishmentCells: 0,
+      bonusCells: 0,
+      reverseCells: 0,
+      restCells: 0,
+      restartCells: 0,
+      trapCells: 0,
+      totalCells,
+    }
+    allocations.forEach(allocation => {
+      config[allocation.field] = allocation.count
+    })
+    return config
   }
 
   static rollDice(): number {

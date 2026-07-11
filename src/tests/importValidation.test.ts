@@ -126,16 +126,23 @@ describe('导入配置校验', () => {
     expect(validateImportData(data).isValid).toBe(false)
   })
 
-  it('拒绝旧数组格式中全部为零的权重', () => {
-    const data = cloneValidImport()
-    data.data.punishmentConfig.tools = [{ name: '手掌', intensity: 2, ratio: 0 }] as never
-    data.data.punishmentConfig.bodyParts = [{ name: '手心', sensitivity: 3, ratio: 0 }] as never
-    data.data.punishmentConfig.positions = [
-      { name: '站立', ratio: 0, compatibleBodyParts: ['手心'] },
-    ] as never
+  it.each(['tools', 'bodyParts', 'positions'] as const)(
+    '拒绝旧数组格式中所有 %s 权重均为零',
+    field => {
+      const data = cloneValidImport()
+      data.data.punishmentConfig.tools = [{ name: '手掌', intensity: 2, ratio: 100 }] as never
+      data.data.punishmentConfig.bodyParts = [{ name: '手心', sensitivity: 3, ratio: 100 }] as never
+      data.data.punishmentConfig.positions = [
+        { name: '站立', ratio: 100, compatibleBodyParts: ['手心'] },
+      ] as never
+      const entries = data.data.punishmentConfig[field] as unknown as Array<{ ratio: number }>
+      entries.forEach(entry => {
+        entry.ratio = 0
+      })
 
-    expect(validateImportData(data).isValid).toBe(false)
-  })
+      expect(validateImportData(data).isValid).toBe(false)
+    }
+  )
 
   it('无效数据不会改写现有本地存储', () => {
     const values = new Map<string, string>([

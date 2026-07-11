@@ -99,30 +99,7 @@
 
   // 自动分配格子
   const autoDistribute = () => {
-    const total = localConfig.value.totalCells - 2
-    // 按指定比例分配：惩罚格子75%，回到起点格子10%，前进格子2.5%，后退格子5%，休息格子2.5%，机关格子5%
-    localConfig.value.punishmentCells = Math.floor(total * 0.75)
-    localConfig.value.restartCells = Math.floor(total * 0.1)
-    localConfig.value.bonusCells = Math.floor(total * 0.025)
-    localConfig.value.reverseCells = Math.floor(total * 0.05)
-    localConfig.value.restCells = Math.floor(total * 0.025)
-    localConfig.value.trapCells = Math.floor(total * 0.05)
-
-    // 计算已分配的格子总数
-    const assigned =
-      localConfig.value.punishmentCells +
-      localConfig.value.restartCells +
-      localConfig.value.bonusCells +
-      localConfig.value.reverseCells +
-      localConfig.value.restCells +
-      localConfig.value.trapCells
-
-    // 将剩余的格子分配给惩罚格子，起点和终点不参与效果分配
-    const remaining = total - assigned
-    if (remaining > 0) {
-      localConfig.value.punishmentCells += remaining
-    }
-
+    localConfig.value = GameService.createAutoBoardConfig(localConfig.value.totalCells)
     updateConfig()
   }
 </script>
