@@ -57,6 +57,65 @@ export interface PunishmentAction {
   targetPlayer?: 'current' | 'previous' | 'next' | 'other'
 }
 
+export type RuleResolutionSource = 'takeoff_failure' | 'board_punishment' | 'trap' | 'cell_effect'
+
+export type ResolvedPunishmentCount =
+  | Readonly<{ kind: 'fixed'; value: number }>
+  | Readonly<{
+      kind: 'awaiting_external_count'
+      minimum: number
+      maximum: number
+      step: number
+      eligibleChooserIndices: readonly number[]
+    }>
+
+export type TurnConsequence =
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{ kind: 'skip_next_turns'; count: number }>
+
+export type ResolvedPunishmentAction = Readonly<
+  Omit<PunishmentAction, 'tool' | 'bodyPart' | 'position'>
+> & {
+  readonly tool: Readonly<PunishmentTool>
+  readonly bodyPart: Readonly<PunishmentBodyPart>
+  readonly position: Readonly<Omit<PunishmentPosition, 'compatibleBodyParts'>> & {
+    readonly compatibleBodyParts: readonly string[]
+  }
+}
+
+export interface ResolvedPunishmentResult {
+  readonly kind: 'punishment'
+  readonly source: 'takeoff_failure' | 'board_punishment'
+  readonly actorIndex: number
+  readonly targetPlayerIndex: number
+  readonly executorIndex?: number
+  readonly action: ResolvedPunishmentAction
+  readonly count: ResolvedPunishmentCount
+  readonly turnConsequence: TurnConsequence
+}
+
+export interface ResolvedTrapResult {
+  readonly kind: 'trap'
+  readonly source: 'trap'
+  readonly actorIndex: number
+  readonly acknowledgementRequired: true
+  readonly description: string
+  readonly turnConsequence: TurnConsequence
+}
+
+export interface ResolvedCellEffectResult {
+  readonly kind: 'cell_effect'
+  readonly source: 'cell_effect'
+  readonly actorIndex: number
+  readonly effect: NonNullable<BoardCell['effect']>
+  readonly turnConsequence: TurnConsequence
+}
+
+export type ResolvedRuleResult =
+  | ResolvedPunishmentResult
+  | ResolvedTrapResult
+  | ResolvedCellEffectResult
+
 export interface BoardCell {
   id: number
   type: 'punishment' | 'bonus' | 'special' | 'restart' | 'trap'
