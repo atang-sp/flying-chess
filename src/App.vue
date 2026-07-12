@@ -7,7 +7,6 @@
     ArrowLeft,
     Settings,
     Target,
-    Rocket,
     Skull,
     Dices,
     Upload,
@@ -35,7 +34,6 @@
   import PunishmentDisplay from './components/PunishmentDisplay.vue'
   import PunishmentConfirmation from './components/PunishmentConfirmation.vue'
   import EffectDisplay from './components/EffectDisplay.vue'
-  import PunishmentStats from './components/PunishmentStats.vue'
   import TakeoffPunishmentDisplay from './components/TakeoffPunishmentDisplay.vue'
   import TrapDisplay from './components/TrapDisplay.vue'
   import VictoryScreen from './components/VictoryScreen.vue'
@@ -87,16 +85,12 @@
   const currentPunishment = ref<PunishmentAction | null>(null)
 
   // 惩罚组合确认状态
-  const showPunishmentConfirmation = ref(false)
   const punishmentCombinations = ref<PunishmentCombination[]>([])
+  const punishmentStep = ref<'config' | 'confirm'>('config')
 
   // 新增效果位置状态
   const effectFromPosition = ref<number | undefined>(undefined)
   const effectToPosition = ref<number | undefined>(undefined)
-
-  // 惩罚统计状态
-  const showPunishmentStats = ref(false)
-  const confirmedCombinations = ref<PunishmentCombination[]>([])
 
   // 起飞惩罚显示状态
   const showTakeoffPunishmentDisplay = ref(false)
@@ -626,12 +620,10 @@
         turnCount: typeof turnCount
         lastEffect: typeof lastEffect
         currentPunishment: typeof currentPunishment
-        showPunishmentConfirmation: typeof showPunishmentConfirmation
         punishmentCombinations: typeof punishmentCombinations
+        punishmentStep: typeof punishmentStep
         effectFromPosition: typeof effectFromPosition
         effectToPosition: typeof effectToPosition
-        showPunishmentStats: typeof showPunishmentStats
-        confirmedCombinations: typeof confirmedCombinations
         showTakeoffPunishmentDisplay: typeof showTakeoffPunishmentDisplay
         currentTakeoffPunishment: typeof currentTakeoffPunishment
         currentTakeoffDiceValue: typeof currentTakeoffDiceValue
@@ -650,12 +642,10 @@
       debugWindow.turnCount = turnCount
       debugWindow.lastEffect = lastEffect
       debugWindow.currentPunishment = currentPunishment
-      debugWindow.showPunishmentConfirmation = showPunishmentConfirmation
       debugWindow.punishmentCombinations = punishmentCombinations
+      debugWindow.punishmentStep = punishmentStep
       debugWindow.effectFromPosition = effectFromPosition
       debugWindow.effectToPosition = effectToPosition
-      debugWindow.showPunishmentStats = showPunishmentStats
-      debugWindow.confirmedCombinations = confirmedCombinations
       debugWindow.showTakeoffPunishmentDisplay = showTakeoffPunishmentDisplay
       debugWindow.currentTakeoffPunishment = currentTakeoffPunishment
       debugWindow.currentTakeoffDiceValue = currentTakeoffDiceValue
@@ -743,8 +733,8 @@
     currentPunishmentExecutor.value = null // 清除执行惩罚的玩家
 
     // 清除惩罚组合确认状态
-    showPunishmentConfirmation.value = false
     punishmentCombinations.value = []
+    punishmentStep.value = 'config'
     resetEffectChainCount()
   }
 
@@ -791,9 +781,7 @@
       return
     }
 
-    // 检查是否已生成惩罚组合
-    if (gameState.gameStatus === 'settings') {
-      // 如果还在设置页面，先生成惩罚组合
+    if (gameState.gameStatus === 'settings' || gameState.gameStatus === 'board_settings') {
       generatePunishmentCombinations()
       return
     }
@@ -827,7 +815,6 @@
       )
 
       punishmentCombinations.value = combinations
-      confirmedCombinations.value = combinations
     }
 
     // 直接开始游戏
@@ -860,10 +847,8 @@
     currentPunishmentExecutor.value = null // 清除执行惩罚的玩家
 
     // 清除惩罚组合确认状态
-    showPunishmentConfirmation.value = false
     punishmentCombinations.value = []
-    showPunishmentStats.value = false
-    confirmedCombinations.value = []
+    punishmentStep.value = 'config'
     showTakeoffPunishmentDisplay.value = false
     currentTakeoffPunishment.value = null
 
@@ -1339,55 +1324,32 @@
 
   // 生成惩罚组合
   const generatePunishmentCombinations = () => {
-    // 计算需要的惩罚组合数量：基于实际棋盘中的惩罚格子数量
     const punishmentCells = gameState.board.filter(cell => cell.type === 'punishment')
     const totalPunishmentCells = punishmentCells.length
 
-    // 使用新的平衡生成方法，生成惩罚组合定义（不包含次数）
     punishmentCombinations.value = GameService.generateBalancedPunishmentCombinationDefinitions(
       gameState.punishmentConfig,
       totalPunishmentCells
     )
-    showPunishmentConfirmation.value = true
+    punishmentStep.value = 'confirm'
   }
 
-  // 确认惩罚组合
+  // 确认惩罚组合并开始游戏
   const confirmPunishmentCombinations = (combinations: PunishmentCombination[]) => {
-    showPunishmentConfirmation.value = false
+    devLog('confirmPunishmentCombinations called, starting game')
 
-    // 根据确认的组合定义更新棋盘（在分配时生成随机次数）
     gameState.board = GameService.updateBoardWithConfirmedCombinationDefinitions(
       gameState.board,
       combinations,
       gameState.punishmentConfig
     )
 
-    // 显示惩罚统计信息
-    confirmedCombinations.value = combinations
-    showPunishmentStats.value = true
-  }
-
-  // 从统计页面开始游戏
-  const startGameWithStats = () => {
-    devLog('startGameWithStats called')
-    devLog('Before: gameStarted =', gameStarted.value, 'gameStatus =', gameState.gameStatus)
-
-    showPunishmentStats.value = false
-
-    // 直接开始游戏流程
+    punishmentStep.value = 'config'
     gameState.gameStatus = 'waiting'
     gameStarted.value = true
     if (turnCount.value === 0) {
       turnCount.value = 1
     }
-
-    devLog('After: gameStarted =', gameStarted.value, 'gameStatus =', gameState.gameStatus)
-  }
-
-  // 从统计页面重新生成组合
-  const handleStatsRegenerate = () => {
-    showPunishmentStats.value = false
-    generatePunishmentCombinations()
   }
 
   // 确认起飞惩罚
@@ -1406,10 +1368,8 @@
     // 单人游戏和多人游戏都需要玩家点击确认按钮
   }
 
-  // 在setup中添加handleBackToPunishmentSettings方法
   const handleBackToPunishmentSettings = () => {
-    showPunishmentConfirmation.value = false
-    gameState.gameStatus = 'settings'
+    punishmentStep.value = 'config'
   }
 
   // 添加validation-failed事件处理
@@ -1526,8 +1486,8 @@
   const startGuide = () => {
     const currentStatus = gameState.gameStatus
 
-    // 如果惩罚确认弹窗正在显示，优先显示确认页面引导
-    if (showPunishmentConfirmation.value) {
+    // 如果惩罚确认步骤正在显示，优先显示确认页面引导
+    if (punishmentStep.value === 'confirm') {
       startPunishmentConfirmationGuide()
       return
     }
@@ -1743,10 +1703,18 @@
     })
     driver.setSteps([
       {
-        element: '.modal-header',
+        element: '.step-indicator',
         popover: {
           title: '惩罚组合确认',
-          description: '系统已为你生成了惩罚组合，你可以在这里查看和管理所有组合',
+          description: '系统已为你生成了惩罚组合，可以点击"配置"返回修改设置',
+          position: 'bottom',
+        },
+      },
+      {
+        element: '.stats-summary',
+        popover: {
+          title: '分布统计',
+          description: '环形图实时显示工具、部位和姿势的分布情况，删除组合时会自动更新',
           position: 'bottom',
         },
       },
@@ -1754,39 +1722,15 @@
         element: '.combinations-list',
         popover: {
           title: '组合列表',
-          description: '这里显示了所有生成的惩罚组合，每个组合包含工具、部位、姿势和描述',
+          description: '点击任意组合查看详情，在详情中可以删除或恢复组合',
           position: 'right',
         },
       },
       {
-        element: '.combination-item:first-child .combination-details',
-        popover: {
-          title: '组合详情',
-          description: '每个组合显示工具强度、部位耐受度和详细的惩罚描述',
-          position: 'left',
-        },
-      },
-      {
-        element: '.combination-item:first-child .combination-actions',
-        popover: {
-          title: '删除或恢复',
-          description: '点击🗑️可以删除不合适的组合，删除后可以点击🔄恢复',
-          position: 'left',
-        },
-      },
-      {
-        element: '.combination-stats',
-        popover: {
-          title: '统计信息',
-          description: '显示总组合数、删除数量和最终保留的组合数量',
-          position: 'top',
-        },
-      },
-      {
-        element: '.modal-actions',
+        element: '.confirm-actions',
         popover: {
           title: '操作按钮',
-          description: '可以重新生成组合、返回设置页面或确认当前组合开始游戏',
+          description: '可以重新生成组合或确认当前组合开始游戏',
           position: 'top',
         },
       },
@@ -2002,13 +1946,12 @@
     }
   )
 
-  // 监听惩罚确认弹窗显示，自动显示引导
+  // 监听惩罚确认步骤，自动显示引导
   watch(
-    () => showPunishmentConfirmation.value,
+    () => punishmentStep.value,
     newValue => {
-      devLog(`惩罚确认弹窗显示状态变化: ${newValue}`)
-      if (newValue) {
-        // 延迟显示引导，确保弹窗已完全渲染
+      devLog(`惩罚步骤变化: ${newValue}`)
+      if (newValue === 'confirm') {
         setTimeout(() => {
           showAutoGuide('punishment_confirmation')
         }, 500)
@@ -2081,12 +2024,21 @@
             @update="updateBoardConfig"
           />
 
-          <PunishmentConfigPanel
-            v-show="settingsTab === 'punishment'"
-            :config="gameState.punishmentConfig"
-            @update="updatePunishmentConfig"
-            @validation-failed="handleValidationFailed"
-          />
+          <div v-show="settingsTab === 'punishment'">
+            <PunishmentConfigPanel
+              v-if="punishmentStep === 'config'"
+              :config="gameState.punishmentConfig"
+              @update="updatePunishmentConfig"
+              @validation-failed="handleValidationFailed"
+            />
+            <PunishmentConfirmation
+              v-else
+              :combinations="punishmentCombinations"
+              @confirm="confirmPunishmentCombinations"
+              @regenerate="generatePunishmentCombinations"
+              @back-to-settings="handleBackToPunishmentSettings"
+            />
+          </div>
 
           <TrapConfigPanel
             v-show="settingsTab === 'trap'"
@@ -2102,20 +2054,13 @@
             <span class="btn-text">返回</span>
           </button>
           <button
+            v-if="punishmentStep === 'config'"
             class="btn btn-primary"
             :disabled="!isConfigValid || !isBoardConfigValid"
             @click="generatePunishmentCombinations"
           >
             <Target :size="16" />
             <span class="btn-text">生成惩罚组合</span>
-          </button>
-        </div>
-
-        <div v-if="punishmentCombinations.length > 0" class="page-actions">
-          <p class="combinations-info">已生成 {{ punishmentCombinations.length }} 个惩罚组合</p>
-          <button class="btn btn-primary" @click="startGameWithStats">
-            <Rocket :size="16" />
-            <span class="btn-text">开始游戏</span>
           </button>
         </div>
       </div>
@@ -2329,22 +2274,6 @@
       />
     </div>
 
-    <!-- 惩罚组合确认弹窗 -->
-    <PunishmentConfirmation
-      :show="showPunishmentConfirmation"
-      :combinations="punishmentCombinations"
-      @confirm="confirmPunishmentCombinations"
-      @regenerate="generatePunishmentCombinations"
-      @back-to-settings="handleBackToPunishmentSettings"
-    />
-
-    <!-- 惩罚统计弹窗 -->
-    <PunishmentStats
-      :show="showPunishmentStats"
-      :combinations="confirmedCombinations"
-      @confirm="startGameWithStats"
-      @regenerate="handleStatsRegenerate"
-    />
 
     <!-- 起飞惩罚显示弹窗 -->
     <TakeoffPunishmentDisplay
