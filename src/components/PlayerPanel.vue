@@ -1,765 +1,180 @@
 <script setup lang="ts">
-  import { ref, watch, nextTick, onMounted } from 'vue'
   import type { Player } from '../types/game'
-  import { devLog } from '../utils/logger'
 
   interface Props {
     players: Player[]
     currentPlayerIndex: number
+    collapsed?: boolean
   }
 
   const props = defineProps<Props>()
 
-  // 引用玩家列表容器和当前玩家元素
-  const playersContainer = ref<HTMLElement>()
-  const playerCardRefs = ref<(HTMLElement | null)[]>([])
+  defineEmits<{
+    (e: 'toggle'): void
+  }>()
 
-  // 设置玩家卡片引用的函数
-  const setPlayerCardRef = (el: HTMLElement | null, index: number) => {
-    // 确保数组有足够的长度
-    if (!playerCardRefs.value) {
-      playerCardRefs.value = []
-    }
+  const currentPlayer = computed(() => props.players[props.currentPlayerIndex])
 
-    // 扩展数组长度以适应索引
-    while (playerCardRefs.value.length <= index) {
-      playerCardRefs.value.push(null)
-    }
-
-    playerCardRefs.value[index] = el
-
-    // 调试信息
-    devLog(`Setting ref for player ${index}:`, !!el)
-  }
-
-  // 自动滚动到当前玩家
-  const scrollToCurrentPlayer = () => {
-    devLog('=== scrollToCurrentPlayer called ===')
-    devLog('currentPlayerIndex:', props.currentPlayerIndex)
-    devLog('players.length:', props.players.length)
-
-    // 检测是否在移动设备上
-    const isMobile = window.innerWidth <= 768
-    devLog('📱 Device info:', {
-      isMobile,
-      windowWidth: window.innerWidth,
-      windowHeight: window.innerHeight,
-      userAgent: navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop',
-    })
-
-    if (!playersContainer.value) {
-      devLog('❌ playersContainer not found')
-      return
-    }
-
-    if (!playerCardRefs.value || playerCardRefs.value.length === 0) {
-      devLog('❌ playerCardRefs array is empty or null')
-      devLog('playerCardRefs.value:', playerCardRefs.value)
-      return
-    }
-
-    if (props.currentPlayerIndex < 0 || props.currentPlayerIndex >= props.players.length) {
-      devLog('❌ Invalid currentPlayerIndex:', props.currentPlayerIndex)
-      return
-    }
-
-    const currentElement = playerCardRefs.value[props.currentPlayerIndex]
-    if (!currentElement) {
-      devLog('❌ currentElement not found for index:', props.currentPlayerIndex)
-      devLog(
-        'Available refs:',
-        playerCardRefs.value.map((ref, i) => ({ index: i, exists: !!ref }))
-      )
-      return
-    }
-
-    const container = playersContainer.value
-    const containerHeight = container.clientHeight
-    const containerScrollTop = container.scrollTop
-    const containerScrollHeight = container.scrollHeight
-
-    // 获取元素相对于滚动容器的位置
-    // 使用getBoundingClientRect来获取更准确的位置信息
-    const containerRect = container.getBoundingClientRect()
-    const elementRect = currentElement.getBoundingClientRect()
-
-    // 计算元素相对于容器顶部的位置
-    const elementTop = currentElement.offsetTop
-    const elementHeight = currentElement.clientHeight
-
-    // 也计算相对位置作为备用
-    const relativeTop = elementRect.top - containerRect.top + containerScrollTop
-
-    devLog('📊 Scroll calculation data:', {
-      containerHeight,
-      containerScrollTop,
-      containerScrollHeight,
-      elementTop,
-      elementHeight,
-      relativeTop,
-      containerRect: { top: containerRect.top, height: containerRect.height },
-      elementRect: { top: elementRect.top, height: elementRect.height },
-      currentPlayerIndex: props.currentPlayerIndex,
-    })
-
-    // 使用更准确的相对位置计算
-    const useRelativePosition = Math.abs(relativeTop - elementTop) > 10
-    const actualElementTop = useRelativePosition ? relativeTop : elementTop
-
-    devLog('📍 Using position:', useRelativePosition ? 'relative' : 'offset', actualElementTop)
-
-    // 计算目标滚动位置：让当前玩家卡片的顶部对齐到容器顶部，并留出一些边距
-    // 移动端使用更小的边距，确保更多内容可见
-    const topMargin = isMobile ? 10 : 20 // 移动端10px，桌面端20px边距
-    const targetScrollTop = actualElementTop - topMargin
-
-    // 确保滚动位置在有效范围内
-    const maxScrollTop = containerScrollHeight - containerHeight
-    const finalScrollTop = Math.max(0, Math.min(targetScrollTop, maxScrollTop))
-
-    devLog('🎯 Scroll target:', {
-      targetScrollTop,
-      finalScrollTop,
-      maxScrollTop,
-      scrollDistance: Math.abs(finalScrollTop - containerScrollTop),
-    })
-
-    // 只有当滚动距离足够大时才执行滚动
-    const minScrollDistance = 5
-    if (Math.abs(finalScrollTop - containerScrollTop) < minScrollDistance) {
-      devLog('⏭️ Scroll distance too small, skipping')
-      return
-    }
-
-    // 执行滚动
-    devLog('🚀 Executing scroll from', containerScrollTop, 'to', finalScrollTop)
-
-    try {
-      container.scrollTo({
-        top: finalScrollTop,
-        behavior: 'smooth',
-      })
-    } catch (error) {
-      console.warn('⚠️ scrollTo failed, trying scrollIntoView fallback:', error)
-      // 备用方案：使用scrollIntoView
-      currentElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-        inline: 'nearest',
-      })
-    }
-
-    // 验证滚动结果
-    setTimeout(() => {
-      const newScrollTop = container.scrollTop
-      devLog('✅ Scroll completed. New position:', newScrollTop)
-      devLog('Expected:', finalScrollTop, 'Actual:', newScrollTop)
-
-      // 如果滚动没有达到预期位置，尝试备用方案
-      const scrollDifference = Math.abs(newScrollTop - finalScrollTop)
-      if (scrollDifference > 20) {
-        console.warn('⚠️ Scroll position not as expected, trying scrollIntoView fallback')
-        currentElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-          inline: 'nearest',
-        })
-      }
-    }, 600)
-  }
-
-  // 监听当前玩家变化，自动滚动
-  watch(
-    () => props.currentPlayerIndex,
-    (newIndex, oldIndex) => {
-      devLog('🔄 === WATCH TRIGGERED ===')
-      devLog('currentPlayerIndex changed from', oldIndex, 'to', newIndex)
-      devLog('Total players:', props.players.length)
-
-      if (newIndex < 0 || newIndex >= props.players.length) {
-        devLog('❌ Invalid player index:', newIndex)
-        return
-      }
-
-      // 使用多重延迟确保DOM完全更新
-      nextTick(() => {
-        devLog('⏳ nextTick executed, waiting for DOM update...')
-
-        // 第一次延迟：等待DOM更新
-        setTimeout(() => {
-          devLog('⏳ First timeout executed, checking refs...')
-
-          // 检查refs是否已经准备好
-          if (!playerCardRefs.value || !playerCardRefs.value[newIndex]) {
-            devLog('⚠️ Refs not ready, waiting longer...')
-
-            // 第二次延迟：等待refs准备好
-            setTimeout(() => {
-              devLog('⏳ Second timeout executed, calling scrollToCurrentPlayer')
-              scrollToCurrentPlayer()
-            }, 200)
-          } else {
-            devLog('✅ Refs ready, calling scrollToCurrentPlayer')
-            scrollToCurrentPlayer()
-          }
-        }, 100)
-      })
-    },
-    { immediate: false }
-  )
-
-  // 也监听players数组的变化，以防数组更新时需要重新滚动
-  watch(
-    () => props.players.length,
-    (newLength, oldLength) => {
-      devLog('👥 Players length changed from', oldLength, 'to', newLength)
-      if (newLength > 0 && newLength !== oldLength) {
-        // 重置refs数组以匹配新的玩家数量
-        playerCardRefs.value = new Array(newLength).fill(null)
-
-        nextTick(() => {
-          setTimeout(() => {
-            devLog('🔄 Scrolling after players array change')
-            scrollToCurrentPlayer()
-          }, 300)
-        })
-      }
-    }
-  )
-
-  // 组件挂载后初始化
-  onMounted(() => {
-    devLog('🚀 PlayerPanel mounted')
-    devLog('Initial players:', props.players.length)
-    devLog('Initial currentPlayerIndex:', props.currentPlayerIndex)
-
-    // 初始化refs数组
-    if (props.players.length > 0) {
-      playerCardRefs.value = new Array(props.players.length).fill(null)
-    }
-
-    // 初始化时也执行一次滚动，给更多时间让DOM完全渲染
-    nextTick(() => {
-      setTimeout(() => {
-        devLog('🎯 Initial scroll after mount')
-        scrollToCurrentPlayer()
-      }, 500)
-    })
-  })
-
-  // 暴露方法供调试使用
-  const debugScroll = () => {
-    devLog('🔍 === Debug Scroll Info ===')
-    devLog('playersContainer.value:', !!playersContainer.value)
-    devLog(
-      'playerCardRefs.value:',
-      playerCardRefs.value?.map((ref, i) => ({ index: i, exists: !!ref }))
-    )
-    devLog('props.currentPlayerIndex:', props.currentPlayerIndex)
-    devLog('props.players.length:', props.players.length)
-
-    if (playersContainer.value) {
-      const container = playersContainer.value
-      devLog('Container info:', {
-        clientHeight: container.clientHeight,
-        scrollHeight: container.scrollHeight,
-        scrollTop: container.scrollTop,
-        hasScrollbar: container.scrollHeight > container.clientHeight,
-      })
-    }
-
-    scrollToCurrentPlayer()
-  }
-
-  // 强制滚动方法（使用scrollIntoView）
-  const forceScrollToCurrentPlayer = () => {
-    devLog('🔧 Force scroll using scrollIntoView')
-    const currentElement = playerCardRefs.value?.[props.currentPlayerIndex]
-    if (currentElement) {
-      currentElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-        inline: 'nearest',
-      })
-    } else {
-      devLog('❌ No element found for force scroll')
-    }
-  }
-
-  // 在开发环境下暴露到window对象供调试
-  if (import.meta.env.DEV) {
-    const debugWindow = window as typeof window & {
-      debugPlayerPanelScroll: typeof debugScroll
-      forcePlayerPanelScroll: typeof forceScrollToCurrentPlayer
-    }
-    debugWindow.debugPlayerPanelScroll = debugScroll
-    debugWindow.forcePlayerPanelScroll = forceScrollToCurrentPlayer
-  }
+  import { computed } from 'vue'
 </script>
 
 <template>
-  <div class="player-panel">
-    <h3>玩家状态</h3>
-    <div ref="playersContainer" class="players-container">
-      <div class="players-grid">
-        <div
-          v-for="(player, index) in players"
-          :key="player.id"
-          :ref="el => setPlayerCardRef(el as HTMLElement | null, index)"
-          class="player-card"
-          :class="{
-            current: currentPlayerIndex === index,
-            winner: player.isWinner,
-          }"
+  <div class="player-panel-wrapper" :class="{ 'is-collapsed': collapsed }">
+    <!-- Collapsed: show current player avatar as toggle -->
+    <button
+      v-if="collapsed"
+      class="collapsed-toggle"
+      :style="{ backgroundColor: currentPlayer?.color }"
+      @click="$emit('toggle')"
+    >
+      {{ currentPlayer?.name?.charAt(0) || '?' }}
+    </button>
+
+    <!-- Expanded: full pill list -->
+    <div v-else class="player-pills">
+      <div
+        v-for="(player, index) in players"
+        :key="player.id"
+        class="player-pill"
+        :class="{
+          current: currentPlayerIndex === index,
+          winner: player.isWinner,
+        }"
+      >
+        <div class="pill-color" :style="{ backgroundColor: player.color }"></div>
+        <span class="pill-name">{{ player.name }}</span>
+        <span class="pill-pos">{{ player.position === 0 ? '起点' : player.position }}</span>
+        <span
+          v-if="player.pendingMercyMultiplier && player.pendingMercyMultiplier > 1"
+          class="pill-mercy"
         >
-          <div class="player-header">
-            <div
-              class="player-color"
-              :style="{ backgroundColor: player.color, '--player-glow-color': player.color }"
-            ></div>
-            <span class="player-name">{{ player.name }}</span>
-            <div
-              v-if="player.pendingMercyMultiplier && player.pendingMercyMultiplier > 1"
-              class="mercy-badge"
-              :title="`下次惩罚 ×${player.pendingMercyMultiplier}`"
-            >
-              ×{{ player.pendingMercyMultiplier }}
-            </div>
-            <div v-if="player.isWinner" class="winner-badge">🏆</div>
-          </div>
-          <div class="player-stats">
-            <div class="stat">
-              <span class="label">位置:</span>
-              <span class="value">{{ player.position === 0 ? '飞机场' : player.position }}</span>
-            </div>
-          </div>
-        </div>
+          ×{{ player.pendingMercyMultiplier }}
+        </span>
+        <span v-if="player.isWinner" class="pill-trophy">🏆</span>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-  .player-panel {
-    background: transparent;
-    border-radius: var(--radius-sm);
-    padding: clamp(0.8rem, 2.5vw, 1rem);
-    margin-bottom: clamp(0.8rem, 2.5vw, 1rem);
-  }
-
-  .player-panel h3 {
-    margin: 0 0 clamp(0.8rem, 2.5vw, 1rem) 0;
-    color: var(--text-primary);
-    text-align: center;
-    font-size: clamp(1.1rem, 3vw, 1.3rem);
-  }
-
-  .players-container {
-    max-height: 60vh;
-    min-height: 200px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.15) rgba(255, 255, 255, 0.05);
-    position: relative;
-  }
-
-  .players-container::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .players-container::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 3px;
-  }
-
-  .players-container::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 3px;
-  }
-
-  .players-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.25);
-  }
-
-  .players-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(180px, 80vw), 1fr));
-    gap: clamp(0.8rem, 2.5vw, 1rem);
-    padding: clamp(0.2rem, 0.5vw, 0.4rem);
-  }
-
-  .player-card {
-    border: var(--glass-border);
-    border-radius: var(--radius-md);
-    padding: clamp(0.8rem, 2.5vw, 1rem);
-    transition: all var(--transition-normal);
-    background: var(--bg-glass);
-    backdrop-filter: blur(var(--glass-blur));
-  }
-
-  .player-card.current {
-    border-color: rgba(102, 126, 234, 0.5);
-    background: var(--bg-glass-hover);
-    box-shadow: var(--glow-sm) rgba(102, 126, 234, 0.3);
-    transform: translateY(-2px);
-  }
-
-  .player-card.winner {
-    border-color: rgba(254, 202, 87, 0.5);
-    background: var(--bg-glass-hover);
-    box-shadow: var(--glow-sm) rgba(254, 202, 87, 0.3);
-  }
-
-  .player-header {
+  .player-panel-wrapper {
     display: flex;
     align-items: center;
-    gap: clamp(0.4rem, 1vw, 0.5rem);
-    margin-bottom: clamp(0.4rem, 1vw, 0.5rem);
   }
 
-  .player-color {
-    width: clamp(16px, 4vw, 20px);
-    height: clamp(16px, 4vw, 20px);
+  .collapsed-toggle {
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    box-shadow: var(--glow-sm) var(--player-glow-color, rgba(255, 255, 255, 0.3));
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 8px rgba(102, 126, 234, 0.4);
+    transition: transform 0.2s ease;
   }
 
-  .player-name {
-    font-weight: bold;
+  .collapsed-toggle:hover {
+    transform: scale(1.1);
+  }
+
+  .player-pills {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  .player-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1.5px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+  }
+
+  .player-pill.current {
+    border-color: rgba(102, 126, 234, 0.6);
+    background: rgba(102, 126, 234, 0.15);
+    box-shadow: 0 0 8px rgba(102, 126, 234, 0.25);
+  }
+
+  .player-pill.winner {
+    border-color: rgba(254, 202, 87, 0.5);
+    background: rgba(254, 202, 87, 0.1);
+  }
+
+  .pill-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .pill-name {
+    font-weight: 600;
     color: var(--text-primary);
-    flex: 1;
-    font-size: clamp(0.9rem, 2.5vw, 1rem);
+    max-width: 5em;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .winner-badge {
-    font-size: clamp(1rem, 3vw, 1.2rem);
-    animation: bounce 1s infinite;
+  .pill-pos {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
   }
 
-  .mercy-badge {
-    font-size: clamp(0.7rem, 2vw, 0.8rem);
+  .pill-mercy {
+    font-size: 0.65rem;
     font-weight: bold;
     color: #fff;
     background: linear-gradient(135deg, #f59e0b, #d97706);
-    padding: 0.15rem 0.4rem;
+    padding: 0.05rem 0.3rem;
     border-radius: 999px;
     line-height: 1.2;
-    box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
-    white-space: nowrap;
   }
 
-  .player-stats {
-    display: flex;
-    flex-direction: column;
-    gap: clamp(0.4rem, 1vw, 0.5rem);
+  .pill-trophy {
+    font-size: 0.75rem;
   }
 
-  .stat {
-    display: flex;
-    align-items: center;
-    gap: clamp(0.4rem, 1vw, 0.5rem);
-  }
-
-  .label {
-    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
-    color: var(--text-muted);
-    min-width: clamp(35px, 8vw, 40px);
-  }
-
-  .value {
-    font-weight: bold;
-    color: var(--text-secondary);
-    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
-  }
-
-  @keyframes bounce {
-    0%,
-    20%,
-    50%,
-    80%,
-    100% {
-      transform: translateY(0);
-    }
-    40% {
-      transform: translateY(-5px);
-    }
-    60% {
-      transform: translateY(-3px);
-    }
-  }
-
-  /* 自适应布局 - 移除固定断点，使用相对单位 */
-  @media (max-width: 1023px) {
-    .players-container {
-      max-height: 50vh;
-      min-height: 180px;
-    }
-
-    .players-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  /* 移动端优化 */
-  @media (max-width: 767px) {
-    .player-panel {
-      padding: 0.5rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .player-panel h3 {
-      margin: 0 0 0.5rem 0;
-      font-size: clamp(1rem, 2.5vw, 1.1rem);
-    }
-
-    .players-container {
-      max-height: 40vh;
-      min-height: 160px;
-    }
-
-    .players-container::-webkit-scrollbar {
-      width: 4px;
-    }
-
-    .players-grid {
-      gap: 0.5rem;
-      padding: 0.2rem;
-    }
-
-    .player-card {
-      padding: 0.5rem;
-      border-width: 1px;
-    }
-
-    .player-header {
+  @media (max-width: 768px) {
+    .player-pills {
       gap: 0.3rem;
-      margin-bottom: 0.3rem;
+      overflow-x: auto;
+      flex-wrap: nowrap;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
     }
 
-    .player-color {
-      width: clamp(12px, 3vw, 16px);
-      height: clamp(12px, 3vw, 16px);
-      border-width: 1px;
+    .player-pills::-webkit-scrollbar {
+      display: none;
     }
 
-    .player-name {
-      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
-    }
-
-    .winner-badge {
-      font-size: clamp(0.8rem, 2.5vw, 1rem);
-    }
-
-    .player-stats {
-      gap: 0.3rem;
-    }
-
-    .stat {
-      gap: 0.3rem;
-    }
-
-    .label {
-      font-size: clamp(0.7rem, 2vw, 0.8rem);
-      min-width: clamp(30px, 7vw, 35px);
-    }
-
-    .value {
-      font-size: clamp(0.7rem, 2vw, 0.8rem);
-    }
-  }
-
-  /* 小屏手机优化 */
-  @media (max-width: 480px) {
-    .player-panel {
-      padding: 0.4rem;
-      margin-bottom: 0.4rem;
-    }
-
-    .player-panel h3 {
-      margin: 0 0 0.4rem 0;
-      font-size: clamp(0.9rem, 2.2vw, 1rem);
-    }
-
-    .players-container {
-      max-height: 35vh;
-    }
-
-    .players-container::-webkit-scrollbar {
-      width: 3px;
-    }
-
-    .players-grid {
-      gap: 0.4rem;
-      padding: 0.1rem;
-    }
-
-    .player-card {
-      padding: 0.4rem;
-    }
-
-    .player-header {
-      gap: 0.25rem;
-      margin-bottom: 0.25rem;
-    }
-
-    .player-color {
-      width: clamp(10px, 2.5vw, 12px);
-      height: clamp(10px, 2.5vw, 12px);
-    }
-
-    .player-name {
-      font-size: clamp(0.75rem, 2vw, 0.8rem);
-    }
-
-    .winner-badge {
-      font-size: clamp(0.7rem, 2.2vw, 0.8rem);
-    }
-
-    .player-stats {
+    .player-pill {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
       gap: 0.25rem;
     }
 
-    .stat {
-      gap: 0.25rem;
+    .pill-color {
+      width: 8px;
+      height: 8px;
     }
 
-    .label {
-      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
-      min-width: clamp(25px, 6vw, 30px);
-    }
-
-    .value {
-      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
-    }
-  }
-
-  /* 超小屏手机优化 */
-  @media (max-width: 360px) {
-    .player-panel {
-      padding: 0.3rem;
-      margin-bottom: 0.3rem;
-    }
-
-    .player-panel h3 {
-      margin: 0 0 0.3rem 0;
-      font-size: clamp(0.8rem, 2vw, 0.9rem);
-    }
-
-    .players-container {
-      max-height: 30vh;
-    }
-
-    .players-container::-webkit-scrollbar {
-      width: 2px;
-    }
-
-    .players-grid {
-      gap: 0.3rem;
-      padding: 0.1rem;
-    }
-
-    .player-card {
-      padding: 0.3rem;
-    }
-
-    .player-header {
-      gap: 0.2rem;
-      margin-bottom: 0.2rem;
-    }
-
-    .player-color {
-      width: clamp(8px, 2vw, 10px);
-      height: clamp(8px, 2vw, 10px);
-    }
-
-    .player-name {
-      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
-    }
-
-    .winner-badge {
-      font-size: clamp(0.6rem, 1.8vw, 0.7rem);
-    }
-
-    .player-stats {
-      gap: 0.2rem;
-    }
-
-    .stat {
-      gap: 0.2rem;
-    }
-
-    .label {
-      font-size: clamp(0.6rem, 1.5vw, 0.65rem);
-      min-width: clamp(20px, 5vw, 25px);
-    }
-
-    .value {
-      font-size: clamp(0.6rem, 1.5vw, 0.65rem);
-    }
-  }
-
-  /* 横屏模式优化 */
-  @media (max-width: 767px) and (orientation: landscape) {
-    .player-panel {
-      padding: 0.3rem;
-      margin-bottom: 0.3rem;
-    }
-
-    .player-panel h3 {
-      margin: 0 0 0.3rem 0;
-      font-size: clamp(0.8rem, 2vw, 0.9rem);
-    }
-
-    .players-container {
-      max-height: 25vh;
-    }
-
-    .players-container::-webkit-scrollbar {
-      width: 3px;
-    }
-
-    .players-grid {
-      gap: 0.3rem;
-      padding: 0.1rem;
-    }
-
-    .player-card {
-      padding: 0.3rem;
-    }
-
-    .player-header {
-      gap: 0.2rem;
-      margin-bottom: 0.2rem;
-    }
-
-    .player-color {
-      width: clamp(10px, 2.5vw, 12px);
-      height: clamp(10px, 2.5vw, 12px);
-    }
-
-    .player-name {
-      font-size: clamp(0.75rem, 2vw, 0.8rem);
-    }
-
-    .player-stats {
-      gap: 0.2rem;
-    }
-
-    .stat {
-      gap: 0.2rem;
-    }
-
-    .label {
-      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
-      min-width: clamp(25px, 6vw, 30px);
-    }
-
-    .value {
-      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+    .pill-pos {
+      font-size: 0.7rem;
     }
   }
 </style>

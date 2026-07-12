@@ -74,6 +74,23 @@
   const gameStarted = ref(false)
   const gameFinished = ref(false)
 
+  // 移动端 PlayerPanel 折叠状态
+  const playerPanelCollapsed = ref(true)
+  const windowWidth = ref(window.innerWidth)
+
+  const isMobileView = computed(() => windowWidth.value <= 768)
+
+  const onWindowResize = () => {
+    windowWidth.value = window.innerWidth
+    if (!isMobileView.value) {
+      playerPanelCollapsed.value = false
+    }
+  }
+
+  const togglePlayerPanel = () => {
+    playerPanelCollapsed.value = !playerPanelCollapsed.value
+  }
+
   // 设置页 Tab 状态
   const settingsTab = ref<'board' | 'punishment' | 'trap'>('board')
 
@@ -549,7 +566,7 @@
     audioService.init()
     audioEnabled.value = audioService.enabled
 
-    // 监听未捕获的 Promise 错误
+    window.addEventListener('resize', onWindowResize)
     window.addEventListener('unhandledrejection', handleUnhandledRejection)
 
     // 监听全局错误
@@ -696,6 +713,7 @@
   })
 
   onBeforeUnmount(() => {
+    window.removeEventListener('resize', onWindowResize)
     window.removeEventListener('unhandledrejection', handleUnhandledRejection)
     window.removeEventListener('error', handleGlobalError)
 
@@ -2068,179 +2086,89 @@
 
     <!-- 游戏页面 -->
     <div v-else class="game-page">
-      <!-- 移动端顶部栏 -->
       <header class="game-header">
         <div class="header-content">
           <h1>
-            <Dices :size="24" />
+            <Dices :size="20" />
             惩罚飞行棋
           </h1>
-          <button
-            class="audio-toggle-btn"
-            :title="audioEnabled ? '静音' : '开启声音'"
-            @click="toggleAudio"
-          >
-            <Volume2 v-if="audioEnabled" :size="18" />
-            <VolumeX v-else :size="18" />
-          </button>
-        </div>
-        <p>环形棋盘游戏，支持自定义惩罚设置</p>
-      </header>
 
-      <!-- 主要内容区域 -->
-      <main class="game-main">
-        <!-- 左侧控制区域 -->
-        <div class="left-sidebar">
-          <div class="sidebar-content">
-            <!-- 控制按钮 -->
-            <div class="control-buttons">
-              <PButton
-                v-if="!gameStarted"
-                label="开始游戏"
-                icon="pi pi-play"
-                class="p-button-success w-full"
-                @click="handleGameControlsStart"
-              />
-              <PButton
-                v-if="gameFinished"
-                label="再来一局"
-                icon="pi pi-refresh"
-                class="p-button-info w-full"
-                @click="resetGame"
-              />
-            </div>
+          <div v-if="gameStarted" class="header-status">
+            <Badge :value="turnCount" class="turn-badge" />
+            <Tag
+              :value="gameStatusText"
+              :severity="getStatusSeverity(gameState.gameStatus)"
+              class="status-tag"
+            />
           </div>
-        </div>
 
-        <!-- 右侧游戏区域 -->
-        <div class="game-area">
-          <!-- 移动端控制面板 -->
-          <div class="mobile-control-panel">
-            <!-- 玩家状态区域 -->
-            <div class="mobile-status-section">
-              <div class="mobile-combined-status">
-                <div class="mobile-turn-display">
-                  <div class="turn-number">{{ turnCount }}</div>
-                  <div class="turn-label">回合</div>
-                </div>
-                <div class="mobile-game-status">
-                  <Tag
-                    :value="gameStatusText"
-                    :severity="getStatusSeverity(gameState.gameStatus)"
-                    class="status-tag-mobile"
-                  />
-                </div>
-              </div>
+          <PlayerPanel
+            v-if="gameState.players.length > 0"
+            :players="gameState.players"
+            :current-player-index="gameState.currentPlayerIndex"
+            :collapsed="isMobileView && playerPanelCollapsed"
+            class="header-players"
+            @toggle="togglePlayerPanel"
+          />
 
-              <!-- 玩家状态面板 (移动端) -->
-              <div class="mobile-players-container">
+          <!-- Mobile player panel dropdown -->
+          <Transition name="panel-dropdown">
+            <div
+              v-if="isMobileView && !playerPanelCollapsed && gameState.players.length > 0"
+              class="mobile-panel-dropdown"
+            >
+              <div class="mobile-panel-backdrop" @click="playerPanelCollapsed = true"></div>
+              <div class="mobile-panel-content">
                 <PlayerPanel
                   :players="gameState.players"
                   :current-player-index="gameState.currentPlayerIndex"
-                  class="mobile-player-panel"
+                  :collapsed="false"
+                  @toggle="togglePlayerPanel"
                 />
               </div>
             </div>
-          </div>
+          </Transition>
 
-          <!-- 棋盘上方状态区域（桌面端） -->
-          <div class="top-status-area desktop-only">
-            <!-- 游戏状态 -->
-            <Card class="compact-status-card">
-              <template #content>
-                <div class="compact-status-info">
-                  <div class="status-item">
-                    <i class="pi pi-info-circle status-icon"></i>
-                    <span class="status-label">回合:</span>
-                    <Badge :value="turnCount" class="turn-badge" />
-                  </div>
-                  <div class="status-item">
-                    <span class="status-label">状态:</span>
-                    <Tag
-                      :value="gameStatusText"
-                      :severity="getStatusSeverity(gameState.gameStatus)"
-                      class="status-tag"
-                    />
-                  </div>
-                </div>
-              </template>
-            </Card>
-
-            <!-- 当前玩家 -->
-            <Card
-              v-if="gameState.players[gameState.currentPlayerIndex]"
-              class="compact-current-player-card"
+          <div class="header-actions">
+            <PButton
+              v-if="!gameStarted"
+              label="开始游戏"
+              icon="pi pi-play"
+              class="p-button-success p-button-sm"
+              @click="handleGameControlsStart"
+            />
+            <PButton
+              v-if="gameFinished"
+              label="再来一局"
+              icon="pi pi-refresh"
+              class="p-button-info p-button-sm"
+              @click="resetGame"
+            />
+            <button
+              class="audio-toggle-btn"
+              :title="audioEnabled ? '静音' : '开启声音'"
+              @click="toggleAudio"
             >
-              <template #content>
-                <div class="compact-current-player">
-                  <div
-                    class="current-avatar"
-                    :style="{
-                      backgroundColor: gameState.players[gameState.currentPlayerIndex].color,
-                    }"
-                  >
-                    {{ gameState.players[gameState.currentPlayerIndex].name.charAt(0) }}
-                  </div>
-                  <div class="current-info">
-                    <div class="current-name">
-                      {{ gameState.players[gameState.currentPlayerIndex].name }}
-                      <span
-                        v-if="
-                          (gameState.players[gameState.currentPlayerIndex].pendingMercyMultiplier ??
-                            0) > 1
-                        "
-                        class="mercy-multiplier-badge"
-                      >
-                        ×{{
-                          gameState.players[gameState.currentPlayerIndex].pendingMercyMultiplier
-                        }}
-                      </span>
-                    </div>
-                    <div class="current-position">
-                      {{
-                        gameState.players[gameState.currentPlayerIndex].position === 0
-                          ? '起点'
-                          : `第${gameState.players[gameState.currentPlayerIndex].position}格`
-                      }}
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </Card>
-
-            <!-- 玩家状态面板 (桌面端紧凑版) -->
-            <PlayerPanel
-              :players="gameState.players"
-              :current-player-index="gameState.currentPlayerIndex"
-            />
-
-            <!-- 获胜者信息 -->
-            <Card v-if="gameState.winner" class="compact-winner-card">
-              <template #content>
-                <div class="compact-winner-display">
-                  <i class="pi pi-trophy winner-icon"></i>
-                  <div class="winner-avatar" :style="{ backgroundColor: gameState.winner.color }">
-                    {{ gameState.winner.name.charAt(0) }}
-                  </div>
-                  <div class="winner-name">{{ gameState.winner.name }} 获胜!</div>
-                </div>
-              </template>
-            </Card>
+              <Volume2 v-if="audioEnabled" :size="18" />
+              <VolumeX v-else :size="18" />
+            </button>
           </div>
+        </div>
+      </header>
 
-          <!-- 棋盘区域 -->
-          <div class="board-section">
-            <GameBoard
-              :board="gameState.board"
-              :players="gameState.players"
-              :current-player-index="gameState.currentPlayerIndex"
-              :last-effect="lastEffect"
-              :can-roll="canRollDice"
-              :dice-value="gameState.diceValue"
-              @cell-click="handleCellClick"
-              @roll="handleDiceRoll"
-            />
-          </div>
+      <main class="game-main">
+        <div class="board-section">
+          <GameBoard
+            :board="gameState.board"
+            :players="gameState.players"
+            :current-player-index="gameState.currentPlayerIndex"
+            :last-effect="lastEffect"
+            :can-roll="canRollDice"
+            :dice-value="gameState.diceValue"
+            :turn-count="turnCount"
+            @cell-click="handleCellClick"
+            @roll="handleDiceRoll"
+          />
         </div>
       </main>
 
@@ -2541,31 +2469,52 @@
   }
 
   .game-header {
-    text-align: center;
-    padding: clamp(0.5rem, 2vw, 1rem);
+    padding: 0.5rem 1rem;
     background: var(--bg-glass);
     backdrop-filter: blur(var(--glass-blur));
     border-bottom: var(--glass-border);
     box-shadow: var(--glass-shadow);
+    flex-shrink: 0;
   }
 
   .header-content {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    max-width: 1200px;
+    gap: 0.75rem;
+    max-width: 1400px;
     margin: 0 auto;
   }
 
   .game-header h1 {
     margin: 0;
-    font-size: clamp(1.2rem, 4vw, 1.8rem);
+    font-size: 1.1rem;
     font-weight: bold;
     color: var(--text-primary);
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .header-status {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+  }
+
+  .header-players {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
   }
 
   .audio-toggle-btn {
@@ -2573,14 +2522,14 @@
     border: var(--glass-border);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
-    padding: 0.4rem;
+    padding: 0.3rem;
     cursor: pointer;
     transition: all var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 32px;
-    min-width: 32px;
+    min-height: 30px;
+    min-width: 30px;
   }
 
   .audio-toggle-btn:hover {
@@ -2588,60 +2537,12 @@
     background: var(--bg-glass-hover);
   }
 
-  .game-header p {
-    margin: clamp(0.25rem, 1vw, 0.5rem) 0 0 0;
-    font-size: clamp(0.7rem, 2vw, 0.9rem);
-    color: var(--text-secondary);
-  }
-
   .game-main {
     flex: 1;
     display: flex;
-    max-width: 1400px;
-    margin: 0 auto;
+    flex-direction: column;
     width: 100%;
-    gap: 1rem;
-    padding: 1rem;
-  }
-
-  .left-sidebar {
-    width: 280px;
-    min-width: 280px;
-    display: flex;
-    flex-direction: column;
-    background: var(--bg-glass);
-    backdrop-filter: blur(var(--glass-blur));
-    border-right: var(--glass-border);
-    box-shadow: var(--glass-shadow);
-    overflow-y: auto;
-  }
-
-  .sidebar-content {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    height: 100%;
-    padding: 1rem;
-  }
-
-  .game-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .top-status-area {
-    background: var(--bg-glass);
-    backdrop-filter: blur(var(--glass-blur));
-    border-bottom: var(--glass-border);
-    box-shadow: var(--glass-shadow);
-    padding: 1rem 2rem;
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    flex-wrap: wrap;
-    min-height: 80px;
+    min-height: 0;
   }
 
   .board-section {
@@ -2649,108 +2550,11 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 500px;
-    padding: 1rem;
+    min-height: 0;
+    padding: 0.5rem;
   }
 
-  /* 卡片样式 */
-  .card-title {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .dice-card,
-  .status-card,
-  .current-player-card,
-  .players-card,
-  .winner-card {
-    margin-bottom: 1rem;
-  }
-
-  .dice-section {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 1rem 0;
-    min-height: 200px;
-  }
-
-  /* 紧凑状态卡片样式 */
-  .compact-status-card,
-  .compact-current-player-card,
-  .compact-players-card,
-  .compact-winner-card {
-    margin: 0;
-    background: var(--bg-glass);
-    box-shadow: var(--glass-shadow);
-    border-radius: var(--radius-md);
-    border: var(--glass-border);
-    backdrop-filter: blur(var(--glass-blur));
-  }
-
-  .compact-status-card .p-card-content,
-  .compact-current-player-card .p-card-content,
-  .compact-players-card .p-card-content,
-  .compact-winner-card .p-card-content {
-    padding: 0.75rem 1rem;
-  }
-
-  .compact-status-info {
-    display: flex;
-    gap: 1.5rem;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .compact-status-info .status-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-  }
-
-  .status-icon {
-    color: var(--color-accent);
-    font-size: 1rem;
-  }
-
-  .compact-current-player {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .compact-current-player .current-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    color: white;
-    font-weight: bold;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  }
-
-  .compact-current-player .current-info {
-    flex: 1;
-  }
-
-  .compact-current-player .current-name {
-    font-weight: 600;
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    margin-bottom: 0.1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
+  /* 状态样式 */
   .mercy-multiplier-badge {
     font-size: 0.7rem;
     font-weight: bold;
@@ -2761,338 +2565,12 @@
     box-shadow: 0 0 8px rgba(245, 158, 11, 0.45);
   }
 
-  .compact-current-player .current-position {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-  }
-
-  .compact-players-list {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-  }
-
-  .compact-player-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.6rem;
-    border-radius: var(--radius-sm);
-    background: var(--bg-glass);
-    border: var(--glass-border);
-    transition: all var(--transition-normal);
-    font-size: 0.85rem;
-  }
-
-  .compact-player-item.current-player {
-    background: rgba(102, 126, 234, 0.15);
-    border-color: rgba(102, 126, 234, 0.4);
-    box-shadow: 0 0 16px rgba(102, 126, 234, 0.25);
-    transform: scale(1.02);
-  }
-
-  .compact-player-item .player-avatar {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8rem;
-    color: white;
-    font-weight: bold;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  }
-
-  .compact-player-item .player-details {
-    flex: 1;
-  }
-
-  .compact-player-item .player-name {
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 0.1rem;
-    font-size: 0.8rem;
-  }
-
-  .compact-player-item .player-position {
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-  }
-
-  .compact-player-item .current-indicator {
-    color: var(--color-accent-light);
-    font-size: 0.8rem;
-  }
-
-  .compact-winner-display {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    color: var(--color-warning);
-    font-weight: 600;
-  }
-
-  .winner-icon {
-    font-size: 1.2rem;
-    color: var(--color-warning);
-  }
-
-  .compact-winner-display .winner-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    color: white;
-    font-weight: bold;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  }
-
-  .compact-winner-display .winner-name {
-    font-size: 0.9rem;
-  }
-
-  /* 移动端控制面板 */
-  .mobile-control-panel {
-    display: none;
-  }
-
-  .mobile-dice-section {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .mobile-status-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-    padding: 0.6rem;
-    height: 100%;
-  }
-
-  /* 合并的回合数和游戏状态显示 */
-  .mobile-combined-status {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    background: var(--bg-glass);
-    backdrop-filter: blur(var(--glass-blur));
-    border-radius: var(--radius-sm);
-    padding: 0.5rem;
-    border: var(--glass-border);
-    box-shadow: var(--glass-shadow);
-    flex-shrink: 0;
-  }
-
-  /* 移动端回合数显示 - 紧凑版 */
-  .mobile-turn-display {
-    text-align: center;
-    background: linear-gradient(135deg, var(--color-accent) 0%, #764ba2 100%);
-    color: white;
-    padding: 0.4rem 0.6rem;
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-    min-width: 60px;
-    flex-shrink: 0;
-  }
-
-  .turn-number {
-    font-size: 1.2rem;
-    font-weight: bold;
-    line-height: 1;
-  }
-
-  .turn-label {
-    font-size: 0.7rem;
-    opacity: 0.9;
-    margin-top: 0.1rem;
-  }
-
-  /* 移动端游戏状态 - 紧凑版 */
-  .mobile-game-status {
-    display: flex;
-    justify-content: flex-start;
-    flex: 1;
-  }
-
-  .status-tag-mobile {
-    font-size: 0.75rem;
-    padding: 0.3rem 0.6rem;
-    white-space: nowrap;
-  }
-
-  /* 桌面端专用类 */
-  .desktop-only {
-    display: block;
-  }
-
-  /* 状态信息样式 */
-  .status-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .status-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .status-label {
-    font-weight: 500;
-    color: var(--text-secondary);
-  }
-
   .turn-badge {
     background: var(--color-accent);
   }
 
   .status-tag {
-    font-size: 0.875rem;
-  }
-
-  /* 当前玩家样式 */
-  .current-player-display {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.5rem;
-    background: rgba(102, 126, 234, 0.12);
-    border-radius: var(--radius-sm);
-    border: 1px solid rgba(102, 126, 234, 0.25);
-  }
-
-  .current-avatar {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    color: white;
-    font-weight: bold;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  }
-
-  .current-info {
-    flex: 1;
-  }
-
-  .current-name {
-    font-weight: bold;
-    font-size: 1.1rem;
-    color: var(--text-primary);
-    margin-bottom: 0.25rem;
-  }
-
-  .current-position {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-  }
-
-  /* 玩家列表样式 */
-  .players-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .player-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    border-radius: var(--radius-sm);
-    background: var(--bg-glass);
-    border: var(--glass-border);
-    transition: all var(--transition-normal);
-  }
-
-  .player-item.current-player {
-    background: rgba(102, 126, 234, 0.15);
-    border-color: rgba(102, 126, 234, 0.4);
-    box-shadow: 0 0 16px rgba(102, 126, 234, 0.25);
-    transform: scale(1.02);
-  }
-
-  .player-item.player-moving {
-    animation: pulse 1s infinite;
-  }
-
-  .player-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    color: white;
-    font-weight: bold;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  }
-
-  .player-details {
-    flex: 1;
-  }
-
-  .player-name {
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 0.25rem;
-  }
-
-  .player-position {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-  }
-
-  .current-indicator {
-    color: var(--color-accent-light);
-    font-size: 1.2rem;
-    animation: bounce 1s infinite;
-  }
-
-  /* 获胜者样式 */
-  .winner-display {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    background: linear-gradient(135deg, #fbbf24, #f59e0b);
-    border-radius: 12px;
-    color: white;
-    text-align: center;
-  }
-
-  .winner-avatar {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-    background: rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  }
-
-  .winner-name {
-    font-size: 1.3rem;
-    font-weight: bold;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-  }
-
-  /* 控制按钮样式 */
-  .control-buttons {
-    margin-top: auto;
-    padding-top: 1rem;
+    font-size: 0.8rem;
   }
 
   /* 动画效果 */
@@ -3122,629 +2600,154 @@
     }
   }
 
-  /* 平板端适配 */
-  @media (max-width: 1024px) and (min-width: 769px) {
-    .game-main {
-      flex-direction: column;
-      padding: 0.5rem;
-    }
-
-    .left-sidebar {
-      width: 100%;
-      min-width: unset;
-      border-right: none;
-      border-bottom: var(--glass-border);
-      overflow-y: visible;
-    }
-
-    .sidebar-content {
-      flex-direction: row;
-      gap: 1rem;
-      padding: 1rem;
-      justify-content: center;
-    }
-
-    .dice-card {
-      flex: 0 0 auto;
-      min-width: 300px;
-    }
-
-    .game-area {
-      flex: 1;
-    }
-
-    .mobile-dice-area {
-      display: none;
-    }
-
-    .top-status-area {
-      padding: 0.75rem 1rem;
-      gap: 0.75rem;
-    }
-
-    .board-section {
-      min-height: 400px;
-    }
-  }
-
   /* 移动端适配 */
   @media (max-width: 768px) {
-    .game-main {
-      flex-direction: column;
-      padding: 0;
-      height: 100vh;
-    }
-
-    .left-sidebar {
-      display: none;
-    }
-
-    .game-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
-
-    /* 移动端控制面板 - 扩大玩家状态区域 */
-    .mobile-control-panel {
-      display: flex;
-      height: 38vh; /* 增加到屏幕高度的38% */
-      background: var(--bg-glass);
-      backdrop-filter: blur(var(--glass-blur));
-      border-bottom: var(--glass-border);
-      box-shadow: var(--glass-shadow);
-      flex-shrink: 0;
-    }
-
-    /* 左侧骰子区域 - 占据控制面板的30% */
-    .mobile-dice-section {
-      width: 30%;
-      border-right: var(--glass-border);
-      background: var(--bg-secondary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    /* 右侧状态区域 - 占据控制面板的70% */
-    .mobile-status-section {
-      width: 70%;
-      height: 100%;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* 移动端玩家面板容器 - 扩展显示区域 */
-    .mobile-players-container {
-      flex: 1;
-      overflow: hidden;
-      min-height: 0; /* 允许flex子项收缩 */
-      background: var(--bg-secondary);
-      border-radius: var(--radius-sm);
-      margin-top: 0.3rem;
-      padding: 0.2rem;
-    }
-
-    /* 移动端玩家面板样式调整 */
-    .mobile-player-panel {
-      height: 100%;
-      margin-bottom: 0;
-    }
-
-    .mobile-player-panel .player-panel {
-      height: 100%;
-      margin-bottom: 0;
-      padding: 0.5rem;
-      background: transparent;
-    }
-
-    .mobile-player-panel .player-panel h3 {
-      margin: 0 0 0.5rem 0;
-      font-size: 0.9rem;
-      color: var(--text-primary);
-      text-align: center;
-      font-weight: 600;
-    }
-
-    .mobile-player-panel .players-container {
-      max-height: none;
-      height: calc(100% - 2rem); /* 减去标题高度 */
-      min-height: 0;
-      overflow-y: auto;
-    }
-
-    .mobile-player-panel .players-grid {
-      grid-template-columns: 1fr;
-      gap: 0.4rem;
-      padding: 0.2rem;
-    }
-
-    .mobile-player-panel .player-card {
-      padding: 0.5rem;
-      border-width: 1px;
-      background: var(--bg-glass);
-      border: var(--glass-border);
-      border-radius: var(--radius-sm);
-      box-shadow: var(--glass-shadow);
-      transition: all var(--transition-fast);
-    }
-
-    .mobile-player-panel .player-card.current {
-      background: rgba(102, 126, 234, 0.15);
-      border-color: rgba(102, 126, 234, 0.4);
-      box-shadow: 0 0 16px rgba(102, 126, 234, 0.25);
-      transform: translateY(-1px);
-    }
-
-    .mobile-player-panel .player-header {
-      gap: 0.5rem;
-      margin-bottom: 0.4rem;
-      align-items: center;
-    }
-
-    .mobile-player-panel .player-color {
-      width: 16px;
-      height: 16px;
-      border-width: 2px;
-      flex-shrink: 0;
-      border-radius: 50%;
-    }
-
-    .mobile-player-panel .player-name {
-      font-size: 0.85rem;
-      font-weight: 600;
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      color: var(--text-primary);
-    }
-
-    .mobile-player-panel .player-stats {
-      gap: 0.35rem;
-    }
-
-    .mobile-player-panel .stat {
-      gap: 0.4rem;
-      align-items: center;
-    }
-
-    .mobile-player-panel .label {
-      font-size: 0.75rem;
-      min-width: 35px;
-      color: var(--text-secondary);
-      font-weight: 500;
-    }
-
-    .mobile-player-panel .value {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .mobile-player-panel .players-container::-webkit-scrollbar {
-      width: 2px;
-    }
-
-    .mobile-player-panel .players-container::-webkit-scrollbar-track {
-      background: var(--bg-secondary);
-      border-radius: 1px;
-    }
-
-    .mobile-player-panel .players-container::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 1px;
-    }
-
-    /* 隐藏桌面端状态区域 */
-    .desktop-only {
-      display: none;
-    }
-
-    /* 棋盘区域 - 相应减少高度 */
-    .board-section {
-      height: 62vh; /* 减少到屏幕高度的62% */
-      flex-shrink: 0;
-      padding: 0.5rem;
-      overflow: hidden;
-    }
-
-    /* 移动端骰子尺寸调整 - 更紧凑 */
-    .mobile-dice-section .cool-dice-container {
-      padding: 0.3rem;
-      gap: 0.3rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-    }
-
-    .mobile-dice-section .dice-cube {
-      width: 45px;
-      height: 45px;
-      margin: 0.5rem;
-    }
-
-    .mobile-dice-section .face {
-      width: 45px;
-      height: 45px;
-    }
-
-    .mobile-dice-section .face-1 {
-      transform: rotateY(0deg) translateZ(22.5px);
-    }
-    .mobile-dice-section .face-2 {
-      transform: rotateY(90deg) translateZ(22.5px);
-    }
-    .mobile-dice-section .face-3 {
-      transform: rotateY(180deg) translateZ(22.5px);
-    }
-    .mobile-dice-section .face-4 {
-      transform: rotateY(-90deg) translateZ(22.5px);
-    }
-    .mobile-dice-section .face-5 {
-      transform: rotateX(90deg) translateZ(22.5px);
-    }
-    .mobile-dice-section .face-6 {
-      transform: rotateX(-90deg) translateZ(22.5px);
-    }
-
-    .mobile-dice-section .dot {
-      width: 7px;
-      height: 7px;
-    }
-
-    .mobile-dice-section .result-display {
-      padding: 0.3rem 0.6rem;
-      border-radius: 4px;
-      background: var(--bg-glass);
-      border: var(--glass-border);
-      box-shadow: var(--glass-shadow);
-    }
-
-    .mobile-dice-section .result-number {
-      font-size: 1.1rem;
-      font-weight: bold;
-    }
-
-    .mobile-dice-section .dice-status {
-      font-size: 0.7rem;
-      margin-top: 0.2rem;
-    }
-
-    .mobile-dice-section .status-rolling,
-    .mobile-dice-section .status-result,
-    .mobile-dice-section .status-prompt {
-      padding: 0.25rem 0.5rem;
-      font-size: 0.65rem;
-      border-radius: 3px;
-      background: var(--bg-glass);
-      border: var(--glass-border);
-      color: var(--text-secondary);
-      text-align: center;
-    }
-  }
-
-  @media (max-width: 768px) {
     .game-header {
-      padding: 0.75rem;
+      padding: 0.4rem 0.5rem;
+    }
+
+    .header-content {
+      gap: 0.4rem;
     }
 
     .game-header h1 {
-      font-size: 1.3rem;
+      font-size: 0.95rem;
     }
 
-    .game-header p {
-      font-size: 0.8rem;
+    .header-players {
+      flex: 0 0 auto;
     }
 
-    .current-player-display {
-      flex-direction: column;
-      text-align: center;
-      gap: 0.5rem;
+    .board-section {
+      padding: 0.25rem;
     }
+  }
 
-    .current-avatar {
-      width: 45px;
-      height: 45px;
-      font-size: 1.3rem;
-    }
+  /* Mobile player panel dropdown */
+  .mobile-panel-dropdown {
+    position: fixed;
+    inset: 0;
+    z-index: 1500;
+  }
 
-    .player-avatar {
-      width: 35px;
-      height: 35px;
-      font-size: 1rem;
-    }
+  .mobile-panel-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+  }
 
-    .winner-avatar {
-      width: 50px;
-      height: 50px;
-      font-size: 1.5rem;
-    }
+  .mobile-panel-content {
+    position: absolute;
+    top: 50px;
+    left: 0.5rem;
+    right: 0.5rem;
+    padding: 0.75rem;
+    background: var(--bg-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    border-radius: var(--radius-md, 12px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
 
-    .winner-name {
-      font-size: 1.1rem;
-    }
+  .panel-dropdown-enter-active {
+    transition: opacity 0.2s ease-out;
+  }
+  .panel-dropdown-enter-active .mobile-panel-content {
+    transition: transform 0.2s ease-out;
+  }
+  .panel-dropdown-leave-active {
+    transition: opacity 0.15s ease-in;
+  }
+  .panel-dropdown-leave-active .mobile-panel-content {
+    transition: transform 0.15s ease-in;
+  }
+  .panel-dropdown-enter-from,
+  .panel-dropdown-leave-to {
+    opacity: 0;
+  }
+  .panel-dropdown-enter-from .mobile-panel-content,
+  .panel-dropdown-leave-to .mobile-panel-content {
+    transform: translateY(-10px);
   }
 
   @media (max-width: 480px) {
-    .game-main {
-      padding: 0.25rem;
+    .game-header h1 {
+      font-size: 0.85rem;
     }
 
-    /* 小屏幕优化控制面板高度 */
-    .mobile-control-panel {
-      height: 35vh; /* 保持合理的高度给玩家状态 */
-    }
-
-    .board-section {
-      height: 65vh; /* 相应调整棋盘高度 */
-    }
-
-    /* 更紧凑的合并状态显示 */
-    .mobile-combined-status {
-      gap: 0.5rem;
-      padding: 0.4rem;
-    }
-
-    .mobile-turn-display {
-      padding: 0.3rem 0.5rem;
-      min-width: 50px;
-    }
-
-    .turn-number {
-      font-size: 1.1rem;
-    }
-
-    .turn-label {
-      font-size: 0.65rem;
-    }
-
-    .status-tag-mobile {
-      font-size: 0.7rem;
+    .header-actions .p-button {
+      font-size: 0.75rem;
       padding: 0.25rem 0.5rem;
     }
-
-    /* 小屏幕骰子调整 */
-    .mobile-dice-section .dice-cube {
-      width: 40px;
-      height: 40px;
-      margin: 0.4rem;
-    }
-
-    .mobile-dice-section .face {
-      width: 40px;
-      height: 40px;
-    }
-
-    .mobile-dice-section .face-1 {
-      transform: rotateY(0deg) translateZ(20px);
-    }
-    .mobile-dice-section .face-2 {
-      transform: rotateY(90deg) translateZ(20px);
-    }
-    .mobile-dice-section .face-3 {
-      transform: rotateY(180deg) translateZ(20px);
-    }
-    .mobile-dice-section .face-4 {
-      transform: rotateY(-90deg) translateZ(20px);
-    }
-    .mobile-dice-section .face-5 {
-      transform: rotateX(90deg) translateZ(20px);
-    }
-    .mobile-dice-section .face-6 {
-      transform: rotateX(-90deg) translateZ(20px);
-    }
-
-    .mobile-dice-section .dot {
-      width: 6px;
-      height: 6px;
-    }
-
-    .mobile-dice-section .result-number {
-      font-size: 1rem;
-    }
-
-    .mobile-dice-section .dice-status {
-      font-size: 0.65rem;
-    }
-
-    /* 小屏幕玩家面板优化 */
-    .mobile-player-panel .player-panel h3 {
-      font-size: 0.8rem;
-      margin-bottom: 0.3rem;
-    }
-
-    .mobile-player-panel .player-card {
-      padding: 0.3rem;
-    }
-
-    .mobile-player-panel .player-name {
-      font-size: 0.75rem;
-    }
-
-    .mobile-player-panel .label {
-      font-size: 0.65rem;
-      min-width: 28px;
-    }
-
-    .mobile-player-panel .value {
-      font-size: 0.65rem;
-    }
-
-    .card-title {
-      font-size: 0.9rem;
-    }
-
-    .current-name {
-      font-size: 1rem;
-    }
-
-    .player-name {
-      font-size: 0.9rem;
-    }
-
-    .status-item {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.25rem;
-    }
   }
 
-  /* 触摸优化 */
-  @media (hover: none) and (pointer: coarse) {
-    .dice:hover {
-      transform: none;
-      filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
-    }
-
-    .dice:active {
-      transform: scale(0.95);
-      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
-    }
-
-    .player-item:hover {
-      background: var(--bg-glass-hover);
-      transform: none;
-    }
-
-    .player-item:active {
-      background: rgba(102, 126, 234, 0.15);
-      transform: scale(0.98);
-    }
-
-    /* 增大触摸目标 */
-
-    .control-buttons .p-button {
-      min-height: 48px;
-      padding: 0.75rem 1.5rem;
-    }
-  }
-
-  /* 横屏模式优化 */
-  @media (max-width: 1024px) and (orientation: landscape) {
-    .game-header {
-      padding: 0.5rem;
-    }
-
-    .game-header h1 {
-      font-size: 1.2rem;
-    }
-
-    .game-header p {
-      font-size: 0.75rem;
-    }
-
-    .game-main {
-      padding: 0.25rem;
-    }
-
-    .board-section {
-      min-height: 300px;
-    }
-
-    .sidebar-content {
-      gap: 0.75rem;
-    }
-
-    .dice-card .dice-section {
-      padding: 0.5rem 0;
-    }
-
-    /* 横屏模式下的移动端控制面板优化 */
-    .mobile-control-panel {
-      height: 35vh; /* 横屏时稍微增加高度 */
-    }
-
-    .board-section {
-      height: 65vh;
-    }
-
-    .mobile-combined-status {
+  /* 横屏模式优化：header 变为左侧竖栏 */
+  @media (orientation: landscape) and (max-height: 600px) {
+    .game-page {
       flex-direction: row;
+    }
+
+    .game-header {
+      flex-shrink: 0;
+      width: 60px;
+      padding: 0.4rem;
+      border-bottom: none;
+      border-right: var(--glass-border);
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .header-content {
+      flex-direction: column;
+      gap: 0.5rem;
+      max-width: none;
       align-items: center;
     }
 
-    .mobile-dice-section {
-      width: 25%; /* 横屏时减少骰子区域宽度 */
+    .game-header h1 {
+      font-size: 0;
+      gap: 0;
     }
 
-    .mobile-status-section {
-      width: 75%; /* 横屏时增加状态区域宽度 */
-    }
-  }
-
-  /* 高分辨率屏幕优化 */
-  @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-    .dice-face {
-      border-width: 2px;
+    .game-header h1 .pi-map {
+      font-size: 1.2rem;
     }
 
-    .dot {
-      width: 13px;
-      height: 13px;
+    .header-status {
+      flex-direction: column;
+      gap: 0.2rem;
     }
 
-    .player-avatar,
-    .current-avatar,
-    .winner-avatar {
-      border-width: 1px;
+    .header-actions {
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .header-actions .p-button {
+      font-size: 0;
+      padding: 0.4rem;
+      min-width: 36px;
+    }
+
+    .header-actions .p-button .p-button-icon {
+      margin: 0;
+    }
+
+    .header-players {
+      flex: 0 0 auto;
+    }
+
+    .game-main {
+      min-height: 0;
+      height: 100vh;
     }
   }
 
   /* 减少动画偏好 */
   @media (prefers-reduced-motion: reduce) {
-    .dice.rolling {
-      animation: none;
-      transform: rotateX(360deg) rotateY(360deg);
-    }
-
-    .dice.can-roll {
-      animation: none;
-    }
-
-    .dice.rolled {
-      animation: none;
-    }
-
-    .current-indicator {
-      animation: none;
-    }
-
-    .player-item.player-moving {
-      animation: none;
-    }
-
     * {
       transition-duration: 0.1s !important;
     }
-  }
-
-  /* 顶部信息区域 */
-  /* 旧样式已被新的PrimeVue布局替代 */
-
-  /* 旧的响应式样式已被新的PrimeVue响应式设计替代 */
-
-  /* 旧的移动端样式已被新的响应式设计替代 */
-
-  /* 旧的超小屏幕样式已被新的响应式设计替代 */
-
-  /* 游戏状态样式 */
-  .status-waiting {
-    color: #4ecdc4;
-  }
-
-  .status-rolling {
-    color: #ff6b6b;
-    animation: pulse 1s infinite;
-  }
-
-  .status-moving {
-    color: #45b7d1;
   }
 
   .status-showing_effect {
