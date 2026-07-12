@@ -585,11 +585,7 @@
               <input v-model="newPositionName" placeholder="姿势名称" class="input-field" />
             </div>
             <div class="add-form-actions">
-              <button
-                :disabled="!newPositionName.trim()"
-                class="btn-confirm"
-                @click="addPosition"
-              >
+              <button :disabled="!newPositionName.trim()" class="btn-confirm" @click="addPosition">
                 <Plus :size="14" />
                 添加
               </button>

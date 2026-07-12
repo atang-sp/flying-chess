@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { Plane, Info } from '@lucide/vue'
+  import { Plane, Info, HandHeart } from '@lucide/vue'
   import type { PunishmentAction } from '../types/game'
 
   interface Props {
@@ -7,17 +7,25 @@
     punishment: PunishmentAction | null
     diceValue: number
     executorName: string
+    canRequestMercy?: boolean
   }
 
   interface Emits {
     (e: 'confirm'): void
+    (e: 'request-mercy'): void
   }
 
-  const props = defineProps<Props>()
+  withDefaults(defineProps<Props>(), {
+    canRequestMercy: true,
+  })
   const emit = defineEmits<Emits>()
 
   const handleConfirm = () => {
     emit('confirm')
+  }
+
+  const requestMercy = () => {
+    emit('request-mercy')
   }
 </script>
 
@@ -64,6 +72,10 @@
       </div>
 
       <div class="punishment-footer">
+        <button v-if="canRequestMercy" class="mercy-btn" @click="requestMercy">
+          <HandHeart :size="18" />
+          求饶
+        </button>
         <button class="confirm-btn" @click="handleConfirm">确认惩罚</button>
       </div>
     </div>
@@ -181,6 +193,28 @@
   .punishment-footer {
     display: flex;
     justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .mercy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1.5rem;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+  }
+
+  .mercy-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
   }
 
   .confirm-btn {

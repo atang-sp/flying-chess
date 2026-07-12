@@ -7,6 +7,8 @@ export interface Player {
   isMoving?: boolean // 添加移动动画状态
   hasTakenOff?: boolean // 是否已经起飞
   failedTakeoffAttempts?: number // 起飞失败次数
+  /** 求饶成功后的下次惩罚倍数（如 1.5），用完即清除 */
+  pendingMercyMultiplier?: number
 }
 
 export interface PunishmentTool {

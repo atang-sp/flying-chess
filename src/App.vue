@@ -29,7 +29,6 @@
   import IntroPage from './components/IntroPage.vue'
   import GameBoard from './components/GameBoard.vue'
   import PlayerPanel from './components/PlayerPanel.vue'
-  import CoolDice from './components/CoolDice.vue'
   import BoardConfigPanel from './components/BoardConfig.vue'
   import PunishmentConfigPanel from './components/PunishmentConfig.vue'
   import TrapConfigPanel from './components/TrapConfig.vue'
@@ -44,6 +43,7 @@
   import BounceDisplay from './components/BounceDisplay.vue'
   import DoublePunishmentReveal from './components/DoublePunishmentReveal.vue'
   import ChainPunishmentRoll from './components/ChainPunishmentRoll.vue'
+  import MercyDecision from './components/MercyDecision.vue'
   import ConfigExport from './components/ConfigExport.vue'
   import { saveConfig, loadConfig, loadPlayerSettings } from './utils/cache'
   import { SecureRandom } from './utils/secureRandom'
@@ -159,8 +159,84 @@
   const isChainPunishment = ref(false)
   const showChainPunishmentRoll = ref(false)
 
+  // 求饶状态
+  const MERCY_MULTIPLIER = 1.5
+  const showMercyDecision = ref(false)
+  const mercyHalvedStrikes = ref(0)
+  const mercySource = ref<'board' | 'takeoff'>('board')
+  const mercyRequested = ref(false)
+  const mercyExecutorPlayer = ref<Player | null>(null)
+  const mercyTargetPlayer = ref<Player | null>(null)
+
   // 胜利结算画面状态
   const showVictoryScreen = ref(false)
+
+  const canRequestBoardMercy = computed(() => !isDoublePunishment.value && !mercyRequested.value)
+  const canRequestTakeoffMercy = computed(() => !mercyRequested.value)
+
+  const rebuildPunishmentDescription = (punishment: PunishmentAction, strikes: number): string => {
+    return `用${punishment.tool.name}打${punishment.bodyPart.name}${strikes}下，姿势：${punishment.position.name}`
+  }
+
+  /** 消耗受罚方 pendingMercyMultiplier，返回可安全修改的惩罚副本 */
+  const preparePunishmentForDisplay = (
+    punishment: PunishmentAction,
+    targetPlayer: Player
+  ): PunishmentAction => {
+    const cloned: PunishmentAction = { ...punishment }
+    const multiplier = targetPlayer.pendingMercyMultiplier
+    if (multiplier && multiplier > 1 && cloned.strikes != null) {
+      const newStrikes = Math.ceil(cloned.strikes * multiplier)
+      cloned.strikes = newStrikes
+      cloned.description = rebuildPunishmentDescription(cloned, newStrikes)
+      targetPlayer.pendingMercyMultiplier = undefined
+    }
+    return cloned
+  }
+
+  const handleMercyRequest = (source: 'board' | 'takeoff') => {
+    const punishment = source === 'board' ? currentPunishment.value : currentTakeoffPunishment.value
+    if (!punishment || punishment.strikes == null) return
+
+    mercySource.value = source
+    mercyHalvedStrikes.value = Math.ceil(punishment.strikes / 2)
+    mercyTargetPlayer.value = gameState.players[gameState.currentPlayerIndex] ?? null
+    if (source === 'board') {
+      mercyExecutorPlayer.value = currentPunishmentExecutor.value
+    } else {
+      const idx = currentTakeoffExecutorIndex.value
+      mercyExecutorPlayer.value =
+        idx >= 0 && idx < gameState.players.length ? gameState.players[idx] : null
+    }
+    showMercyDecision.value = true
+  }
+
+  const handleMercyResult = (accepted: boolean) => {
+    showMercyDecision.value = false
+    mercyRequested.value = true
+
+    if (!accepted) return
+
+    const targetPlayer = gameState.players[gameState.currentPlayerIndex]
+    if (!targetPlayer) return
+
+    const applyHalve = (punishment: PunishmentAction): PunishmentAction => {
+      const halved = Math.ceil((punishment.strikes ?? 0) / 2)
+      return {
+        ...punishment,
+        strikes: halved,
+        description: rebuildPunishmentDescription(punishment, halved),
+      }
+    }
+
+    if (mercySource.value === 'board' && currentPunishment.value) {
+      currentPunishment.value = applyHalve(currentPunishment.value)
+    } else if (mercySource.value === 'takeoff' && currentTakeoffPunishment.value) {
+      currentTakeoffPunishment.value = applyHalve(currentTakeoffPunishment.value)
+    }
+
+    targetPlayer.pendingMercyMultiplier = MERCY_MULTIPLIER
+  }
 
   const resetEffectChainCount = () => {
     effectChainCount.value = 0
@@ -219,9 +295,13 @@
 
     // 当玩家尚未起飞(仍停留在起点)且出现惩罚时，视为未起飞惩罚
     if (resolvedPunishment && !currentPlayer.hasTakenOff) {
-      currentTakeoffPunishment.value = resolvedPunishment
+      currentTakeoffPunishment.value = preparePunishmentForDisplay(
+        resolvedPunishment,
+        currentPlayer
+      )
       currentTakeoffDiceValue.value = diceValue ?? gameState.diceValue ?? 0
       currentTakeoffExecutorIndex.value = executorIndex !== undefined ? executorIndex : -1
+      mercyRequested.value = false
       showTakeoffPunishmentDisplay.value = true
       audioService.play('punishment')
       handleTakeoffPunishmentDisplay()
@@ -229,7 +309,8 @@
     }
 
     if (resolvedPunishment) {
-      currentPunishment.value = resolvedPunishment
+      currentPunishment.value = preparePunishmentForDisplay(resolvedPunishment, currentPlayer)
+      mercyRequested.value = false
       audioService.play('punishment')
       if (
         executorIndex !== undefined &&
@@ -381,6 +462,10 @@
     showDoublePunishmentReveal.value = false
     showChainPunishmentRoll.value = false
     pendingDoublePunishment.value = null
+    showMercyDecision.value = false
+    mercyRequested.value = false
+    mercyExecutorPlayer.value = null
+    mercyTargetPlayer.value = null
     resetEffectChainCount()
 
     devLog('游戏状态已重置')
@@ -406,6 +491,7 @@
       takeoffRelief: showTakeoffReliefDisplay.value,
       doublePunishmentReveal: showDoublePunishmentReveal.value,
       chainPunishmentRoll: showChainPunishmentRoll.value,
+      mercyDecision: showMercyDecision.value,
     }
 
     // 检查是否卡在 moving 状态超过 5 秒
@@ -792,6 +878,12 @@
     showVictoryScreen.value = false
     resetEffectChainCount()
 
+    // 清除求饶状态
+    showMercyDecision.value = false
+    mercyRequested.value = false
+    mercyExecutorPlayer.value = null
+    mercyTargetPlayer.value = null
+
     // 直接跳转到棋盘设置页面
     gameState.gameStatus = 'board_settings'
   }
@@ -1141,6 +1233,7 @@
     isDoublePunishment.value = true
     currentPunishment.value = pendingDoublePunishment.value
     pendingDoublePunishment.value = null
+    mercyRequested.value = true // 翻倍惩罚不可求饶
     gameState.gameStatus = 'configuring'
   }
 
@@ -1149,7 +1242,11 @@
     showChainPunishmentRoll.value = false
     if (continueChain) {
       const newPunishment = GameService.generateRandomPunishment(gameState.punishmentConfig)
-      currentPunishment.value = newPunishment
+      const targetPlayer = gameState.players[gameState.currentPlayerIndex]
+      currentPunishment.value = targetPlayer
+        ? preparePunishmentForDisplay(newPunishment, targetPlayer)
+        : newPunishment
+      mercyRequested.value = false
       gameState.gameStatus = 'configuring'
     } else {
       isChainPunishment.value = false
@@ -2047,28 +2144,9 @@
 
       <!-- 主要内容区域 -->
       <main class="game-main">
-        <!-- 左侧骰子区域 -->
+        <!-- 左侧控制区域 -->
         <div class="left-sidebar">
           <div class="sidebar-content">
-            <!-- 骰子区域 -->
-            <Card class="dice-card">
-              <template #title>
-                <div class="card-title">
-                  <i class="pi pi-circle"></i>
-                  <span>投掷骰子</span>
-                </div>
-              </template>
-              <template #content>
-                <div class="dice-section">
-                  <CoolDice
-                    :can-roll="canRollDice"
-                    :value="gameState.diceValue"
-                    @roll="handleDiceRoll"
-                  />
-                </div>
-              </template>
-            </Card>
-
             <!-- 控制按钮 -->
             <div class="control-buttons">
               <PButton
@@ -2093,18 +2171,8 @@
         <div class="game-area">
           <!-- 移动端控制面板 -->
           <div class="mobile-control-panel">
-            <!-- 左侧骰子区域 -->
-            <div class="mobile-dice-section">
-              <CoolDice
-                :can-roll="canRollDice"
-                :value="gameState.diceValue"
-                @roll="handleDiceRoll"
-              />
-            </div>
-
-            <!-- 右侧玩家状态区域 -->
+            <!-- 玩家状态区域 -->
             <div class="mobile-status-section">
-              <!-- 合并的回合数和游戏状态显示 -->
               <div class="mobile-combined-status">
                 <div class="mobile-turn-display">
                   <div class="turn-number">{{ turnCount }}</div>
@@ -2119,7 +2187,7 @@
                 </div>
               </div>
 
-              <!-- 玩家状态面板 (移动端) - 扩展显示区域 -->
+              <!-- 玩家状态面板 (移动端) -->
               <div class="mobile-players-container">
                 <PlayerPanel
                   :players="gameState.players"
@@ -2171,6 +2239,17 @@
                   <div class="current-info">
                     <div class="current-name">
                       {{ gameState.players[gameState.currentPlayerIndex].name }}
+                      <span
+                        v-if="
+                          (gameState.players[gameState.currentPlayerIndex].pendingMercyMultiplier ??
+                            0) > 1
+                        "
+                        class="mercy-multiplier-badge"
+                      >
+                        ×{{
+                          gameState.players[gameState.currentPlayerIndex].pendingMercyMultiplier
+                        }}
+                      </span>
                     </div>
                     <div class="current-position">
                       {{
@@ -2211,7 +2290,10 @@
               :players="gameState.players"
               :current-player-index="gameState.currentPlayerIndex"
               :last-effect="lastEffect"
+              :can-roll="canRollDice"
+              :dice-value="gameState.diceValue"
               @cell-click="handleCellClick"
+              @roll="handleDiceRoll"
             />
           </div>
         </div>
@@ -2221,8 +2303,20 @@
       <PunishmentDisplay
         :punishment="currentPunishment"
         :executor-player="currentPunishmentExecutor"
+        :can-request-mercy="canRequestBoardMercy"
         @confirm="confirmPunishment"
         @skip="skipPunishment"
+        @request-mercy="handleMercyRequest('board')"
+      />
+
+      <!-- 求饶决策弹窗 -->
+      <MercyDecision
+        :visible="showMercyDecision"
+        :punishment="mercySource === 'board' ? currentPunishment : currentTakeoffPunishment"
+        :executor-player="mercyExecutorPlayer"
+        :target-player="mercyTargetPlayer"
+        :halved-strikes="mercyHalvedStrikes"
+        @mercy-result="handleMercyResult"
       />
 
       <!-- 效果显示弹窗 -->
@@ -2262,7 +2356,9 @@
           ? gameState.players[currentTakeoffExecutorIndex]?.name || ''
           : ''
       "
+      :can-request-mercy="canRequestTakeoffMercy"
       @confirm="confirmTakeoffPunishment"
+      @request-mercy="handleMercyRequest('takeoff')"
     />
 
     <!-- 机关陷阱弹窗 -->
@@ -2722,6 +2818,19 @@
     color: var(--text-primary);
     font-size: 0.9rem;
     margin-bottom: 0.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .mercy-multiplier-badge {
+    font-size: 0.7rem;
+    font-weight: bold;
+    color: #fff;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    padding: 0.1rem 0.35rem;
+    border-radius: 999px;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.45);
   }
 
   .compact-current-player .current-position {
