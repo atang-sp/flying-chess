@@ -1,18 +1,22 @@
 <script setup lang="ts">
-  import { Zap, Check, SkipForward } from '@lucide/vue'
+  import { Zap, Check, SkipForward, HandHeart } from '@lucide/vue'
   import type { PunishmentAction, Player } from '../types/game'
 
   interface Props {
     punishment: PunishmentAction | null
     executorPlayer?: Player | null
+    canRequestMercy?: boolean
   }
 
   interface Emits {
     (e: 'confirm'): void
     (e: 'skip'): void
+    (e: 'request-mercy'): void
   }
 
-  defineProps<Props>()
+  withDefaults(defineProps<Props>(), {
+    canRequestMercy: false,
+  })
   const emit = defineEmits<Emits>()
 
   const confirmPunishment = () => {
@@ -21,6 +25,10 @@
 
   const skipPunishment = () => {
     emit('skip')
+  }
+
+  const requestMercy = () => {
+    emit('request-mercy')
   }
 </script>
 
@@ -75,6 +83,10 @@
           <button class="btn btn-success" @click="confirmPunishment">
             <Check :size="18" />
             确认执行
+          </button>
+          <button v-if="canRequestMercy" class="btn btn-mercy" @click="requestMercy">
+            <HandHeart :size="18" />
+            求饶
           </button>
           <button class="btn btn-secondary" @click="skipPunishment">
             <SkipForward :size="18" />
@@ -232,6 +244,17 @@
     gap: 1rem;
     justify-content: center;
     margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .btn-mercy {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    border: none;
+  }
+
+  .btn-mercy:hover {
+    filter: brightness(1.1);
   }
 
   /* 移动端适配 */

@@ -318,6 +318,13 @@
               :style="{ backgroundColor: player.color, '--player-glow-color': player.color }"
             ></div>
             <span class="player-name">{{ player.name }}</span>
+            <div
+              v-if="player.pendingMercyMultiplier && player.pendingMercyMultiplier > 1"
+              class="mercy-badge"
+              :title="`下次惩罚 ×${player.pendingMercyMultiplier}`"
+            >
+              ×{{ player.pendingMercyMultiplier }}
+            </div>
             <div v-if="player.isWinner" class="winner-badge">🏆</div>
           </div>
           <div class="player-stats">
@@ -431,6 +438,18 @@
   .winner-badge {
     font-size: clamp(1rem, 3vw, 1.2rem);
     animation: bounce 1s infinite;
+  }
+
+  .mercy-badge {
+    font-size: clamp(0.7rem, 2vw, 0.8rem);
+    font-weight: bold;
+    color: #fff;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    padding: 0.15rem 0.4rem;
+    border-radius: 999px;
+    line-height: 1.2;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+    white-space: nowrap;
   }
 
   .player-stats {
