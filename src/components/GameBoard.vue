@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { computed, ref, watch, nextTick } from 'vue'
+  import { computed, ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
   import type { BoardCell, Player } from '../types/game'
   import { CELL_ICON_NAMES } from '../config/gameConfig'
   import { Zap, Gift, Undo2, Moon, RotateCcw, Skull, Rocket, Sparkles, Link } from '@lucide/vue'
@@ -12,6 +12,7 @@
     lastEffect?: string
     canRoll?: boolean
     diceValue?: number | null
+    turnCount?: number
   }
 
   interface Emits {
@@ -41,12 +42,44 @@
   const activatedCell = ref<number | null>(null)
   const landingCell = ref<number | null>(null)
 
-  // Ring layout: distribute N cells along 4 edges of a rectangle
+  const boardRingRef = ref<HTMLElement | null>(null)
+  const containerWidth = ref(800)
+  const containerHeight = ref(600)
+  let resizeObserver: ResizeObserver | null = null
+
+  onMounted(() => {
+    if (boardRingRef.value) {
+      const rect = boardRingRef.value.getBoundingClientRect()
+      containerWidth.value = rect.width || 800
+      containerHeight.value = rect.height || 600
+    }
+    resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        containerWidth.value = entry.contentRect.width
+        containerHeight.value = entry.contentRect.height
+      }
+    })
+    if (boardRingRef.value) {
+      resizeObserver.observe(boardRingRef.value)
+    }
+  })
+
+  onUnmounted(() => {
+    resizeObserver?.disconnect()
+  })
+
+  const isMobile = computed(() => containerWidth.value < 600)
+
+  const layoutRatio = computed(() => {
+    const isPortrait = containerHeight.value > containerWidth.value
+    return isPortrait ? 1.0 : 1.6
+  })
+
   const ringLayout = computed(() => {
     const totalCells = props.board.length
     if (totalCells === 0) return { top: [], right: [], bottom: [], left: [] }
 
-    const ratio = 1.6
+    const ratio = layoutRatio.value
     const adjustedHorizontal = Math.ceil((totalCells * ratio) / (2 * (1 + ratio)))
     const adjustedVertical = Math.ceil((totalCells - 2 * adjustedHorizontal) / 2)
 
@@ -119,10 +152,52 @@
     return props.players.filter(p => p.position === position)
   }
 
+  const cellSize = computed(() => {
+    const { top, bottom } = ringLayout.value
+    const maxHorizontalCells = Math.max(top.length, bottom.length, 1)
+    const gap = 4
+    const edgePadding = 4
+    const availableWidth = containerWidth.value - edgePadding - (maxHorizontalCells - 1) * gap
+    const idealSize = Math.floor(availableWidth / maxHorizontalCells)
+    return Math.max(24, Math.min(idealSize, 56))
+  })
+
+  const cellIconSize = computed(() => Math.max(10, Math.round(cellSize.value * 0.38)))
+
+  const cellBorderRadius = computed(() => Math.max(6, Math.round(cellSize.value * 0.2)))
+
+  const markerSize = computed(() => Math.max(14, Math.min(Math.round(cellSize.value * 0.4), 24)))
+
+  const boardAspect = computed(() => {
+    const r = containerWidth.value / Math.max(containerHeight.value, 1)
+    if (r >= 1.6) return 1.8
+    if (r >= 1.0) return 0.4 * r + 1.16
+    return 1.0
+  })
+
+  const diceScale = computed(() => {
+    const s = cellSize.value
+    if (s >= 50) return 1
+    if (s >= 40) return 0.75
+    if (s >= 32) return 0.6
+    return 0.5
+  })
+
+  const boardCssVars = computed(() => ({
+    '--cell-size': `${cellSize.value}px`,
+    '--cell-icon-size': `${cellIconSize.value}px`,
+    '--cell-border-radius': `${cellBorderRadius.value}px`,
+    '--marker-size': `${markerSize.value}px`,
+    '--marker-offset': `${-markerSize.value / 2}px`,
+    '--board-aspect': `${boardAspect.value} / 1`,
+    '--dice-scale': `${diceScale.value}`,
+    '--edge-gap': `${cellSize.value >= 44 ? 4 : cellSize.value >= 36 ? 3 : 2}px`,
+  }))
+
   const getPlayerOffset = (playerIndex: number, totalOnCell: number): { x: number; y: number } => {
     if (totalOnCell === 1) return { x: 0, y: 0 }
     const angle = ((2 * Math.PI) / totalOnCell) * playerIndex - Math.PI / 2
-    const radius = 14
+    const radius = Math.max(8, cellSize.value * 0.25)
     return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius }
   }
 
@@ -132,9 +207,66 @@
 
   const handleDiceRoll = () => {
     emit('roll')
+    vibrate(15)
+  }
+
+  const vibrate = (ms: number) => {
+    try {
+      navigator?.vibrate?.(ms)
+    } catch {
+      // vibration not supported
+    }
+  }
+
+  let longPressTimer: ReturnType<typeof setTimeout> | null = null
+  const isTouchDevice = ref(false)
+
+  const handleTouchStart = (cell: BoardCell, event: TouchEvent) => {
+    isTouchDevice.value = true
+    longPressTimer = setTimeout(() => {
+      showTooltipForCell(cell, event.touches[0].clientX, event.touches[0].clientY)
+      vibrate(10)
+    }, 300)
+  }
+
+  const handleTouchEnd = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      longPressTimer = null
+    }
+    setTimeout(hideTooltip, 200)
+  }
+
+  const handleTouchMove = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      longPressTimer = null
+    }
+  }
+
+  const showTooltipForCell = (cell: BoardCell, clientX: number, clientY: number) => {
+    tooltipCell.value = cell
+    tooltipVisible.value = true
+
+    if (isMobile.value) {
+      tooltipStyle.value = { left: '0px', top: '0px' }
+      return
+    }
+
+    const tooltipWidth = 220
+    const tooltipHeight = 120
+    let left = clientX - tooltipWidth / 2
+    let top = clientY - tooltipHeight - 16
+
+    if (left < 8) left = 8
+    if (left + tooltipWidth > window.innerWidth - 8) left = window.innerWidth - tooltipWidth - 8
+    if (top < 8) top = clientY + 16
+
+    tooltipStyle.value = { left: `${left}px`, top: `${top}px` }
   }
 
   const showTooltip = (cell: BoardCell, event: MouseEvent | TouchEvent) => {
+    if (isTouchDevice.value) return
     tooltipCell.value = cell
     tooltipVisible.value = true
 
@@ -158,15 +290,20 @@
     tooltipCell.value = null
   }
 
-  // Animation: trigger cell activation pulse
+  const handleBoardClick = (event: MouseEvent) => {
+    const target = event.target as HTMLElement
+    if (target.closest('.board-cell')) return
+    hideTooltip()
+  }
+
   const triggerCellActivation = (position: number) => {
     activatedCell.value = position
+    vibrate(10)
     setTimeout(() => {
       activatedCell.value = null
     }, 1500)
   }
 
-  // Animation: trigger landing effect
   const triggerLanding = (position: number) => {
     landingCell.value = position
     setTimeout(() => {
@@ -194,8 +331,8 @@
 </script>
 
 <template>
-  <div class="game-board">
-    <div class="board-ring">
+  <div class="game-board" @click="handleBoardClick">
+    <div ref="boardRingRef" class="board-ring" :style="boardCssVars">
       <!-- Top edge -->
       <div class="ring-edge ring-top">
         <div
@@ -206,13 +343,15 @@
           @click="handleCellClick(getCellByPosition(pos))"
           @mouseenter="showTooltip(getCellByPosition(pos), $event)"
           @mouseleave="hideTooltip"
+          @touchstart.passive="handleTouchStart(getCellByPosition(pos), $event)"
+          @touchend.passive="handleTouchEnd()"
+          @touchmove.passive="handleTouchMove()"
         >
           <div class="cell-glow"></div>
           <div class="cell-icon">
-            <component :is="getCellIcon(pos)" v-if="getCellIcon(pos)" :size="20" />
+            <component :is="getCellIcon(pos)" v-if="getCellIcon(pos)" :size="cellIconSize" />
           </div>
           <span class="cell-number">{{ pos }}</span>
-          <!-- Player markers -->
           <div class="cell-players">
             <div
               v-for="(player, pIdx) in getPlayersOnCell(pos)"
@@ -243,10 +382,13 @@
           @click="handleCellClick(getCellByPosition(pos))"
           @mouseenter="showTooltip(getCellByPosition(pos), $event)"
           @mouseleave="hideTooltip"
+          @touchstart.passive="handleTouchStart(getCellByPosition(pos), $event)"
+          @touchend.passive="handleTouchEnd()"
+          @touchmove.passive="handleTouchMove()"
         >
           <div class="cell-glow"></div>
           <div class="cell-icon">
-            <component :is="getCellIcon(pos)" v-if="getCellIcon(pos)" :size="20" />
+            <component :is="getCellIcon(pos)" v-if="getCellIcon(pos)" :size="cellIconSize" />
           </div>
           <span class="cell-number">{{ pos }}</span>
           <div class="cell-players">
@@ -278,18 +420,18 @@
             @roll="handleDiceRoll"
           />
         </div>
-        <div v-if="currentPlayer" class="center-status">
+        <div v-if="currentPlayer && !isMobile" class="center-status">
           <div class="status-player">
             <span class="status-avatar" :style="{ backgroundColor: currentPlayer.color }">
               {{ currentPlayer.name.charAt(0) }}
             </span>
             <span class="status-name">{{ currentPlayer.name }}</span>
+            <span v-if="turnCount" class="status-turn">R{{ turnCount }}</span>
           </div>
           <div class="status-position">
             {{ currentPlayer.position === 0 ? '等待起飞' : `第 ${currentPlayer.position} 格` }}
           </div>
         </div>
-        <!-- Players at position 0 (waiting to take off) -->
         <div v-if="playersAtStart.length > 0" class="start-zone">
           <Rocket :size="14" class="start-zone-icon" />
           <div class="start-zone-players">
@@ -304,7 +446,7 @@
             </div>
           </div>
         </div>
-        <div v-if="lastEffect" class="center-effect">
+        <div v-if="lastEffect && !isMobile" class="center-effect">
           <Sparkles :size="14" />
           <span>{{ lastEffect }}</span>
         </div>
@@ -320,10 +462,13 @@
           @click="handleCellClick(getCellByPosition(pos))"
           @mouseenter="showTooltip(getCellByPosition(pos), $event)"
           @mouseleave="hideTooltip"
+          @touchstart.passive="handleTouchStart(getCellByPosition(pos), $event)"
+          @touchend.passive="handleTouchEnd()"
+          @touchmove.passive="handleTouchMove()"
         >
           <div class="cell-glow"></div>
           <div class="cell-icon">
-            <component :is="getCellIcon(pos)" v-if="getCellIcon(pos)" :size="20" />
+            <component :is="getCellIcon(pos)" v-if="getCellIcon(pos)" :size="cellIconSize" />
           </div>
           <span class="cell-number">{{ pos }}</span>
           <div class="cell-players">
@@ -356,10 +501,13 @@
           @click="handleCellClick(getCellByPosition(pos))"
           @mouseenter="showTooltip(getCellByPosition(pos), $event)"
           @mouseleave="hideTooltip"
+          @touchstart.passive="handleTouchStart(getCellByPosition(pos), $event)"
+          @touchend.passive="handleTouchEnd()"
+          @touchmove.passive="handleTouchMove()"
         >
           <div class="cell-glow"></div>
           <div class="cell-icon">
-            <component :is="getCellIcon(pos)" v-if="getCellIcon(pos)" :size="20" />
+            <component :is="getCellIcon(pos)" v-if="getCellIcon(pos)" :size="cellIconSize" />
           </div>
           <span class="cell-number">{{ pos }}</span>
           <div class="cell-players">
@@ -389,9 +537,13 @@
       <div class="corner corner-tl"></div>
     </div>
 
-    <!-- Tooltip -->
+    <!-- Desktop tooltip (follows cursor) -->
     <Teleport to="body">
-      <div v-if="tooltipVisible && tooltipCell" class="cell-tooltip" :style="tooltipStyle">
+      <div
+        v-if="tooltipVisible && tooltipCell && !isMobile"
+        class="cell-tooltip"
+        :style="tooltipStyle"
+      >
         <div class="tooltip-header">
           <span class="tooltip-number">#{{ tooltipCell.position }}</span>
           <span class="tooltip-type" :class="'type-' + tooltipCell.type">
@@ -431,6 +583,19 @@
       </div>
     </Teleport>
 
+    <!-- Mobile tooltip (bottom bar) -->
+    <Transition name="mobile-tooltip">
+      <div v-if="tooltipVisible && tooltipCell && isMobile" class="mobile-tooltip-bar">
+        <span class="tooltip-number">#{{ tooltipCell.position }}</span>
+        <span class="tooltip-type" :class="'type-' + tooltipCell.type">
+          {{ getCellTypeName(tooltipCell.type) }}
+        </span>
+        <span v-if="tooltipCell.effect" class="tooltip-desc-inline">
+          {{ tooltipCell.effect.description }}
+        </span>
+      </div>
+    </Transition>
+
     <!-- Full-screen effect flash -->
     <Transition name="flash">
       <div
@@ -449,11 +614,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 1rem;
+    padding: 0.5rem;
     position: relative;
   }
 
-  /* === Ring Layout === */
+  /* === Ring Layout (CSS-var driven) === */
   .board-ring {
     display: grid;
     grid-template-areas:
@@ -464,14 +629,14 @@
     grid-template-rows: auto 1fr auto;
     gap: 0;
     width: 100%;
-    max-width: 800px;
-    aspect-ratio: 1.4 / 1;
+    max-width: 1100px;
+    aspect-ratio: var(--board-aspect, 1.4 / 1);
     position: relative;
   }
 
   .ring-edge {
     display: flex;
-    gap: 4px;
+    gap: var(--edge-gap, 4px);
     padding: 2px;
   }
 
@@ -506,8 +671,8 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 1rem;
-    min-height: 200px;
+    padding: 0.5rem;
+    min-height: 0;
   }
 
   /* === Corner Connectors === */
@@ -535,12 +700,12 @@
     left: 0;
   }
 
-  /* === Cell Design === */
+  /* === Cell Design (dynamic via CSS vars) === */
   .board-cell {
     position: relative;
-    width: 56px;
-    height: 56px;
-    border-radius: 12px;
+    width: var(--cell-size, 56px);
+    height: var(--cell-size, 56px);
+    border-radius: var(--cell-border-radius, 12px);
     cursor: pointer;
     display: flex;
     flex-direction: column;
@@ -556,6 +721,13 @@
     overflow: visible;
   }
 
+  .board-cell::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    z-index: 1;
+  }
+
   .board-cell:hover {
     transform: scale(1.12);
     z-index: 5;
@@ -564,10 +736,17 @@
   .board-cell .cell-glow {
     position: absolute;
     inset: -2px;
-    border-radius: 14px;
-    opacity: 0.4;
+    border-radius: calc(var(--cell-border-radius, 12px) + 2px);
+    opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
+    display: none;
+  }
+
+  .board-cell:hover .cell-glow,
+  .board-cell.cell-occupied .cell-glow {
+    display: block;
+    opacity: 0.4;
   }
 
   .board-cell:hover .cell-glow {
@@ -583,9 +762,9 @@
 
   .board-cell .cell-number {
     position: absolute;
-    bottom: 2px;
-    right: 4px;
-    font-size: 0.55rem;
+    bottom: 1px;
+    right: 2px;
+    font-size: 0.5rem;
     font-weight: 600;
     opacity: 0.4;
     z-index: 2;
@@ -728,12 +907,11 @@
     }
   }
 
-  /* Ripple effect on landing */
   .cell-landing::after {
     content: '';
     position: absolute;
     inset: -4px;
-    border-radius: 16px;
+    border-radius: calc(var(--cell-border-radius, 12px) + 4px);
     border: 2px solid rgba(255, 255, 255, 0.5);
     animation: ripple 0.8s ease-out forwards;
     pointer-events: none;
@@ -750,10 +928,10 @@
     }
   }
 
-  /* === Player Markers === */
+  /* === Player Markers (dynamic via CSS vars) === */
   .cell-players {
     position: absolute;
-    top: -12px;
+    top: var(--marker-offset, -12px);
     left: 50%;
     transform: translateX(-50%);
     display: flex;
@@ -764,15 +942,15 @@
   }
 
   .player-marker {
-    width: 24px;
-    height: 24px;
+    width: var(--marker-size, 24px);
+    height: var(--marker-size, 24px);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
     font-weight: 700;
-    font-size: 10px;
+    font-size: calc(var(--marker-size, 24px) * 0.4);
     border: 2px solid rgba(255, 255, 255, 0.7);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
     text-transform: uppercase;
@@ -786,6 +964,7 @@
       0 0 8px rgba(255, 215, 0, 0.6),
       0 0 20px rgba(255, 215, 0, 0.3);
     animation: playerPulse 2s ease-in-out infinite;
+    will-change: transform, box-shadow;
   }
 
   .player-marker.player-moving {
@@ -825,8 +1004,8 @@
 
   /* === Center Area === */
   .center-dice {
-    transform: scale(0.75);
     transform-origin: center;
+    transform: scale(var(--dice-scale, 1));
   }
 
   .center-status {
@@ -834,7 +1013,7 @@
     flex-direction: column;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.5rem 1rem;
+    padding: 0.3rem 0.6rem;
     background: rgba(255, 255, 255, 0.04);
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.06);
@@ -863,6 +1042,16 @@
     font-weight: 600;
     font-size: 0.85rem;
     color: var(--text-primary);
+  }
+
+  .status-turn {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    font-variant-numeric: tabular-nums;
   }
 
   .status-position {
@@ -921,7 +1110,7 @@
     }
   }
 
-  /* === Tooltip === */
+  /* === Tooltip (desktop) === */
   .cell-tooltip {
     position: fixed;
     z-index: 10000;
@@ -1012,6 +1201,52 @@
     font-size: 0.7rem;
   }
 
+  /* === Mobile Tooltip (bottom bar) === */
+  .mobile-tooltip-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(15, 15, 35, 0.95);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    font-size: 0.8rem;
+    color: var(--text-primary);
+  }
+
+  .mobile-tooltip-bar .tooltip-number {
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+
+  .mobile-tooltip-bar .tooltip-type {
+    flex-shrink: 0;
+  }
+
+  .tooltip-desc-inline {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-tooltip-enter-active {
+    transition: transform 0.2s ease-out;
+  }
+  .mobile-tooltip-leave-active {
+    transition: transform 0.15s ease-in;
+  }
+  .mobile-tooltip-enter-from,
+  .mobile-tooltip-leave-to {
+    transform: translateY(100%);
+  }
+
   /* === Full-screen Effect Flash === */
   .effect-flash {
     position: fixed;
@@ -1055,169 +1290,37 @@
     animation: flashPulse 0.3s ease-out reverse;
   }
 
-  /* === Responsive: >= 768px (Desktop/Tablet) === */
-  @media (min-width: 768px) {
-    .board-cell {
-      width: 56px;
-      height: 56px;
-    }
-    .board-cell .cell-icon :deep(svg) {
-      width: 22px;
-      height: 22px;
-    }
-  }
-
-  /* === Responsive: 480-767px (Small Tablet / Large Phone) === */
-  @media (max-width: 767px) {
-    .game-board {
-      padding: 0.5rem;
-    }
-
-    .board-ring {
-      aspect-ratio: 1.2 / 1;
-    }
-
-    .board-cell {
-      width: 44px;
-      height: 44px;
-      border-radius: 10px;
-    }
-
-    .board-cell .cell-icon :deep(svg) {
-      width: 18px;
-      height: 18px;
-    }
-
-    .cell-number {
-      font-size: 0.5rem;
-    }
-
-    .ring-edge {
-      gap: 3px;
-    }
-
-    .ring-center {
-      padding: 0.5rem;
-      min-height: 140px;
-    }
-
-    .center-dice {
-      transform: scale(0.6);
-    }
-
-    .center-status {
-      padding: 0.3rem 0.6rem;
-    }
-
-    .status-name {
-      font-size: 0.75rem;
-    }
-    .status-position {
-      font-size: 0.65rem;
-    }
-
-    .player-marker {
-      width: 20px;
-      height: 20px;
-      font-size: 8px;
-    }
-  }
-
-  /* === Responsive: < 480px (Phone) === */
-  @media (max-width: 479px) {
-    .game-board {
-      padding: 0.25rem;
-    }
-
-    .board-ring {
-      aspect-ratio: 1.1 / 1;
-    }
-
-    .board-cell {
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
-      border-width: 1.5px;
-    }
-
-    .board-cell .cell-icon :deep(svg) {
-      width: 15px;
-      height: 15px;
-    }
-
-    .cell-number {
-      font-size: 0.45rem;
-      bottom: 1px;
-      right: 2px;
-    }
-
-    .ring-edge {
-      gap: 2px;
-      padding: 1px;
-    }
-
-    .ring-center {
-      padding: 0.25rem;
-      min-height: 100px;
-      gap: 0.25rem;
-    }
-
-    .center-dice {
-      transform: scale(0.5);
-    }
-
-    .center-status {
-      padding: 0.2rem 0.5rem;
-    }
-
-    .center-effect {
-      font-size: 0.65rem;
-      padding: 0.25rem 0.5rem;
-      max-width: 140px;
-    }
-
-    .status-name {
-      font-size: 0.7rem;
-    }
-    .status-position {
-      font-size: 0.6rem;
-    }
-
-    .player-marker {
-      width: 18px;
-      height: 18px;
-      font-size: 7px;
-      border-width: 1.5px;
-    }
-
-    .cell-players {
-      top: -10px;
-    }
-  }
-
   /* === Landscape mode === */
-  @media (max-height: 500px) and (orientation: landscape) {
-    .board-ring {
-      aspect-ratio: 2 / 1;
-      max-width: 90vw;
-    }
-
-    .board-cell {
-      width: 32px;
-      height: 32px;
-    }
-
-    .board-cell .cell-icon :deep(svg) {
-      width: 14px;
-      height: 14px;
+  @media (orientation: landscape) and (max-height: 600px) {
+    .game-board {
+      padding: 0.25rem;
     }
 
     .ring-center {
-      min-height: 80px;
+      gap: 0.25rem;
+      padding: 0.25rem;
+    }
+  }
+
+  /* === Reduced motion === */
+  @media (prefers-reduced-motion: reduce) {
+    .board-cell,
+    .player-marker,
+    .center-effect {
+      transition: none !important;
+      animation: none !important;
     }
 
-    .center-dice {
-      transform: scale(0.45);
+    .cell-landing::after {
+      animation: none !important;
+    }
+
+    .player-marker.current-player {
+      animation: none !important;
+    }
+
+    .effect-flash {
+      display: none;
     }
   }
 </style>
