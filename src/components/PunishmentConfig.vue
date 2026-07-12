@@ -1,6 +1,6 @@
 <script setup lang="ts">
-  import { ref, watch, nextTick } from 'vue'
-  import { Settings, Target, ChevronRight, X, Minus, Plus, RotateCcw } from '@lucide/vue'
+  import { ref, watch, nextTick, computed } from 'vue'
+  import { Settings, Target, ChevronRight, Minus, Plus, RotateCcw } from '@lucide/vue'
   import type {
     PunishmentConfig,
     PunishmentTool,
@@ -9,6 +9,8 @@
   } from '../types/game'
   import { GameService } from '../services/gameService'
   import ConfigErrorModal from './ConfigErrorModal.vue'
+  import RatioDistributor from './RatioDistributor.vue'
+  import type { RatioItem } from './RatioDistributor.vue'
 
   interface Props {
     config: PunishmentConfig
@@ -22,10 +24,8 @@
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
 
-  // 本地状态，避免直接修改props
   const localConfig = ref<PunishmentConfig>({ ...props.config })
 
-  // 监听props变化，更新本地状态
   watch(
     () => props.config,
     newConfig => {
@@ -34,7 +34,6 @@
     { deep: true, immediate: true }
   )
 
-  // 错误提示状态
   const showErrorModal = ref(false)
   const errorMessage = ref('')
   const requiredSensitivity = ref<number>()
@@ -45,11 +44,27 @@
   const newBodyPartSensitivity = ref(5)
   const newPositionName = ref('')
 
+  const toolDistributorRef = ref<InstanceType<typeof RatioDistributor>>()
+  const bodyPartDistributorRef = ref<InstanceType<typeof RatioDistributor>>()
+  const positionDistributorRef = ref<InstanceType<typeof RatioDistributor>>()
+
+  // Computed arrays for RatioDistributor
+  const toolItems = computed<RatioItem[]>(() => Object.values(localConfig.value.tools))
+  const bodyPartItems = computed<RatioItem[]>(() => Object.values(localConfig.value.bodyParts))
+  const positionItems = computed<RatioItem[]>(() => Object.values(localConfig.value.positions))
+
   const closeErrorModal = () => {
     showErrorModal.value = false
   }
 
-  // 比例自动分配算法
+  function showError(validation: { errorMessage?: string; requiredSensitivity?: number }) {
+    errorMessage.value = validation.errorMessage || '配置验证失败'
+    requiredSensitivity.value = validation.requiredSensitivity
+    showErrorModal.value = true
+    emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+  }
+
+  // --- Ratio auto-distribution ---
   function autoDistributeRatio(list: { ratio: number }[], changedIdx: number, newValue: number) {
     const n = list.length
     if (n === 1) {
@@ -57,39 +72,28 @@
       return
     }
 
-    // 限制新值在0~100之间
     newValue = Math.max(0, Math.min(100, newValue))
 
-    // 计算当前选项之前的所有选项总和（这些保持不变）
     let sumBefore = 0
     for (let i = 0; i < changedIdx; i++) {
       sumBefore += list[i].ratio
     }
 
-    // 计算当前选项和后续选项可用的总比例
     const availableRatio = 100 - sumBefore
-
-    // 如果新值超过可用比例，限制新值
     if (newValue > availableRatio) {
       newValue = availableRatio
     }
 
-    // 设置当前选项的比例
     list[changedIdx].ratio = newValue
 
-    // 计算剩余比例
     const remainingRatio = availableRatio - newValue
-
-    // 计算后续选项的数量
     const afterCount = n - changedIdx - 1
 
     if (afterCount > 0) {
-      // 将剩余比例分配给后续选项
       const baseRatio = Math.floor(remainingRatio / afterCount)
       const remainder = remainingRatio % afterCount
 
       for (let i = changedIdx + 1; i < n; i++) {
-        // 前面的选项获得基础比例，最后一个选项获得基础比例加余数
         if (i === n - 1) {
           list[i].ratio = baseRatio + remainder
         } else {
@@ -97,143 +101,63 @@
         }
       }
     } else if (afterCount === 0) {
-      // 如果没有后续选项，当前选项就是最后一个
-      // 确保总和为100
       list[changedIdx].ratio = 100 - sumBefore
     }
   }
 
-  const onToolRatioInput = async (idx: number, value: number) => {
-    // 记录修改前的配置
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+  function validateAndEmit(originalConfig: PunishmentConfig): boolean {
+    const validation = GameService.validatePunishmentConfig(localConfig.value)
+    if (validation.isValid) {
+      emit('update', localConfig.value)
+      return true
+    } else {
+      localConfig.value = originalConfig
+      showError(validation)
+      return false
+    }
+  }
 
-    // 先更新UI显示新值
+  // --- Tool handlers ---
+  const onToolRatioUpdate = (idx: number, value: number) => {
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
     const toolsArray = Object.values(localConfig.value.tools)
     autoDistributeRatio(toolsArray, idx, value)
-
-    // 验证配置
-    const validation = GameService.validatePunishmentConfig(localConfig.value)
-    if (validation.isValid) {
-      // 配置有效，发送更新事件
-      emit('update', localConfig.value)
-    } else {
-      // 配置无效，回退到修改前的值
-      localConfig.value = originalConfig
-
-      // 显示错误提示
-      errorMessage.value = validation.errorMessage || '配置验证失败'
-      requiredSensitivity.value = validation.requiredSensitivity
-      showErrorModal.value = true
-      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
-    }
+    validateAndEmit(originalConfig)
   }
 
-  const onBodyPartRatioInput = async (idx: number, value: number) => {
-    // 记录修改前的配置
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
-
-    // 先更新UI显示新值
-    const bodyPartsArray = Object.values(localConfig.value.bodyParts)
-    autoDistributeRatio(bodyPartsArray, idx, value)
-
-    // 验证配置
-    const validation = GameService.validatePunishmentConfig(localConfig.value)
-    if (validation.isValid) {
-      // 配置有效，发送更新事件
-      emit('update', localConfig.value)
-    } else {
-      // 配置无效，回退到修改前的值
-      localConfig.value = originalConfig
-
-      // 显示错误提示
-      errorMessage.value = validation.errorMessage || '配置验证失败'
-      requiredSensitivity.value = validation.requiredSensitivity
-      showErrorModal.value = true
-      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
-    }
-  }
-
-  const onPositionRatioInput = async (idx: number, value: number) => {
-    // 记录修改前的配置
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
-
-    // 先更新UI显示新值
-    const positionsArray = Object.values(localConfig.value.positions)
-    autoDistributeRatio(positionsArray, idx, value)
-
-    // 验证配置
-    const validation = GameService.validatePunishmentConfig(localConfig.value)
-    if (validation.isValid) {
-      // 配置有效，发送更新事件
-      emit('update', localConfig.value)
-    } else {
-      // 配置无效，回退到修改前的值
-      localConfig.value = originalConfig
-
-      // 显示错误提示
-      errorMessage.value = validation.errorMessage || '配置验证失败'
-      requiredSensitivity.value = validation.requiredSensitivity
-      showErrorModal.value = true
-      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
-    }
-  }
-
-  const updateToolIntensity = async (toolName: string, newIntensity: number) => {
+  const updateToolIntensity = (toolName: string, newIntensity: number) => {
     const tool = localConfig.value.tools[toolName]
     if (tool && newIntensity >= 1 && newIntensity <= 10) {
-      // 记录修改前的值
       const originalIntensity = tool.intensity
-
-      // 先更新UI显示新值
       tool.intensity = newIntensity
 
-      // 验证配置
       const validation = GameService.validatePunishmentConfig(localConfig.value)
       if (validation.isValid) {
-        // 配置有效，发送更新事件
         emit('update', localConfig.value)
       } else {
-        // 配置无效，回退到修改前的值
         tool.intensity = originalIntensity
-
-        // 显示错误提示
-        errorMessage.value = validation.errorMessage || '配置验证失败'
-        requiredSensitivity.value = validation.requiredSensitivity
-        showErrorModal.value = true
-        emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+        showError(validation)
       }
     }
   }
 
   const removeTool = async (toolName: string) => {
-    // 记录修改前的配置
     const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
-
     if (toolName in localConfig.value.tools) {
-      // 先更新UI显示新值
       delete localConfig.value.tools[toolName]
 
-      // 重新分配比例
       const toolsArray = Object.values(localConfig.value.tools)
       if (toolsArray.length > 0) {
         autoDistributeRatio(toolsArray, 0, toolsArray[0].ratio)
       }
 
-      // 验证配置
       const validation = GameService.validatePunishmentConfig(localConfig.value)
       if (validation.isValid) {
-        // 配置有效，发送更新事件
         emit('update', localConfig.value)
       } else {
-        // 配置无效，等待DOM更新后回退到修改前的值
         await nextTick()
         localConfig.value = originalConfig
-
-        // 显示错误提示
-        errorMessage.value = validation.errorMessage || '配置验证失败'
-        requiredSensitivity.value = validation.requiredSensitivity
-        showErrorModal.value = true
-        emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+        showError(validation)
       }
     }
   }
@@ -241,109 +165,83 @@
   const addTool = async () => {
     if (newToolName.value.trim()) {
       const toolName = newToolName.value.trim()
+      if (toolName in localConfig.value.tools) return
 
-      // 检查是否已存在同名工具
-      if (toolName in localConfig.value.tools) {
-        return // 已存在，不添加
-      }
-
-      // 记录修改前的配置
       const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
-
-      // 先更新UI显示新值
       const toolsArray = Object.values(localConfig.value.tools)
       const n = toolsArray.length + 1
       const ratio = 100 / n
 
-      // 更新现有工具的比例
       toolsArray.forEach(t => (t.ratio = ratio))
 
-      // 创建新工具
       const newTool: PunishmentTool = {
         name: toolName,
         intensity: Math.max(1, Math.min(10, newToolIntensity.value)),
         ratio,
       }
 
-      // 添加新工具
       localConfig.value.tools[toolName] = newTool
 
-      // 验证配置
-      const validation = GameService.validatePunishmentConfig(localConfig.value)
-      if (validation.isValid) {
-        // 配置有效，发送更新事件
-        emit('update', localConfig.value)
+      if (validateAndEmit(originalConfig)) {
         newToolName.value = ''
         newToolIntensity.value = 5
-      } else {
-        // 配置无效，回退到修改前的值
-        localConfig.value = originalConfig
-
-        // 显示错误提示
-        errorMessage.value = validation.errorMessage || '配置验证失败'
-        requiredSensitivity.value = validation.requiredSensitivity
-        showErrorModal.value = true
-        emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+        toolDistributorRef.value?.closeAddForm()
       }
     }
   }
 
-  const updateBodyPartSensitivity = async (bodyPartName: string, newSensitivity: number) => {
+  const equalDistributeTools = () => {
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const toolsArray = Object.values(localConfig.value.tools)
+    const ratio = Math.floor(100 / toolsArray.length)
+    const remainder = 100 - ratio * toolsArray.length
+    toolsArray.forEach((t, i) => {
+      t.ratio = i === toolsArray.length - 1 ? ratio + remainder : ratio
+    })
+    validateAndEmit(originalConfig)
+  }
+
+  // --- Body part handlers ---
+  const onBodyPartRatioUpdate = (idx: number, value: number) => {
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const bodyPartsArray = Object.values(localConfig.value.bodyParts)
+    autoDistributeRatio(bodyPartsArray, idx, value)
+    validateAndEmit(originalConfig)
+  }
+
+  const updateBodyPartSensitivity = (bodyPartName: string, newSensitivity: number) => {
     const bodyPart = localConfig.value.bodyParts[bodyPartName]
     if (bodyPart && newSensitivity >= 1 && newSensitivity <= 10) {
-      // 记录修改前的值
       const originalSensitivity = bodyPart.sensitivity
-
-      // 先更新UI显示新值
       bodyPart.sensitivity = newSensitivity
 
-      // 验证配置
       const validation = GameService.validatePunishmentConfig(localConfig.value)
       if (validation.isValid) {
-        // 配置有效，发送更新事件
         emit('update', localConfig.value)
       } else {
-        // 配置无效，回退到修改前的值
         bodyPart.sensitivity = originalSensitivity
-
-        // 显示错误提示
-        errorMessage.value = validation.errorMessage || '配置验证失败'
-        requiredSensitivity.value = validation.requiredSensitivity
-        showErrorModal.value = true
-        emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+        showError(validation)
       }
     }
   }
 
   const removeBodyPart = async (bodyPartName: string) => {
-    // 记录修改前的配置
     const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
-
     if (bodyPartName in localConfig.value.bodyParts) {
-      // 先更新UI显示新值
       delete localConfig.value.bodyParts[bodyPartName]
 
-      // 重新分配比例
       const bodyPartsArray = Object.values(localConfig.value.bodyParts)
       if (bodyPartsArray.length > 0) {
         autoDistributeRatio(bodyPartsArray, 0, bodyPartsArray[0].ratio)
       }
 
-      // 验证配置
       const validation = GameService.validatePunishmentConfig(localConfig.value)
       if (validation.isValid) {
-        // 配置有效，发送更新事件
         emit('update', localConfig.value)
       } else {
-        // 配置无效，等待DOM更新后回退到修改前的值
         await nextTick()
         localConfig.value = originalConfig
-
-        // 显示错误提示
-        errorMessage.value = validation.errorMessage || '配置验证失败'
-        requiredSensitivity.value = validation.requiredSensitivity
-        showErrorModal.value = true
-        emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+        showError(validation)
       }
     }
   }
@@ -351,82 +249,67 @@
   const addBodyPart = async () => {
     if (newBodyPartName.value.trim()) {
       const bodyPartName = newBodyPartName.value.trim()
+      if (bodyPartName in localConfig.value.bodyParts) return
 
-      // 检查是否已存在同名部位
-      if (bodyPartName in localConfig.value.bodyParts) {
-        return // 已存在，不添加
-      }
-
-      // 记录修改前的配置
       const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
-
-      // 先更新UI显示新值
       const bodyPartsArray = Object.values(localConfig.value.bodyParts)
       const n = bodyPartsArray.length + 1
       const ratio = 100 / n
 
-      // 更新现有部位的比例
       bodyPartsArray.forEach(b => (b.ratio = ratio))
 
-      // 创建新部位
       const newBodyPart: PunishmentBodyPart = {
         name: bodyPartName,
         sensitivity: Math.max(1, Math.min(10, newBodyPartSensitivity.value)),
         ratio,
       }
 
-      // 添加新部位
       localConfig.value.bodyParts[bodyPartName] = newBodyPart
 
-      // 验证配置
-      const validation = GameService.validatePunishmentConfig(localConfig.value)
-      if (validation.isValid) {
-        // 配置有效，发送更新事件
-        emit('update', localConfig.value)
+      if (validateAndEmit(originalConfig)) {
         newBodyPartName.value = ''
         newBodyPartSensitivity.value = 5
-      } else {
-        // 配置无效，回退到修改前的值
-        localConfig.value = originalConfig
-
-        // 显示错误提示
-        errorMessage.value = validation.errorMessage || '配置验证失败'
-        requiredSensitivity.value = validation.requiredSensitivity
-        showErrorModal.value = true
-        emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+        bodyPartDistributorRef.value?.closeAddForm()
       }
     }
   }
 
-  const removePosition = async (positionName: string) => {
-    // 记录修改前的配置
+  const equalDistributeBodyParts = () => {
     const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const arr = Object.values(localConfig.value.bodyParts)
+    const ratio = Math.floor(100 / arr.length)
+    const remainder = 100 - ratio * arr.length
+    arr.forEach((b, i) => {
+      b.ratio = i === arr.length - 1 ? ratio + remainder : ratio
+    })
+    validateAndEmit(originalConfig)
+  }
 
+  // --- Position handlers ---
+  const onPositionRatioUpdate = (idx: number, value: number) => {
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const positionsArray = Object.values(localConfig.value.positions)
+    autoDistributeRatio(positionsArray, idx, value)
+    validateAndEmit(originalConfig)
+  }
+
+  const removePosition = async (positionName: string) => {
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
     if (positionName in localConfig.value.positions) {
-      // 先更新UI显示新值
       delete localConfig.value.positions[positionName]
 
-      // 重新分配比例
       const positionsArray = Object.values(localConfig.value.positions)
       if (positionsArray.length > 0) {
         autoDistributeRatio(positionsArray, 0, positionsArray[0].ratio)
       }
 
-      // 验证配置
       const validation = GameService.validatePunishmentConfig(localConfig.value)
       if (validation.isValid) {
-        // 配置有效，发送更新事件
         emit('update', localConfig.value)
       } else {
-        // 配置无效，等待DOM更新后回退到修改前的值
         await nextTick()
         localConfig.value = originalConfig
-
-        // 显示错误提示
-        errorMessage.value = validation.errorMessage || '配置验证失败'
-        requiredSensitivity.value = validation.requiredSensitivity
-        showErrorModal.value = true
-        emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+        showError(validation)
       }
     }
   }
@@ -434,50 +317,39 @@
   const addPosition = async () => {
     if (newPositionName.value.trim()) {
       const positionName = newPositionName.value.trim()
+      if (positionName in localConfig.value.positions) return
 
-      // 检查是否已存在同名姿势
-      if (positionName in localConfig.value.positions) {
-        return // 已存在，不添加
-      }
-
-      // 记录修改前的配置
       const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
-
-      // 先更新UI显示新值
       const positionsArray = Object.values(localConfig.value.positions)
       const n = positionsArray.length + 1
       const ratio = 100 / n
 
-      // 更新现有姿势的比例
       positionsArray.forEach(p => (p.ratio = ratio))
 
-      // 创建新姿势（默认兼容所有当前部位）
       const newPosition: PunishmentPosition = {
         name: positionName,
         ratio,
         compatibleBodyParts: Object.keys(localConfig.value.bodyParts),
       }
 
-      // 添加新姿势
       localConfig.value.positions[positionName] = newPosition
 
-      // 验证配置
-      const validation = GameService.validatePunishmentConfig(localConfig.value)
-      if (validation.isValid) {
-        // 配置有效，发送更新事件
-        emit('update', localConfig.value)
+      if (validateAndEmit(originalConfig)) {
         newPositionName.value = ''
-      } else {
-        // 配置无效，回退到修改前的值
-        localConfig.value = originalConfig
-
-        // 显示错误提示
-        errorMessage.value = validation.errorMessage || '配置验证失败'
-        requiredSensitivity.value = validation.requiredSensitivity
-        showErrorModal.value = true
-        emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+        positionDistributorRef.value?.closeAddForm()
       }
     }
+  }
+
+  const equalDistributePositions = () => {
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const arr = Object.values(localConfig.value.positions)
+    const ratio = Math.floor(100 / arr.length)
+    const remainder = 100 - ratio * arr.length
+    arr.forEach((p, i) => {
+      p.ratio = i === arr.length - 1 ? ratio + remainder : ratio
+    })
+    validateAndEmit(originalConfig)
   }
 
   const isBodyPartCompatible = (position: PunishmentPosition, bodyPartName: string): boolean => {
@@ -510,109 +382,42 @@
       emit('update', localConfig.value)
     } else {
       localConfig.value = originalConfig
-      errorMessage.value = validation.errorMessage || '配置验证失败'
-      requiredSensitivity.value = validation.requiredSensitivity
-      showErrorModal.value = true
-      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+      showError(validation)
     }
   }
 
-  const resetToDefault = async () => {
-    // 记录修改前的配置
+  // --- Quantity handlers ---
+  const updateMinStrikes = (newValue: number) => {
     const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
-
-    // 先更新UI显示新值
-    const defaultConfig = GameService.createPunishmentConfig()
-    localConfig.value = defaultConfig
-
-    // 验证配置
-    const validation = GameService.validatePunishmentConfig(localConfig.value)
-    if (validation.isValid) {
-      // 配置有效，发送更新事件
-      emit('update', localConfig.value)
-    } else {
-      // 配置无效，回退到修改前的值
-      localConfig.value = originalConfig
-
-      // 显示错误提示
-      errorMessage.value = validation.errorMessage || '配置验证失败'
-      requiredSensitivity.value = validation.requiredSensitivity
-      showErrorModal.value = true
-      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
-    }
-  }
-
-  const updateMinStrikes = async (newValue: number) => {
-    // 记录修改前的配置
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
-
-    // 先更新UI显示新值
     localConfig.value.minStrikes = Math.max(5, newValue)
     if (localConfig.value.minStrikes > localConfig.value.maxStrikes) {
       localConfig.value.maxStrikes = localConfig.value.minStrikes
     }
-
-    // 验证配置
-    const validation = GameService.validatePunishmentConfig(localConfig.value)
-    if (validation.isValid) {
-      // 配置有效，发送更新事件
-      emit('update', localConfig.value)
-    } else {
-      // 配置无效，回退到修改前的值
-      localConfig.value = originalConfig
-
-      // 显示错误提示
-      errorMessage.value = validation.errorMessage || '配置验证失败'
-      requiredSensitivity.value = validation.requiredSensitivity
-      showErrorModal.value = true
-      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
-    }
+    validateAndEmit(originalConfig)
   }
 
-  const updateMaxStrikes = async (newValue: number) => {
-    // 记录修改前的配置
+  const updateMaxStrikes = (newValue: number) => {
     const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
-
-    // 先更新UI显示新值
     localConfig.value.maxStrikes = Math.max(localConfig.value.minStrikes, newValue)
-
-    // 验证配置
-    const validation = GameService.validatePunishmentConfig(localConfig.value)
-    if (validation.isValid) {
-      // 配置有效，发送更新事件
-      emit('update', localConfig.value)
-    } else {
-      // 配置无效，回退到修改前的值
-      localConfig.value = originalConfig
-
-      // 显示错误提示
-      errorMessage.value = validation.errorMessage || '配置验证失败'
-      requiredSensitivity.value = validation.requiredSensitivity
-      showErrorModal.value = true
-      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
-    }
+    validateAndEmit(originalConfig)
   }
 
-  const updateMaxTakeoffFailures = async (newValue: number) => {
+  const updateMaxTakeoffFailures = (newValue: number) => {
     const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
-
     localConfig.value.maxTakeoffFailures = Math.max(1, newValue)
-
-    const validation = GameService.validatePunishmentConfig(localConfig.value)
-    if (validation.isValid) {
-      emit('update', localConfig.value)
-    } else {
-      localConfig.value = originalConfig
-      errorMessage.value = validation.errorMessage || '配置验证失败'
-      requiredSensitivity.value = validation.requiredSensitivity
-      showErrorModal.value = true
-      emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
-    }
+    validateAndEmit(originalConfig)
   }
 
   const updateDoublePunishmentChance = (newValue: number) => {
     localConfig.value.doublePunishmentChance = Math.max(0, Math.min(50, newValue))
     emit('update', localConfig.value)
+  }
+
+  const resetToDefault = async () => {
+    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const defaultConfig = GameService.createPunishmentConfig()
+    localConfig.value = defaultConfig
+    validateAndEmit(originalConfig)
   }
 </script>
 
@@ -627,248 +432,183 @@
 
     <div class="config-sections">
       <!-- 工具设置 -->
-      <div class="config-section">
-        <div class="section-header">
-          <h4>
-            <Settings :size="18" />
-            工具设置
-          </h4>
-          <div class="section-summary">{{ Object.keys(localConfig.tools).length }}个工具</div>
-        </div>
-
-        <div class="items-grid">
-          <div
-            v-for="(tool, idx) in Object.values(localConfig.tools)"
-            :key="tool.name"
-            class="item-card"
-          >
-            <div class="item-header">
-              <span class="item-name">{{ tool.name }}</span>
-              <button class="btn-remove" @click="removeTool(tool.name)">
-                <X :size="14" />
+      <RatioDistributor
+        ref="toolDistributorRef"
+        :items="toolItems"
+        title="工具设置"
+        :icon="Settings"
+        :hue-offset="0"
+        @update:ratio="onToolRatioUpdate"
+        @remove="removeTool"
+        @equal-distribute="equalDistributeTools"
+      >
+        <template #detail="{ item }">
+          <div class="detail-stat-row">
+            <span class="detail-stat-label">强度</span>
+            <div class="detail-stat-controls">
+              <button
+                :disabled="item.intensity <= 1"
+                class="btn-stat"
+                @click="updateToolIntensity(item.name, item.intensity - 1)"
+              >
+                <Minus :size="14" />
+              </button>
+              <span class="detail-stat-value">{{ item.intensity }}/10</span>
+              <button
+                :disabled="item.intensity >= 10"
+                class="btn-stat"
+                @click="updateToolIntensity(item.name, item.intensity + 1)"
+              >
+                <Plus :size="14" />
               </button>
             </div>
+          </div>
+        </template>
 
-            <div class="item-stats">
-              <div class="stat-item">
-                <span class="stat-label">强度</span>
-                <div class="stat-controls">
-                  <button
-                    :disabled="tool.intensity <= 1"
-                    class="btn-stat"
-                    @click="updateToolIntensity(tool.name, tool.intensity - 1)"
-                  >
-                    <Minus :size="14" />
-                  </button>
-                  <span class="stat-value">{{ tool.intensity }}/10</span>
-                  <button
-                    :disabled="tool.intensity >= 10"
-                    class="btn-stat"
-                    @click="updateToolIntensity(tool.name, tool.intensity + 1)"
-                  >
-                    <Plus :size="14" />
-                  </button>
-                </div>
-              </div>
-
-              <div class="stat-item">
-                <span class="stat-label">比例 {{ Math.round(tool.ratio * 10) / 10 }}%</span>
-                <input
-                  v-model.number="tool.ratio"
-                  type="range"
-                  :min="0"
-                  :max="100"
-                  step="5"
-                  class="ratio-slider"
-                  @input="onToolRatioInput(idx, Math.round(tool.ratio / 5) * 5)"
-                />
-              </div>
+        <template #add-form="{ close }">
+          <div class="add-form-content">
+            <div class="add-form-row">
+              <input v-model="newToolName" placeholder="工具名称" class="input-field" />
+              <input
+                v-model.number="newToolIntensity"
+                type="number"
+                min="1"
+                max="10"
+                class="input-mini"
+                placeholder="强度"
+              />
+            </div>
+            <div class="add-form-actions">
+              <button :disabled="!newToolName.trim()" class="btn-confirm" @click="addTool">
+                <Plus :size="14" />
+                添加
+              </button>
+              <button class="btn-cancel" @click="close">取消</button>
             </div>
           </div>
-        </div>
-
-        <div class="add-item-form">
-          <div class="form-row">
-            <input v-model="newToolName" placeholder="新工具名称" class="input-field" />
-            <input
-              v-model.number="newToolIntensity"
-              type="number"
-              min="1"
-              max="10"
-              class="input-mini"
-              placeholder="强度"
-            />
-          </div>
-          <button :disabled="!newToolName.trim()" class="btn-add" @click="addTool">
-            <Plus :size="16" />
-            添加工具
-          </button>
-        </div>
-      </div>
+        </template>
+      </RatioDistributor>
 
       <!-- 部位设置 -->
-      <div class="config-section">
-        <div class="section-header">
-          <h4>
-            <Target :size="18" />
-            部位设置
-          </h4>
-          <div class="section-summary">{{ Object.keys(localConfig.bodyParts).length }}个部位</div>
-        </div>
-
-        <div class="items-grid">
-          <div
-            v-for="(bodyPart, idx) in Object.values(localConfig.bodyParts)"
-            :key="bodyPart.name"
-            class="item-card"
-          >
-            <div class="item-header">
-              <span class="item-name">{{ bodyPart.name }}</span>
-              <button class="btn-remove" @click="removeBodyPart(bodyPart.name)">
-                <X :size="14" />
+      <RatioDistributor
+        ref="bodyPartDistributorRef"
+        :items="bodyPartItems"
+        title="部位设置"
+        :icon="Target"
+        :hue-offset="120"
+        @update:ratio="onBodyPartRatioUpdate"
+        @remove="removeBodyPart"
+        @equal-distribute="equalDistributeBodyParts"
+      >
+        <template #detail="{ item }">
+          <div class="detail-stat-row">
+            <span class="detail-stat-label">耐受度</span>
+            <div class="detail-stat-controls">
+              <button
+                :disabled="item.sensitivity <= 1"
+                class="btn-stat"
+                @click="updateBodyPartSensitivity(item.name, item.sensitivity - 1)"
+              >
+                <Minus :size="14" />
+              </button>
+              <span class="detail-stat-value">{{ item.sensitivity }}/10</span>
+              <button
+                :disabled="item.sensitivity >= 10"
+                class="btn-stat"
+                @click="updateBodyPartSensitivity(item.name, item.sensitivity + 1)"
+              >
+                <Plus :size="14" />
               </button>
             </div>
+          </div>
+        </template>
 
-            <div class="item-stats">
-              <div class="stat-item">
-                <span class="stat-label">耐受度</span>
-                <div class="stat-controls">
-                  <button
-                    :disabled="bodyPart.sensitivity <= 1"
-                    class="btn-stat"
-                    @click="updateBodyPartSensitivity(bodyPart.name, bodyPart.sensitivity - 1)"
-                  >
-                    <Minus :size="14" />
-                  </button>
-                  <span class="stat-value">{{ bodyPart.sensitivity }}/10</span>
-                  <button
-                    :disabled="bodyPart.sensitivity >= 10"
-                    class="btn-stat"
-                    @click="updateBodyPartSensitivity(bodyPart.name, bodyPart.sensitivity + 1)"
-                  >
-                    <Plus :size="14" />
-                  </button>
-                </div>
-              </div>
-
-              <div class="stat-item">
-                <span class="stat-label">比例 {{ Math.round(bodyPart.ratio * 10) / 10 }}%</span>
-                <input
-                  v-model.number="bodyPart.ratio"
-                  type="range"
-                  :min="0"
-                  :max="100"
-                  step="5"
-                  class="ratio-slider"
-                  @input="onBodyPartRatioInput(idx, Math.round(bodyPart.ratio / 5) * 5)"
-                />
-              </div>
+        <template #add-form="{ close }">
+          <div class="add-form-content">
+            <div class="add-form-row">
+              <input v-model="newBodyPartName" placeholder="部位名称" class="input-field" />
+              <input
+                v-model.number="newBodyPartSensitivity"
+                type="number"
+                min="1"
+                max="10"
+                class="input-mini"
+                placeholder="耐受度"
+              />
+            </div>
+            <div class="add-form-actions">
+              <button :disabled="!newBodyPartName.trim()" class="btn-confirm" @click="addBodyPart">
+                <Plus :size="14" />
+                添加
+              </button>
+              <button class="btn-cancel" @click="close">取消</button>
             </div>
           </div>
-        </div>
-
-        <div class="add-item-form">
-          <div class="form-row">
-            <input v-model="newBodyPartName" placeholder="新部位名称" class="input-field" />
-            <input
-              v-model.number="newBodyPartSensitivity"
-              type="number"
-              min="1"
-              max="10"
-              class="input-mini"
-              placeholder="耐受度"
-            />
-          </div>
-          <button :disabled="!newBodyPartName.trim()" class="btn-add" @click="addBodyPart">
-            <Plus :size="16" />
-            添加部位
-          </button>
-        </div>
-      </div>
+        </template>
+      </RatioDistributor>
 
       <!-- 姿势设置 -->
-      <div class="config-section">
-        <div class="section-header">
-          <h4>
-            <ChevronRight :size="18" />
-            姿势设置
-          </h4>
-          <div class="section-summary">{{ Object.keys(localConfig.positions).length }}个姿势</div>
-        </div>
-
-        <div class="items-grid">
-          <div
-            v-for="(position, idx) in Object.values(localConfig.positions)"
-            :key="position.name"
-            class="item-card"
-          >
-            <div class="item-header">
-              <span class="item-name">{{ position.name }}</span>
-              <button class="btn-remove" @click="removePosition(position.name)">
-                <X :size="14" />
-              </button>
-            </div>
-
-            <div class="item-stats">
-              <div class="stat-item">
-                <span class="stat-label">比例 {{ Math.round(position.ratio * 10) / 10 }}%</span>
+      <RatioDistributor
+        ref="positionDistributorRef"
+        :items="positionItems"
+        title="姿势设置"
+        :icon="ChevronRight"
+        :hue-offset="240"
+        @update:ratio="onPositionRatioUpdate"
+        @remove="removePosition"
+        @equal-distribute="equalDistributePositions"
+      >
+        <template #detail="{ item }">
+          <div class="detail-compatible-section">
+            <span class="detail-stat-label">兼容部位</span>
+            <div class="body-part-chips">
+              <label
+                v-for="bp in Object.values(localConfig.bodyParts)"
+                :key="bp.name"
+                class="chip-label"
+                :class="{ active: isBodyPartCompatible(item as PunishmentPosition, bp.name) }"
+              >
                 <input
-                  v-model.number="position.ratio"
-                  type="range"
-                  :min="0"
-                  :max="100"
-                  step="5"
-                  class="ratio-slider"
-                  @input="onPositionRatioInput(idx, Math.round(position.ratio / 5) * 5)"
+                  type="checkbox"
+                  :checked="isBodyPartCompatible(item as PunishmentPosition, bp.name)"
+                  @change="toggleCompatibleBodyPart(item.name, bp.name)"
                 />
-              </div>
-
-              <div class="stat-item compatible-body-parts">
-                <span class="stat-label">兼容部位</span>
-                <div class="body-part-chips">
-                  <label
-                    v-for="bp in Object.values(localConfig.bodyParts)"
-                    :key="bp.name"
-                    class="chip-label"
-                    :class="{ active: isBodyPartCompatible(position, bp.name) }"
-                  >
-                    <input
-                      type="checkbox"
-                      :checked="isBodyPartCompatible(position, bp.name)"
-                      @change="toggleCompatibleBodyPart(position.name, bp.name)"
-                    />
-                    {{ bp.name }}
-                  </label>
-                </div>
-              </div>
+                {{ bp.name }}
+              </label>
             </div>
           </div>
-        </div>
+        </template>
 
-        <div class="add-item-form">
-          <div class="form-row">
-            <input v-model="newPositionName" placeholder="新姿势名称" class="input-field" />
+        <template #add-form="{ close }">
+          <div class="add-form-content">
+            <div class="add-form-row">
+              <input v-model="newPositionName" placeholder="姿势名称" class="input-field" />
+            </div>
+            <div class="add-form-actions">
+              <button
+                :disabled="!newPositionName.trim()"
+                class="btn-confirm"
+                @click="addPosition"
+              >
+                <Plus :size="14" />
+                添加
+              </button>
+              <button class="btn-cancel" @click="close">取消</button>
+            </div>
           </div>
-          <button :disabled="!newPositionName.trim()" class="btn-add" @click="addPosition">
-            <Plus :size="16" />
-            添加姿势
-          </button>
-        </div>
-      </div>
+        </template>
+      </RatioDistributor>
 
       <!-- 惩罚数量设置 -->
-      <div class="config-section">
-        <div class="section-header">
-          <h4>
-            <Settings :size="18" />
-            惩罚数量设置
-          </h4>
+      <div class="quantity-section">
+        <div class="quantity-header">
+          <Settings :size="18" />
+          <h4>惩罚数量设置</h4>
         </div>
-
-        <div class="strikes-config">
-          <div class="strikes-item">
-            <span class="strikes-label">最小次数</span>
-            <div class="strikes-controls">
+        <div class="quantity-grid">
+          <div class="quantity-cell">
+            <span class="quantity-label">最小次数</span>
+            <div class="quantity-controls">
               <button
                 :disabled="localConfig.minStrikes <= 5"
                 class="btn-stat"
@@ -876,7 +616,7 @@
               >
                 <Minus :size="14" />
               </button>
-              <span class="strikes-value">{{ localConfig.minStrikes }}</span>
+              <span class="quantity-value">{{ localConfig.minStrikes }}</span>
               <button
                 :disabled="localConfig.minStrikes >= localConfig.maxStrikes"
                 class="btn-stat"
@@ -887,9 +627,9 @@
             </div>
           </div>
 
-          <div class="strikes-item">
-            <span class="strikes-label">最大次数</span>
-            <div class="strikes-controls">
+          <div class="quantity-cell">
+            <span class="quantity-label">最大次数</span>
+            <div class="quantity-controls">
               <button
                 :disabled="localConfig.maxStrikes <= localConfig.minStrikes"
                 class="btn-stat"
@@ -897,7 +637,7 @@
               >
                 <Minus :size="14" />
               </button>
-              <span class="strikes-value">{{ localConfig.maxStrikes }}</span>
+              <span class="quantity-value">{{ localConfig.maxStrikes }}</span>
               <button
                 :disabled="localConfig.maxStrikes >= 100"
                 class="btn-stat"
@@ -908,9 +648,9 @@
             </div>
           </div>
 
-          <div class="strikes-item">
-            <span class="strikes-label">最大起飞失败</span>
-            <div class="strikes-controls">
+          <div class="quantity-cell">
+            <span class="quantity-label">起飞失败上限</span>
+            <div class="quantity-controls">
               <button
                 :disabled="localConfig.maxTakeoffFailures <= 1"
                 class="btn-stat"
@@ -918,7 +658,7 @@
               >
                 <Minus :size="14" />
               </button>
-              <span class="strikes-value">{{ localConfig.maxTakeoffFailures }}</span>
+              <span class="quantity-value">{{ localConfig.maxTakeoffFailures }}</span>
               <button
                 :disabled="localConfig.maxTakeoffFailures >= 10"
                 class="btn-stat"
@@ -929,9 +669,9 @@
             </div>
           </div>
 
-          <div class="strikes-item">
-            <span class="strikes-label">翻倍概率</span>
-            <div class="strikes-controls">
+          <div class="quantity-cell">
+            <span class="quantity-label">翻倍概率</span>
+            <div class="quantity-controls">
               <button
                 :disabled="(localConfig.doublePunishmentChance ?? 0) <= 0"
                 class="btn-stat"
@@ -939,7 +679,7 @@
               >
                 <Minus :size="14" />
               </button>
-              <span class="strikes-value">{{ localConfig.doublePunishmentChance ?? 0 }}%</span>
+              <span class="quantity-value">{{ localConfig.doublePunishmentChance ?? 0 }}%</span>
               <button
                 :disabled="(localConfig.doublePunishmentChance ?? 0) >= 50"
                 class="btn-stat"
@@ -949,10 +689,9 @@
               </button>
             </div>
           </div>
-
-          <div class="strikes-description">
-            {{ localConfig.minStrikes }} - {{ localConfig.maxStrikes }} 次随机
-          </div>
+        </div>
+        <div class="quantity-summary">
+          {{ localConfig.minStrikes }} - {{ localConfig.maxStrikes }} 次随机
         </div>
       </div>
     </div>
@@ -964,7 +703,6 @@
       </button>
     </div>
 
-    <!-- 错误提示弹窗 -->
     <ConfigErrorModal
       :show="showErrorModal"
       :error-message="errorMessage"
@@ -985,7 +723,7 @@
 
   .config-header {
     text-align: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.2rem;
   }
 
   .config-header h3 {
@@ -1002,155 +740,27 @@
   .config-sections {
     display: flex;
     flex-direction: column;
-    gap: 1.2rem;
-    margin-bottom: 1.5rem;
+    gap: 1rem;
+    margin-bottom: 1.2rem;
   }
 
-  .config-section {
-    border: var(--glass-border);
-    border-radius: var(--radius-md);
-    padding: 1rem;
-    background: var(--bg-surface);
-  }
-
-  .section-header {
+  /* Detail slot styling */
+  .detail-stat-row {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  .section-header h4 {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1.1rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .section-summary {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    background: var(--bg-glass);
-    padding: 0.2rem 0.5rem;
-    border-radius: var(--radius-full);
-    border: var(--glass-border);
-  }
-
-  .items-grid {
-    display: grid;
-    gap: 0.8rem;
-    margin-bottom: 1rem;
-  }
-
-  .item-card {
-    background: var(--bg-glass);
-    backdrop-filter: blur(var(--glass-blur));
-    border: var(--glass-border);
-    border-radius: var(--radius-sm);
-    padding: 0.8rem;
-  }
-
-  .item-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.8rem;
-  }
-
-  .item-name {
-    font-weight: 600;
-    color: var(--text-primary);
-    font-size: 1rem;
-  }
-
-  .btn-remove {
-    width: 24px;
-    height: 24px;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    background: rgba(239, 68, 68, 0.15);
-    color: var(--color-danger);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all var(--transition-fast);
-  }
-
-  .btn-remove:hover {
-    background: rgba(239, 68, 68, 0.25);
-  }
-
-  .item-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-  }
-
-  .stat-item {
-    display: flex;
-    justify-content: space-between;
     align-items: center;
     gap: 0.5rem;
   }
 
-  .stat-label {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    min-width: 60px;
-  }
-
-  .compatible-body-parts {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .body-part-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    margin-top: 0.3rem;
-  }
-
-  .chip-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.2rem 0.5rem;
-    border: var(--glass-border);
-    border-radius: var(--radius-full);
+  .detail-stat-label {
     font-size: 0.8rem;
-    cursor: pointer;
-    background: var(--bg-secondary);
     color: var(--text-secondary);
-    transition: all var(--transition-fast);
-    user-select: none;
+    min-width: 42px;
   }
 
-  .chip-label input[type='checkbox'] {
-    display: none;
-  }
-
-  .chip-label.active {
-    background: rgba(102, 126, 234, 0.25);
-    color: var(--color-accent-light);
-    border-color: rgba(102, 126, 234, 0.4);
-  }
-
-  .chip-label:hover {
-    border-color: rgba(102, 126, 234, 0.3);
-    background: var(--bg-glass-hover);
-  }
-
-  .stat-controls {
+  .detail-stat-controls {
     display: flex;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.4rem;
   }
 
   .btn-stat {
@@ -1177,160 +787,226 @@
     cursor: not-allowed;
   }
 
-  .stat-value {
+  .detail-stat-value {
     min-width: 30px;
     text-align: center;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: var(--text-primary);
   }
 
-  .ratio-slider {
-    flex: 1;
-    height: 4px;
-    border-radius: 2px;
+  /* Compatible body parts chips */
+  .detail-compatible-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .body-part-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  .chip-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.15rem 0.45rem;
+    border: var(--glass-border);
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    cursor: pointer;
     background: var(--bg-secondary);
-    outline: none;
-    -webkit-appearance: none;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+    user-select: none;
   }
 
-  .ratio-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: var(--color-accent);
-    cursor: pointer;
-    box-shadow: 0 0 8px rgba(102, 126, 234, 0.4);
+  .chip-label input[type='checkbox'] {
+    display: none;
   }
 
-  .ratio-slider::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: var(--color-accent);
-    cursor: pointer;
-    border: none;
-    box-shadow: 0 0 8px rgba(102, 126, 234, 0.4);
+  .chip-label.active {
+    background: rgba(102, 126, 234, 0.25);
+    color: var(--color-accent-light);
+    border-color: rgba(102, 126, 234, 0.4);
   }
 
-  .add-item-form {
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    padding-top: 0.8rem;
+  .chip-label:hover {
+    border-color: rgba(102, 126, 234, 0.3);
+    background: var(--bg-glass-hover);
   }
 
-  .form-row {
+  /* Add form styling */
+  .add-form-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .add-form-row {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 0.5rem;
   }
 
-  .input-field,
-  .input-mini {
+  .input-field {
+    flex: 1;
+    padding: 0.45rem 0.6rem;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.15);
     color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
     outline: none;
     transition: border-color var(--transition-normal);
     font-family: inherit;
   }
 
-  .input-field::placeholder,
+  .input-field::placeholder {
+    color: var(--text-muted);
+  }
+
+  .input-field:focus {
+    border-color: var(--color-accent);
+  }
+
+  .input-mini {
+    width: 55px;
+    padding: 0.45rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    text-align: center;
+    outline: none;
+    transition: border-color var(--transition-normal);
+    font-family: inherit;
+  }
+
   .input-mini::placeholder {
     color: var(--text-muted);
   }
 
-  .input-field:focus,
   .input-mini:focus {
     border-color: var(--color-accent);
   }
 
-  .input-field {
+  .add-form-actions {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  .btn-confirm {
     flex: 1;
-    padding: 0.5rem;
-    border-radius: var(--radius-sm);
-    font-size: 0.9rem;
-  }
-
-  .input-mini {
-    width: 60px;
-    padding: 0.5rem;
-    border-radius: var(--radius-sm);
-    font-size: 0.9rem;
-    text-align: center;
-  }
-
-  .btn-add {
-    width: 100%;
-    padding: 0.6rem;
+    padding: 0.4rem 0.6rem;
     border: 1px solid rgba(102, 126, 234, 0.4);
     background: rgba(102, 126, 234, 0.2);
     color: var(--color-accent-light);
     border-radius: var(--radius-sm);
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.4rem;
+    gap: 0.3rem;
     transition: all var(--transition-normal);
   }
 
-  .btn-add:hover:not(:disabled) {
+  .btn-confirm:hover:not(:disabled) {
     background: rgba(102, 126, 234, 0.3);
-    border-color: rgba(102, 126, 234, 0.5);
   }
 
-  .btn-add:disabled {
+  .btn-confirm:disabled {
     opacity: 0.4;
     cursor: not-allowed;
   }
 
-  .strikes-config {
-    display: flex;
-    flex-direction: column;
-    gap: 0.8rem;
+  .btn-cancel {
+    padding: 0.4rem 0.6rem;
+    border: var(--glass-border);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all var(--transition-normal);
   }
 
-  .strikes-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  .btn-cancel:hover {
+    background: var(--bg-glass-hover);
+    color: var(--text-primary);
+  }
+
+  /* Quantity section - 2x2 grid */
+  .quantity-section {
+    border: var(--glass-border);
+    border-radius: var(--radius-md);
     padding: 0.8rem;
+    background: var(--bg-surface);
+  }
+
+  .quantity-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.6rem;
+    color: var(--text-primary);
+  }
+
+  .quantity-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .quantity-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .quantity-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.5rem;
     background: var(--bg-glass);
     border: var(--glass-border);
     border-radius: var(--radius-sm);
   }
 
-  .strikes-label {
-    font-weight: 600;
-    color: var(--text-primary);
-    font-size: 0.95rem;
+  .quantity-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
   }
 
-  .strikes-controls {
+  .quantity-controls {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
   }
 
-  .strikes-value {
-    min-width: 40px;
+  .quantity-value {
+    min-width: 32px;
     text-align: center;
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 0.9rem;
     color: var(--color-warning);
   }
 
-  .strikes-description {
+  .quantity-summary {
     text-align: center;
-    padding: 0.6rem;
+    padding: 0.4rem;
+    margin-top: 0.5rem;
     background: rgba(245, 158, 11, 0.1);
     border-radius: var(--radius-sm);
     color: var(--color-warning);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     border: 1px solid rgba(245, 158, 11, 0.25);
     font-weight: 600;
   }
@@ -1351,103 +1027,23 @@
     }
 
     .config-sections {
-      gap: 1rem;
+      gap: 0.8rem;
     }
 
-    .config-section {
-      padding: 0.8rem;
-    }
-
-    .section-header h4 {
-      font-size: 1rem;
-    }
-
-    .section-summary {
-      font-size: 0.75rem;
-      padding: 0.15rem 0.4rem;
-    }
-
-    .items-grid {
-      gap: 0.6rem;
-    }
-
-    .item-card {
-      padding: 0.6rem;
-    }
-
-    .item-name {
-      font-size: 0.95rem;
-    }
-
-    .btn-remove {
-      width: 22px;
-      height: 22px;
-    }
-
-    .stat-item {
+    .quantity-grid {
       gap: 0.4rem;
     }
 
-    .stat-label {
-      font-size: 0.8rem;
-      min-width: 50px;
-    }
-
-    .btn-stat {
-      width: 22px;
-      height: 22px;
-    }
-
-    .stat-value {
-      min-width: 25px;
-      font-size: 0.85rem;
-    }
-
-    .ratio-slider {
-      height: 3px;
-    }
-
-    .ratio-slider::-webkit-slider-thumb,
-    .ratio-slider::-moz-range-thumb {
-      width: 14px;
-      height: 14px;
-    }
-
-    .form-row {
-      gap: 0.4rem;
-    }
-
-    .input-field,
-    .input-mini {
+    .quantity-cell {
       padding: 0.4rem;
+    }
+
+    .quantity-label {
+      font-size: 0.7rem;
+    }
+
+    .quantity-value {
       font-size: 0.85rem;
-    }
-
-    .input-mini {
-      width: 50px;
-    }
-
-    .btn-add {
-      padding: 0.5rem;
-      font-size: 0.85rem;
-    }
-
-    .strikes-item {
-      padding: 0.6rem;
-    }
-
-    .strikes-label {
-      font-size: 0.9rem;
-    }
-
-    .strikes-value {
-      min-width: 35px;
-      font-size: 0.95rem;
-    }
-
-    .strikes-description {
-      padding: 0.5rem;
-      font-size: 0.8rem;
     }
 
     .config-actions {
@@ -1468,119 +1064,23 @@
     }
 
     .config-sections {
-      gap: 0.8rem;
+      gap: 0.6rem;
     }
 
-    .config-section {
-      padding: 0.6rem;
-    }
-
-    .section-header {
-      margin-bottom: 0.8rem;
-    }
-
-    .section-header h4 {
-      font-size: 0.95rem;
-    }
-
-    .section-summary {
-      font-size: 0.7rem;
-      padding: 0.1rem 0.3rem;
-    }
-
-    .items-grid {
-      gap: 0.5rem;
-    }
-
-    .item-card {
-      padding: 0.5rem;
-    }
-
-    .item-header {
-      margin-bottom: 0.6rem;
-    }
-
-    .item-name {
-      font-size: 0.9rem;
-    }
-
-    .btn-remove {
-      width: 20px;
-      height: 20px;
-    }
-
-    .item-stats {
-      gap: 0.5rem;
-    }
-
-    .stat-item {
+    .quantity-grid {
+      grid-template-columns: 1fr;
       gap: 0.3rem;
     }
 
-    .stat-label {
-      font-size: 0.75rem;
-      min-width: 45px;
+    .quantity-cell {
+      flex-direction: row;
+      justify-content: space-between;
+      padding: 0.4rem 0.6rem;
     }
 
     .btn-stat {
-      width: 20px;
-      height: 20px;
-    }
-
-    .stat-value {
-      min-width: 22px;
-      font-size: 0.8rem;
-    }
-
-    .ratio-slider {
-      height: 2px;
-    }
-
-    .ratio-slider::-webkit-slider-thumb,
-    .ratio-slider::-moz-range-thumb {
-      width: 12px;
-      height: 12px;
-    }
-
-    .form-row {
-      gap: 0.3rem;
-    }
-
-    .input-field,
-    .input-mini {
-      padding: 0.3rem;
-      font-size: 0.8rem;
-    }
-
-    .input-mini {
-      width: 45px;
-    }
-
-    .btn-add {
-      padding: 0.4rem;
-      font-size: 0.8rem;
-    }
-
-    .strikes-item {
-      padding: 0.5rem;
-    }
-
-    .strikes-label {
-      font-size: 0.85rem;
-    }
-
-    .strikes-controls {
-      gap: 0.4rem;
-    }
-
-    .strikes-value {
-      min-width: 30px;
-      font-size: 0.9rem;
-    }
-
-    .strikes-description {
-      padding: 0.4rem;
-      font-size: 0.75rem;
+      width: 22px;
+      height: 22px;
     }
 
     .config-actions {
