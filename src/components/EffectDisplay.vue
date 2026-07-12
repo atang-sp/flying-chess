@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { computed } from 'vue'
+  import { Gift, ArrowLeft, RotateCcw, Moon, Sparkles } from '@lucide/vue'
 
   interface Effect {
     type: 'move' | 'skip' | 'reverse' | 'restart' | 'rest' | 'bounce'
@@ -63,21 +64,20 @@
     return ''
   }
 
-  const getEffectIcon = (): string => {
-    if (!props.effect) return '✨'
+  const getEffectIconComponent = () => {
+    if (!props.effect) return Sparkles
 
     switch (props.effect.type) {
       case 'move':
-        return props.effect.value > 0 ? '🎁' : '⬅️'
+        return props.effect.value > 0 ? Gift : ArrowLeft
       case 'restart':
-        return '🔄'
+        return RotateCcw
       case 'rest':
-        return '😴'
+        return Moon
       case 'reverse':
-        return '⬅️'
-
+        return ArrowLeft
       default:
-        return '✨'
+        return Sparkles
     }
   }
 
@@ -105,10 +105,12 @@
 </script>
 
 <template>
-  <div v-if="visible" class="effect-display-overlay">
-    <div class="effect-display-modal">
+  <div v-if="visible" class="modal-overlay">
+    <div class="modal-content effect-display-modal">
       <div class="effect-header">
-        <div class="effect-icon">{{ getEffectIcon() }}</div>
+        <div class="effect-icon">
+          <component :is="getEffectIconComponent()" :size="48" />
+        </div>
         <div class="effect-title">{{ getEffectTitle() }}</div>
       </div>
 
@@ -139,50 +141,30 @@
 
         <div v-else-if="effect?.type === 'restart'" class="restart-effect">
           <div class="effect-value">
-            <span class="value-icon">🔄</span>
+            <span class="value-icon"><RotateCcw :size="36" /></span>
             <span class="value-text">回到起点</span>
           </div>
         </div>
 
         <div v-else-if="effect?.type === 'rest'" class="rest-effect">
           <div class="effect-value">
-            <span class="value-icon">😴</span>
+            <span class="value-icon"><Moon :size="36" /></span>
             <span class="value-text">休息一回合</span>
           </div>
         </div>
       </div>
 
       <div class="effect-footer">
-        <button class="confirm-btn" @click="handleConfirm">确认</button>
+        <button class="btn confirm-btn" @click="handleConfirm">确认</button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-  .effect-display-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    animation: fadeIn 0.3s ease;
-  }
-
   .effect-display-modal {
-    background: white;
-    border-radius: 16px;
-    padding: 2rem;
     max-width: 400px;
-    width: 90%;
     text-align: center;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    animation: slideIn 0.3s ease;
   }
 
   .effect-header {
@@ -190,14 +172,14 @@
   }
 
   .effect-icon {
-    font-size: 3rem;
     margin-bottom: 0.5rem;
+    color: var(--color-accent-light);
   }
 
   .effect-title {
     font-size: 1.5rem;
     font-weight: bold;
-    color: #333;
+    color: var(--text-primary);
   }
 
   .effect-content {
@@ -206,23 +188,23 @@
 
   .effect-description {
     font-size: 1.1rem;
-    color: #666;
+    color: var(--text-secondary);
     margin-bottom: 1.5rem;
     line-height: 1.5;
   }
 
-  /* 移动路径信息样式 */
   .move-path-info {
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    border-radius: 8px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    border-radius: var(--radius-sm);
     padding: 1rem;
     margin-bottom: 1.5rem;
-    border: 1px solid #dee2e6;
+    border: var(--glass-border);
   }
 
   .path-label {
     font-size: 0.9rem;
-    color: #666;
+    color: var(--text-secondary);
     margin-bottom: 0.5rem;
     font-weight: bold;
   }
@@ -234,33 +216,28 @@
     gap: 0.5rem;
     font-size: 1.1rem;
     font-weight: bold;
+    flex-wrap: wrap;
   }
 
   .from-position {
-    color: #ff6b6b;
-    background: rgba(255, 107, 107, 0.1);
+    color: var(--color-punishment);
+    background: rgba(255, 71, 87, 0.15);
     padding: 0.25rem 0.5rem;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
   }
 
   .path-arrow {
-    color: #4ecdc4;
+    color: var(--player-2);
     font-size: 1.2rem;
     font-weight: bold;
   }
 
-  .to-position {
-    color: #2ed573;
-    background: rgba(46, 213, 115, 0.1);
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-  }
-
+  .to-position,
   .final-position {
-    color: #2ed573;
-    background: rgba(46, 213, 115, 0.1);
+    color: var(--color-bonus);
+    background: rgba(46, 213, 115, 0.15);
     padding: 0.25rem 0.5rem;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
   }
 
   .move-effect,
@@ -281,26 +258,28 @@
   }
 
   .value-number {
-    color: #4ecdc4;
+    color: var(--player-2);
   }
 
   .value-unit {
-    color: #666;
+    color: var(--text-secondary);
     font-size: 1.2rem;
   }
 
   .value-icon {
-    font-size: 2.5rem;
+    display: flex;
+    align-items: center;
+    color: var(--color-accent-light);
   }
 
   .value-text {
-    color: #ab47bc;
+    color: var(--color-restart);
     font-size: 1.5rem;
   }
 
   .effect-direction {
     font-size: 1.2rem;
-    color: #666;
+    color: var(--text-secondary);
     font-weight: bold;
   }
 
@@ -310,47 +289,21 @@
   }
 
   .confirm-btn {
-    background: linear-gradient(135deg, #4ecdc4, #44a08d);
+    background: linear-gradient(135deg, var(--color-accent) 0%, #764ba2 100%);
     color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 0.75rem 2rem;
-    font-size: 1.1rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
   }
 
-  .confirm-btn:hover {
+  .confirm-btn:not(:disabled):hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(78, 205, 196, 0.3);
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  @keyframes slideIn {
-    from {
-      transform: translateY(-50px);
-      opacity: 0;
-    }
-    to {
-      transform: translateY(0);
-      opacity: 1;
-    }
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
   }
 
   /* 移动端适配 */
   @media (max-width: 768px) {
     .effect-display-modal {
       padding: 1.5rem;
-      margin: 1rem;
     }
 
     .effect-icon {

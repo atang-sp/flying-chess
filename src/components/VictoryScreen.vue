@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { computed } from 'vue'
+  import { Trophy, Gamepad2 } from '@lucide/vue'
   import type { Player } from '../types/game'
 
   interface Props {
@@ -29,7 +30,10 @@
   <div v-if="show && winner" class="victory-screen-overlay">
     <div class="victory-screen">
       <div class="victory-header">
-        <h1 class="victory-title">🎉 游戏胜利！</h1>
+        <h1 class="victory-title">
+          <Trophy :size="32" />
+          游戏胜利！
+        </h1>
         <div class="winner-info">
           <div class="winner-avatar" :style="{ backgroundColor: winner.color }"></div>
           <span class="winner-name">{{ winner.name }}</span>
@@ -38,7 +42,10 @@
 
       <div class="victory-content">
         <div class="reward-section">
-          <h2 class="reward-title">🏆 胜利奖励</h2>
+          <h2 class="reward-title">
+            <Trophy :size="24" />
+            胜利奖励
+          </h2>
           <div class="reward-description">
             <p>恭喜 {{ winner.name }} 获得胜利！</p>
             <p class="reward-action">
@@ -60,7 +67,10 @@
       </div>
 
       <div class="victory-actions">
-        <button class="btn btn-primary" @click="handlePlayAgain">🎮 再来一局</button>
+        <button class="btn btn-primary" @click="handlePlayAgain">
+          <Gamepad2 :size="18" />
+          再来一局
+        </button>
       </div>
     </div>
   </div>
@@ -69,27 +79,25 @@
 <style scoped>
   .victory-screen-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
-    backdrop-filter: blur(10px);
+    z-index: 2000;
+    backdrop-filter: blur(4px);
   }
 
   .victory-screen {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 20px;
+    background: rgba(20, 20, 40, 0.95);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    border-radius: var(--radius-xl);
     padding: 2rem;
     max-width: 90vw;
     width: 500px;
     text-align: center;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: var(--glass-shadow-lg), var(--glow-md) rgba(102, 126, 234, 0.3);
     animation: victorySlideIn 0.5s ease-out;
   }
 
@@ -109,11 +117,20 @@
   }
 
   .victory-title {
-    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--text-primary);
     font-size: 2rem;
     font-weight: bold;
     margin: 0 0 1rem 0;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  .victory-title :deep(svg) {
+    color: var(--color-accent);
+    flex-shrink: 0;
   }
 
   .winner-info {
@@ -128,15 +145,14 @@
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    border: 3px solid white;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   }
 
   .winner-name {
-    color: white;
+    color: var(--text-primary);
     font-size: 1.5rem;
     font-weight: bold;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
   }
 
   .victory-content {
@@ -144,21 +160,29 @@
   }
 
   .reward-section {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 15px;
+    background: var(--bg-glass);
+    border: var(--glass-border);
+    border-radius: var(--radius-md);
     padding: 1.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.2);
   }
 
   .reward-title {
-    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--text-primary);
     font-size: 1.3rem;
     margin: 0 0 1rem 0;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+  }
+
+  .reward-title :deep(svg) {
+    color: var(--color-accent);
+    flex-shrink: 0;
   }
 
   .reward-description {
-    color: white;
+    color: var(--text-secondary);
     margin-bottom: 1.5rem;
   }
 
@@ -169,15 +193,13 @@
 
   .reward-action {
     font-weight: bold;
-    color: #ffd700;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    color: var(--color-warning);
   }
 
   .other-players-list h3 {
-    color: white;
+    color: var(--text-secondary);
     margin: 0 0 1rem 0;
     font-size: 1.1rem;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
   }
 
   .players-grid {
@@ -188,34 +210,33 @@
   }
 
   .player-item {
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 10px;
+    background: var(--bg-glass);
+    border-radius: var(--radius-sm);
     padding: 1rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    transition: transform 0.2s ease;
+    border: var(--glass-border);
+    transition: transform var(--transition-fast), background var(--transition-fast);
   }
 
   .player-item:hover {
     transform: translateY(-2px);
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--bg-glass-hover);
   }
 
   .player-avatar {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    border: 2px solid white;
+    border: 2px solid rgba(255, 255, 255, 0.2);
   }
 
   .player-name {
-    color: white;
+    color: var(--text-primary);
     font-weight: bold;
     font-size: 0.9rem;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
   }
 
   .punishment-count {
@@ -225,7 +246,7 @@
     border-radius: 15px;
     font-size: 0.8rem;
     font-weight: bold;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
   }
 
   .victory-actions {
@@ -240,7 +261,7 @@
     font-size: 1rem;
     font-weight: bold;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal);
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -250,14 +271,14 @@
   }
 
   .btn-primary {
-    background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+    background: linear-gradient(135deg, var(--color-accent), #764ba2);
     color: white;
-    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4), var(--glow-sm) rgba(102, 126, 234, 0.3);
   }
 
   .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.6);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5), var(--glow-md) rgba(102, 126, 234, 0.4);
   }
 
   .btn-primary:active {

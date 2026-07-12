@@ -1,5 +1,14 @@
 <script setup lang="ts">
   import { ref, watch, nextTick } from 'vue'
+  import {
+    Settings,
+    Target,
+    ChevronRight,
+    X,
+    Minus,
+    Plus,
+    RotateCcw,
+  } from '@lucide/vue'
   import type {
     PunishmentConfig,
     PunishmentTool,
@@ -611,16 +620,22 @@
 </script>
 
 <template>
-  <div class="punishment-config">
+  <div class="punishment-config glass-card">
     <div class="config-header">
-      <h3>⚙️ 惩罚设置</h3>
+      <h3>
+        <Settings :size="22" />
+        惩罚设置
+      </h3>
     </div>
 
     <div class="config-sections">
       <!-- 工具设置 -->
       <div class="config-section">
         <div class="section-header">
-          <h4>🛠️ 工具设置</h4>
+          <h4>
+            <Settings :size="18" />
+            工具设置
+          </h4>
           <div class="section-summary">{{ Object.keys(localConfig.tools).length }}个工具</div>
         </div>
 
@@ -632,7 +647,9 @@
           >
             <div class="item-header">
               <span class="item-name">{{ tool.name }}</span>
-              <button class="btn-remove" @click="removeTool(tool.name)">×</button>
+              <button class="btn-remove" @click="removeTool(tool.name)">
+                <X :size="14" />
+              </button>
             </div>
 
             <div class="item-stats">
@@ -644,7 +661,7 @@
                     class="btn-stat"
                     @click="updateToolIntensity(tool.name, tool.intensity - 1)"
                   >
-                    -
+                    <Minus :size="14" />
                   </button>
                   <span class="stat-value">{{ tool.intensity }}/10</span>
                   <button
@@ -652,7 +669,7 @@
                     class="btn-stat"
                     @click="updateToolIntensity(tool.name, tool.intensity + 1)"
                   >
-                    +
+                    <Plus :size="14" />
                   </button>
                 </div>
               </div>
@@ -686,7 +703,8 @@
             />
           </div>
           <button :disabled="!newToolName.trim()" class="btn-add" @click="addTool">
-            + 添加工具
+            <Plus :size="16" />
+            添加工具
           </button>
         </div>
       </div>
@@ -694,7 +712,10 @@
       <!-- 部位设置 -->
       <div class="config-section">
         <div class="section-header">
-          <h4>🎯 部位设置</h4>
+          <h4>
+            <Target :size="18" />
+            部位设置
+          </h4>
           <div class="section-summary">{{ Object.keys(localConfig.bodyParts).length }}个部位</div>
         </div>
 
@@ -706,7 +727,9 @@
           >
             <div class="item-header">
               <span class="item-name">{{ bodyPart.name }}</span>
-              <button class="btn-remove" @click="removeBodyPart(bodyPart.name)">×</button>
+              <button class="btn-remove" @click="removeBodyPart(bodyPart.name)">
+                <X :size="14" />
+              </button>
             </div>
 
             <div class="item-stats">
@@ -718,7 +741,7 @@
                     class="btn-stat"
                     @click="updateBodyPartSensitivity(bodyPart.name, bodyPart.sensitivity - 1)"
                   >
-                    -
+                    <Minus :size="14" />
                   </button>
                   <span class="stat-value">{{ bodyPart.sensitivity }}/10</span>
                   <button
@@ -726,7 +749,7 @@
                     class="btn-stat"
                     @click="updateBodyPartSensitivity(bodyPart.name, bodyPart.sensitivity + 1)"
                   >
-                    +
+                    <Plus :size="14" />
                   </button>
                 </div>
               </div>
@@ -760,7 +783,8 @@
             />
           </div>
           <button :disabled="!newBodyPartName.trim()" class="btn-add" @click="addBodyPart">
-            + 添加部位
+            <Plus :size="16" />
+            添加部位
           </button>
         </div>
       </div>
@@ -768,7 +792,10 @@
       <!-- 姿势设置 -->
       <div class="config-section">
         <div class="section-header">
-          <h4>🧘 姿势设置</h4>
+          <h4>
+            <ChevronRight :size="18" />
+            姿势设置
+          </h4>
           <div class="section-summary">{{ Object.keys(localConfig.positions).length }}个姿势</div>
         </div>
 
@@ -780,7 +807,9 @@
           >
             <div class="item-header">
               <span class="item-name">{{ position.name }}</span>
-              <button class="btn-remove" @click="removePosition(position.name)">×</button>
+              <button class="btn-remove" @click="removePosition(position.name)">
+                <X :size="14" />
+              </button>
             </div>
 
             <div class="item-stats">
@@ -824,7 +853,8 @@
             <input v-model="newPositionName" placeholder="新姿势名称" class="input-field" />
           </div>
           <button :disabled="!newPositionName.trim()" class="btn-add" @click="addPosition">
-            + 添加姿势
+            <Plus :size="16" />
+            添加姿势
           </button>
         </div>
       </div>
@@ -832,7 +862,10 @@
       <!-- 惩罚数量设置 -->
       <div class="config-section">
         <div class="section-header">
-          <h4>🔢 惩罚数量设置</h4>
+          <h4>
+            <Settings :size="18" />
+            惩罚数量设置
+          </h4>
         </div>
 
         <div class="strikes-config">
@@ -844,7 +877,7 @@
                 class="btn-stat"
                 @click="updateMinStrikes(localConfig.minStrikes - 5)"
               >
-                -
+                <Minus :size="14" />
               </button>
               <span class="strikes-value">{{ localConfig.minStrikes }}</span>
               <button
@@ -852,7 +885,7 @@
                 class="btn-stat"
                 @click="updateMinStrikes(localConfig.minStrikes + 5)"
               >
-                +
+                <Plus :size="14" />
               </button>
             </div>
           </div>
@@ -865,7 +898,7 @@
                 class="btn-stat"
                 @click="updateMaxStrikes(localConfig.maxStrikes - 5)"
               >
-                -
+                <Minus :size="14" />
               </button>
               <span class="strikes-value">{{ localConfig.maxStrikes }}</span>
               <button
@@ -873,7 +906,7 @@
                 class="btn-stat"
                 @click="updateMaxStrikes(localConfig.maxStrikes + 5)"
               >
-                +
+                <Plus :size="14" />
               </button>
             </div>
           </div>
@@ -886,7 +919,7 @@
                 class="btn-stat"
                 @click="updateMaxTakeoffFailures(localConfig.maxTakeoffFailures - 1)"
               >
-                -
+                <Minus :size="14" />
               </button>
               <span class="strikes-value">{{ localConfig.maxTakeoffFailures }}</span>
               <button
@@ -894,7 +927,7 @@
                 class="btn-stat"
                 @click="updateMaxTakeoffFailures(localConfig.maxTakeoffFailures + 1)"
               >
-                +
+                <Plus :size="14" />
               </button>
             </div>
           </div>
@@ -907,8 +940,8 @@
     </div>
 
     <div class="config-actions">
-      <button class="btn-secondary" @click="resetToDefault">
-        <span class="btn-icon">🔄</span>
+      <button class="btn btn-secondary" @click="resetToDefault">
+        <RotateCcw :size="16" />
         <span class="btn-text">重置默认</span>
       </button>
     </div>
@@ -925,11 +958,11 @@
 
 <style scoped>
   .punishment-config {
-    background: white;
-    border-radius: 8px;
-    padding: 1rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     margin-bottom: 1rem;
+  }
+
+  .punishment-config:hover {
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
   .config-header {
@@ -939,9 +972,13 @@
 
   .config-header h3 {
     margin: 0;
-    color: #333;
+    color: var(--text-primary);
     font-size: 1.3rem;
     font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
   }
 
   .config-sections {
@@ -952,10 +989,10 @@
   }
 
   .config-section {
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
+    border: var(--glass-border);
+    border-radius: var(--radius-md);
     padding: 1rem;
-    background: #fafafa;
+    background: var(--bg-surface);
   }
 
   .section-header {
@@ -964,22 +1001,26 @@
     align-items: center;
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .section-header h4 {
     margin: 0;
-    color: #333;
+    color: var(--text-primary);
     font-size: 1.1rem;
     font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
   }
 
   .section-summary {
     font-size: 0.8rem;
-    color: #666;
-    background: #e0e0e0;
+    color: var(--text-secondary);
+    background: var(--bg-glass);
     padding: 0.2rem 0.5rem;
-    border-radius: 12px;
+    border-radius: var(--radius-full);
+    border: var(--glass-border);
   }
 
   .items-grid {
@@ -989,11 +1030,11 @@
   }
 
   .item-card {
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 6px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    border-radius: var(--radius-sm);
     padding: 0.8rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
   .item-header {
@@ -1005,27 +1046,26 @@
 
   .item-name {
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     font-size: 1rem;
   }
 
   .btn-remove {
     width: 24px;
     height: 24px;
-    border: 1px solid #ff6b6b;
-    background: #ff6b6b;
-    color: white;
-    border-radius: 4px;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--color-danger);
+    border-radius: var(--radius-sm);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.9rem;
-    font-weight: bold;
+    transition: all var(--transition-fast);
   }
 
   .btn-remove:hover {
-    background: #ff4757;
+    background: rgba(239, 68, 68, 0.25);
   }
 
   .item-stats {
@@ -1043,7 +1083,7 @@
 
   .stat-label {
     font-size: 0.85rem;
-    color: #666;
+    color: var(--text-secondary);
     min-width: 60px;
   }
 
@@ -1064,13 +1104,13 @@
     align-items: center;
     gap: 0.25rem;
     padding: 0.2rem 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 12px;
+    border: var(--glass-border);
+    border-radius: var(--radius-full);
     font-size: 0.8rem;
     cursor: pointer;
-    background: #f5f5f5;
-    color: #666;
-    transition: all 0.2s ease;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
     user-select: none;
   }
 
@@ -1079,13 +1119,14 @@
   }
 
   .chip-label.active {
-    background: #4ecdc4;
-    color: white;
-    border-color: #44a08d;
+    background: rgba(102, 126, 234, 0.25);
+    color: var(--color-accent-light);
+    border-color: rgba(102, 126, 234, 0.4);
   }
 
   .chip-label:hover {
-    border-color: #4ecdc4;
+    border-color: rgba(102, 126, 234, 0.3);
+    background: var(--bg-glass-hover);
   }
 
   .stat-controls {
@@ -1097,23 +1138,24 @@
   .btn-stat {
     width: 24px;
     height: 24px;
-    border: 1px solid #ddd;
-    background: white;
-    border-radius: 4px;
+    border: var(--glass-border);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.8rem;
-    font-weight: bold;
+    transition: all var(--transition-fast);
   }
 
   .btn-stat:hover:not(:disabled) {
-    background: #f0f0f0;
+    background: var(--bg-glass-hover);
+    border-color: rgba(255, 255, 255, 0.2);
   }
 
   .btn-stat:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
   }
 
@@ -1122,14 +1164,14 @@
     text-align: center;
     font-weight: 600;
     font-size: 0.9rem;
-    color: #333;
+    color: var(--text-primary);
   }
 
   .ratio-slider {
     flex: 1;
     height: 4px;
     border-radius: 2px;
-    background: #ddd;
+    background: var(--bg-secondary);
     outline: none;
     -webkit-appearance: none;
   }
@@ -1140,21 +1182,23 @@
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: #4ecdc4;
+    background: var(--color-accent);
     cursor: pointer;
+    box-shadow: 0 0 8px rgba(102, 126, 234, 0.4);
   }
 
   .ratio-slider::-moz-range-thumb {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: #4ecdc4;
+    background: var(--color-accent);
     cursor: pointer;
     border: none;
+    box-shadow: 0 0 8px rgba(102, 126, 234, 0.4);
   }
 
   .add-item-form {
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     padding-top: 0.8rem;
   }
 
@@ -1164,19 +1208,37 @@
     margin-bottom: 0.5rem;
   }
 
+  .input-field,
+  .input-mini {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color var(--transition-normal);
+    font-family: inherit;
+  }
+
+  .input-field::placeholder,
+  .input-mini::placeholder {
+    color: var(--text-muted);
+  }
+
+  .input-field:focus,
+  .input-mini:focus {
+    border-color: var(--color-accent);
+  }
+
   .input-field {
     flex: 1;
     padding: 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-size: 0.9rem;
   }
 
   .input-mini {
     width: 60px;
     padding: 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-size: 0.9rem;
     text-align: center;
   }
@@ -1184,21 +1246,27 @@
   .btn-add {
     width: 100%;
     padding: 0.6rem;
-    border: 1px solid #4ecdc4;
-    background: #4ecdc4;
-    color: white;
-    border-radius: 4px;
+    border: 1px solid rgba(102, 126, 234, 0.4);
+    background: rgba(102, 126, 234, 0.2);
+    color: var(--color-accent-light);
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    transition: all var(--transition-normal);
   }
 
   .btn-add:hover:not(:disabled) {
-    background: #44a08d;
+    background: rgba(102, 126, 234, 0.3);
+    border-color: rgba(102, 126, 234, 0.5);
   }
 
   .btn-add:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
   }
 
@@ -1213,14 +1281,14 @@
     justify-content: space-between;
     align-items: center;
     padding: 0.8rem;
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 6px;
+    background: var(--bg-glass);
+    border: var(--glass-border);
+    border-radius: var(--radius-sm);
   }
 
   .strikes-label {
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     font-size: 0.95rem;
   }
 
@@ -1235,17 +1303,17 @@
     text-align: center;
     font-weight: 600;
     font-size: 1rem;
-    color: #ffa726;
+    color: var(--color-warning);
   }
 
   .strikes-description {
     text-align: center;
     padding: 0.6rem;
-    background: #fff3e0;
-    border-radius: 6px;
-    color: #e65100;
+    background: rgba(245, 158, 11, 0.1);
+    border-radius: var(--radius-sm);
+    color: var(--color-warning);
     font-size: 0.85rem;
-    border: 1px solid #ffcc80;
+    border: 1px solid rgba(245, 158, 11, 0.25);
     font-weight: 600;
   }
 
@@ -1255,64 +1323,11 @@
     justify-content: center;
   }
 
-  .btn-primary,
-  .btn-secondary {
-    padding: clamp(0.4rem, 1.5vw, 0.6rem) clamp(0.8rem, 2.5vw, 1.2rem);
-    border: none;
-    border-radius: clamp(4px, 1vw, 6px);
-    font-size: clamp(0.8rem, 2.2vw, 0.9rem);
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: clamp(0.3rem, 1vw, 0.4rem);
-    min-height: clamp(32px, 7vw, 36px);
-    min-width: 120px;
-  }
-
-  .btn-primary {
-    background: linear-gradient(135deg, #4ecdc4, #44a08d);
-    color: white;
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(78, 205, 196, 0.3);
-  }
-
-  .btn-primary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-
-  .btn-secondary {
-    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-    color: white;
-  }
-
-  .btn-secondary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
-  }
-
-  .btn-icon {
-    font-size: 1rem;
-  }
-
   .btn-text {
     font-weight: 600;
   }
 
-  /* 移动端优化 */
   @media (max-width: 768px) {
-    .punishment-config {
-      padding: 0.8rem;
-      margin: 0.5rem;
-    }
-
     .config-header h3 {
       font-size: 1.2rem;
     }
@@ -1349,7 +1364,6 @@
     .btn-remove {
       width: 22px;
       height: 22px;
-      font-size: 0.8rem;
     }
 
     .stat-item {
@@ -1364,7 +1378,6 @@
     .btn-stat {
       width: 22px;
       height: 22px;
-      font-size: 0.75rem;
     }
 
     .stat-value {
@@ -1424,27 +1437,14 @@
       gap: 0.8rem;
     }
 
-    .btn-primary,
-    .btn-secondary {
+    .config-actions .btn {
       width: 100%;
       max-width: min(300px, 80vw);
       justify-content: center;
-      padding: clamp(0.35rem, 1.5vw, 0.4rem) clamp(0.7rem, 2vw, 0.8rem);
-      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
-      border-radius: 4px;
-      min-height: clamp(28px, 6vw, 32px);
-      gap: clamp(0.2rem, 0.6vw, 0.25rem);
-      min-width: auto;
     }
   }
 
-  /* 超小屏幕优化 */
   @media (max-width: 480px) {
-    .punishment-config {
-      padding: 0.6rem;
-      margin: 0.3rem;
-    }
-
     .config-header h3 {
       font-size: 1.1rem;
     }
@@ -1489,7 +1489,6 @@
     .btn-remove {
       width: 20px;
       height: 20px;
-      font-size: 0.75rem;
     }
 
     .item-stats {
@@ -1508,7 +1507,6 @@
     .btn-stat {
       width: 20px;
       height: 20px;
-      font-size: 0.7rem;
     }
 
     .stat-value {
@@ -1569,19 +1567,6 @@
 
     .config-actions {
       gap: 0.6rem;
-    }
-
-    .btn-primary,
-    .btn-secondary {
-      width: 100%;
-      max-width: min(300px, 80vw);
-      justify-content: center;
-      padding: clamp(0.3rem, 1.2vw, 0.35rem) clamp(0.6rem, 1.8vw, 0.7rem);
-      font-size: clamp(0.65rem, 1.6vw, 0.7rem);
-      border-radius: 4px;
-      min-height: clamp(24px, 5vw, 28px);
-      gap: clamp(0.15rem, 0.5vw, 0.2rem);
-      min-width: auto;
     }
   }
 </style>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+  import { Undo2, Check, Trophy } from '@lucide/vue'
+
   interface Props {
     visible: boolean
     fromPosition: number
@@ -21,23 +23,33 @@
 </script>
 
 <template>
-  <div v-if="visible" class="bounce-display">
-    <div class="bounce-header">
-      <h3>🏐 反弹效果</h3>
-      <p>超出终点，按飞行棋规则反弹！</p>
-    </div>
-
-    <div class="bounce-content">
-      <div class="bounce-message">
-        <p class="main-message">
-          超出终点🏁(第{{ endPoint }}格) {{ overflowSteps }}格子，所以倒退{{
-            overflowSteps
-          }}格，最后是第{{ finalPosition }}格
-        </p>
+  <div v-if="visible" class="modal-overlay">
+    <div class="modal-content bounce-display">
+      <div class="bounce-header">
+        <h3>
+          <Undo2 :size="20" />
+          反弹效果
+        </h3>
+        <p>超出终点，按飞行棋规则反弹！</p>
       </div>
 
-      <div class="bounce-actions">
-        <button class="btn-confirm" @click="confirmBounce">✅ 确认反弹</button>
+      <div class="bounce-content">
+        <div class="bounce-message">
+          <p class="main-message">
+            超出终点
+            <Trophy :size="18" class="inline-icon" />
+            (第{{ endPoint }}格) {{ overflowSteps }}格子，所以倒退{{
+              overflowSteps
+            }}格，最后是第{{ finalPosition }}格
+          </p>
+        </div>
+
+        <div class="bounce-actions">
+          <button class="btn btn-confirm" @click="confirmBounce">
+            <Check :size="18" />
+            确认反弹
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -45,20 +57,8 @@
 
 <style scoped>
   .bounce-display {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    padding: 2rem;
     max-width: 500px;
-    width: 90%;
-    z-index: 1000;
-    border: 3px solid #ff9500;
-    max-height: 90vh;
-    overflow-y: auto;
+    border: 1px solid rgba(255, 165, 2, 0.3);
   }
 
   .bounce-header {
@@ -67,13 +67,17 @@
   }
 
   .bounce-header h3 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
     font-size: 1.5rem;
-    color: #ff9500;
+    color: var(--color-special);
     margin-bottom: 0.5rem;
   }
 
   .bounce-header p {
-    color: #666;
+    color: var(--text-secondary);
     font-size: 1rem;
   }
 
@@ -84,20 +88,27 @@
   }
 
   .bounce-message {
-    background: linear-gradient(135deg, #fff4e6, #ffeaa7);
-    border-radius: 12px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    border-radius: var(--radius-md);
     padding: 2rem;
-    border: 2px solid #ff9500;
+    border: 1px solid rgba(255, 165, 2, 0.4);
     text-align: center;
     margin: 1rem 0;
   }
 
   .main-message {
     margin: 0;
-    color: #e17055;
+    color: var(--color-special);
     font-weight: bold;
     font-size: 1.4rem;
     line-height: 1.5;
+  }
+
+  .inline-icon {
+    display: inline-block;
+    vertical-align: -3px;
+    margin: 0 2px;
   }
 
   .bounce-actions {
@@ -107,20 +118,15 @@
   }
 
   .btn-confirm {
-    background: linear-gradient(135deg, #ff9500, #ff7675);
+    background: linear-gradient(135deg, var(--color-special), #ff7675);
     color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 0.75rem 2rem;
-    font-size: 1.1rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 15px rgba(255, 165, 2, 0.3);
   }
 
-  .btn-confirm:hover {
+  .btn-confirm:not(:disabled):hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 149, 0, 0.3);
+    box-shadow: 0 6px 20px rgba(255, 165, 2, 0.4);
   }
 
   .btn-confirm:active {
@@ -131,7 +137,6 @@
   @media (max-width: 768px) {
     .bounce-display {
       padding: 1.5rem;
-      width: 95%;
     }
 
     .bounce-message {

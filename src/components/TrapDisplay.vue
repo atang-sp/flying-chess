@@ -1,4 +1,6 @@
 <script setup lang="ts">
+  import { Skull, AlertTriangle } from '@lucide/vue'
+
   interface Props {
     show: boolean
     trapDescription?: string
@@ -8,7 +10,7 @@
     (e: 'confirm'): void
   }
 
-  const props = defineProps<Props>()
+  defineProps<Props>()
   const emit = defineEmits<Emits>()
 
   const handleConfirm = () => {
@@ -21,10 +23,12 @@
 </script>
 
 <template>
-  <div v-if="show" class="trap-display-overlay" @click="handleOverlayClick">
+  <div v-if="show" class="modal-overlay trap-display-overlay" @click="handleOverlayClick">
     <div class="trap-display-modal" @click.stop>
       <div class="trap-header">
-        <div class="trap-icon">💀</div>
+        <div class="trap-icon">
+          <Skull :size="48" />
+        </div>
         <h2 class="trap-title">机关陷阱触发！</h2>
       </div>
 
@@ -34,13 +38,18 @@
         </div>
 
         <div class="trap-warning">
-          <p>⚠️ 机关陷阱已触发，请按照描述执行！</p>
+          <p>
+            <AlertTriangle :size="18" />
+            机关陷阱已触发，请按照描述执行！
+          </p>
         </div>
       </div>
 
       <div class="trap-actions">
-        <button class="btn-primary" @click="handleConfirm">
-          <span class="btn-icon">😰</span>
+        <button class="btn trap-confirm-btn" @click="handleConfirm">
+          <span class="btn-icon">
+            <AlertTriangle :size="18" />
+          </span>
           <span class="btn-text">确认执行</span>
         </button>
       </div>
@@ -50,29 +59,20 @@
 
 <style scoped>
   .trap-display-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    animation: fadeIn 0.3s ease-out;
+    background: rgba(0, 0, 0, 0.85);
   }
 
   .trap-display-modal {
-    background: linear-gradient(135deg, #2c1810, #4a1c1c);
-    border: 3px solid #8b0000;
-    border-radius: 20px;
+    background: rgba(20, 10, 10, 0.95);
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid rgba(220, 38, 38, 0.4);
+    border-radius: var(--radius-xl);
     padding: 30px;
     max-width: 500px;
     width: 90%;
     text-align: center;
-    box-shadow: 0 10px 30px rgba(139, 0, 0, 0.5);
-    animation: slideIn 0.3s ease-out;
+    box-shadow: var(--glass-shadow-lg), var(--glow-md) rgba(220, 38, 38, 0.2);
+    animation: slideIn var(--transition-normal) ease-out;
   }
 
   .trap-header {
@@ -80,16 +80,18 @@
   }
 
   .trap-icon {
-    font-size: 4em;
+    display: flex;
+    justify-content: center;
     margin-bottom: 10px;
+    color: var(--color-trap);
     animation: pulse 2s infinite;
   }
 
   .trap-title {
-    color: #ff6b6b;
+    color: var(--color-trap);
     font-size: 1.8em;
     margin: 0;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    text-shadow: var(--glow-sm) rgba(220, 38, 38, 0.5);
     font-weight: bold;
   }
 
@@ -102,22 +104,25 @@
   }
 
   .trap-description {
-    color: #ffd700;
+    color: var(--color-special);
     font-size: 1.2em;
     font-weight: bold;
     margin: 0;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
   }
 
   .trap-warning {
-    background: rgba(255, 107, 107, 0.2);
-    border: 2px solid #ff6b6b;
-    border-radius: 10px;
+    background: rgba(220, 38, 38, 0.15);
+    border: 1px solid rgba(220, 38, 38, 0.4);
+    border-radius: var(--radius-md);
     padding: 15px;
   }
 
   .trap-warning p {
-    color: #ff6b6b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--color-trap);
     font-weight: bold;
     margin: 0;
     font-size: 0.9em;
@@ -128,48 +133,25 @@
     justify-content: center;
   }
 
-  .btn-primary {
-    background: linear-gradient(135deg, #8b0000, #dc143c);
+  .trap-confirm-btn {
+    background: linear-gradient(135deg, #7f1d1d, var(--color-trap));
     color: white;
-    border: none;
-    border-radius: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-full);
     padding: 12px 30px;
     font-size: 1.1em;
     font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: 0 4px 15px rgba(139, 0, 0, 0.4);
+    box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
   }
 
-  .btn-primary:hover {
-    background: linear-gradient(135deg, #dc143c, #ff0000);
+  .trap-confirm-btn:not(:disabled):hover {
+    background: linear-gradient(135deg, var(--color-trap), #ef4444);
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(139, 0, 0, 0.6);
+    box-shadow: 0 6px 20px rgba(220, 38, 38, 0.6);
   }
 
-  .btn-primary:active {
+  .trap-confirm-btn:active {
     transform: translateY(0);
-  }
-
-  .btn-icon {
-    font-size: 1.2em;
-  }
-
-  .btn-text {
-    font-weight: bold;
-  }
-
-  /* 动画效果 */
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
   }
 
   @keyframes slideIn {
@@ -200,8 +182,9 @@
       margin: 20px;
     }
 
-    .trap-icon {
-      font-size: 3em;
+    .trap-icon :deep(svg) {
+      width: 40px;
+      height: 40px;
     }
 
     .trap-title {
@@ -212,7 +195,7 @@
       font-size: 1.1em;
     }
 
-    .btn-primary {
+    .trap-confirm-btn {
       padding: 10px 25px;
       font-size: 1em;
     }

@@ -313,7 +313,7 @@
           }"
         >
           <div class="player-header">
-            <div class="player-color" :style="{ backgroundColor: player.color }"></div>
+            <div class="player-color" :style="{ backgroundColor: player.color, '--player-glow-color': player.color }"></div>
             <span class="player-name">{{ player.name }}</span>
             <div v-if="player.isWinner" class="winner-badge">🏆</div>
           </div>
@@ -331,32 +331,28 @@
 
 <style scoped>
   .player-panel {
-    background: white;
-    border-radius: clamp(6px, 1.5vw, 8px);
+    background: transparent;
+    border-radius: var(--radius-sm);
     padding: clamp(0.8rem, 2.5vw, 1rem);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     margin-bottom: clamp(0.8rem, 2.5vw, 1rem);
   }
 
   .player-panel h3 {
     margin: 0 0 clamp(0.8rem, 2.5vw, 1rem) 0;
-    color: #333;
+    color: var(--text-primary);
     text-align: center;
     font-size: clamp(1.1rem, 3vw, 1.3rem);
   }
 
   .players-container {
     max-height: 60vh;
-    min-height: 200px; /* 确保容器有最小高度 */
+    min-height: 200px;
     overflow-y: auto;
     overflow-x: hidden;
     scroll-behavior: smooth;
-    /* 确保在移动设备上滚动流畅 */
     -webkit-overflow-scrolling: touch;
-    /* 自定义滚动条样式 */
     scrollbar-width: thin;
-    scrollbar-color: #4ecdc4 #f0f0f0;
-    /* 确保容器有明确的定位上下文 */
+    scrollbar-color: rgba(255, 255, 255, 0.15) rgba(255, 255, 255, 0.05);
     position: relative;
   }
 
@@ -365,17 +361,17 @@
   }
 
   .players-container::-webkit-scrollbar-track {
-    background: #f0f0f0;
+    background: rgba(255, 255, 255, 0.05);
     border-radius: 3px;
   }
 
   .players-container::-webkit-scrollbar-thumb {
-    background: #4ecdc4;
+    background: rgba(255, 255, 255, 0.15);
     border-radius: 3px;
   }
 
   .players-container::-webkit-scrollbar-thumb:hover {
-    background: #45b7b8;
+    background: rgba(255, 255, 255, 0.25);
   }
 
   .players-grid {
@@ -386,24 +382,25 @@
   }
 
   .player-card {
-    border: 2px solid #e0e0e0;
-    border-radius: clamp(6px, 1.5vw, 8px);
+    border: var(--glass-border);
+    border-radius: var(--radius-md);
     padding: clamp(0.8rem, 2.5vw, 1rem);
-    transition: all 0.3s ease;
-    background: #fafafa;
+    transition: all var(--transition-normal);
+    background: var(--bg-glass);
+    backdrop-filter: blur(var(--glass-blur));
   }
 
   .player-card.current {
-    border-color: #4ecdc4;
-    background: linear-gradient(135deg, #e8f5e8, #f0f8f0);
-    box-shadow: 0 4px 12px rgba(78, 205, 196, 0.3);
+    border-color: rgba(102, 126, 234, 0.5);
+    background: var(--bg-glass-hover);
+    box-shadow: var(--glow-sm) rgba(102, 126, 234, 0.3);
     transform: translateY(-2px);
   }
 
   .player-card.winner {
-    border-color: #ffd700;
-    background: linear-gradient(135deg, #fff8e1, #fffde7);
-    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+    border-color: rgba(254, 202, 87, 0.5);
+    background: var(--bg-glass-hover);
+    box-shadow: var(--glow-sm) rgba(254, 202, 87, 0.3);
   }
 
   .player-header {
@@ -417,13 +414,13 @@
     width: clamp(16px, 4vw, 20px);
     height: clamp(16px, 4vw, 20px);
     border-radius: 50%;
-    border: 2px solid white;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: var(--glow-sm) var(--player-glow-color, rgba(255, 255, 255, 0.3));
   }
 
   .player-name {
     font-weight: bold;
-    color: #333;
+    color: var(--text-primary);
     flex: 1;
     font-size: clamp(0.9rem, 2.5vw, 1rem);
   }
@@ -447,13 +444,13 @@
 
   .label {
     font-size: clamp(0.8rem, 2.5vw, 0.9rem);
-    color: #666;
+    color: var(--text-muted);
     min-width: clamp(35px, 8vw, 40px);
   }
 
   .value {
     font-weight: bold;
-    color: #333;
+    color: var(--text-secondary);
     font-size: clamp(0.8rem, 2.5vw, 0.9rem);
   }
 

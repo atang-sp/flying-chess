@@ -1,53 +1,81 @@
-/* color palette from <https://github.com/vuejs/theme> */
+/* Dark Premium Design Tokens */
 :root {
-  --vt-c-white: #ffffff;
-  --vt-c-white-soft: #f8f8f8;
-  --vt-c-white-mute: #f2f2f2;
+  /* Background layers */
+  --bg-primary: #0a0a1a;
+  --bg-secondary: rgba(255, 255, 255, 0.05);
+  --bg-glass: rgba(255, 255, 255, 0.08);
+  --bg-glass-hover: rgba(255, 255, 255, 0.12);
+  --bg-glass-active: rgba(255, 255, 255, 0.16);
+  --bg-surface: rgba(255, 255, 255, 0.04);
 
-  --vt-c-black: #181818;
-  --vt-c-black-soft: #222222;
-  --vt-c-black-mute: #282828;
+  /* Text */
+  --text-primary: rgba(255, 255, 255, 0.92);
+  --text-secondary: rgba(255, 255, 255, 0.6);
+  --text-muted: rgba(255, 255, 255, 0.35);
+  --text-inverse: #0a0a1a;
 
-  --vt-c-indigo: #2c3e50;
+  /* Cell type colors */
+  --color-punishment: #ff4757;
+  --color-bonus: #2ed573;
+  --color-special: #ffa502;
+  --color-restart: #a855f7;
+  --color-trap: #dc2626;
+  --color-normal: rgba(255, 255, 255, 0.2);
 
-  --vt-c-divider-light-1: rgba(60, 60, 60, 0.29);
-  --vt-c-divider-light-2: rgba(60, 60, 60, 0.12);
-  --vt-c-divider-dark-1: rgba(84, 84, 84, 0.65);
-  --vt-c-divider-dark-2: rgba(84, 84, 84, 0.48);
+  /* Accent */
+  --color-accent: #667eea;
+  --color-accent-light: #8b9cf7;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #3b82f6;
 
-  --vt-c-text-light-1: var(--vt-c-indigo);
-  --vt-c-text-light-2: rgba(60, 60, 60, 0.66);
-  --vt-c-text-dark-1: var(--vt-c-white);
-  --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
-}
+  /* Player colors */
+  --player-1: #ff6b6b;
+  --player-2: #4ecdc4;
+  --player-3: #45b7d1;
+  --player-4: #feca57;
+  --player-5: #ff9ff3;
+  --player-6: #54a0ff;
+  --player-7: #5f27cd;
+  --player-8: #96ceb4;
 
-/* semantic color variables for this project */
-:root {
-  --color-background: var(--vt-c-white);
-  --color-background-soft: var(--vt-c-white-soft);
-  --color-background-mute: var(--vt-c-white-mute);
+  /* Player color RGB (for rgba usage) */
+  --player-1-rgb: 255, 107, 107;
+  --player-2-rgb: 78, 205, 196;
+  --player-3-rgb: 69, 183, 209;
+  --player-4-rgb: 254, 202, 87;
 
-  --color-border: var(--vt-c-divider-light-2);
-  --color-border-hover: var(--vt-c-divider-light-1);
+  /* Glass effects */
+  --glass-blur: 12px;
+  --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+  --glass-border-hover: 1px solid rgba(255, 255, 255, 0.2);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --glass-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.4);
 
-  --color-heading: var(--vt-c-text-light-1);
-  --color-text: var(--vt-c-text-light-1);
+  /* Border radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
 
-  --section-gap: 160px;
-}
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-background: var(--vt-c-black);
-    --color-background-soft: var(--vt-c-black-soft);
-    --color-background-mute: var(--vt-c-black-mute);
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 300ms ease;
+  --transition-slow: 500ms ease;
 
-    --color-border: var(--vt-c-divider-dark-2);
-    --color-border-hover: var(--vt-c-divider-dark-1);
-
-    --color-heading: var(--vt-c-text-dark-1);
-    --color-text: var(--vt-c-text-dark-2);
-  }
+  /* Glow */
+  --glow-sm: 0 0 8px;
+  --glow-md: 0 0 16px;
+  --glow-lg: 0 0 24px;
 }
 
 *,
@@ -60,11 +88,8 @@
 
 body {
   min-height: 100vh;
-  color: var(--color-text);
-  background: var(--color-background);
-  transition:
-    color 0.5s,
-    background-color 0.5s;
+  color: var(--text-primary);
+  background: var(--bg-primary);
   line-height: 1.6;
   font-family:
     Inter,
@@ -79,59 +104,13 @@ body {
     'Droid Sans',
     'Helvetica Neue',
     sans-serif;
-  font-size: clamp(12px, 2.5vw, 16px); /* 自适应字体大小 */
+  font-size: clamp(12px, 2.5vw, 16px);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* 移动端优化 */
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
   overflow-x: hidden;
-}
-
-/* 自适应布局系统 */
-@media (max-width: 1023px) {
-  /* 确保所有元素都能正确显示 */
-  * {
-    max-width: 100%;
-  }
-  
-  /* 防止水平滚动 */
-  html, body {
-    overflow-x: hidden;
-    width: 100%;
-  }
-  
-  /* 自适应容器 */
-  .container {
-    width: 100%;
-    padding: clamp(0.5rem, 2vw, 2rem);
-    margin: 0 auto;
-  }
-  
-  /* 自适应网格 */
-  .grid {
-    display: grid;
-    gap: clamp(0.5rem, 2vw, 2rem);
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
-  }
-  
-  /* 自适应按钮 */
-  .btn {
-    padding: clamp(0.5rem, 2vw, 1rem) clamp(1rem, 4vw, 2rem);
-    font-size: clamp(0.8rem, 2.5vw, 1rem);
-    border-radius: clamp(4px, 1vw, 8px);
-  }
-  
-  /* 自适应标题 */
-  h1 { font-size: clamp(1.5rem, 6vw, 3rem); }
-  h2 { font-size: clamp(1.2rem, 5vw, 2.5rem); }
-  h3 { font-size: clamp(1rem, 4vw, 2rem); }
-  h4 { font-size: clamp(0.9rem, 3.5vw, 1.5rem); }
-  
-  /* 自适应文本 */
-  p { font-size: clamp(0.8rem, 2.5vw, 1rem); }
-  span { font-size: clamp(0.7rem, 2vw, 0.9rem); }
 }
 
 @media (max-width: 480px) {

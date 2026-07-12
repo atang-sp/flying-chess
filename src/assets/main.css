@@ -6,127 +6,208 @@
   padding: 0;
   font-weight: normal;
   min-height: 100vh;
-  /* 移动端优化 */
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
 
+/* ===== Common Button Styles ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  min-height: 44px;
+  touch-action: manipulation;
+  text-decoration: none;
+  line-height: 1.2;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-accent) 0%, #764ba2 100%);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+  background: var(--bg-glass);
+  color: var(--text-primary);
+  border: var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.btn-secondary:not(:disabled):hover {
+  background: var(--bg-glass-hover);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
+}
+
+.btn-success:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  font-size: 1.1em;
+}
+
+.btn-text {
+  white-space: nowrap;
+}
+
+/* ===== Common Glass Card ===== */
+.glass-card {
+  background: var(--bg-glass);
+  backdrop-filter: blur(var(--glass-blur));
+  border: var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  padding: var(--spacing-lg);
+}
+
+.glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ===== Common Modal Overlay ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 1rem;
+  animation: modalFadeIn 0.3s ease;
+}
+
+.modal-content {
+  background: rgba(20, 20, 40, 0.95);
+  backdrop-filter: blur(var(--glass-blur));
+  border: var(--glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--glass-shadow-lg);
+  max-width: min(500px, 92vw);
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: var(--spacing-xl);
+  animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ===== Scrollbar Styling ===== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ===== Links ===== */
 a,
 .green {
   text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
+  color: var(--color-accent-light);
   transition: 0.4s;
   padding: 3px;
 }
 
 @media (hover: hover) {
   a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
+    background-color: rgba(102, 126, 234, 0.2);
   }
 }
 
-/* 平板端布局 */
-@media (max-width: 1023px) and (min-width: 768px) {
-  #app {
-    padding: 0 1rem;
-    width: 100%;
-    max-width: none;
-  }
-}
-
-/* 移动端布局 - 紧凑设计 */
+/* ===== Mobile Optimizations ===== */
 @media (max-width: 767px) {
-  #app {
-    padding: 0;
-    width: 100%;
-    max-width: none;
-  }
-  
-  /* 移动端全局样式优化 */
   * {
     -webkit-tap-highlight-color: transparent;
   }
-  
-  /* 触摸优化 */
-  button, .btn {
-    min-height: 44px; /* 确保触摸目标足够大 */
+
+  button,
+  .btn {
+    min-height: 44px;
     touch-action: manipulation;
   }
-  
-  /* 紧凑间距 */
-  .container {
-    padding: 0.5rem;
-  }
-  
-  /* 优化滚动 */
-  .scrollable {
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-  }
 }
 
-/* 小屏手机优化 */
-@media (max-width: 480px) {
-  #app {
-    padding: 0;
-  }
-  
-  /* 更紧凑的间距 */
-  .container {
-    padding: 0.25rem;
-  }
-  
-  /* 优化字体大小 */
-  body {
-    font-size: 14px;
-  }
-}
-
-/* 超小屏手机优化 */
 @media (max-width: 360px) {
-  #app {
-    padding: 0;
-  }
-  
-  body {
-    font-size: 13px;
-  }
-  
-  /* 最小触摸目标 */
-  button, .btn {
+  button,
+  .btn {
     min-height: 40px;
     padding: 0.5rem 0.75rem;
   }
 }
 
-/* 横屏模式优化 */
-@media (max-width: 767px) and (orientation: landscape) {
-  #app {
-    padding: 0.25rem;
-  }
-  
-  /* 横屏时更紧凑的布局 */
-  .game-board {
-    max-height: 80vh;
-  }
-}
-
-/* 高分辨率屏幕优化 */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-  /* 确保在高分辨率屏幕上清晰显示 */
-  .board-cell,
-  .player-marker,
-  .btn {
-    border-width: 0.5px;
-  }
-}
-
-/* 深色模式支持 */
-@media (prefers-color-scheme: dark) {
-  /* 可以在这里添加深色模式样式 */
-}
-
-/* 减少动画偏好 */
+/* ===== Reduced Motion ===== */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

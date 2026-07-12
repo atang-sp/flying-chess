@@ -1,5 +1,13 @@
 <script setup lang="ts">
   import { ref } from 'vue'
+  import {
+    Target,
+    Info,
+    Trash2,
+    RotateCcw,
+    ArrowLeft,
+    Check,
+  } from '@lucide/vue'
   import type { PunishmentCombination } from '../types/game'
 
   interface Props {
@@ -45,12 +53,18 @@
 
 <template>
   <div v-if="show" class="punishment-confirmation">
-    <div class="confirmation-overlay" @click="handleOverlayClick">
+    <div class="modal-overlay confirmation-overlay" @click="handleOverlayClick">
       <div class="confirmation-modal" @click.stop>
         <div class="modal-header">
-          <h3>🎯 惩罚组合确认</h3>
+          <h3>
+            <Target :size="22" />
+            惩罚组合确认
+          </h3>
           <p>请检查以下惩罚组合，可以删除不合适的组合</p>
-          <p class="duplicate-notice">💡 相同工具+部位+姿势的组合已自动去重</p>
+          <p class="duplicate-notice">
+            <Info :size="16" />
+            相同工具+部位+姿势的组合已自动去重
+          </p>
         </div>
 
         <div class="combinations-list">
@@ -90,7 +104,7 @@
                 title="删除此组合"
                 @click="removeCombination(index)"
               >
-                🗑️
+                <Trash2 :size="18" />
               </button>
               <button
                 v-else
@@ -98,7 +112,7 @@
                 title="恢复此组合"
                 @click="restoreCombination(index)"
               >
-                🔄
+                <RotateCcw :size="18" />
               </button>
             </div>
           </div>
@@ -120,16 +134,21 @@
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" @click="regenerateCombinations">🔄 重新生成</button>
-          <button class="btn-secondary" @click="() => emit('back-to-settings')">
-            ⬅️ 返回惩罚设置
+          <button class="btn btn-secondary" @click="regenerateCombinations">
+            <RotateCcw :size="18" />
+            重新生成
+          </button>
+          <button class="btn btn-secondary" @click="() => emit('back-to-settings')">
+            <ArrowLeft :size="18" />
+            返回惩罚设置
           </button>
           <button
-            class="btn-primary"
+            class="btn btn-primary"
             :disabled="removedCombinations.size >= combinations.length"
             @click="confirmCombinations"
           >
-            ✅ 确认组合 ({{ combinations.length - removedCombinations.size }}个)
+            <Check :size="18" />
+            确认组合 ({{ combinations.length - removedCombinations.size }}个)
           </button>
         </div>
       </div>
@@ -140,37 +159,32 @@
 <style scoped>
   .punishment-confirmation {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     z-index: 1000;
   }
 
   .confirmation-overlay {
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
     padding: 1rem;
   }
 
   .confirmation-modal {
-    background: white;
-    border-radius: 16px;
+    background: rgba(20, 20, 40, 0.95);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    border-radius: var(--radius-xl);
     max-width: 800px;
     width: 100%;
     max-height: 90vh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--glass-shadow-lg);
+    padding: 0;
+    animation: modalSlideIn 0.3s ease;
   }
 
   .modal-header {
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(135deg, var(--color-accent) 0%, #764ba2 100%);
     color: white;
     padding: 1.5rem;
     text-align: center;
@@ -180,20 +194,29 @@
     margin: 0 0 0.5rem 0;
     font-size: 1.5rem;
     font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
   }
 
   .modal-header p {
     margin: 0;
     font-size: 1rem;
     opacity: 0.9;
+    color: rgba(255, 255, 255, 0.9);
   }
 
   .duplicate-notice {
     margin-top: 0.5rem !important;
     font-size: 0.9rem !important;
-    opacity: 0.8 !important;
-    color: #4ecdc4 !important;
+    opacity: 0.9 !important;
+    color: var(--color-bonus) !important;
     font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
   }
 
   .combinations-list {
@@ -208,22 +231,24 @@
     align-items: center;
     gap: 1rem;
     padding: 1rem;
-    border: 2px solid #e9ecef;
-    border-radius: 12px;
+    border: var(--glass-border);
+    border-radius: var(--radius-md);
     margin-bottom: 1rem;
-    transition: all 0.3s ease;
-    background: white;
+    transition: all var(--transition-normal);
+    background: var(--bg-glass);
+    backdrop-filter: blur(var(--glass-blur));
   }
 
   .combination-item:hover {
-    border-color: #667eea;
+    border-color: rgba(102, 126, 234, 0.4);
+    background: var(--bg-glass-hover);
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
   }
 
   .combination-item.removed {
     opacity: 0.5;
-    background: #f8f9fa;
-    border-color: #dee2e6;
+    background: var(--bg-surface);
+    border-color: rgba(255, 255, 255, 0.06);
   }
 
   .combination-content {
@@ -235,7 +260,7 @@
 
   .combination-number {
     font-weight: bold;
-    color: #667eea;
+    color: var(--color-accent-light);
     font-size: 0.9rem;
   }
 
@@ -256,21 +281,21 @@
 
   .label {
     font-weight: bold;
-    color: #666;
+    color: var(--text-secondary);
     min-width: 40px;
   }
 
   .value {
-    color: #333;
+    color: var(--text-primary);
     font-weight: 500;
   }
 
   .intensity,
   .sensitivity {
-    background: #667eea;
+    background: var(--color-accent);
     color: white;
     padding: 0.2rem 0.4rem;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-size: 0.7rem;
     font-weight: bold;
   }
@@ -278,14 +303,14 @@
   .combination-summary {
     margin-top: 0.5rem;
     padding: 0.5rem;
-    background: #f8f9fa;
-    border-radius: 6px;
-    border-left: 3px solid #667eea;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--color-accent);
   }
 
   .summary-text {
     font-size: 0.9rem;
-    color: #333;
+    color: var(--text-primary);
     font-weight: 500;
   }
 
@@ -299,33 +324,32 @@
   .btn-restore {
     width: 40px;
     height: 40px;
-    border: none;
-    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
     cursor: pointer;
-    font-size: 1.2rem;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal);
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
   .btn-remove {
-    background: #ff6b6b;
-    color: white;
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--color-danger);
   }
 
   .btn-remove:hover {
-    background: #ff5252;
+    background: rgba(239, 68, 68, 0.35);
     transform: scale(1.05);
   }
 
   .btn-restore {
-    background: #2ed573;
-    color: white;
+    background: rgba(34, 197, 94, 0.2);
+    color: var(--color-success);
   }
 
   .btn-restore:hover {
-    background: #26d0ce;
+    background: rgba(34, 197, 94, 0.35);
     transform: scale(1.05);
   }
 
@@ -333,8 +357,8 @@
     display: flex;
     justify-content: space-around;
     padding: 1rem;
-    background: #f8f9fa;
-    border-top: 1px solid #e9ecef;
+    background: var(--bg-surface);
+    border-top: var(--glass-border);
   }
 
   .stat-item {
@@ -346,67 +370,27 @@
 
   .stat-label {
     font-size: 0.8rem;
-    color: #666;
+    color: var(--text-secondary);
   }
 
   .stat-value {
     font-size: 1.2rem;
     font-weight: bold;
-    color: #667eea;
+    color: var(--color-accent-light);
   }
 
   .modal-actions {
     display: flex;
     gap: 1rem;
     padding: 1.5rem;
-    background: #f8f9fa;
-    border-top: 1px solid #e9ecef;
+    background: var(--bg-surface);
+    border-top: var(--glass-border);
   }
 
-  .btn-primary,
-  .btn-secondary {
+  .modal-actions .btn {
     flex: 1;
-    padding: 1rem 1.5rem;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
   }
 
-  .btn-primary {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-  }
-
-  .btn-primary:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-
-  .btn-secondary {
-    background: #6c757d;
-    color: white;
-  }
-
-  .btn-secondary:hover {
-    background: #5a6268;
-    transform: translateY(-2px);
-  }
-
-  /* 响应式设计 */
   @media (max-width: 768px) {
     .confirmation-overlay {
       padding: 0.5rem;
@@ -415,8 +399,7 @@
     .confirmation-modal {
       max-width: 100%;
       max-height: 95vh;
-      margin: 0;
-      border-radius: 12px;
+      border-radius: var(--radius-md);
     }
 
     .modal-header {
@@ -460,7 +443,6 @@
     .btn-restore {
       width: 35px;
       height: 35px;
-      font-size: 1rem;
     }
 
     .combination-stats {
@@ -479,12 +461,6 @@
       padding: 1rem;
       gap: 0.75rem;
     }
-
-    .btn-primary,
-    .btn-secondary {
-      padding: 0.75rem 1rem;
-      font-size: 0.9rem;
-    }
   }
 
   @media (max-width: 480px) {
@@ -494,7 +470,7 @@
 
     .confirmation-modal {
       max-height: 98vh;
-      border-radius: 8px;
+      border-radius: var(--radius-sm);
     }
 
     .modal-header {
@@ -517,27 +493,15 @@
 
     .combination-number {
       font-size: 0.8rem;
-      min-width: 25px;
     }
 
     .combination-details {
       font-size: 0.75rem;
     }
 
-    .combination-summary {
-      font-size: 0.75rem;
-    }
-
     .modal-actions {
       padding: 0.75rem;
-    }
-
-    .btn-primary,
-    .btn-secondary {
-      padding: 0.6rem 0.8rem;
-      font-size: 0.85rem;
+      flex-wrap: wrap;
     }
   }
-
-  /* 响应式设计 */
 </style>
