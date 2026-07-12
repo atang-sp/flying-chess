@@ -45,12 +45,7 @@
 </script>
 
 <template>
-  <svg
-    :width="size"
-    :height="size"
-    :viewBox="`0 0 ${size} ${size}`"
-    class="mini-donut"
-  >
+  <svg :width="size" :height="size" :viewBox="`0 0 ${size} ${size}`" class="mini-donut">
     <circle
       :cx="center"
       :cy="center"

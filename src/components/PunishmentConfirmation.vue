@@ -44,9 +44,7 @@
     props.combinations.filter((_, i) => !removedCombinations.value.has(i))
   )
 
-  const retainedCount = computed(
-    () => props.combinations.length - removedCombinations.value.size
-  )
+  const retainedCount = computed(() => props.combinations.length - removedCombinations.value.size)
 
   // --- Stats (merged from PunishmentStats) ---
   function countBy(
@@ -61,15 +59,13 @@
     return counts
   }
 
-  const uniqueToolNames = computed(() =>
-    [...new Set(props.combinations.map(c => c.tool.name))]
-  )
-  const uniqueBodyPartNames = computed(() =>
-    [...new Set(props.combinations.map(c => c.bodyPart.name))]
-  )
-  const uniquePositionNames = computed(() =>
-    [...new Set(props.combinations.map(c => c.position.name))]
-  )
+  const uniqueToolNames = computed(() => [...new Set(props.combinations.map(c => c.tool.name))])
+  const uniqueBodyPartNames = computed(() => [
+    ...new Set(props.combinations.map(c => c.bodyPart.name)),
+  ])
+  const uniquePositionNames = computed(() => [
+    ...new Set(props.combinations.map(c => c.position.name)),
+  ])
 
   const toolDonutSegments = computed<DonutSegment[]>(() => {
     const counts = countBy(activeCombinations.value, c => c.tool.name)
@@ -176,11 +172,7 @@
         <div class="donut-item">
           <MiniDonut :segments="toolDonutSegments" :size="56" :stroke-width="7" label="工具" />
           <div class="donut-legend">
-            <span
-              v-for="seg in toolDonutSegments"
-              :key="seg.name"
-              class="legend-item"
-            >
+            <span v-for="seg in toolDonutSegments" :key="seg.name" class="legend-item">
               <span class="legend-dot" :style="{ backgroundColor: seg.color }"></span>
               {{ seg.name }}
             </span>
@@ -189,29 +181,16 @@
         <div class="donut-item">
           <MiniDonut :segments="bodyPartDonutSegments" :size="56" :stroke-width="7" label="部位" />
           <div class="donut-legend">
-            <span
-              v-for="seg in bodyPartDonutSegments"
-              :key="seg.name"
-              class="legend-item"
-            >
+            <span v-for="seg in bodyPartDonutSegments" :key="seg.name" class="legend-item">
               <span class="legend-dot" :style="{ backgroundColor: seg.color }"></span>
               {{ seg.name }}
             </span>
           </div>
         </div>
         <div class="donut-item">
-          <MiniDonut
-            :segments="positionDonutSegments"
-            :size="56"
-            :stroke-width="7"
-            label="姿势"
-          />
+          <MiniDonut :segments="positionDonutSegments" :size="56" :stroke-width="7" label="姿势" />
           <div class="donut-legend">
-            <span
-              v-for="seg in positionDonutSegments"
-              :key="seg.name"
-              class="legend-item"
-            >
+            <span v-for="seg in positionDonutSegments" :key="seg.name" class="legend-item">
               <span class="legend-dot" :style="{ backgroundColor: seg.color }"></span>
               {{ seg.name }}
             </span>
@@ -301,11 +280,7 @@
         <RotateCcw :size="16" />
         重新生成
       </button>
-      <button
-        class="btn btn-primary"
-        :disabled="retainedCount === 0"
-        @click="confirmCombinations"
-      >
+      <button class="btn btn-primary" :disabled="retainedCount === 0" @click="confirmCombinations">
         <Rocket :size="16" />
         开始游戏 ({{ retainedCount }}个)
       </button>

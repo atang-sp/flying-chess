@@ -2274,7 +2274,6 @@
       />
     </div>
 
-
     <!-- 起飞惩罚显示弹窗 -->
     <TakeoffPunishmentDisplay
       :visible="showTakeoffPunishmentDisplay"
