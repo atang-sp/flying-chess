@@ -5,15 +5,17 @@
   import { GAME_CONFIG } from './config/gameConfig'
   import {
     ArrowLeft,
+    ArrowRight,
+    Check,
     Settings,
     Target,
-    Skull,
     Dices,
     Upload,
     HelpCircle,
     RotateCcw,
     Volume2,
     VolumeX,
+    AlertCircle,
   } from '@lucide/vue'
   import type {
     GameState,
@@ -93,6 +95,17 @@
 
   // 设置页 Tab 状态
   const settingsTab = ref<'board' | 'punishment' | 'trap'>('board')
+  const tabOrder = ['board', 'punishment', 'trap'] as const
+
+  function nextStep() {
+    const idx = tabOrder.indexOf(settingsTab.value)
+    if (idx < tabOrder.length - 1) settingsTab.value = tabOrder[idx + 1]
+  }
+
+  function prevStep() {
+    const idx = tabOrder.indexOf(settingsTab.value)
+    if (idx > 0) settingsTab.value = tabOrder[idx - 1]
+  }
 
   // 音效状态
   const audioEnabled = ref(true)
@@ -423,6 +436,20 @@
 
   const isBoardConfigValid = computed(() => {
     return GameService.validateBoardConfig(gameState.boardConfig)
+  })
+
+  const isTrapConfigValid = computed(() => {
+    return trapConfig.value.length > 0
+  })
+
+  const stepCompleted = computed(() => ({
+    board: isBoardConfigValid.value,
+    punishment: isConfigValid.value,
+    trap: isTrapConfigValid.value,
+  }))
+
+  const allConfigValid = computed(() => {
+    return isBoardConfigValid.value && isConfigValid.value && isTrapConfigValid.value
   })
 
   // UI辅助方法
@@ -1388,6 +1415,7 @@
 
   const handleBackToPunishmentSettings = () => {
     punishmentStep.value = 'config'
+    settingsTab.value = 'trap'
   }
 
   // 添加validation-failed事件处理
@@ -1992,7 +2020,7 @@
     <!-- 开始页面 -->
     <IntroPage v-if="gameState.gameStatus === 'intro'" @start="handleIntroStart" />
 
-    <!-- 统一设置页面（Tab 布局） -->
+    <!-- 统一设置页面（Stepper 引导布局） -->
     <div
       v-else-if="gameState.gameStatus === 'board_settings' || gameState.gameStatus === 'settings'"
       class="settings-page"
@@ -2006,57 +2034,96 @@
           <p>配置棋盘、惩罚和陷阱</p>
         </div>
 
-        <!-- Tab 栏 -->
-        <div class="settings-tabs">
+        <!-- Stepper 步骤指示器 -->
+        <div v-if="punishmentStep === 'config'" class="settings-stepper">
           <button
-            class="tab-item"
-            :class="{ 'tab-item--active': settingsTab === 'board' }"
+            class="stepper-item"
+            :class="{
+              'stepper-item--active': settingsTab === 'board',
+              'stepper-item--completed': stepCompleted.board && settingsTab !== 'board',
+              'stepper-item--invalid': !stepCompleted.board && settingsTab !== 'board',
+            }"
             @click="settingsTab = 'board'"
           >
-            <Target :size="16" />
-            <span>棋盘</span>
+            <span class="stepper-number">
+              <Check v-if="stepCompleted.board && settingsTab !== 'board'" :size="14" />
+              <AlertCircle v-else-if="!stepCompleted.board && settingsTab !== 'board'" :size="14" />
+              <span v-else>1</span>
+            </span>
+            <span class="stepper-label">棋盘</span>
           </button>
+
+          <span
+            class="stepper-connector"
+            :class="{ 'stepper-connector--done': stepCompleted.board }"
+          ></span>
+
           <button
-            class="tab-item"
-            :class="{ 'tab-item--active': settingsTab === 'punishment' }"
+            class="stepper-item"
+            :class="{
+              'stepper-item--active': settingsTab === 'punishment',
+              'stepper-item--completed': stepCompleted.punishment && settingsTab !== 'punishment',
+              'stepper-item--invalid': !stepCompleted.punishment && settingsTab !== 'punishment',
+            }"
             @click="settingsTab = 'punishment'"
           >
-            <Settings :size="16" />
-            <span>惩罚</span>
+            <span class="stepper-number">
+              <Check v-if="stepCompleted.punishment && settingsTab !== 'punishment'" :size="14" />
+              <AlertCircle
+                v-else-if="!stepCompleted.punishment && settingsTab !== 'punishment'"
+                :size="14"
+              />
+              <span v-else>2</span>
+            </span>
+            <span class="stepper-label">惩罚</span>
           </button>
+
+          <span
+            class="stepper-connector"
+            :class="{ 'stepper-connector--done': stepCompleted.punishment }"
+          ></span>
+
           <button
-            class="tab-item"
-            :class="{ 'tab-item--active': settingsTab === 'trap' }"
+            class="stepper-item"
+            :class="{
+              'stepper-item--active': settingsTab === 'trap',
+              'stepper-item--completed': stepCompleted.trap && settingsTab !== 'trap',
+              'stepper-item--invalid': !stepCompleted.trap && settingsTab !== 'trap',
+            }"
             @click="settingsTab = 'trap'"
           >
-            <Skull :size="16" />
-            <span>陷阱</span>
+            <span class="stepper-number">
+              <Check v-if="stepCompleted.trap && settingsTab !== 'trap'" :size="14" />
+              <AlertCircle v-else-if="!stepCompleted.trap && settingsTab !== 'trap'" :size="14" />
+              <span v-else>3</span>
+            </span>
+            <span class="stepper-label">陷阱</span>
           </button>
         </div>
 
-        <!-- Tab 内容 -->
-        <div class="settings-tab-content">
+        <!-- 确认页面（独立于 Tab 内容） -->
+        <PunishmentConfirmation
+          v-if="punishmentStep === 'confirm'"
+          :combinations="punishmentCombinations"
+          @confirm="confirmPunishmentCombinations"
+          @regenerate="generatePunishmentCombinations"
+          @back-to-settings="handleBackToPunishmentSettings"
+        />
+
+        <!-- Tab 内容（仅在配置阶段显示） -->
+        <div v-else class="settings-tab-content">
           <BoardConfigPanel
             v-show="settingsTab === 'board'"
             :config="gameState.boardConfig"
             @update="updateBoardConfig"
           />
 
-          <div v-show="settingsTab === 'punishment'">
-            <PunishmentConfigPanel
-              v-if="punishmentStep === 'config'"
-              :config="gameState.punishmentConfig"
-              @update="updatePunishmentConfig"
-              @validation-failed="handleValidationFailed"
-            />
-            <PunishmentConfirmation
-              v-else
-              :combinations="punishmentCombinations"
-              @confirm="confirmPunishmentCombinations"
-              @regenerate="generatePunishmentCombinations"
-              @back-to-settings="handleBackToPunishmentSettings"
-            />
-          </div>
+          <PunishmentConfigPanel
+            v-show="settingsTab === 'punishment'"
+            :config="gameState.punishmentConfig"
+            @update="updatePunishmentConfig"
+            @validation-failed="handleValidationFailed"
+          />
 
           <TrapConfigPanel
             v-show="settingsTab === 'trap'"
@@ -2065,20 +2132,29 @@
           />
         </div>
 
-        <!-- 操作按钮 -->
-        <div class="page-actions">
-          <button class="btn btn-secondary" @click="showIntro">
+        <!-- 上下文操作按钮 -->
+        <div v-if="punishmentStep === 'config'" class="page-actions">
+          <button v-if="settingsTab !== 'board'" class="btn btn-secondary" @click="prevStep">
             <ArrowLeft :size="16" />
-            <span class="btn-text">返回</span>
+            <span class="btn-text">上一步</span>
           </button>
+          <button v-else class="btn btn-secondary" @click="showIntro">
+            <ArrowLeft :size="16" />
+            <span class="btn-text">返回首页</span>
+          </button>
+
           <button
-            v-if="punishmentStep === 'config'"
+            v-if="settingsTab === 'trap'"
             class="btn btn-primary"
-            :disabled="!isConfigValid || !isBoardConfigValid"
+            :disabled="!allConfigValid"
             @click="generatePunishmentCombinations"
           >
             <Target :size="16" />
             <span class="btn-text">生成惩罚组合</span>
+          </button>
+          <button v-else class="btn btn-primary" @click="nextStep">
+            <span class="btn-text">下一步</span>
+            <ArrowRight :size="16" />
           </button>
         </div>
       </div>
@@ -2370,7 +2446,7 @@
 
   .page-actions {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     margin-top: clamp(1rem, 4vw, 2rem);
     gap: clamp(0.5rem, 2vw, 1rem);
     flex-wrap: wrap;
@@ -2397,24 +2473,24 @@
     background-color: var(--bg-primary);
   }
 
-  /* Tab 栏 */
-  .settings-tabs {
-    display: flex;
-    gap: var(--spacing-xs);
-    background: var(--bg-secondary);
-    border-radius: var(--radius-md);
-    padding: 4px;
-    margin-bottom: clamp(1rem, 3vw, 1.5rem);
-  }
-
-  .tab-item {
-    flex: 1;
+  /* Stepper 步骤指示器 */
+  .settings-stepper {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.4rem;
-    padding: 0.6rem 1rem;
-    border: none;
+    gap: 0;
+    margin-bottom: clamp(1rem, 3vw, 1.5rem);
+    padding: clamp(0.5rem, 2vw, 0.75rem) clamp(0.5rem, 2vw, 1rem);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+  }
+
+  .stepper-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: 2px solid transparent;
     border-radius: var(--radius-sm);
     background: transparent;
     color: var(--text-secondary);
@@ -2424,16 +2500,81 @@
     transition: all var(--transition-fast);
   }
 
-  .tab-item:hover {
+  .stepper-item:hover {
     color: var(--text-primary);
     background: var(--bg-glass);
   }
 
-  .tab-item--active {
+  .stepper-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
     background: var(--bg-glass);
+    border: 1px solid var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    transition: all var(--transition-fast);
+  }
+
+  .stepper-label {
+    white-space: nowrap;
+  }
+
+  .stepper-item--active {
     color: var(--text-primary);
+    background: var(--bg-glass);
+    border-color: rgba(102, 126, 234, 0.4);
     box-shadow: var(--glow-sm) rgba(102, 126, 234, 0.2);
-    border: var(--glass-border);
+  }
+
+  .stepper-item--active .stepper-number {
+    background: rgba(102, 126, 234, 0.3);
+    border-color: rgba(102, 126, 234, 0.8);
+    color: #fff;
+  }
+
+  .stepper-item--completed .stepper-number {
+    background: rgba(34, 197, 94, 0.2);
+    border-color: rgba(34, 197, 94, 0.6);
+    color: rgba(34, 197, 94, 1);
+  }
+
+  .stepper-item--invalid .stepper-number {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.5);
+    color: rgba(245, 158, 11, 1);
+  }
+
+  .stepper-connector {
+    flex: 0 0 clamp(1rem, 4vw, 2.5rem);
+    height: 2px;
+    background: var(--text-secondary);
+    opacity: 0.3;
+    border-radius: 1px;
+    transition: all var(--transition-fast);
+  }
+
+  .stepper-connector--done {
+    background: rgba(34, 197, 94, 0.6);
+    opacity: 1;
+  }
+
+  @media (max-width: 480px) {
+    .stepper-label {
+      display: none;
+    }
+
+    .stepper-item {
+      padding: 0.4rem 0.6rem;
+    }
+
+    .stepper-connector {
+      flex: 0 0 0.75rem;
+    }
   }
 
   .settings-tab-content {
