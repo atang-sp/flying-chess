@@ -71,7 +71,9 @@
     max-width: 500px;
     width: 90%;
     text-align: center;
-    box-shadow: var(--glass-shadow-lg), var(--glow-md) rgba(220, 38, 38, 0.2);
+    box-shadow:
+      var(--glass-shadow-lg),
+      var(--glow-md) rgba(220, 38, 38, 0.2);
     animation: slideIn var(--transition-normal) ease-out;
   }
 

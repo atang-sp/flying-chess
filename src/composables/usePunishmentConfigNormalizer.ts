@@ -4,6 +4,7 @@ import type {
   PunishmentPosition,
   PunishmentTool,
 } from '../types/game'
+import { GAME_CONFIG } from '../config/gameConfig'
 
 type LegacyPosition = Omit<PunishmentPosition, 'compatibleBodyParts'> & {
   compatibleBodyParts?: string[]
@@ -57,6 +58,8 @@ export function usePunishmentConfigNormalizer() {
       tools: normalizeNamedEntries(legacyConfig.tools),
       bodyParts: normalizeNamedEntries(legacyConfig.bodyParts),
       positions: normalizePositions(legacyConfig.positions),
+      doublePunishmentChance:
+        config.doublePunishmentChance ?? GAME_CONFIG.DEFAULT_DOUBLE_PUNISHMENT_CHANCE,
     }
   }
 

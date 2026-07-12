@@ -313,7 +313,10 @@
           }"
         >
           <div class="player-header">
-            <div class="player-color" :style="{ backgroundColor: player.color, '--player-glow-color': player.color }"></div>
+            <div
+              class="player-color"
+              :style="{ backgroundColor: player.color, '--player-glow-color': player.color }"
+            ></div>
             <span class="player-name">{{ player.name }}</span>
             <div v-if="player.isWinner" class="winner-badge">🏆</div>
           </div>

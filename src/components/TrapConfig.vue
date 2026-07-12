@@ -21,7 +21,7 @@
 
   watch(
     () => props.traps,
-    (newTraps) => {
+    newTraps => {
       localTraps.value = [...newTraps]
     },
     { deep: true }

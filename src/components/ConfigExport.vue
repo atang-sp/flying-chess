@@ -485,7 +485,10 @@
 
           <div class="import-methods">
             <div class="import-method">
-              <h4><FolderOpen :size="18" /> 文件导入</h4>
+              <h4>
+                <FolderOpen :size="18" />
+                文件导入
+              </h4>
               <div class="file-upload">
                 <input
                   id="import-file"
@@ -504,7 +507,10 @@
             </div>
 
             <div class="import-method">
-              <h4><FileText :size="18" /> 文本导入</h4>
+              <h4>
+                <FileText :size="18" />
+                文本导入
+              </h4>
               <div class="text-import">
                 <textarea
                   v-model="importJsonText"
@@ -529,7 +535,11 @@
       </div>
 
       <div class="export-actions">
-          <button class="btn btn-secondary cancel-btn" :disabled="isExporting || isImporting" @click="handleClose">
+        <button
+          class="btn btn-secondary cancel-btn"
+          :disabled="isExporting || isImporting"
+          @click="handleClose"
+        >
           取消
         </button>
 
@@ -542,7 +552,10 @@
             @click="handleGenerateQRCode"
           >
             <span v-if="isExporting">生成中...</span>
-            <span v-else class="btn-content"><QrCode :size="16" /> 生成二维码</span>
+            <span v-else class="btn-content">
+              <QrCode :size="16" />
+              生成二维码
+            </span>
           </button>
           <button
             class="btn btn-primary export-btn"
@@ -551,7 +564,10 @@
             @click="handleExportJson"
           >
             <span v-if="isExporting">导出中...</span>
-            <span v-else class="btn-content"><FileJson :size="16" /> 导出 JSON</span>
+            <span v-else class="btn-content">
+              <FileJson :size="16" />
+              导出 JSON
+            </span>
           </button>
           <button
             v-if="showQRCode"
@@ -559,13 +575,19 @@
             :disabled="!qrCodeDataURL || qrCapacityExceeded"
             @click="handleExportQRCode"
           >
-            <span class="btn-content"><Save :size="16" /> 保存二维码</span>
+            <span class="btn-content">
+              <Save :size="16" />
+              保存二维码
+            </span>
           </button>
         </div>
 
         <!-- 导入模式提示 -->
         <div v-else-if="currentMode === 'import'" class="import-tip">
-          <p class="tip-content"><Lightbulb :size="16" /> 请选择上方的导入方式来导入配置</p>
+          <p class="tip-content">
+            <Lightbulb :size="16" />
+            请选择上方的导入方式来导入配置
+          </p>
         </div>
       </div>
     </div>
@@ -574,14 +596,20 @@
     <div v-if="showDocumentation" class="documentation-overlay">
       <div class="documentation-modal">
         <div class="documentation-header">
-          <h3><BookOpen :size="20" /> 配置文档</h3>
+          <h3>
+            <BookOpen :size="20" />
+            配置文档
+          </h3>
           <button class="close-btn" @click="showDocumentation = false">
             <X :size="20" />
           </button>
         </div>
         <div class="documentation-content">
           <div class="doc-section">
-            <h4><Target :size="18" /> 配置类型说明</h4>
+            <h4>
+              <Target :size="18" />
+              配置类型说明
+            </h4>
             <ul>
               <li>
                 <strong>玩家设置：</strong>
@@ -607,7 +635,10 @@
           </div>
 
           <div class="doc-section">
-            <h4><Upload :size="18" /> 导出功能</h4>
+            <h4>
+              <Upload :size="18" />
+              导出功能
+            </h4>
             <ul>
               <li>
                 <strong>JSON文件：</strong>
@@ -623,7 +654,10 @@
           </div>
 
           <div class="doc-section">
-            <h4><Download :size="18" /> 导入功能</h4>
+            <h4>
+              <Download :size="18" />
+              导入功能
+            </h4>
             <ul>
               <li>
                 <strong>文件导入：</strong>
@@ -639,7 +673,10 @@
           </div>
 
           <div class="doc-section">
-            <h4><AlertTriangle :size="18" /> 注意事项</h4>
+            <h4>
+              <AlertTriangle :size="18" />
+              注意事项
+            </h4>
             <ul>
               <li>导入配置会覆盖当前设置，请注意备份</li>
               <li>二维码适合小量数据，大配置建议使用JSON文件</li>
@@ -649,7 +686,10 @@
           </div>
 
           <div class="doc-section">
-            <h4><Wrench :size="18" /> 版本兼容性</h4>
+            <h4>
+              <Wrench :size="18" />
+              版本兼容性
+            </h4>
             <p>
               当前配置版本：
               <code>1.0.0</code>

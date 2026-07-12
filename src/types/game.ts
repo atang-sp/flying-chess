@@ -35,6 +35,7 @@ export interface PunishmentConfig {
   maxStrikes: number // 最大惩罚次数
   step: number // 惩罚次数步长
   maxTakeoffFailures: number // 最大起飞失败次数（达到后自动起飞）
+  doublePunishmentChance: number // 惩罚翻倍概率（0-100）
 }
 
 // 惩罚组合定义（不包含具体次数）
@@ -118,9 +119,17 @@ export type ResolvedRuleResult =
 
 export interface BoardCell {
   id: number
-  type: 'punishment' | 'bonus' | 'special' | 'restart' | 'trap'
+  type: 'punishment' | 'bonus' | 'special' | 'restart' | 'trap' | 'chain_punishment'
   effect?: {
-    type: 'punishment' | 'move' | 'rest' | 'reverse' | 'restart' | 'trap' | 'bounce'
+    type:
+      | 'punishment'
+      | 'move'
+      | 'rest'
+      | 'reverse'
+      | 'restart'
+      | 'trap'
+      | 'bounce'
+      | 'chain_punishment'
     value: number
     description: string
     punishment?: PunishmentAction
@@ -131,13 +140,14 @@ export interface BoardCell {
 }
 
 export interface CellEffect {
-  type: 'move' | 'rest' | 'reverse' | 'restart' | 'bounce'
+  type: 'move' | 'rest' | 'reverse' | 'restart' | 'bounce' | 'chain_punishment'
   value: number
   description: string
 }
 
 export interface BoardConfig {
   punishmentCells: number // 惩罚格子数量
+  chainPunishmentCells: number // 连锁惩罚格子数量
   bonusCells: number // 奖励格子数量
   reverseCells: number // 后退格子数量
   restCells: number // 休息格子数量

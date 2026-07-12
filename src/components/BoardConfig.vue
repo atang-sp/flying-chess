@@ -9,6 +9,7 @@
     Info,
     RotateCcw,
     Skull,
+    Link,
     Check,
     X,
   } from '@lucide/vue'
@@ -31,7 +32,7 @@
 
   watch(
     () => props.config,
-    (newConfig) => {
+    newConfig => {
       localConfig.value = { ...newConfig }
     },
     { deep: true }
@@ -41,6 +42,7 @@
   const remainingCells = computed(() => {
     const used =
       localConfig.value.punishmentCells +
+      localConfig.value.chainPunishmentCells +
       localConfig.value.bonusCells +
       localConfig.value.reverseCells +
       localConfig.value.restCells +
@@ -68,9 +70,9 @@
       return
     }
 
-    // 顺序：punishmentCells -> bonusCells -> reverseCells -> restCells -> restartCells -> trapCells
     const order: (keyof BoardConfig)[] = [
       'punishmentCells',
+      'chainPunishmentCells',
       'bonusCells',
       'reverseCells',
       'restCells',
@@ -107,6 +109,7 @@
   const resetToDefault = () => {
     localConfig.value = {
       punishmentCells: props.config.punishmentCells,
+      chainPunishmentCells: props.config.chainPunishmentCells,
       bonusCells: props.config.bonusCells,
       reverseCells: props.config.reverseCells,
       restCells: props.config.restCells,
@@ -173,6 +176,26 @@
             <span class="input-unit">格</span>
           </div>
           <div class="cell-description">玩家踩到后需要接受惩罚的格子</div>
+        </div>
+
+        <!-- 连锁惩罚格子 -->
+        <div class="config-item">
+          <label class="config-label">
+            <span class="label-icon"><Link :size="18" /></span>
+            连锁惩罚格子
+          </label>
+          <div class="input-group">
+            <input
+              v-model.number="localConfig.chainPunishmentCells"
+              type="number"
+              min="0"
+              :max="localConfig.totalCells"
+              class="config-input"
+              @input="handleCellInput('chainPunishmentCells')"
+            />
+            <span class="input-unit">格</span>
+          </div>
+          <div class="cell-description">惩罚后掷骰：奇数继续罚，偶数结束</div>
         </div>
 
         <!-- 奖励格子 -->

@@ -166,9 +166,13 @@ export const GAME_CONFIG = {
     step: 5, // 调整步长
   },
 
+  // 翻倍陷阱默认概率（0-100）
+  DEFAULT_DOUBLE_PUNISHMENT_CHANCE: 20,
+
   // 默认棋盘配置
   DEFAULT_BOARD_CONFIG: {
-    punishmentCells: 28, // 惩罚格子数量（减少2个，为机关格子腾出空间）
+    punishmentCells: 26, // 惩罚格子数量
+    chainPunishmentCells: 2, // 连锁惩罚格子数量
     bonusCells: 1, // 前进格子数量（2.5% × 40 = 1）
     reverseCells: 2, // 后退格子数量（5% × 40 = 2）
     restCells: 1, // 休息格子数量（2.5% × 40 = 1）
@@ -192,6 +196,7 @@ export const GAME_CONFIG = {
 // Lucide icon component name mapping for cell types
 export const CELL_ICON_NAMES: Record<string, string> = {
   punishment: 'Zap',
+  chain_punishment: 'Link',
   bonus: 'Gift',
   reverse: 'Undo2',
   rest: 'Moon',
@@ -215,6 +220,10 @@ export const CELL_COLORS = {
   punishment: {
     color: 'var(--color-punishment)',
     border: 'var(--color-punishment)',
+  },
+  chain_punishment: {
+    color: 'var(--color-chain-punishment)',
+    border: 'var(--color-chain-punishment)',
   },
   bonus: {
     color: 'var(--color-bonus)',

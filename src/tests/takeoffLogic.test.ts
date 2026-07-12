@@ -33,7 +33,8 @@ describe('起飞逻辑测试', () => {
       minStrikes: 5,
       maxStrikes: 15,
       step: 5,
-      maxTakeoffFailures: 5, // 设置最大失败次数为5
+      maxTakeoffFailures: 5,
+      doublePunishmentChance: 20,
     }
 
     // 创建简单的测试棋盘

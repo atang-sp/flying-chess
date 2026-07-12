@@ -1,14 +1,6 @@
 <script setup lang="ts">
   import { ref, watch, nextTick } from 'vue'
-  import {
-    Settings,
-    Target,
-    ChevronRight,
-    X,
-    Minus,
-    Plus,
-    RotateCcw,
-  } from '@lucide/vue'
+  import { Settings, Target, ChevronRight, X, Minus, Plus, RotateCcw } from '@lucide/vue'
   import type {
     PunishmentConfig,
     PunishmentTool,
@@ -617,6 +609,11 @@
       emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
     }
   }
+
+  const updateDoublePunishmentChance = (newValue: number) => {
+    localConfig.value.doublePunishmentChance = Math.max(0, Math.min(50, newValue))
+    emit('update', localConfig.value)
+  }
 </script>
 
 <template>
@@ -926,6 +923,27 @@
                 :disabled="localConfig.maxTakeoffFailures >= 10"
                 class="btn-stat"
                 @click="updateMaxTakeoffFailures(localConfig.maxTakeoffFailures + 1)"
+              >
+                <Plus :size="14" />
+              </button>
+            </div>
+          </div>
+
+          <div class="strikes-item">
+            <span class="strikes-label">翻倍概率</span>
+            <div class="strikes-controls">
+              <button
+                :disabled="(localConfig.doublePunishmentChance ?? 0) <= 0"
+                class="btn-stat"
+                @click="updateDoublePunishmentChance((localConfig.doublePunishmentChance ?? 0) - 5)"
+              >
+                <Minus :size="14" />
+              </button>
+              <span class="strikes-value">{{ localConfig.doublePunishmentChance ?? 0 }}%</span>
+              <button
+                :disabled="(localConfig.doublePunishmentChance ?? 0) >= 50"
+                class="btn-stat"
+                @click="updateDoublePunishmentChance((localConfig.doublePunishmentChance ?? 0) + 5)"
               >
                 <Plus :size="14" />
               </button>

@@ -1,13 +1,6 @@
 <script setup lang="ts">
   import { ref } from 'vue'
-  import {
-    Target,
-    Info,
-    Trash2,
-    RotateCcw,
-    ArrowLeft,
-    Check,
-  } from '@lucide/vue'
+  import { Target, Info, Trash2, RotateCcw, ArrowLeft, Check } from '@lucide/vue'
   import type { PunishmentCombination } from '../types/game'
 
   interface Props {

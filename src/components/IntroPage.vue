@@ -291,7 +291,10 @@
                 <span class="count-number">{{ playerCount }}</span>
                 <span class="count-unit">人</span>
               </div>
-              <button class="btn btn-secondary count-btn plus" @click="onPlayerCountChange(playerCount + 1)">
+              <button
+                class="btn btn-secondary count-btn plus"
+                @click="onPlayerCountChange(playerCount + 1)"
+              >
                 <Plus :size="18" />
               </button>
             </div>
@@ -462,7 +465,14 @@
   }
 
   .title-main {
-    background: linear-gradient(135deg, var(--player-1), var(--player-2), var(--player-3), var(--player-4), var(--color-accent));
+    background: linear-gradient(
+      135deg,
+      var(--player-1),
+      var(--player-2),
+      var(--player-3),
+      var(--player-4),
+      var(--color-accent)
+    );
     background-size: 300% 300%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -484,7 +494,14 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, var(--player-1), var(--player-2), var(--player-3), var(--player-4), var(--color-accent));
+    background: linear-gradient(
+      135deg,
+      var(--player-1),
+      var(--player-2),
+      var(--player-3),
+      var(--player-4),
+      var(--color-accent)
+    );
     background-size: 300% 300%;
     filter: blur(20px);
     opacity: 0.3;

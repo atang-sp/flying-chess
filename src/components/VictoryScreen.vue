@@ -97,7 +97,9 @@
     max-width: 90vw;
     width: 500px;
     text-align: center;
-    box-shadow: var(--glass-shadow-lg), var(--glow-md) rgba(102, 126, 234, 0.3);
+    box-shadow:
+      var(--glass-shadow-lg),
+      var(--glow-md) rgba(102, 126, 234, 0.3);
     animation: victorySlideIn 0.5s ease-out;
   }
 
@@ -218,7 +220,9 @@
     align-items: center;
     gap: 0.5rem;
     border: var(--glass-border);
-    transition: transform var(--transition-fast), background var(--transition-fast);
+    transition:
+      transform var(--transition-fast),
+      background var(--transition-fast);
   }
 
   .player-item:hover {
@@ -273,12 +277,16 @@
   .btn-primary {
     background: linear-gradient(135deg, var(--color-accent), #764ba2);
     color: white;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4), var(--glow-sm) rgba(102, 126, 234, 0.3);
+    box-shadow:
+      0 4px 15px rgba(102, 126, 234, 0.4),
+      var(--glow-sm) rgba(102, 126, 234, 0.3);
   }
 
   .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5), var(--glow-md) rgba(102, 126, 234, 0.4);
+    box-shadow:
+      0 6px 20px rgba(102, 126, 234, 0.5),
+      var(--glow-md) rgba(102, 126, 234, 0.4);
   }
 
   .btn-primary:active {

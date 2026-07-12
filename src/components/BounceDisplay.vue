@@ -38,9 +38,9 @@
           <p class="main-message">
             超出终点
             <Trophy :size="18" class="inline-icon" />
-            (第{{ endPoint }}格) {{ overflowSteps }}格子，所以倒退{{
-              overflowSteps
-            }}格，最后是第{{ finalPosition }}格
+            (第{{ endPoint }}格) {{ overflowSteps }}格子，所以倒退{{ overflowSteps }}格，最后是第{{
+              finalPosition
+            }}格
           </p>
         </div>
 

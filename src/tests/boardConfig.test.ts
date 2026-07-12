@@ -4,6 +4,7 @@ import type { BoardConfig } from '../types/game'
 
 const createValidConfig = (): BoardConfig => ({
   punishmentCells: 28,
+  chainPunishmentCells: 0,
   bonusCells: 1,
   reverseCells: 2,
   restCells: 1,
@@ -16,6 +17,7 @@ describe('棋盘配置校验', () => {
   it('为起点和终点保留两个不可分配格子', () => {
     const config: BoardConfig = {
       punishmentCells: 30,
+      chainPunishmentCells: 0,
       bonusCells: 1,
       reverseCells: 2,
       restCells: 1,
@@ -49,8 +51,9 @@ describe('棋盘配置校验', () => {
     [
       20,
       {
-        punishmentCells: 14,
-        bonusCells: 0,
+        punishmentCells: 12,
+        chainPunishmentCells: 1,
+        bonusCells: 1,
         reverseCells: 1,
         restCells: 0,
         restartCells: 2,
@@ -61,7 +64,8 @@ describe('棋盘配置校验', () => {
     [
       40,
       {
-        punishmentCells: 28,
+        punishmentCells: 26,
+        chainPunishmentCells: 2,
         bonusCells: 1,
         reverseCells: 2,
         restCells: 1,
@@ -73,7 +77,8 @@ describe('棋盘配置校验', () => {
     [
       80,
       {
-        punishmentCells: 58,
+        punishmentCells: 53,
+        chainPunishmentCells: 5,
         bonusCells: 2,
         reverseCells: 4,
         restCells: 2,

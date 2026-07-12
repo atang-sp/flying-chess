@@ -56,10 +56,12 @@ const compatibilityConfig: PunishmentConfig = {
   maxStrikes: 15,
   step: 5,
   maxTakeoffFailures: 5,
+  doublePunishmentChance: 20,
 }
 
 const boardConfig: BoardConfig = {
   punishmentCells: 1,
+  chainPunishmentCells: 0,
   bonusCells: 0,
   reverseCells: 0,
   restCells: 0,

@@ -42,6 +42,8 @@
   import VictoryScreen from './components/VictoryScreen.vue'
   import TakeoffReliefDisplay from './components/TakeoffReliefDisplay.vue'
   import BounceDisplay from './components/BounceDisplay.vue'
+  import DoublePunishmentReveal from './components/DoublePunishmentReveal.vue'
+  import ChainPunishmentRoll from './components/ChainPunishmentRoll.vue'
   import ConfigExport from './components/ConfigExport.vue'
   import { saveConfig, loadConfig, loadPlayerSettings } from './utils/cache'
   import { SecureRandom } from './utils/secureRandom'
@@ -148,6 +150,15 @@
   const MAX_EFFECT_CHAIN_COUNT = 5
   const effectChainCount = ref(0)
 
+  // 翻倍惩罚状态
+  const showDoublePunishmentReveal = ref(false)
+  const isDoublePunishment = ref(false)
+  const pendingDoublePunishment = ref<PunishmentAction | null>(null)
+
+  // 连锁惩罚状态
+  const isChainPunishment = ref(false)
+  const showChainPunishmentRoll = ref(false)
+
   // 胜利结算画面状态
   const showVictoryScreen = ref(false)
 
@@ -182,7 +193,16 @@
     const resolvedCellEffect = cellEffect ?? getCellEffectByPosition(newPosition)
     const resolvedPunishment =
       punishment ||
-      (resolvedCellEffect?.type === 'punishment' ? resolvedCellEffect.punishment : undefined)
+      (resolvedCellEffect?.type === 'punishment' || resolvedCellEffect?.type === 'chain_punishment'
+        ? resolvedCellEffect.punishment
+        : undefined)
+
+    // 标记连锁惩罚格
+    if (resolvedCellEffect?.type === 'chain_punishment') {
+      isChainPunishment.value = true
+    } else {
+      isChainPunishment.value = false
+    }
 
     const hasLandingTrigger =
       Boolean(resolvedPunishment) ||
@@ -299,7 +319,9 @@
       gameState.gameStatus === 'waiting' &&
       !currentPunishment.value &&
       !showTakeoffPunishmentDisplay.value &&
-      !showTrapDisplay.value
+      !showTrapDisplay.value &&
+      !showDoublePunishmentReveal.value &&
+      !showChainPunishmentRoll.value
     )
   })
 
@@ -354,6 +376,11 @@
     currentTakeoffPunishment.value = null
     effectFromPosition.value = undefined
     effectToPosition.value = undefined
+    isDoublePunishment.value = false
+    isChainPunishment.value = false
+    showDoublePunishmentReveal.value = false
+    showChainPunishmentRoll.value = false
+    pendingDoublePunishment.value = null
     resetEffectChainCount()
 
     devLog('游戏状态已重置')
@@ -377,6 +404,8 @@
       trap: showTrapDisplay.value,
       bounce: showBounceDisplay.value,
       takeoffRelief: showTakeoffReliefDisplay.value,
+      doublePunishmentReveal: showDoublePunishmentReveal.value,
+      chainPunishmentRoll: showChainPunishmentRoll.value,
     }
 
     // 检查是否卡在 moving 状态超过 5 秒
@@ -457,6 +486,10 @@
     if (cached) {
       let shouldRepairCachedConfig = false
       if (cached.boardConfig) {
+        // 向后兼容：旧配置可能缺少 chainPunishmentCells
+        if (cached.boardConfig.chainPunishmentCells === undefined) {
+          cached.boardConfig.chainPunishmentCells = 0
+        }
         if (GameService.validateBoardConfig(cached.boardConfig)) {
           gameState.boardConfig = cached.boardConfig
           devLog('已加载棋盘配置:', cached.boardConfig)
@@ -1066,36 +1099,92 @@
   // 确认惩罚
   const confirmPunishment = async () => {
     try {
+      // 连锁惩罚：确认后进入连锁掷骰阶段
+      if (isChainPunishment.value) {
+        currentPunishment.value = null
+        showChainPunishmentRoll.value = true
+        return
+      }
+
+      // 翻倍陷阱：如果当前不是翻倍状态，检查是否触发翻倍
+      if (!isDoublePunishment.value && currentPunishment.value) {
+        const chance = gameState.punishmentConfig.doublePunishmentChance ?? 0
+        if (chance > 0 && SecureRandom.randomInt(1, 100) <= chance) {
+          pendingDoublePunishment.value = { ...currentPunishment.value }
+          currentPunishment.value = null
+          showDoublePunishmentReveal.value = true
+          return
+        }
+      }
+
+      // 正常结束惩罚
+      isDoublePunishment.value = false
       currentPunishment.value = null
-      currentPunishmentExecutor.value = null // 清除执行惩罚的玩家
+      currentPunishmentExecutor.value = null
       gameState.gameStatus = 'waiting'
 
       // 继续游戏流程
       await continueAfterPunishment()
     } catch (error) {
       console.error('确认惩罚时发生错误:', error)
-      // 确保在发生错误时重置游戏状态
       gameState.gameStatus = 'waiting'
       currentPunishment.value = null
       currentPunishmentExecutor.value = null
+      isDoublePunishment.value = false
+      isChainPunishment.value = false
+    }
+  }
+
+  // 翻倍揭示确认：显示相同惩罚再来一次
+  const confirmDoubleReveal = () => {
+    showDoublePunishmentReveal.value = false
+    isDoublePunishment.value = true
+    currentPunishment.value = pendingDoublePunishment.value
+    pendingDoublePunishment.value = null
+    gameState.gameStatus = 'configuring'
+  }
+
+  // 连锁掷骰结果处理
+  const handleChainRollResult = (continueChain: boolean) => {
+    showChainPunishmentRoll.value = false
+    if (continueChain) {
+      const newPunishment = GameService.generateRandomPunishment(gameState.punishmentConfig)
+      currentPunishment.value = newPunishment
+      gameState.gameStatus = 'configuring'
+    } else {
+      isChainPunishment.value = false
+      currentPunishment.value = null
+      currentPunishmentExecutor.value = null
+      gameState.gameStatus = 'waiting'
+      continueAfterPunishment()
     }
   }
 
   // 跳过惩罚
   const skipPunishment = async () => {
     try {
+      // 跳过时同样处理连锁惩罚的后续掷骰
+      if (isChainPunishment.value) {
+        currentPunishment.value = null
+        showChainPunishmentRoll.value = true
+        return
+      }
+
+      isDoublePunishment.value = false
+      isChainPunishment.value = false
       currentPunishment.value = null
-      currentPunishmentExecutor.value = null // 清除执行惩罚的玩家
+      currentPunishmentExecutor.value = null
       gameState.gameStatus = 'waiting'
 
       // 继续游戏流程
       await continueAfterPunishment()
     } catch (error) {
       console.error('跳过惩罚时发生错误:', error)
-      // 确保在发生错误时重置游戏状态
       gameState.gameStatus = 'waiting'
       currentPunishment.value = null
       currentPunishmentExecutor.value = null
+      isDoublePunishment.value = false
+      isChainPunishment.value = false
     }
   }
 
@@ -1739,6 +1828,9 @@
         configUpdated = true
       }
       if (config.boardConfig) {
+        if (config.boardConfig.chainPunishmentCells === undefined) {
+          config.boardConfig.chainPunishmentCells = 0
+        }
         gameState.boardConfig = config.boardConfig
         devLog('棋盘配置已更新')
         configUpdated = true
@@ -1844,14 +1936,15 @@
 
     <!-- 统一设置页面（Tab 布局） -->
     <div
-      v-else-if="
-        gameState.gameStatus === 'board_settings' || gameState.gameStatus === 'settings'
-      "
+      v-else-if="gameState.gameStatus === 'board_settings' || gameState.gameStatus === 'settings'"
       class="settings-page"
     >
       <div class="page-container">
         <div class="settings-header">
-          <h2><Settings :size="24" /> 游戏设置</h2>
+          <h2>
+            <Settings :size="24" />
+            游戏设置
+          </h2>
           <p>配置棋盘、惩罚和陷阱</p>
         </div>
 
@@ -1922,9 +2015,7 @@
         </div>
 
         <div v-if="punishmentCombinations.length > 0" class="page-actions">
-          <p class="combinations-info">
-            已生成 {{ punishmentCombinations.length }} 个惩罚组合
-          </p>
+          <p class="combinations-info">已生成 {{ punishmentCombinations.length }} 个惩罚组合</p>
           <button class="btn btn-primary" @click="startGameWithStats">
             <Rocket :size="16" />
             <span class="btn-text">开始游戏</span>
@@ -1938,8 +2029,15 @@
       <!-- 移动端顶部栏 -->
       <header class="game-header">
         <div class="header-content">
-          <h1><Dices :size="24" /> 惩罚飞行棋</h1>
-          <button class="audio-toggle-btn" :title="audioEnabled ? '静音' : '开启声音'" @click="toggleAudio">
+          <h1>
+            <Dices :size="24" />
+            惩罚飞行棋
+          </h1>
+          <button
+            class="audio-toggle-btn"
+            :title="audioEnabled ? '静音' : '开启声音'"
+            @click="toggleAudio"
+          >
             <Volume2 v-if="audioEnabled" :size="18" />
             <VolumeX v-else :size="18" />
           </button>
@@ -2183,6 +2281,18 @@
       :overflow-steps="bounceOverflowSteps"
       :end-point="gameState.board.length"
       @confirm="confirmBounce"
+    />
+
+    <!-- 翻倍惩罚揭示弹窗 -->
+    <DoublePunishmentReveal
+      :visible="showDoublePunishmentReveal"
+      @confirm="confirmDoubleReveal"
+    />
+
+    <!-- 连锁惩罚掷骰弹窗 -->
+    <ChainPunishmentRoll
+      :visible="showChainPunishmentRoll"
+      @result="handleChainRollResult"
     />
 
     <!-- 胜利结算画面 -->

@@ -105,8 +105,14 @@ function validateBoardConfig(raw: unknown, errors: string[]): void {
     return
   }
 
+  // 向后兼容：缺少 chainPunishmentCells 时补 0
+  if (raw.chainPunishmentCells === undefined) {
+    raw.chainPunishmentCells = 0
+  }
+
   const fields = [
     'punishmentCells',
+    'chainPunishmentCells',
     'bonusCells',
     'reverseCells',
     'restCells',
