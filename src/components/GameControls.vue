@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { computed } from 'vue'
+  import { Gamepad2, Trophy } from '@lucide/vue'
   import type { Player } from '../types/game'
 
   interface Props {
@@ -72,9 +73,12 @@
 </script>
 
 <template>
-  <div class="game-controls">
+  <div class="game-controls glass-card">
     <div class="control-buttons">
-      <button v-if="!gameStarted" class="btn btn-primary" @click="startGame">🎮 开始游戏</button>
+      <button v-if="!gameStarted" class="btn btn-primary" @click="startGame">
+        <Gamepad2 :size="20" />
+        开始游戏
+      </button>
     </div>
 
     <div v-if="gameStarted" class="game-status">
@@ -96,54 +100,29 @@
     </div>
 
     <div v-if="gameFinished" class="game-over">
-      <h3>🎉 游戏结束！</h3>
+      <h3>
+        <Trophy :size="24" />
+        游戏结束！
+      </h3>
       <p v-if="winner">{{ winner.name }} 获胜！</p>
-      <button class="btn btn-primary" @click="resetGame">🎮 再来一局</button>
+      <button class="btn btn-primary" @click="resetGame">
+        <Gamepad2 :size="20" />
+        再来一局
+      </button>
     </div>
   </div>
 </template>
 
 <style scoped>
   .game-controls {
-    background: white;
-    border-radius: 8px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     margin-bottom: 1rem;
+    padding: 1.5rem;
   }
 
-  .btn {
-    padding: clamp(0.6rem, 2vw, 0.75rem) clamp(1.2rem, 3vw, 1.5rem);
-    border: none;
-    border-radius: clamp(4px, 1vw, 6px);
-    font-size: clamp(0.9rem, 2.5vw, 1rem);
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
+  .control-buttons {
     display: flex;
-    align-items: center;
-    gap: clamp(0.4rem, 1vw, 0.5rem);
-    min-height: clamp(36px, 8vw, 44px);
-  }
-
-  .btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  }
-
-  .btn-primary {
-    background: linear-gradient(135deg, #4ecdc4, #44a08d);
-    color: white;
-  }
-
-  .btn-secondary {
-    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-    color: white;
-  }
-
-  .btn-danger {
-    background: linear-gradient(135deg, #ffa726, #ff9800);
-    color: white;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
   }
 
   .game-status {
@@ -151,8 +130,9 @@
     justify-content: space-around;
     gap: clamp(1rem, 4vw, 2rem);
     padding: clamp(0.8rem, 2.5vw, 1rem);
-    background: #f8f9fa;
-    border-radius: clamp(4px, 1vw, 6px);
+    background: var(--bg-surface);
+    border: var(--glass-border);
+    border-radius: var(--radius-sm);
   }
 
   .status-item {
@@ -164,42 +144,42 @@
 
   .label {
     font-size: clamp(0.8rem, 2.5vw, 0.9rem);
-    color: #666;
+    color: var(--text-muted);
   }
 
   .value {
     font-weight: bold;
     font-size: clamp(1rem, 3vw, 1.1rem);
+    color: var(--text-primary);
   }
 
   .status-waiting {
-    color: #4ecdc4;
+    color: var(--player-2);
   }
 
   .status-rolling {
-    color: #ff6b6b;
+    color: var(--player-1);
     animation: pulse 1s infinite;
   }
 
   .status-moving {
-    color: #45b7d1;
+    color: var(--player-3);
   }
 
   .status-showing_effect {
-    color: #ab47bc;
+    color: var(--color-restart);
     animation: pulse 1s infinite;
   }
 
   .status-finished {
-    color: #96ceb4;
+    color: var(--player-8);
   }
 
-  /* 当前玩家信息样式 */
   .current-player-info {
-    background: linear-gradient(135deg, rgba(78, 205, 196, 0.1), rgba(69, 183, 209, 0.1));
-    border-radius: clamp(4px, 1vw, 6px);
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: var(--radius-sm);
     padding: clamp(0.5rem, 1.5vw, 0.8rem);
-    border: 1px solid rgba(78, 205, 196, 0.3);
+    border: 1px solid rgba(102, 126, 234, 0.25);
   }
 
   .player-info {
@@ -212,33 +192,38 @@
     width: clamp(20px, 5vw, 24px);
     height: clamp(20px, 5vw, 24px);
     border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.8);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   }
 
   .player-name {
     font-weight: bold;
     font-size: clamp(0.9rem, 2.5vw, 1rem);
-    color: #333;
+    color: var(--text-primary);
   }
 
   .game-over {
     text-align: center;
     padding: clamp(1.5rem, 4vw, 2rem);
-    background: linear-gradient(135deg, #fff8e1, #fffde7);
-    border-radius: clamp(6px, 1.5vw, 8px);
-    border: 2px solid #ffd700;
+    background: rgba(245, 158, 11, 0.08);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    margin-top: 1rem;
   }
 
   .game-over h3 {
     margin: 0 0 0.5rem 0;
-    color: #333;
+    color: var(--color-warning);
     font-size: clamp(1.2rem, 3.5vw, 1.5rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
   }
 
   .game-over p {
     margin: 0 0 1rem 0;
-    color: #666;
+    color: var(--text-secondary);
     font-size: clamp(0.9rem, 2.5vw, 1rem);
   }
 
@@ -257,7 +242,6 @@
     .game-controls {
       padding: 0.75rem;
       margin-bottom: 0.75rem;
-      border-radius: 6px;
     }
 
     .control-buttons {
@@ -265,35 +249,13 @@
       margin-bottom: 0.75rem;
     }
 
-    .btn {
-      padding: clamp(0.5rem, 2vw, 0.6rem) clamp(1rem, 3vw, 1.2rem);
-      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
-      border-radius: 4px;
-      min-height: clamp(36px, 8vw, 40px);
-      gap: clamp(0.3rem, 1vw, 0.4rem);
-    }
-
     .game-status {
       gap: clamp(0.5rem, 2vw, 1rem);
       padding: clamp(0.5rem, 2vw, 0.8rem);
-      border-radius: 4px;
-    }
-
-    .status-item {
-      gap: clamp(0.15rem, 0.5vw, 0.2rem);
-    }
-
-    .label {
-      font-size: clamp(0.7rem, 2vw, 0.8rem);
-    }
-
-    .value {
-      font-size: clamp(0.9rem, 2.5vw, 1rem);
     }
 
     .game-over {
       padding: clamp(1rem, 3vw, 1.5rem);
-      border-radius: 6px;
     }
 
     .game-over h3 {
@@ -307,7 +269,6 @@
     }
   }
 
-  /* 小屏手机优化 */
   @media (max-width: 480px) {
     .game-controls {
       padding: 0.5rem;
@@ -319,143 +280,41 @@
       margin-bottom: 0.5rem;
     }
 
-    .btn {
-      padding: clamp(0.4rem, 1.8vw, 0.5rem) clamp(0.8rem, 2.5vw, 1rem);
-      font-size: clamp(0.75rem, 2vw, 0.8rem);
-      min-height: clamp(32px, 7vw, 36px);
-      gap: clamp(0.25rem, 0.8vw, 0.3rem);
-    }
-
     .game-status {
       gap: clamp(0.4rem, 1.5vw, 0.5rem);
       padding: clamp(0.4rem, 1.5vw, 0.5rem);
     }
 
-    .status-item {
-      gap: clamp(0.1rem, 0.4vw, 0.15rem);
-    }
-
-    .label {
-      font-size: clamp(0.65rem, 1.8vw, 0.7rem);
-    }
-
-    .value {
-      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
-    }
-
     .game-over {
       padding: clamp(0.75rem, 2.5vw, 1rem);
     }
-
-    .game-over h3 {
-      font-size: clamp(0.9rem, 2.5vw, 1rem);
-      margin-bottom: 0.3rem;
-    }
-
-    .game-over p {
-      font-size: clamp(0.75rem, 2vw, 0.8rem);
-      margin-bottom: 0.5rem;
-    }
   }
 
-  /* 超小屏手机优化 */
   @media (max-width: 360px) {
     .game-controls {
       padding: 0.4rem;
       margin-bottom: 0.4rem;
     }
 
-    .control-buttons {
-      gap: 0.3rem;
-      margin-bottom: 0.4rem;
-    }
-
-    .btn {
-      padding: clamp(0.35rem, 1.5vw, 0.4rem) clamp(0.7rem, 2vw, 0.8rem);
-      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
-      min-height: clamp(28px, 6vw, 32px);
-      gap: clamp(0.2rem, 0.6vw, 0.25rem);
-    }
-
     .game-status {
       gap: clamp(0.3rem, 1.2vw, 0.4rem);
       padding: clamp(0.3rem, 1.2vw, 0.4rem);
     }
-
-    .status-item {
-      gap: clamp(0.08rem, 0.3vw, 0.1rem);
-    }
-
-    .label {
-      font-size: clamp(0.6rem, 1.5vw, 0.65rem);
-    }
-
-    .value {
-      font-size: clamp(0.75rem, 2vw, 0.8rem);
-    }
-
-    .game-over {
-      padding: clamp(0.6rem, 2vw, 0.75rem);
-    }
-
-    .game-over h3 {
-      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
-      margin-bottom: 0.25rem;
-    }
-
-    .game-over p {
-      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
-      margin-bottom: 0.4rem;
-    }
   }
 
-  /* 横屏模式优化 */
   @media (max-width: 767px) and (orientation: landscape) {
     .game-controls {
       padding: 0.4rem;
       margin-bottom: 0.4rem;
     }
 
-    .control-buttons {
-      gap: 0.3rem;
-      margin-bottom: 0.4rem;
-    }
-
-    .btn {
-      padding: clamp(0.35rem, 1.5vw, 0.4rem) clamp(0.7rem, 2vw, 0.8rem);
-      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
-      min-height: clamp(28px, 6vw, 32px);
-    }
-
     .game-status {
       gap: clamp(0.3rem, 1.2vw, 0.4rem);
       padding: clamp(0.3rem, 1.2vw, 0.4rem);
     }
 
-    .status-item {
-      gap: clamp(0.08rem, 0.3vw, 0.1rem);
-    }
-
-    .label {
-      font-size: clamp(0.6rem, 1.5vw, 0.65rem);
-    }
-
-    .value {
-      font-size: clamp(0.75rem, 2vw, 0.8rem);
-    }
-
     .game-over {
       padding: clamp(0.6rem, 2vw, 0.75rem);
-    }
-
-    .game-over h3 {
-      font-size: clamp(0.8rem, 2.2vw, 0.9rem);
-      margin-bottom: 0.25rem;
-    }
-
-    .game-over p {
-      font-size: clamp(0.7rem, 1.8vw, 0.75rem);
-      margin-bottom: 0.4rem;
     }
   }
 </style>

@@ -3,6 +3,19 @@
   import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
   import { GameService } from './services/gameService'
   import { GAME_CONFIG } from './config/gameConfig'
+  import {
+    ArrowLeft,
+    Settings,
+    Target,
+    Rocket,
+    Skull,
+    Dices,
+    Upload,
+    HelpCircle,
+    RotateCcw,
+    Volume2,
+    VolumeX,
+  } from '@lucide/vue'
   import type {
     GameState,
     Player,
@@ -38,6 +51,7 @@
     shouldRecoverMovingState,
     type BlockingOverlayState,
   } from './services/gameStateHealth'
+  import { audioService } from './services/audioService'
   import { usePlayerState } from './composables/usePlayerState'
   import { usePunishmentConfigNormalizer } from './composables/usePunishmentConfigNormalizer'
   import { useImportFeedbackDialog } from './composables/useImportFeedbackDialog'
@@ -59,6 +73,12 @@
   // 游戏控制状态
   const gameStarted = ref(false)
   const gameFinished = ref(false)
+
+  // 设置页 Tab 状态
+  const settingsTab = ref<'board' | 'punishment' | 'trap'>('board')
+
+  // 音效状态
+  const audioEnabled = ref(true)
 
   const turnCount = ref(0)
   const lastEffect = ref<string>('')
@@ -183,12 +203,14 @@
       currentTakeoffDiceValue.value = diceValue ?? gameState.diceValue ?? 0
       currentTakeoffExecutorIndex.value = executorIndex !== undefined ? executorIndex : -1
       showTakeoffPunishmentDisplay.value = true
+      audioService.play('punishment')
       handleTakeoffPunishmentDisplay()
       return
     }
 
     if (resolvedPunishment) {
       currentPunishment.value = resolvedPunishment
+      audioService.play('punishment')
       if (
         executorIndex !== undefined &&
         executorIndex >= 0 &&
@@ -209,6 +231,7 @@
     if (resolvedCellEffect && resolvedCellEffect.type === 'trap') {
       currentTrapDescription.value = resolvedCellEffect.description || '未知机关'
       showTrapDisplay.value = true
+      audioService.play('trap')
       return
     }
 
@@ -229,6 +252,9 @@
         resolvedCellEffect.type === 'restart' ||
         resolvedCellEffect.type === 'rest')
     ) {
+      if (resolvedCellEffect.type === 'move' && resolvedCellEffect.value > 0) {
+        audioService.play('bonus')
+      }
       // 到达第1格（飞机场）时，不显示效果确认弹窗
       if (newPosition === 1) {
         await continueAfterMove()
@@ -304,14 +330,6 @@
   }
 
   // 页面导航
-  const showBoardSettings = () => {
-    gameState.gameStatus = 'board_settings'
-  }
-
-  const showSettings = () => {
-    gameState.gameStatus = 'settings'
-  }
-
   const showIntro = () => {
     gameState.gameStatus = 'intro'
   }
@@ -414,7 +432,14 @@
   }
 
   // 添加全局错误监听
+  const toggleAudio = () => {
+    audioEnabled.value = audioService.toggle()
+  }
+
   onMounted(() => {
+    audioService.init()
+    audioEnabled.value = audioService.enabled
+
     // 监听未捕获的 Promise 错误
     window.addEventListener('unhandledrejection', handleUnhandledRejection)
 
@@ -742,6 +767,7 @@
   const handleDiceRoll = async () => {
     if (!canRollDice.value) return
 
+    audioService.play('diceRoll')
     resetEffectChainCount()
     gameState.gameStatus = 'rolling'
     gameState.diceValue = GameService.rollDice()
@@ -787,6 +813,7 @@
 
       // 更新玩家位置
       currentPlayer.position = newPosition
+      audioService.play('pieceStep')
 
       // 显示移动路径信息或起飞信息
       if (canTakeOff) {
@@ -810,6 +837,7 @@
         gameState.gameStatus = 'finished'
         gameFinished.value = true
         showVictoryScreen.value = true
+        audioService.play('victory')
         resetEffectChainCount()
         return
       }
@@ -1814,66 +1842,91 @@
     <!-- 开始页面 -->
     <IntroPage v-if="gameState.gameStatus === 'intro'" @start="handleIntroStart" />
 
-    <!-- 棋盘设置页面 -->
-    <div v-else-if="gameState.gameStatus === 'board_settings'" class="settings-page">
+    <!-- 统一设置页面（Tab 布局） -->
+    <div
+      v-else-if="
+        gameState.gameStatus === 'board_settings' || gameState.gameStatus === 'settings'
+      "
+      class="settings-page"
+    >
       <div class="page-container">
         <div class="settings-header">
-          <h2>🎯 棋盘设置</h2>
-          <p>配置游戏中各种类型格子的数量</p>
+          <h2><Settings :size="24" /> 游戏设置</h2>
+          <p>配置棋盘、惩罚和陷阱</p>
         </div>
 
-        <BoardConfigPanel :config="gameState.boardConfig" @update="updateBoardConfig" />
-
-        <TrapConfigPanel :traps="trapConfig" @update="updateTrapConfig" />
-
-        <div class="page-actions">
-          <button class="btn-secondary" @click="showIntro">
-            <span class="btn-icon">⬅️</span>
-            <span class="btn-text">返回开始</span>
-          </button>
-          <button class="btn-primary" :disabled="!isBoardConfigValid" @click="showSettings">
-            <span class="btn-icon">⚙️</span>
-            <span class="btn-text">下一步：惩罚设置</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 设置页面 -->
-    <div v-else-if="gameState.gameStatus === 'settings'" class="settings-page">
-      <div class="page-container">
-        <div class="settings-header">
-          <h2>⚙️ 惩罚设置</h2>
-          <p>配置游戏中的工具、部位、姿势和比例</p>
-        </div>
-
-        <PunishmentConfigPanel
-          :config="gameState.punishmentConfig"
-          @update="updatePunishmentConfig"
-          @validation-failed="handleValidationFailed"
-        />
-
-        <div class="page-actions">
-          <button class="btn-secondary" @click="showBoardSettings">
-            <span class="btn-icon">⬅️</span>
-            <span class="btn-text">返回棋盘设置</span>
+        <!-- Tab 栏 -->
+        <div class="settings-tabs">
+          <button
+            class="tab-item"
+            :class="{ 'tab-item--active': settingsTab === 'board' }"
+            @click="settingsTab = 'board'"
+          >
+            <Target :size="16" />
+            <span>棋盘</span>
           </button>
           <button
-            class="btn-primary"
-            :disabled="!isConfigValid"
+            class="tab-item"
+            :class="{ 'tab-item--active': settingsTab === 'punishment' }"
+            @click="settingsTab = 'punishment'"
+          >
+            <Settings :size="16" />
+            <span>惩罚</span>
+          </button>
+          <button
+            class="tab-item"
+            :class="{ 'tab-item--active': settingsTab === 'trap' }"
+            @click="settingsTab = 'trap'"
+          >
+            <Skull :size="16" />
+            <span>陷阱</span>
+          </button>
+        </div>
+
+        <!-- Tab 内容 -->
+        <div class="settings-tab-content">
+          <BoardConfigPanel
+            v-show="settingsTab === 'board'"
+            :config="gameState.boardConfig"
+            @update="updateBoardConfig"
+          />
+
+          <PunishmentConfigPanel
+            v-show="settingsTab === 'punishment'"
+            :config="gameState.punishmentConfig"
+            @update="updatePunishmentConfig"
+            @validation-failed="handleValidationFailed"
+          />
+
+          <TrapConfigPanel
+            v-show="settingsTab === 'trap'"
+            :traps="trapConfig"
+            @update="updateTrapConfig"
+          />
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="page-actions">
+          <button class="btn btn-secondary" @click="showIntro">
+            <ArrowLeft :size="16" />
+            <span class="btn-text">返回</span>
+          </button>
+          <button
+            class="btn btn-primary"
+            :disabled="!isConfigValid || !isBoardConfigValid"
             @click="generatePunishmentCombinations"
           >
-            <span class="btn-icon">🎯</span>
+            <Target :size="16" />
             <span class="btn-text">生成惩罚组合</span>
           </button>
         </div>
 
         <div v-if="punishmentCombinations.length > 0" class="page-actions">
           <p class="combinations-info">
-            已生成 {{ punishmentCombinations.length }} 个惩罚组合，点击开始游戏继续
+            已生成 {{ punishmentCombinations.length }} 个惩罚组合
           </p>
-          <button class="btn-primary" @click="startGameWithStats">
-            <span class="btn-icon">🚀</span>
+          <button class="btn btn-primary" @click="startGameWithStats">
+            <Rocket :size="16" />
             <span class="btn-text">开始游戏</span>
           </button>
         </div>
@@ -1885,7 +1938,11 @@
       <!-- 移动端顶部栏 -->
       <header class="game-header">
         <div class="header-content">
-          <h1>🎲 惩罚飞行棋</h1>
+          <h1><Dices :size="24" /> 惩罚飞行棋</h1>
+          <button class="audio-toggle-btn" :title="audioEnabled ? '静音' : '开启声音'" @click="toggleAudio">
+            <Volume2 v-if="audioEnabled" :size="18" />
+            <VolumeX v-else :size="18" />
+          </button>
         </div>
         <p>环形棋盘游戏，支持自定义惩罚设置</p>
       </header>
@@ -2011,7 +2068,7 @@
                       backgroundColor: gameState.players[gameState.currentPlayerIndex].color,
                     }"
                   >
-                    ✈️
+                    {{ gameState.players[gameState.currentPlayerIndex].name.charAt(0) }}
                   </div>
                   <div class="current-info">
                     <div class="current-name">
@@ -2041,7 +2098,7 @@
                 <div class="compact-winner-display">
                   <i class="pi pi-trophy winner-icon"></i>
                   <div class="winner-avatar" :style="{ backgroundColor: gameState.winner.color }">
-                    🏆
+                    {{ gameState.winner.name.charAt(0) }}
                   </div>
                   <div class="winner-name">{{ gameState.winner.name }} 获胜!</div>
                 </div>
@@ -2147,14 +2204,12 @@
     <div class="guide-controls">
       <!-- 配置导出按钮 -->
       <button class="export-btn" title="导出配置" @click="openConfigExport">
-        <span class="export-icon">📤</span>
-        <span class="export-text">导出</span>
+        <Upload :size="20" />
       </button>
 
       <!-- 主要引导按钮 -->
       <button class="guide-btn" title="查看当前页面引导" @click="startGuide">
-        <span class="guide-icon">❓</span>
-        <span class="guide-text">帮助</span>
+        <HelpCircle :size="20" />
       </button>
 
       <!-- 引导设置菜单 -->
@@ -2164,7 +2219,7 @@
           title="引导设置"
           @click="showGuideSettings = !showGuideSettings"
         >
-          <span class="settings-icon">⚙️</span>
+          <Settings :size="18" />
         </button>
 
         <!-- 设置菜单 -->
@@ -2183,7 +2238,7 @@
 
           <div class="settings-item">
             <button class="reset-btn" title="重置引导状态" @click="resetGuideStatus">
-              <span class="reset-icon">🔄</span>
+              <RotateCcw :size="16" />
               <span class="reset-text">重置引导</span>
             </button>
           </div>
@@ -2215,7 +2270,7 @@
     >
       <div class="import-feedback" :class="`import-feedback--${importFeedbackType}`">
         <span class="import-feedback-icon">
-          {{ importFeedbackType === 'success' ? '✅' : '❌' }}
+          {{ importFeedbackType === 'success' ? '\u2713' : '\u2717' }}
         </span>
         <p class="import-feedback-message">{{ importFeedbackMessage }}</p>
       </div>
@@ -2226,7 +2281,8 @@
 <style scoped>
   .app {
     min-height: 100vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-color: var(--bg-primary);
+    background-image: radial-gradient(ellipse at top, rgba(102, 126, 234, 0.15), transparent 60%);
   }
 
   .import-feedback {
@@ -2244,11 +2300,11 @@
     margin: 0;
     white-space: pre-line;
     line-height: 1.5;
-    color: #2f3542;
+    color: var(--text-secondary);
   }
 
   .import-feedback--error .import-feedback-message {
-    color: #c0392b;
+    color: var(--color-danger);
   }
 
   .page-container {
@@ -2266,13 +2322,14 @@
 
   .combinations-info {
     text-align: center;
-    color: white;
+    color: var(--text-primary);
     margin: clamp(0.5rem, 2vw, 1rem) 0;
     padding: clamp(0.5rem, 2vw, 1rem);
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: clamp(4px, 1vw, 8px);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: var(--bg-glass);
+    border-radius: var(--radius-sm);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    box-shadow: var(--glass-shadow);
     font-size: clamp(0.8rem, 2.5vw, 1rem);
   }
 
@@ -2281,11 +2338,54 @@
     min-height: 100vh;
     padding: clamp(0.5rem, 3vw, 1rem);
     width: 100%;
+    background-color: var(--bg-primary);
+  }
+
+  /* Tab 栏 */
+  .settings-tabs {
+    display: flex;
+    gap: var(--spacing-xs);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: 4px;
+    margin-bottom: clamp(1rem, 3vw, 1.5rem);
+  }
+
+  .tab-item {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.6rem 1rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .tab-item:hover {
+    color: var(--text-primary);
+    background: var(--bg-glass);
+  }
+
+  .tab-item--active {
+    background: var(--bg-glass);
+    color: var(--text-primary);
+    box-shadow: var(--glow-sm) rgba(102, 126, 234, 0.2);
+    border: var(--glass-border);
+  }
+
+  .settings-tab-content {
+    min-height: 300px;
   }
 
   .settings-header {
     text-align: center;
-    color: white;
     margin-bottom: clamp(1rem, 4vw, 1.5rem);
   }
 
@@ -2293,13 +2393,14 @@
     margin: 0 0 clamp(0.25rem, 1vw, 0.5rem) 0;
     font-size: clamp(1.5rem, 6vw, 2rem);
     font-weight: bold;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    color: var(--text-primary);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   }
 
   .settings-header p {
     margin: 0;
     font-size: clamp(0.8rem, 2.5vw, 1rem);
-    opacity: 0.9;
+    color: var(--text-secondary);
   }
 
   /* 游戏页面样式 */
@@ -2308,15 +2409,16 @@
     width: 100%;
     display: flex;
     flex-direction: column;
+    background-color: var(--bg-primary);
   }
 
   .game-header {
     text-align: center;
-    color: white;
     padding: clamp(0.5rem, 2vw, 1rem);
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    background: var(--bg-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    border-bottom: var(--glass-border);
+    box-shadow: var(--glass-shadow);
   }
 
   .header-content {
@@ -2331,13 +2433,37 @@
     margin: 0;
     font-size: clamp(1.2rem, 4vw, 1.8rem);
     font-weight: bold;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    color: var(--text-primary);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .audio-toggle-btn {
+    background: var(--bg-glass);
+    border: var(--glass-border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    padding: 0.4rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    min-width: 32px;
+  }
+
+  .audio-toggle-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-glass-hover);
   }
 
   .game-header p {
     margin: clamp(0.25rem, 1vw, 0.5rem) 0 0 0;
     font-size: clamp(0.7rem, 2vw, 0.9rem);
-    opacity: 0.9;
+    color: var(--text-secondary);
   }
 
   .game-main {
@@ -2355,9 +2481,10 @@
     min-width: 280px;
     display: flex;
     flex-direction: column;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    border-right: 1px solid rgba(0, 0, 0, 0.1);
+    background: var(--bg-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    border-right: var(--glass-border);
+    box-shadow: var(--glass-shadow);
     overflow-y: auto;
   }
 
@@ -2377,9 +2504,10 @@
   }
 
   .top-status-area {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    background: var(--bg-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    border-bottom: var(--glass-border);
+    box-shadow: var(--glass-shadow);
     padding: 1rem 2rem;
     display: flex;
     gap: 1rem;
@@ -2404,7 +2532,7 @@
     gap: 0.5rem;
     font-size: 1rem;
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
   }
 
   .dice-card,
@@ -2429,9 +2557,11 @@
   .compact-players-card,
   .compact-winner-card {
     margin: 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    border-radius: 12px;
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    background: var(--bg-glass);
+    box-shadow: var(--glass-shadow);
+    border-radius: var(--radius-md);
+    border: var(--glass-border);
+    backdrop-filter: blur(var(--glass-blur));
   }
 
   .compact-status-card .p-card-content,
@@ -2456,7 +2586,7 @@
   }
 
   .status-icon {
-    color: #667eea;
+    color: var(--color-accent);
     font-size: 1rem;
   }
 
@@ -2485,14 +2615,14 @@
 
   .compact-current-player .current-name {
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     font-size: 0.9rem;
     margin-bottom: 0.1rem;
   }
 
   .compact-current-player .current-position {
     font-size: 0.8rem;
-    color: #666;
+    color: var(--text-secondary);
   }
 
   .compact-players-list {
@@ -2506,16 +2636,17 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.4rem 0.6rem;
-    border-radius: 8px;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    transition: all 0.3s ease;
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    border: var(--glass-border);
+    transition: all var(--transition-normal);
     font-size: 0.85rem;
   }
 
   .compact-player-item.current-player {
-    background: rgba(34, 197, 94, 0.1);
-    border-color: rgba(34, 197, 94, 0.3);
+    background: rgba(102, 126, 234, 0.15);
+    border-color: rgba(102, 126, 234, 0.4);
+    box-shadow: 0 0 16px rgba(102, 126, 234, 0.25);
     transform: scale(1.02);
   }
 
@@ -2538,18 +2669,18 @@
 
   .compact-player-item .player-name {
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 0.1rem;
     font-size: 0.8rem;
   }
 
   .compact-player-item .player-position {
     font-size: 0.7rem;
-    color: #666;
+    color: var(--text-secondary);
   }
 
   .compact-player-item .current-indicator {
-    color: #22c55e;
+    color: var(--color-accent-light);
     font-size: 0.8rem;
   }
 
@@ -2557,13 +2688,13 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    color: #f59e0b;
+    color: var(--color-warning);
     font-weight: 600;
   }
 
   .winner-icon {
     font-size: 1.2rem;
-    color: #f59e0b;
+    color: var(--color-warning);
   }
 
   .compact-winner-display .winner-avatar {
@@ -2607,18 +2738,19 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-radius: 8px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    border-radius: var(--radius-sm);
     padding: 0.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: var(--glass-border);
+    box-shadow: var(--glass-shadow);
     flex-shrink: 0;
   }
 
   /* 移动端回合数显示 - 紧凑版 */
   .mobile-turn-display {
     text-align: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--color-accent) 0%, #764ba2 100%);
     color: white;
     padding: 0.4rem 0.6rem;
     border-radius: 6px;
@@ -2672,11 +2804,11 @@
 
   .status-label {
     font-weight: 500;
-    color: #666;
+    color: var(--text-secondary);
   }
 
   .turn-badge {
-    background: #3b82f6;
+    background: var(--color-accent);
   }
 
   .status-tag {
@@ -2689,9 +2821,9 @@
     align-items: center;
     gap: 1rem;
     padding: 0.5rem;
-    background: rgba(59, 130, 246, 0.1);
-    border-radius: 8px;
-    border: 2px solid rgba(59, 130, 246, 0.2);
+    background: rgba(102, 126, 234, 0.12);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(102, 126, 234, 0.25);
   }
 
   .current-avatar {
@@ -2714,13 +2846,13 @@
   .current-name {
     font-weight: bold;
     font-size: 1.1rem;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 0.25rem;
   }
 
   .current-position {
     font-size: 0.9rem;
-    color: #666;
+    color: var(--text-secondary);
   }
 
   /* 玩家列表样式 */
@@ -2735,15 +2867,16 @@
     align-items: center;
     gap: 0.75rem;
     padding: 0.75rem;
-    border-radius: 8px;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    transition: all 0.3s ease;
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    border: var(--glass-border);
+    transition: all var(--transition-normal);
   }
 
   .player-item.current-player {
-    background: rgba(34, 197, 94, 0.1);
-    border-color: rgba(34, 197, 94, 0.3);
+    background: rgba(102, 126, 234, 0.15);
+    border-color: rgba(102, 126, 234, 0.4);
+    box-shadow: 0 0 16px rgba(102, 126, 234, 0.25);
     transform: scale(1.02);
   }
 
@@ -2770,17 +2903,17 @@
 
   .player-name {
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 0.25rem;
   }
 
   .player-position {
     font-size: 0.85rem;
-    color: #666;
+    color: var(--text-secondary);
   }
 
   .current-indicator {
-    color: #22c55e;
+    color: var(--color-accent-light);
     font-size: 1.2rem;
     animation: bounce 1s infinite;
   }
@@ -2859,7 +2992,7 @@
       width: 100%;
       min-width: unset;
       border-right: none;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      border-bottom: var(--glass-border);
       overflow-y: visible;
     }
 
@@ -2916,17 +3049,18 @@
     .mobile-control-panel {
       display: flex;
       height: 38vh; /* 增加到屏幕高度的38% */
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(20px);
-      border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+      background: var(--bg-glass);
+      backdrop-filter: blur(var(--glass-blur));
+      border-bottom: var(--glass-border);
+      box-shadow: var(--glass-shadow);
       flex-shrink: 0;
     }
 
     /* 左侧骰子区域 - 占据控制面板的30% */
     .mobile-dice-section {
       width: 30%;
-      border-right: 1px solid rgba(0, 0, 0, 0.1);
-      background: rgba(248, 249, 250, 0.5);
+      border-right: var(--glass-border);
+      background: var(--bg-secondary);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -2946,8 +3080,8 @@
       flex: 1;
       overflow: hidden;
       min-height: 0; /* 允许flex子项收缩 */
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 8px;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-sm);
       margin-top: 0.3rem;
       padding: 0.2rem;
     }
@@ -2968,7 +3102,7 @@
     .mobile-player-panel .player-panel h3 {
       margin: 0 0 0.5rem 0;
       font-size: 0.9rem;
-      color: rgba(255, 255, 255, 0.9);
+      color: var(--text-primary);
       text-align: center;
       font-weight: 600;
     }
@@ -2989,16 +3123,17 @@
     .mobile-player-panel .player-card {
       padding: 0.5rem;
       border-width: 1px;
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-      transition: all 0.2s ease;
+      background: var(--bg-glass);
+      border: var(--glass-border);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--glass-shadow);
+      transition: all var(--transition-fast);
     }
 
     .mobile-player-panel .player-card.current {
-      background: rgba(59, 130, 246, 0.15);
-      border-color: rgba(59, 130, 246, 0.4);
-      box-shadow: 0 3px 8px rgba(59, 130, 246, 0.25);
+      background: rgba(102, 126, 234, 0.15);
+      border-color: rgba(102, 126, 234, 0.4);
+      box-shadow: 0 0 16px rgba(102, 126, 234, 0.25);
       transform: translateY(-1px);
     }
 
@@ -3024,7 +3159,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      color: #333;
+      color: var(--text-primary);
     }
 
     .mobile-player-panel .player-stats {
@@ -3039,14 +3174,14 @@
     .mobile-player-panel .label {
       font-size: 0.75rem;
       min-width: 35px;
-      color: #666;
+      color: var(--text-secondary);
       font-weight: 500;
     }
 
     .mobile-player-panel .value {
       font-size: 0.75rem;
       font-weight: 600;
-      color: #333;
+      color: var(--text-primary);
     }
 
     .mobile-player-panel .players-container::-webkit-scrollbar {
@@ -3054,12 +3189,12 @@
     }
 
     .mobile-player-panel .players-container::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.1);
+      background: var(--bg-secondary);
       border-radius: 1px;
     }
 
     .mobile-player-panel .players-container::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.2);
       border-radius: 1px;
     }
 
@@ -3125,8 +3260,9 @@
     .mobile-dice-section .result-display {
       padding: 0.3rem 0.6rem;
       border-radius: 4px;
-      background: rgba(255, 255, 255, 0.9);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      background: var(--bg-glass);
+      border: var(--glass-border);
+      box-shadow: var(--glass-shadow);
     }
 
     .mobile-dice-section .result-number {
@@ -3145,7 +3281,9 @@
       padding: 0.25rem 0.5rem;
       font-size: 0.65rem;
       border-radius: 3px;
-      background: rgba(255, 255, 255, 0.8);
+      background: var(--bg-glass);
+      border: var(--glass-border);
+      color: var(--text-secondary);
       text-align: center;
     }
   }
@@ -3329,12 +3467,12 @@
     }
 
     .player-item:hover {
-      background: #f8f9fa;
+      background: var(--bg-glass-hover);
       transform: none;
     }
 
     .player-item:active {
-      background: rgba(59, 130, 246, 0.1);
+      background: rgba(102, 126, 234, 0.15);
       transform: scale(0.98);
     }
 
@@ -3496,16 +3634,16 @@
     position: fixed;
     bottom: 1.5rem;
     right: 1.5rem;
-    background: #ff6b6b;
+    background: var(--color-punishment);
     color: #fff;
-    border: none;
+    border: 1px solid rgba(255, 71, 87, 0.4);
     border-radius: 50%;
     width: 60px;
     height: 60px;
     font-size: 1.8rem;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    transition: transform 0.2s ease;
+    box-shadow: 0 4px 16px rgba(255, 71, 87, 0.35);
+    transition: transform var(--transition-fast);
     z-index: 1100;
     display: flex;
     align-items: center;
@@ -3515,6 +3653,7 @@
 
   .guide-btn:hover {
     transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 71, 87, 0.45);
   }
 
   .guide-icon {
@@ -3539,9 +3678,9 @@
   }
 
   .export-btn {
-    background: rgba(59, 130, 246, 0.9);
+    background: rgba(59, 130, 246, 0.75);
     color: white;
-    border: 2px solid rgba(59, 130, 246, 0.3);
+    border: 1px solid rgba(59, 130, 246, 0.35);
     border-radius: 50%;
     width: 60px;
     height: 60px;
@@ -3549,18 +3688,18 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-    transition: all 0.2s ease;
-    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25);
+    transition: all var(--transition-fast);
+    backdrop-filter: blur(var(--glass-blur));
     font-size: 1.2rem;
     font-weight: 600;
   }
 
   .export-btn:hover {
     transform: translateY(-2px);
-    background: rgba(59, 130, 246, 1);
+    background: rgba(59, 130, 246, 0.9);
     border-color: rgba(59, 130, 246, 0.5);
-    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
   }
 
   .export-icon {
@@ -3579,37 +3718,37 @@
   }
 
   .settings-toggle {
-    background: rgba(255, 255, 255, 0.9);
-    color: #333;
-    border: 2px solid #ddd;
+    background: var(--bg-glass);
+    color: var(--text-primary);
+    border: var(--glass-border);
     border-radius: 50%;
     width: 50px;
     height: 50px;
     font-size: 1.2rem;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    transition: all 0.2s ease;
-    backdrop-filter: blur(10px);
+    box-shadow: var(--glass-shadow);
+    transition: all var(--transition-fast);
+    backdrop-filter: blur(var(--glass-blur));
   }
 
   .settings-toggle:hover {
     transform: translateY(-2px);
-    background: rgba(255, 255, 255, 1);
-    border-color: #ff6b6b;
+    background: var(--bg-glass-hover);
+    border-color: rgba(255, 71, 87, 0.4);
   }
 
   .settings-menu {
     position: absolute;
     bottom: 60px;
     left: 0;
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 12px;
+    background: var(--bg-glass);
+    border-radius: var(--radius-md);
     padding: 1rem;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: var(--glass-shadow-lg);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
     min-width: 200px;
-    animation: fadeInUp 0.3s ease;
+    animation: fadeInUp var(--transition-normal);
   }
 
   @keyframes fadeInUp {
@@ -3639,29 +3778,30 @@
     align-items: center;
     gap: 0.5rem;
     font-size: 0.9rem;
-    color: #333;
+    color: var(--text-primary);
     cursor: pointer;
   }
 
   .setting-checkbox {
     width: 16px;
     height: 16px;
-    accent-color: #ff6b6b;
+    accent-color: var(--color-punishment);
   }
 
   .checkbox-text {
     font-weight: 500;
+    color: var(--text-primary);
   }
 
   .reset-btn {
-    background: #ff6b6b;
+    background: var(--color-punishment);
     color: #fff;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     padding: 0.5rem 1rem;
     font-size: 0.85rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--transition-fast);
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -3670,7 +3810,7 @@
   }
 
   .reset-btn:hover {
-    background: #e55a5a;
+    background: #e8414f;
     transform: translateY(-1px);
   }
 
@@ -3680,14 +3820,15 @@
 
   .reset-text {
     font-weight: 500;
+    color: var(--text-primary);
   }
 
   .settings-footer {
     margin-top: 0.75rem;
     padding-top: 0.75rem;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     font-size: 0.75rem;
-    color: #666;
+    color: var(--text-muted);
     text-align: center;
     line-height: 1.3;
   }

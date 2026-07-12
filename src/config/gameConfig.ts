@@ -189,8 +189,20 @@ export const GAME_CONFIG = {
   },
 }
 
-// 格子类型图标映射
-export const CELL_ICONS = {
+// Lucide icon component name mapping for cell types
+export const CELL_ICON_NAMES: Record<string, string> = {
+  punishment: 'Zap',
+  bonus: 'Gift',
+  reverse: 'Undo2',
+  rest: 'Moon',
+  restart: 'RotateCcw',
+  trap: 'Skull',
+  start: 'Rocket',
+  normal: 'Circle',
+}
+
+// Legacy emoji mapping (kept for fallback/compatibility)
+export const CELL_ICONS: Record<string, string> = {
   punishment: '⚡',
   bonus: '🎁',
   special: '⬅️',
@@ -198,26 +210,26 @@ export const CELL_ICONS = {
   trap: '💀',
 }
 
-// 格子类型颜色映射
+// Cell type color tokens (dark theme)
 export const CELL_COLORS = {
   punishment: {
-    background: 'linear-gradient(135deg, #ff6b6b, #ee5a52)',
-    border: '#ff4757',
+    color: 'var(--color-punishment)',
+    border: 'var(--color-punishment)',
   },
   bonus: {
-    background: 'linear-gradient(135deg, #2ed573, #1e90ff)',
-    border: '#00d2d3',
+    color: 'var(--color-bonus)',
+    border: 'var(--color-bonus)',
   },
   special: {
-    background: 'linear-gradient(135deg, #ffa726, #ff9800)',
-    border: '#ff7043',
+    color: 'var(--color-special)',
+    border: 'var(--color-special)',
   },
   restart: {
-    background: 'linear-gradient(135deg, #ab47bc, #8e44ad)',
-    border: '#9b59b6',
+    color: 'var(--color-restart)',
+    border: 'var(--color-restart)',
   },
   trap: {
-    background: 'linear-gradient(135deg, #8b0000, #dc143c)',
-    border: '#b22222',
+    color: 'var(--color-trap)',
+    border: 'var(--color-trap)',
   },
 }

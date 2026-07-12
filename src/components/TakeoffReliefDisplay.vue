@@ -1,4 +1,6 @@
 <script setup lang="ts">
+  import { Frown } from '@lucide/vue'
+
   interface Props {
     visible: boolean
     failedCount: number
@@ -20,7 +22,9 @@
   <div v-if="visible" class="relief-overlay">
     <div class="relief-modal">
       <div class="relief-header">
-        <div class="relief-icon">🤯</div>
+        <div class="relief-icon">
+          <Frown :size="48" />
+        </div>
         <div class="relief-title">运气太差！</div>
       </div>
 
@@ -40,27 +44,27 @@
 <style scoped>
   .relief-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
-    animation: fadeIn 0.3s ease;
+    z-index: 2000;
+    animation: fadeIn var(--transition-normal);
   }
 
   .relief-modal {
-    background: white;
-    border-radius: 16px;
+    background: rgba(20, 20, 40, 0.95);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    border-radius: var(--radius-xl);
     padding: 2rem;
     max-width: 480px;
     width: 90%;
     text-align: center;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    animation: slideIn 0.3s ease;
+    box-shadow: var(--glass-shadow-lg);
+    animation: slideIn var(--transition-normal);
   }
 
   .relief-header {
@@ -68,14 +72,16 @@
   }
 
   .relief-icon {
-    font-size: 3rem;
+    display: flex;
+    justify-content: center;
     margin-bottom: 0.5rem;
+    color: var(--color-punishment);
   }
 
   .relief-title {
     font-size: 1.5rem;
     font-weight: bold;
-    color: #ff6b6b;
+    color: var(--color-punishment);
   }
 
   .relief-content {
@@ -84,7 +90,7 @@
 
   .relief-text {
     font-size: 1.1rem;
-    color: #666;
+    color: var(--text-secondary);
     line-height: 1.5;
   }
 
@@ -94,20 +100,20 @@
   }
 
   .confirm-btn {
-    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+    background: linear-gradient(135deg, var(--color-accent), #764ba2);
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     padding: 0.75rem 2rem;
     font-size: 1.1rem;
     font-weight: bold;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal);
   }
 
   .confirm-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
   }
 
   @keyframes fadeIn {

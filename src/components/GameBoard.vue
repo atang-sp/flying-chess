@@ -1,7 +1,8 @@
 <script setup lang="ts">
   import { computed, ref } from 'vue'
   import type { BoardCell, Player } from '../types/game'
-  import { CELL_ICONS } from '../config/gameConfig'
+  import { CELL_ICON_NAMES } from '../config/gameConfig'
+  import { Zap, Gift, Undo2, Moon, RotateCcw, Skull, Rocket, Sparkles } from '@lucide/vue'
 
   interface Props {
     board: BoardCell[]
@@ -16,6 +17,8 @@
 
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
+
+  const iconComponents: Record<string, any> = { Zap, Gift, Undo2, Moon, RotateCcw, Skull, Rocket, Sparkles }
 
   // 浮窗状态
   const tooltipVisible = ref(false)
@@ -103,15 +106,17 @@
     return `${baseClass} ${highlightClass}`.trim()
   }
 
-  const getCellIcon = (position: number): string => {
+  const getCellIconComponent = (position: number): string | null => {
     const cell = getCellByPosition(position)
+    if (cell.effect?.type === 'rest') return 'Moon'
+    if (cell.effect?.type === 'reverse') return 'Undo2'
+    const name = CELL_ICON_NAMES[cell.type]
+    return name || null
+  }
 
-    // 特殊处理休息格子
-    if (cell.effect?.type === 'rest') {
-      return '😴'
-    }
-
-    return CELL_ICONS[cell.type] || ''
+  const getCellIcon = (position: number) => {
+    const name = getCellIconComponent(position)
+    return name ? iconComponents[name] : null
   }
 
   const getCellEffect = (position: number): string => {
@@ -191,7 +196,9 @@
               >
                 <div class="cell-content">
                   <div class="cell-number">{{ cellNum }}</div>
-                  <div class="cell-icon">{{ getCellIcon(cellNum) }}</div>
+                  <div class="cell-icon">
+                    <component :is="getCellIcon(cellNum)" v-if="getCellIcon(cellNum)" :size="14" />
+                  </div>
                   <div class="cell-effect">{{ getCellEffect(cellNum) }}</div>
                 </div>
                 <!-- 玩家标记 -->
@@ -206,7 +213,7 @@
                     'player-moving': player.isMoving,
                   }"
                 >
-                  ✈️
+                  {{ player.name.charAt(0) }}
                 </div>
               </div>
             </template>
@@ -223,7 +230,9 @@
         >
           <div class="cell-content">
             <div class="cell-number">START</div>
-            <div class="cell-icon">🚀</div>
+            <div class="cell-icon">
+              <Rocket :size="20" />
+            </div>
           </div>
           <!-- 玩家标记 -->
           <div
@@ -237,7 +246,7 @@
               'player-moving': player.isMoving,
             }"
           >
-            ✈️
+            {{ player.name.charAt(0) }}
           </div>
         </div>
       </div>
@@ -246,7 +255,7 @@
     <!-- 效果显示 -->
     <div v-if="lastEffect" class="effect-display">
       <div class="effect-content">
-        <span class="effect-icon">✨</span>
+        <span class="effect-icon"><Sparkles :size="16" /></span>
         <span class="effect-text">{{ lastEffect }}</span>
       </div>
     </div>
@@ -348,11 +357,10 @@
     align-items: center;
     gap: 1rem;
     padding: 1rem;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
-    border-radius: 16px;
-    backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    border: var(--glass-border);
+    box-shadow: var(--glass-shadow);
   }
 
   .board-row {
@@ -364,20 +372,22 @@
     position: relative;
     width: 70px;
     height: 70px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 2px solid transparent;
-    background: white;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: var(--bg-glass);
+    backdrop-filter: blur(8px);
+    border: var(--glass-border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   }
 
   .board-cell:hover {
+    background: var(--bg-glass-hover);
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--glow-sm) rgba(255, 255, 255, 0.1);
   }
 
   .cell-content {
@@ -392,20 +402,23 @@
   }
 
   .cell-number {
-    font-size: 0.7rem;
-    font-weight: bold;
-    color: #333;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--text-muted);
     margin-bottom: 0.1rem;
   }
 
   .cell-icon {
-    font-size: 1rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     margin-bottom: 0.1rem;
   }
 
   .cell-effect {
-    font-size: 0.5rem;
-    color: #666;
+    font-size: 0.45rem;
+    color: var(--text-muted);
     line-height: 1;
     max-width: 100%;
     overflow: hidden;
@@ -413,64 +426,44 @@
     white-space: nowrap;
   }
 
-  /* 格子类型样式 */
+  /* Type-specific: colored left border + tinted icon */
   .cell-punishment {
-    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-    border-color: #ff4757;
-    color: white;
+    border-left: 3px solid var(--color-punishment);
   }
-
-  .cell-punishment .cell-number,
-  .cell-punishment .cell-effect {
-    color: white;
+  .cell-punishment .cell-icon {
+    color: var(--color-punishment);
   }
 
   .cell-bonus {
-    background: linear-gradient(135deg, #2ed573, #1e90ff);
-    border-color: #2ed573;
-    color: white;
+    border-left: 3px solid var(--color-bonus);
   }
-
-  .cell-bonus .cell-number,
-  .cell-bonus .cell-effect {
-    color: white;
+  .cell-bonus .cell-icon {
+    color: var(--color-bonus);
   }
 
   .cell-special {
-    background: linear-gradient(135deg, #ffa726, #ff9800);
-    border-color: #ff7043;
-    color: white;
+    border-left: 3px solid var(--color-special);
   }
-
-  .cell-special .cell-number,
-  .cell-special .cell-effect {
-    color: white;
+  .cell-special .cell-icon {
+    color: var(--color-special);
   }
 
   .cell-restart {
-    background: linear-gradient(135deg, #ab47bc, #8e44ad);
-    border-color: #9b59b6;
-    color: white;
+    border-left: 3px solid var(--color-restart);
   }
-
-  .cell-restart .cell-number,
-  .cell-restart .cell-effect {
-    color: white;
+  .cell-restart .cell-icon {
+    color: var(--color-restart);
   }
 
   .cell-trap {
-    background: linear-gradient(135deg, #8b0000, #dc143c);
-    border-color: #b22222;
-    color: white;
+    border-left: 3px solid var(--color-trap);
   }
-
-  .cell-trap .cell-number,
-  .cell-trap .cell-effect {
-    color: white;
+  .cell-trap .cell-icon {
+    color: var(--color-trap);
   }
 
   .cell-occupied {
-    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
   }
 
   /* 玩家标记 */
@@ -479,25 +472,26 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-weight: bold;
-    font-size: 12px;
-    border: 2px solid rgba(255, 255, 255, 0.8);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s ease;
+    font-weight: 700;
+    font-size: 11px;
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    box-shadow: var(--glow-md) currentColor;
+    transition: all var(--transition-normal);
     z-index: 10;
+    text-transform: uppercase;
   }
 
   .player-marker.current-player {
-    border-color: #ffd700;
-    box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
-    animation: pulse 2s infinite;
+    border-color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.6), 0 0 24px rgba(255, 215, 0, 0.3);
+    animation: pulseGlow 2s ease-in-out infinite;
   }
 
   .player-marker.player-moving {
@@ -505,13 +499,13 @@
     transform: translate(-50%, -50%) scale(1.2);
   }
 
-  @keyframes pulse {
+  @keyframes pulseGlow {
     0%,
     100% {
-      box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+      box-shadow: 0 0 12px rgba(255, 215, 0, 0.6), 0 0 24px rgba(255, 215, 0, 0.3);
     }
     50% {
-      box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.4);
     }
   }
 
@@ -539,15 +533,15 @@
   .start-cell {
     width: 80px;
     height: 80px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    border: 3px solid #5a67d8;
+    border-radius: var(--radius-md);
+    background: var(--bg-glass);
+    border: 2px solid var(--color-accent);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: var(--text-primary);
     font-weight: bold;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--glow-md) rgba(102, 126, 234, 0.3);
   }
 
   .start-cell .cell-content {
@@ -556,45 +550,12 @@
 
   .start-cell .cell-number {
     font-size: 0.8rem;
-    color: white;
+    color: var(--color-accent-light);
     margin-bottom: 0.2rem;
   }
 
   .start-cell .cell-icon {
-    font-size: 1.5rem;
-  }
-
-  /* 蛇形路径指示器 */
-  .board-grid::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 100%;
-    height: 100%;
-    background:
-      linear-gradient(
-        90deg,
-        transparent 0%,
-        transparent 10%,
-        rgba(78, 205, 196, 0.1) 10%,
-        rgba(78, 205, 196, 0.1) 90%,
-        transparent 90%,
-        transparent 100%
-      ),
-      linear-gradient(
-        0deg,
-        transparent 0%,
-        transparent 10%,
-        rgba(78, 205, 196, 0.1) 10%,
-        rgba(78, 205, 196, 0.1) 90%,
-        transparent 90%,
-        transparent 100%
-      );
-    pointer-events: none;
-    z-index: -1;
-    border-radius: 16px;
+    color: var(--color-accent);
   }
 
   /* 效果显示 */
@@ -603,11 +564,13 @@
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    padding: 1rem 2rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    background: rgba(20, 20, 40, 0.9);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    color: var(--text-primary);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-md);
+    box-shadow: var(--glass-shadow);
     z-index: 1000;
     animation: slideDown 0.5s ease-out;
   }
@@ -619,7 +582,9 @@
   }
 
   .effect-icon {
-    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    color: var(--color-accent-light);
   }
 
   .effect-text {
@@ -672,7 +637,7 @@
       width: clamp(1.5rem, 4vw, 2rem);
       height: clamp(1.5rem, 4vw, 2rem);
       font-size: clamp(0.8rem, 2vw, 1rem);
-      border: 1px solid white;
+      border: 1px solid rgba(255, 255, 255, 0.5);
     }
     .start-cell {
       width: clamp(65px, 16vw, 80px);
@@ -707,7 +672,6 @@
       width: clamp(38px, 10vw, 48px);
       height: clamp(38px, 10vw, 48px);
       border-radius: 8px;
-      border-width: 1px;
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
     }
@@ -731,6 +695,7 @@
       height: clamp(1.2rem, 3vw, 1.5rem);
       font-size: clamp(0.7rem, 1.8vw, 0.9rem);
       border-width: 1px;
+      border-color: rgba(255, 255, 255, 0.5);
     }
     .start-cell {
       width: clamp(55px, 14vw, 65px);
@@ -852,12 +817,11 @@
   .cell-tooltip {
     position: fixed;
     z-index: 10000;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.9));
-    backdrop-filter: blur(15px);
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    padding: 0;
+    background: rgba(20, 20, 40, 0.95);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--glass-shadow-lg);
     max-width: 280px;
     min-width: 200px;
     pointer-events: none;
@@ -874,19 +838,19 @@
     align-items: center;
     margin-bottom: 0.75rem;
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .tooltip-number {
     font-size: 1.2rem;
     font-weight: bold;
-    color: #333;
+    color: var(--text-primary);
   }
 
   .tooltip-type {
     font-size: 0.8rem;
-    color: #666;
-    background: rgba(0, 0, 0, 0.1);
+    color: var(--text-muted);
+    background: var(--bg-glass);
     padding: 0.2rem 0.5rem;
     border-radius: 12px;
   }
@@ -896,13 +860,13 @@
   }
 
   .tooltip-effect {
-    color: #333;
+    color: var(--text-primary);
   }
 
   .effect-title {
     font-weight: bold;
     margin-bottom: 0.5rem;
-    color: #2c3e50;
+    color: var(--text-primary);
   }
 
   .punishment-details,
@@ -911,8 +875,8 @@
   .reverse-details,
   .restart-details,
   .trap-details {
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 8px;
+    background: var(--bg-glass);
+    border-radius: var(--radius-sm);
     padding: 0.75rem;
     margin-top: 0.5rem;
   }
@@ -930,24 +894,25 @@
 
   .detail-label {
     font-weight: 500;
-    color: #555;
+    color: var(--text-muted);
     min-width: 40px;
   }
 
   .detail-value {
     font-weight: bold;
-    color: #2c3e50;
+    color: var(--text-primary);
     text-align: right;
   }
 
   .tooltip-normal {
     text-align: center;
-    color: #666;
+    color: var(--text-muted);
     font-style: italic;
   }
 
   .normal-text {
     padding: 0.5rem;
+    color: var(--text-muted);
   }
 
   /* 浮窗动画 */

@@ -1,5 +1,21 @@
 <script setup lang="ts">
   import { ref, onMounted, onUnmounted, watch } from 'vue'
+  import {
+    Dices,
+    Star,
+    Gem,
+    Code2,
+    ExternalLink,
+    Users,
+    User,
+    Minus,
+    Plus,
+    Rocket,
+    Clock,
+    Target,
+    Eraser,
+    Check,
+  } from '@lucide/vue'
   import { savePlayerSettings, loadPlayerSettings, clearAllLocalGameData } from '../utils/cache'
   import { SecureRandom } from '../utils/secureRandom'
   import { devLog } from '../utils/logger'
@@ -198,14 +214,15 @@
       <div class="intro-header">
         <div class="title-container">
           <h1 class="game-title">
-            <span class="title-main">🎲 惩罚飞行棋</span>
+            <Dices :size="48" class="title-icon" />
+            <span class="title-main">惩罚飞行棋</span>
             <div class="title-glow"></div>
           </h1>
           <div class="title-decoration">
             <div class="decoration-line left"></div>
             <div class="decoration-center">
-              <span class="decoration-star">⭐</span>
-              <span class="decoration-diamond">💎</span>
+              <Star :size="24" class="decoration-star" />
+              <Gem :size="24" class="decoration-diamond" />
             </div>
             <div class="decoration-line right"></div>
           </div>
@@ -218,7 +235,7 @@
 
         <div class="developer-info">
           <div class="dev-card">
-            <div class="dev-avatar">👨‍💻</div>
+            <div class="dev-avatar"><Code2 :size="28" /></div>
             <div class="dev-details">
               <span class="dev-name">开发者：阿汤</span>
               <!-- 论坛宣传链接 -->
@@ -229,7 +246,7 @@
                 class="dev-link"
               >
                 <span class="dev-id">论坛: atang-sp.run.place</span>
-                <span class="link-icon">🔗</span>
+                <ExternalLink :size="14" class="link-icon" />
               </a>
               <a
                 href="https://x.com/sp_with_py"
@@ -238,7 +255,7 @@
                 class="dev-link"
               >
                 <span class="dev-id">@sp_with_py</span>
-                <span class="link-icon">🔗</span>
+                <ExternalLink :size="14" class="link-icon" />
               </a>
             </div>
           </div>
@@ -248,7 +265,10 @@
       <!-- 玩家设置区域 -->
       <div class="player-settings">
         <div class="settings-header">
-          <h2 class="settings-title">👥 玩家设置</h2>
+          <h2 class="settings-title">
+            <Users :size="22" class="settings-icon" />
+            <span class="settings-title-text">玩家设置</span>
+          </h2>
           <div class="settings-underline"></div>
         </div>
 
@@ -256,23 +276,23 @@
         <div class="player-count-section">
           <div class="setting-item">
             <label class="setting-label">
-              <span class="label-icon">👤</span>
+              <User :size="20" class="label-icon" />
               <span class="label-text">玩家人数</span>
             </label>
             <div class="count-controls">
               <button
-                class="count-btn minus"
+                class="btn btn-secondary count-btn minus"
                 :disabled="playerCount <= 1"
                 @click="onPlayerCountChange(Math.max(1, playerCount - 1))"
               >
-                <span class="btn-icon">➖</span>
+                <Minus :size="18" />
               </button>
               <div class="count-display">
                 <span class="count-number">{{ playerCount }}</span>
                 <span class="count-unit">人</span>
               </div>
-              <button class="count-btn plus" @click="onPlayerCountChange(playerCount + 1)">
-                <span class="btn-icon">➕</span>
+              <button class="btn btn-secondary count-btn plus" @click="onPlayerCountChange(playerCount + 1)">
+                <Plus :size="18" />
               </button>
             </div>
           </div>
@@ -303,22 +323,18 @@
 
       <!-- 操作区域 -->
       <div class="intro-actions">
-        <button class="start-btn" @click="startGame">
-          <div class="btn-content">
-            <span class="btn-icon">🚀</span>
-            <span class="btn-text">开始游戏</span>
-          </div>
-          <div class="btn-glow"></div>
-          <div class="btn-particles"></div>
+        <button class="btn btn-primary start-btn" @click="startGame">
+          <Rocket :size="22" />
+          <span class="btn-text">开始游戏</span>
         </button>
 
         <div class="game-info">
           <div class="info-item">
-            <span class="info-icon">⏱️</span>
+            <Clock :size="16" class="info-icon" />
             <span class="info-text">游戏时长：约10-20分钟</span>
           </div>
           <div class="info-item">
-            <span class="info-icon">🎯</span>
+            <Target :size="16" class="info-icon" />
             <span class="info-text">适合年龄：18岁以上</span>
           </div>
         </div>
@@ -326,11 +342,11 @@
         <!-- 清空缓存选项 -->
         <div class="cache-controls">
           <button
-            class="clear-cache-btn"
+            class="btn btn-danger clear-cache-btn"
             title="清除保存在此设备上的游戏配置、玩家设置和引导偏好"
             @click="clearCache"
           >
-            <span class="btn-icon">🧹</span>
+            <Eraser :size="16" />
             <span class="btn-text">清除本地游戏数据</span>
           </button>
           <p class="cache-hint">清除后刷新页面即可从默认配置重新开始</p>
@@ -338,7 +354,7 @@
 
         <!-- 清空成功提示 -->
         <div v-if="showClearSuccess" class="clear-success-toast">
-          <span class="toast-icon">✅</span>
+          <Check :size="18" class="toast-icon" />
           <span class="toast-text">本地游戏数据已清除</span>
         </div>
       </div>
@@ -346,8 +362,12 @@
 
     <!-- 背景装饰 -->
     <div class="background-decoration">
-      <div v-for="i in 8" :key="i" class="floating-dice" :style="getDiceStyle(i)">🎲</div>
-      <div v-for="i in 12" :key="i" class="floating-star" :style="getStarStyle(i)">⭐</div>
+      <div v-for="i in 8" :key="i" class="floating-dice" :style="getDiceStyle(i)">
+        <Dices :size="28" />
+      </div>
+      <div v-for="i in 12" :key="i" class="floating-star" :style="getStarStyle(i)">
+        <Star :size="24" />
+      </div>
       <div class="geometric-shapes">
         <div class="shape shape-1"></div>
         <div class="shape shape-2"></div>
@@ -412,7 +432,7 @@
   /* 主内容 */
   .intro-content {
     text-align: center;
-    color: white;
+    color: var(--text-primary);
     z-index: 10;
     max-width: min(900px, 95vw);
     padding: clamp(1rem, 4vw, 2rem);
@@ -430,12 +450,19 @@
   }
 
   .game-title {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(0.5rem, 2vw, 1rem);
     font-size: clamp(2.5rem, 10vw, 5rem);
     font-weight: 900;
     margin: 0;
     position: relative;
     z-index: 2;
-    background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57);
+  }
+
+  .title-main {
+    background: linear-gradient(135deg, var(--player-1), var(--player-2), var(--player-3), var(--player-4), var(--color-accent));
     background-size: 300% 300%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -445,13 +472,19 @@
       titleFloat 4s ease-in-out infinite;
   }
 
+  .title-icon {
+    flex-shrink: 0;
+    color: var(--color-accent-light);
+    animation: titleFloat 4s ease-in-out infinite;
+  }
+
   .title-glow {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57);
+    background: linear-gradient(135deg, var(--player-1), var(--player-2), var(--player-3), var(--player-4), var(--color-accent));
     background-size: 300% 300%;
     filter: blur(20px);
     opacity: 0.3;
@@ -481,7 +514,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(90deg, transparent, #ff6b6b, transparent);
+    background: linear-gradient(90deg, transparent, var(--player-1), transparent);
     animation: lineGlow 2s ease-in-out infinite;
   }
 
@@ -492,7 +525,7 @@
 
   .decoration-star,
   .decoration-diamond {
-    font-size: clamp(1.5rem, 4vw, 2rem);
+    color: var(--color-accent-light);
     animation: starTwinkle 2s ease-in-out infinite;
   }
 
@@ -512,6 +545,7 @@
     z-index: 2;
     font-weight: 300;
     letter-spacing: 1px;
+    color: var(--text-secondary);
   }
 
   .subtitle-underline {
@@ -520,7 +554,7 @@
     left: 0;
     right: 0;
     height: 2px;
-    background: linear-gradient(90deg, transparent, #ff6b6b, transparent);
+    background: linear-gradient(90deg, transparent, var(--player-1), transparent);
     animation: underlineGlow 2s ease-in-out infinite;
   }
 
@@ -534,21 +568,24 @@
     align-items: center;
     gap: clamp(0.8rem, 2vw, 1rem);
     padding: clamp(0.8rem, 2vw, 1.2rem) clamp(1.5rem, 4vw, 2rem);
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: clamp(15px, 4vw, 25px);
-    backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    transition: all 0.3s ease;
+    background: var(--bg-glass);
+    border-radius: var(--radius-xl);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    transition: all var(--transition-normal);
   }
 
   .dev-card:hover {
     transform: translateY(-3px);
-    background: rgba(255, 255, 255, 0.15);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    background: var(--bg-glass-hover);
+    box-shadow: var(--glass-shadow);
   }
 
   .dev-avatar {
-    font-size: clamp(1.5rem, 4vw, 2rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-accent-light);
     animation: avatarFloat 3s ease-in-out infinite;
   }
 
@@ -561,36 +598,37 @@
   .dev-name {
     font-size: clamp(0.9rem, 2.5vw, 1rem);
     font-weight: 500;
+    color: var(--text-primary);
   }
 
   .dev-link {
     font-size: clamp(0.7rem, 2vw, 0.8rem);
     opacity: 0.8;
     font-weight: bold;
-    color: #4ecdc4;
+    color: var(--player-2);
     text-decoration: none;
     display: flex;
     align-items: center;
     gap: 0.3rem;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal);
     padding: 0.2rem 0.5rem;
-    border-radius: 0.5rem;
-    background: rgba(78, 205, 196, 0.1);
-    border: 1px solid rgba(78, 205, 196, 0.2);
+    border-radius: var(--radius-sm);
+    background: rgba(var(--player-2-rgb), 0.1);
+    border: 1px solid rgba(var(--player-2-rgb), 0.2);
   }
 
   .dev-link:hover {
     opacity: 1;
-    color: #fff;
-    background: rgba(78, 205, 196, 0.2);
-    border-color: rgba(78, 205, 196, 0.4);
+    color: var(--text-primary);
+    background: rgba(var(--player-2-rgb), 0.2);
+    border-color: rgba(var(--player-2-rgb), 0.4);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(78, 205, 196, 0.3);
+    box-shadow: var(--glow-sm) rgba(var(--player-2-rgb), 0.3);
   }
 
   .link-icon {
-    font-size: clamp(0.8rem, 2.2vw, 0.9rem);
-    transition: transform 0.3s ease;
+    flex-shrink: 0;
+    transition: transform var(--transition-normal);
   }
 
   .dev-link:hover .link-icon {
@@ -601,11 +639,11 @@
   .player-settings {
     margin: clamp(2rem, 6vw, 3rem) 0;
     padding: clamp(1.5rem, 4vw, 2rem);
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: clamp(20px, 5vw, 30px);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    background: var(--bg-glass);
+    border-radius: var(--radius-xl);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    box-shadow: var(--glass-shadow);
   }
 
   .settings-header {
@@ -614,10 +652,21 @@
   }
 
   .settings-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: clamp(1.3rem, 4vw, 1.6rem);
     font-weight: 700;
     margin: 0 0 clamp(0.5rem, 1.5vw, 0.8rem) 0;
-    background: linear-gradient(135deg, #4ecdc4, #45b7d1);
+  }
+
+  .settings-icon {
+    color: var(--player-2);
+    flex-shrink: 0;
+  }
+
+  .settings-title-text {
+    background: linear-gradient(135deg, var(--player-2), var(--player-3));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -626,7 +675,7 @@
   .settings-underline {
     width: clamp(60px, 15vw, 100px);
     height: 3px;
-    background: linear-gradient(90deg, #4ecdc4, #45b7d1);
+    background: linear-gradient(90deg, var(--player-2), var(--player-3));
     margin: 0 auto;
     border-radius: 2px;
     animation: underlineGlow 2s ease-in-out infinite;
@@ -643,14 +692,14 @@
     justify-content: space-between;
     gap: clamp(1rem, 3vw, 1.5rem);
     padding: clamp(1rem, 3vw, 1.5rem);
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: clamp(15px, 4vw, 20px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.3s ease;
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    border: var(--glass-border);
+    transition: all var(--transition-normal);
   }
 
   .setting-item:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--bg-glass);
     border-color: rgba(255, 255, 255, 0.2);
   }
 
@@ -660,12 +709,13 @@
     gap: clamp(0.5rem, 1.5vw, 0.8rem);
     font-size: clamp(1rem, 3vw, 1.1rem);
     font-weight: 600;
-    color: #fff;
+    color: var(--text-primary);
     cursor: pointer;
   }
 
   .label-icon {
-    font-size: clamp(1.2rem, 3.5vw, 1.4rem);
+    color: var(--color-accent-light);
+    flex-shrink: 0;
   }
 
   .count-controls {
@@ -675,35 +725,12 @@
   }
 
   .count-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
     width: clamp(40px, 10vw, 50px);
     height: clamp(40px, 10vw, 50px);
-    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-    border: none;
-    border-radius: 50%;
-    color: white;
-    font-size: clamp(1.2rem, 3vw, 1.4rem);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
-  }
-
-  .count-btn:hover:not(:disabled) {
-    transform: translateY(-2px) scale(1.1);
-    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
-  }
-
-  .count-btn:active:not(:disabled) {
-    transform: translateY(0) scale(1.05);
-  }
-
-  .count-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
+    min-width: clamp(40px, 10vw, 50px);
+    min-height: clamp(40px, 10vw, 50px);
+    padding: 0;
+    border-radius: var(--radius-full);
   }
 
   .count-display {
@@ -711,9 +738,9 @@
     align-items: center;
     gap: clamp(0.3rem, 1vw, 0.5rem);
     padding: clamp(0.5rem, 1.5vw, 0.8rem) clamp(1rem, 3vw, 1.5rem);
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: clamp(10px, 3vw, 15px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: var(--bg-glass);
+    border-radius: var(--radius-md);
+    border: var(--glass-border);
     min-width: clamp(80px, 20vw, 100px);
     justify-content: center;
   }
@@ -721,12 +748,12 @@
   .count-number {
     font-size: clamp(1.2rem, 3.5vw, 1.4rem);
     font-weight: 700;
-    color: #4ecdc4;
+    color: var(--player-2);
   }
 
   .count-unit {
     font-size: clamp(0.9rem, 2.5vw, 1rem);
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--text-secondary);
   }
 
   /* 玩家名称设置 */
@@ -742,7 +769,7 @@
   .names-title {
     font-size: clamp(1rem, 3vw, 1.1rem);
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--text-primary);
   }
 
   .names-list {
@@ -764,30 +791,30 @@
   .name-input {
     width: 100%;
     padding: clamp(0.8rem, 2vw, 1rem) clamp(1rem, 3vw, 1.2rem);
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: clamp(10px, 3vw, 15px);
-    color: #fff;
+    background: rgba(10, 10, 26, 0.6);
+    border: var(--glass-border);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
     font-size: clamp(0.9rem, 2.5vw, 1rem);
     font-weight: 500;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(10px);
+    transition: all var(--transition-normal);
+    backdrop-filter: blur(var(--glass-blur));
   }
 
   .name-input::placeholder {
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--text-muted);
   }
 
   .name-input:focus {
     outline: none;
-    border-color: #4ecdc4;
-    background: rgba(255, 255, 255, 0.15);
-    box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.2);
+    border-color: var(--color-accent);
+    background: var(--bg-glass-hover);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
   }
 
   .name-input:hover {
-    border-color: rgba(255, 255, 255, 0.3);
-    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--bg-glass);
   }
 
   .input-glow {
@@ -796,10 +823,10 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(78, 205, 196, 0.1), rgba(69, 183, 209, 0.1));
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(139, 156, 247, 0.1));
     border-radius: inherit;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity var(--transition-normal);
     pointer-events: none;
   }
 
@@ -816,78 +843,11 @@
   }
 
   .start-btn {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: clamp(1rem, 3vw, 1.5rem);
     padding: clamp(1.2rem, 4vw, 1.8rem) clamp(3rem, 8vw, 4rem);
     font-size: clamp(1.1rem, 3.5vw, 1.4rem);
-    font-weight: 700;
-    background: linear-gradient(135deg, #ff6b6b, #ee5a52, #ff4757);
-    color: white;
-    border: none;
-    border-radius: clamp(30px, 10vw, 60px);
-    cursor: pointer;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow: hidden;
+    border-radius: var(--radius-full);
     min-height: clamp(50px, 12vw, 70px);
     min-width: clamp(200px, 60vw, 300px);
-  }
-
-  .btn-content {
-    display: flex;
-    align-items: center;
-    gap: clamp(0.8rem, 2vw, 1rem);
-    position: relative;
-    z-index: 2;
-  }
-
-  .btn-glow {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, #ff6b6b, #ee5a52, #ff4757);
-    filter: blur(20px);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-
-  .btn-particles {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-
-  .start-btn:hover {
-    transform: translateY(-5px) scale(1.05);
-    box-shadow:
-      0 20px 40px rgba(255, 107, 107, 0.4),
-      0 0 0 1px rgba(255, 255, 255, 0.2);
-  }
-
-  .start-btn:hover .btn-glow {
-    opacity: 0.6;
-  }
-
-  .start-btn:hover .btn-particles {
-    opacity: 1;
-  }
-
-  .start-btn:active {
-    transform: translateY(-2px) scale(1.02);
-  }
-
-  .btn-icon {
-    font-size: clamp(1.5rem, 4vw, 1.8rem);
-    animation: rocketBounce 2s ease-in-out infinite;
   }
 
   .game-info {
@@ -900,12 +860,15 @@
   .info-item {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: clamp(0.5rem, 1.5vw, 0.8rem);
     font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+    color: var(--text-secondary);
   }
 
   .info-icon {
-    font-size: clamp(0.9rem, 2.5vw, 1rem);
+    color: var(--color-accent-light);
+    flex-shrink: 0;
   }
 
   /* 背景装饰 */
@@ -922,7 +885,10 @@
   .floating-dice,
   .floating-star {
     position: absolute;
-    font-size: clamp(1.5rem, 4vw, 2rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-accent-light);
     opacity: 0.2;
     filter: blur(0.5px);
   }
@@ -1068,16 +1034,6 @@
     }
     50% {
       transform: translateY(-5px);
-    }
-  }
-
-  @keyframes rocketBounce {
-    0%,
-    100% {
-      transform: translateY(0px);
-    }
-    50% {
-      transform: translateY(-3px);
     }
   }
 
@@ -1227,16 +1183,8 @@
 
     .start-btn {
       padding: clamp(0.8rem, 3vw, 1rem) clamp(1.5rem, 5vw, 2rem);
-      border-radius: 12px;
+      border-radius: var(--radius-md);
       min-height: clamp(48px, 12vw, 56px);
-    }
-
-    .btn-content {
-      gap: 0.5rem;
-    }
-
-    .btn-icon {
-      font-size: clamp(1.2rem, 3.5vw, 1.5rem);
     }
 
     .btn-text {
@@ -1328,10 +1276,6 @@
     .start-btn {
       padding: clamp(0.7rem, 2.5vw, 0.8rem) clamp(1.2rem, 4vw, 1.5rem);
       min-height: clamp(44px, 11vw, 48px);
-    }
-
-    .btn-icon {
-      font-size: clamp(1rem, 3vw, 1.2rem);
     }
 
     .btn-text {
@@ -1444,10 +1388,6 @@
       min-height: clamp(40px, 10vw, 44px);
     }
 
-    .btn-icon {
-      font-size: clamp(0.9rem, 2.5vw, 1rem);
-    }
-
     .btn-text {
       font-size: clamp(0.8rem, 2.2vw, 0.9rem);
     }
@@ -1531,10 +1471,6 @@
       min-height: clamp(44px, 11vw, 48px);
     }
 
-    .btn-icon {
-      font-size: clamp(1rem, 3vw, 1.2rem);
-    }
-
     .btn-text {
       font-size: clamp(0.9rem, 2.5vw, 1rem);
     }
@@ -1563,41 +1499,13 @@
   }
 
   .clear-cache-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1.2rem;
-    background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
-    color: white;
-    border: none;
-    border-radius: 8px;
     font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
-  }
-
-  .clear-cache-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(255, 107, 107, 0.4);
-    background: linear-gradient(135deg, #ee5a5a, #dd4a4a);
-  }
-
-  .clear-cache-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
-  }
-
-  .clear-cache-btn .btn-icon {
-    font-size: 1rem;
   }
 
   .cache-hint {
     margin-top: 0.5rem;
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.7);
-    opacity: 0.8;
+    color: var(--text-muted);
   }
 
   /* 清空成功提示样式 */
@@ -1610,19 +1518,20 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.8rem 1.5rem;
-    background: rgba(46, 160, 67, 0.95);
-    color: white;
-    border-radius: 8px;
+    background: rgba(34, 197, 94, 0.95);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
     font-size: 0.9rem;
     font-weight: 500;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(10px);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid rgba(34, 197, 94, 0.3);
     z-index: 1000;
     animation: toastSlideIn 0.3s ease-out;
   }
 
   .toast-icon {
-    font-size: 1.1rem;
+    flex-shrink: 0;
   }
 
   @keyframes toastSlideIn {

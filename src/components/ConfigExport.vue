@@ -1,5 +1,23 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue'
+  import {
+    Upload,
+    Download,
+    BookOpen,
+    X,
+    Users,
+    Settings,
+    Target,
+    Wrench,
+    Dices,
+    FolderOpen,
+    FileText,
+    QrCode,
+    FileJson,
+    Save,
+    Lightbulb,
+    AlertTriangle,
+  } from '@lucide/vue'
   import type { ExportOptions, ExportStats, QRCodeOptions } from '../types/export'
   import type { BoardCell } from '../types/game'
   import {
@@ -299,7 +317,11 @@
     <div class="export-modal">
       <div class="export-header">
         <div class="header-content">
-          <h3>{{ currentMode === 'export' ? '📤 导出配置' : '📥 导入配置' }}</h3>
+          <h3>
+            <Upload v-if="currentMode === 'export'" :size="20" />
+            <Download v-else :size="20" />
+            {{ currentMode === 'export' ? '导出配置' : '导入配置' }}
+          </h3>
           <div class="mode-tabs">
             <button
               class="mode-tab"
@@ -318,8 +340,12 @@
           </div>
         </div>
         <div class="header-actions">
-          <button class="doc-btn" title="查看配置文档" @click="showDocumentation = true">📖</button>
-          <button class="close-btn" @click="handleClose">✕</button>
+          <button class="doc-btn" title="查看配置文档" @click="showDocumentation = true">
+            <BookOpen :size="18" />
+          </button>
+          <button class="close-btn" @click="handleClose">
+            <X :size="20" />
+          </button>
         </div>
       </div>
 
@@ -345,7 +371,7 @@
                   type="checkbox"
                   :disabled="!availableOptions.playerSettings"
                 />
-                <span class="option-icon">👥</span>
+                <span class="option-icon"><Users :size="20" /></span>
                 <div class="option-info">
                   <div class="option-title">玩家设置</div>
                   <div class="option-desc">玩家数量和姓名配置</div>
@@ -359,7 +385,7 @@
                   type="checkbox"
                   :disabled="!availableOptions.punishmentConfig"
                 />
-                <span class="option-icon">⚙️</span>
+                <span class="option-icon"><Settings :size="20" /></span>
                 <div class="option-info">
                   <div class="option-title">惩罚设置</div>
                   <div class="option-desc">工具、部位、姿势等惩罚配置</div>
@@ -373,7 +399,7 @@
                   type="checkbox"
                   :disabled="!availableOptions.boardConfig"
                 />
-                <span class="option-icon">🎯</span>
+                <span class="option-icon"><Target :size="20" /></span>
                 <div class="option-info">
                   <div class="option-title">棋盘设置</div>
                   <div class="option-desc">各种格子数量的配置</div>
@@ -387,7 +413,7 @@
                   type="checkbox"
                   :disabled="!availableOptions.trapConfig"
                 />
-                <span class="option-icon">🔧</span>
+                <span class="option-icon"><Wrench :size="20" /></span>
                 <div class="option-info">
                   <div class="option-title">机关设置</div>
                   <div class="option-desc">机关格子的配置</div>
@@ -401,7 +427,7 @@
                   type="checkbox"
                   :disabled="!availableOptions.boardContent"
                 />
-                <span class="option-icon">🎲</span>
+                <span class="option-icon"><Dices :size="20" /></span>
                 <div class="option-info">
                   <div class="option-title">棋盘布局</div>
                   <div class="option-desc">
@@ -459,7 +485,7 @@
 
           <div class="import-methods">
             <div class="import-method">
-              <h4>📁 文件导入</h4>
+              <h4><FolderOpen :size="18" /> 文件导入</h4>
               <div class="file-upload">
                 <input
                   id="import-file"
@@ -478,7 +504,7 @@
             </div>
 
             <div class="import-method">
-              <h4>📝 文本导入</h4>
+              <h4><FileText :size="18" /> 文本导入</h4>
               <div class="text-import">
                 <textarea
                   v-model="importJsonText"
@@ -488,7 +514,7 @@
                   rows="8"
                 ></textarea>
                 <button
-                  class="import-text-btn"
+                  class="btn btn-success import-text-btn"
                   :disabled="!importJsonText.trim() || isImporting"
                   @click="handleJsonTextImport"
                 >
@@ -503,43 +529,43 @@
       </div>
 
       <div class="export-actions">
-        <button class="cancel-btn" :disabled="isExporting || isImporting" @click="handleClose">
+          <button class="btn btn-secondary cancel-btn" :disabled="isExporting || isImporting" @click="handleClose">
           取消
         </button>
 
         <!-- 导出模式按钮 -->
         <div v-if="currentMode === 'export'" class="export-buttons">
           <button
-            class="export-btn secondary"
+            class="btn btn-secondary export-btn"
             :disabled="!canGenerateQRCode"
             :class="{ loading: isExporting }"
             @click="handleGenerateQRCode"
           >
             <span v-if="isExporting">生成中...</span>
-            <span v-else>🔲 生成二维码</span>
+            <span v-else class="btn-content"><QrCode :size="16" /> 生成二维码</span>
           </button>
           <button
-            class="export-btn"
+            class="btn btn-primary export-btn"
             :disabled="!canExport"
             :class="{ loading: isExporting }"
             @click="handleExportJson"
           >
             <span v-if="isExporting">导出中...</span>
-            <span v-else>📄 导出 JSON</span>
+            <span v-else class="btn-content"><FileJson :size="16" /> 导出 JSON</span>
           </button>
           <button
             v-if="showQRCode"
-            class="export-btn secondary"
+            class="btn btn-secondary export-btn"
             :disabled="!qrCodeDataURL || qrCapacityExceeded"
             @click="handleExportQRCode"
           >
-            💾 保存二维码
+            <span class="btn-content"><Save :size="16" /> 保存二维码</span>
           </button>
         </div>
 
         <!-- 导入模式提示 -->
         <div v-else-if="currentMode === 'import'" class="import-tip">
-          <p>💡 请选择上方的导入方式来导入配置</p>
+          <p class="tip-content"><Lightbulb :size="16" /> 请选择上方的导入方式来导入配置</p>
         </div>
       </div>
     </div>
@@ -548,12 +574,14 @@
     <div v-if="showDocumentation" class="documentation-overlay">
       <div class="documentation-modal">
         <div class="documentation-header">
-          <h3>📖 配置文档</h3>
-          <button class="close-btn" @click="showDocumentation = false">✕</button>
+          <h3><BookOpen :size="20" /> 配置文档</h3>
+          <button class="close-btn" @click="showDocumentation = false">
+            <X :size="20" />
+          </button>
         </div>
         <div class="documentation-content">
           <div class="doc-section">
-            <h4>🎯 配置类型说明</h4>
+            <h4><Target :size="18" /> 配置类型说明</h4>
             <ul>
               <li>
                 <strong>玩家设置：</strong>
@@ -579,7 +607,7 @@
           </div>
 
           <div class="doc-section">
-            <h4>📤 导出功能</h4>
+            <h4><Upload :size="18" /> 导出功能</h4>
             <ul>
               <li>
                 <strong>JSON文件：</strong>
@@ -595,7 +623,7 @@
           </div>
 
           <div class="doc-section">
-            <h4>📥 导入功能</h4>
+            <h4><Download :size="18" /> 导入功能</h4>
             <ul>
               <li>
                 <strong>文件导入：</strong>
@@ -611,7 +639,7 @@
           </div>
 
           <div class="doc-section">
-            <h4>⚠️ 注意事项</h4>
+            <h4><AlertTriangle :size="18" /> 注意事项</h4>
             <ul>
               <li>导入配置会覆盖当前设置，请注意备份</li>
               <li>二维码适合小量数据，大配置建议使用JSON文件</li>
@@ -621,7 +649,7 @@
           </div>
 
           <div class="doc-section">
-            <h4>🔧 版本兼容性</h4>
+            <h4><Wrench :size="18" /> 版本兼容性</h4>
             <p>
               当前配置版本：
               <code>1.0.0</code>
@@ -630,7 +658,7 @@
           </div>
         </div>
         <div class="documentation-footer">
-          <button class="btn-primary" @click="showDocumentation = false">我知道了</button>
+          <button class="btn btn-primary" @click="showDocumentation = false">我知道了</button>
         </div>
       </div>
     </div>
@@ -644,7 +672,8 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -653,9 +682,11 @@
   }
 
   .export-modal {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    background: rgba(20, 20, 40, 0.95);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--glass-shadow-lg);
     max-width: 600px;
     width: 100%;
     max-height: 90vh;
@@ -669,8 +700,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 20px 24px;
-    border-bottom: 1px solid #e5e7eb;
-    background: #f9fafb;
+    border-bottom: var(--glass-border);
+    background: var(--bg-surface);
   }
 
   .header-content {
@@ -683,13 +714,17 @@
     margin: 0;
     font-size: 18px;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .mode-tabs {
     display: flex;
-    background: #e5e7eb;
-    border-radius: 8px;
+    background: var(--bg-secondary);
+    border: var(--glass-border);
+    border-radius: var(--radius-sm);
     padding: 2px;
   }
 
@@ -700,19 +735,19 @@
     border-radius: 6px;
     font-size: 14px;
     font-weight: 500;
-    color: #6b7280;
+    color: var(--text-muted);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--transition-fast);
   }
 
   .mode-tab.active {
-    background: white;
-    color: #1f2937;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    background: var(--bg-glass-hover);
+    color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   }
 
   .mode-tab:hover:not(.active) {
-    color: #374151;
+    color: var(--text-secondary);
   }
 
   .header-actions {
@@ -722,35 +757,39 @@
   }
 
   .doc-btn {
-    background: #f3f4f6;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
+    background: var(--bg-glass);
+    border: var(--glass-border);
+    border-radius: var(--radius-sm);
     padding: 6px 8px;
-    font-size: 16px;
-    color: #374151;
+    color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .doc-btn:hover {
-    background: #e5e7eb;
-    border-color: #9ca3af;
+    background: var(--bg-glass-hover);
+    color: var(--text-primary);
   }
 
   .close-btn {
-    background: none;
-    border: none;
-    font-size: 20px;
-    color: #6b7280;
+    background: var(--bg-glass);
+    border: var(--glass-border);
+    color: var(--text-secondary);
     cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    transition: all 0.2s;
+    padding: 6px;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .close-btn:hover {
-    background: #e5e7eb;
-    color: #374151;
+    background: var(--bg-glass-hover);
+    color: var(--text-primary);
   }
 
   .export-content {
@@ -759,13 +798,15 @@
     padding: 24px;
   }
 
-  .export-description {
+  .export-description,
+  .import-description {
     margin-bottom: 24px;
   }
 
-  .export-description p {
+  .export-description p,
+  .import-description p {
     margin: 0;
-    color: #6b7280;
+    color: var(--text-secondary);
     line-height: 1.5;
   }
 
@@ -784,23 +825,23 @@
     margin: 0;
     font-size: 16px;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--text-primary);
   }
 
   .toggle-all-btn {
-    background: #f3f4f6;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
+    background: var(--bg-glass);
+    border: var(--glass-border);
+    border-radius: var(--radius-sm);
     padding: 6px 12px;
     font-size: 14px;
-    color: #374151;
+    color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--transition-fast);
   }
 
   .toggle-all-btn:hover {
-    background: #e5e7eb;
-    border-color: #9ca3af;
+    background: var(--bg-glass-hover);
+    color: var(--text-primary);
   }
 
   .option-list {
@@ -814,28 +855,29 @@
     align-items: center;
     gap: 12px;
     padding: 16px;
-    border: 2px solid #e5e7eb;
-    border-radius: 8px;
+    border: var(--glass-border);
+    border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: all 0.2s;
-    background: white;
+    transition: all var(--transition-fast);
+    background: var(--bg-glass);
   }
 
   .option-item:hover:not(.disabled) {
-    border-color: #3b82f6;
-    background: #f8faff;
+    border-color: rgba(102, 126, 234, 0.4);
+    background: var(--bg-glass-hover);
   }
 
   .option-item.disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    background: #f9fafb;
+    background: var(--bg-surface);
   }
 
   .option-item input[type='checkbox'] {
     width: 18px;
     height: 18px;
     cursor: pointer;
+    accent-color: var(--color-accent);
   }
 
   .option-item.disabled input[type='checkbox'] {
@@ -843,8 +885,10 @@
   }
 
   .option-icon {
-    font-size: 20px;
     flex-shrink: 0;
+    color: var(--color-accent-light);
+    display: flex;
+    align-items: center;
   }
 
   .option-info {
@@ -853,29 +897,29 @@
 
   .option-title {
     font-weight: 600;
-    color: #1f2937;
+    color: var(--text-primary);
     margin-bottom: 4px;
   }
 
   .option-desc {
     font-size: 14px;
-    color: #6b7280;
+    color: var(--text-secondary);
     line-height: 1.4;
   }
 
   .option-status {
     font-size: 12px;
-    color: #ef4444;
-    background: #fef2f2;
+    color: var(--color-danger);
+    background: rgba(239, 68, 68, 0.1);
     padding: 4px 8px;
-    border-radius: 4px;
-    border: 1px solid #fecaca;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(239, 68, 68, 0.25);
   }
 
   .export-stats {
-    background: #f8faff;
-    border: 1px solid #e0e7ff;
-    border-radius: 8px;
+    background: var(--bg-glass);
+    border: var(--glass-border);
+    border-radius: var(--radius-md);
     padding: 16px;
     margin-bottom: 24px;
   }
@@ -884,7 +928,7 @@
     margin: 0 0 12px 0;
     font-size: 14px;
     font-weight: 600;
-    color: #1e40af;
+    color: var(--color-accent-light);
   }
 
   .stats-grid {
@@ -897,35 +941,42 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    background: var(--bg-surface);
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    border: var(--glass-border);
   }
 
   .stat-label {
     font-size: 14px;
-    color: #6b7280;
+    color: var(--text-muted);
   }
 
   .stat-value {
     font-size: 14px;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--text-primary);
   }
 
   .stat-value.danger {
-    color: #dc2626;
+    color: var(--color-danger);
   }
 
   .qrcode-warning {
     margin: 12px 0 0 0;
     font-size: 13px;
-    color: #dc2626;
+    color: var(--color-danger);
     line-height: 1.4;
+    background: rgba(239, 68, 68, 0.08);
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(239, 68, 68, 0.2);
   }
 
-  /* 二维码预览样式 */
   .qrcode-preview {
-    background: #f8faff;
-    border: 1px solid #e0e7ff;
-    border-radius: 8px;
+    background: var(--bg-glass);
+    border: var(--glass-border);
+    border-radius: var(--radius-md);
     padding: 16px;
     margin-top: 16px;
     text-align: center;
@@ -935,7 +986,7 @@
     margin: 0 0 12px 0;
     font-size: 14px;
     font-weight: 600;
-    color: #1e40af;
+    color: var(--color-accent-light);
   }
 
   .qrcode-container {
@@ -943,31 +994,24 @@
     flex-direction: column;
     align-items: center;
     gap: 12px;
+    background: var(--bg-primary);
+    border: var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: 16px;
   }
 
   .qrcode-image {
     width: min(420px, 80vw);
     max-width: 80%;
     height: auto;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--glass-shadow);
   }
 
   .qrcode-tip {
     margin: 0;
     font-size: 14px;
-    color: #6b7280;
-  }
-
-  /* 导入样式 */
-  .import-description {
-    margin-bottom: 24px;
-  }
-
-  .import-description p {
-    margin: 0;
-    color: #6b7280;
-    line-height: 1.5;
+    color: var(--text-secondary);
   }
 
   .import-methods {
@@ -977,23 +1021,26 @@
   }
 
   .import-method {
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
+    border: var(--glass-border);
+    border-radius: var(--radius-md);
     padding: 20px;
-    background: white;
+    background: var(--bg-glass);
   }
 
   .import-method h4 {
     margin: 0 0 12px 0;
     font-size: 16px;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .method-desc {
     margin: 8px 0 0 0;
     font-size: 14px;
-    color: #6b7280;
+    color: var(--text-muted);
   }
 
   .file-upload {
@@ -1005,18 +1052,21 @@
   }
 
   .file-label {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
     padding: 12px 24px;
-    background: #3b82f6;
+    background: linear-gradient(135deg, var(--color-accent) 0%, #764ba2 100%);
     color: white;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-weight: 500;
-    transition: all 0.2s;
+    transition: all var(--transition-fast);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .file-label:hover {
-    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
   }
 
   .text-import {
@@ -1028,53 +1078,54 @@
   .json-textarea {
     width: 100%;
     padding: 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
+    background: var(--bg-secondary);
+    border: var(--glass-border);
+    border-radius: var(--radius-sm);
     font-family: 'Courier New', monospace;
     font-size: 14px;
+    color: var(--text-primary);
     resize: vertical;
     min-height: 120px;
+    transition: border-color var(--transition-fast);
+  }
+
+  .json-textarea::placeholder {
+    color: var(--text-muted);
   }
 
   .json-textarea:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: rgba(102, 126, 234, 0.5);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  }
+
+  .json-textarea:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .import-text-btn {
     align-self: flex-start;
-    padding: 10px 20px;
-    background: #10b981;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .import-text-btn:hover:not(:disabled) {
-    background: #059669;
-  }
-
-  .import-text-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 
   .export-actions {
     display: flex;
     gap: 12px;
     padding: 20px 24px;
-    border-top: 1px solid #e5e7eb;
-    background: #f9fafb;
+    border-top: var(--glass-border);
+    background: var(--bg-surface);
   }
 
   .export-buttons {
     display: flex;
     gap: 8px;
     flex: 1;
+  }
+
+  .btn-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .import-tip {
@@ -1084,66 +1135,26 @@
     justify-content: center;
   }
 
-  .import-tip p {
+  .tip-content {
     margin: 0;
-    color: #6b7280;
+    color: var(--text-secondary);
     font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .cancel-btn {
     flex: 1;
-    padding: 12px 24px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    background: white;
-    color: #374151;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .cancel-btn:hover:not(:disabled) {
-    background: #f3f4f6;
-    border-color: #9ca3af;
-  }
-
-  .cancel-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 
   .export-btn {
     flex: 1;
-    padding: 12px 16px;
-    border: none;
-    border-radius: 8px;
-    background: #3b82f6;
-    color: white;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
     font-size: 14px;
   }
 
-  .export-btn.secondary {
-    background: #6b7280;
-  }
-
-  .export-btn:hover:not(:disabled) {
-    background: #2563eb;
-  }
-
-  .export-btn.secondary:hover:not(:disabled) {
-    background: #4b5563;
-  }
-
-  .export-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
   .export-btn.loading {
-    background: #6b7280;
+    opacity: 0.7;
   }
 
   /* 文档对话框样式 */
@@ -1153,7 +1164,8 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1162,9 +1174,11 @@
   }
 
   .documentation-modal {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    background: rgba(20, 20, 40, 0.95);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--glass-shadow-lg);
     max-width: 700px;
     width: 100%;
     max-height: 90vh;
@@ -1178,15 +1192,18 @@
     align-items: center;
     justify-content: space-between;
     padding: 20px 24px;
-    border-bottom: 1px solid #e5e7eb;
-    background: #f9fafb;
+    border-bottom: var(--glass-border);
+    background: var(--bg-surface);
   }
 
   .documentation-header h3 {
     margin: 0;
     font-size: 18px;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .documentation-content {
@@ -1207,7 +1224,10 @@
     margin: 0 0 12px 0;
     font-size: 16px;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .doc-section ul {
@@ -1218,44 +1238,34 @@
   .doc-section li {
     margin-bottom: 8px;
     line-height: 1.5;
-    color: #374151;
+    color: var(--text-secondary);
+  }
+
+  .doc-section li strong {
+    color: var(--text-primary);
   }
 
   .doc-section p {
     margin: 8px 0 0 0;
     line-height: 1.5;
-    color: #374151;
+    color: var(--text-secondary);
   }
 
   .doc-section code {
-    background: #f3f4f6;
+    background: var(--bg-glass);
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-family: 'Courier New', monospace;
     font-size: 14px;
-    color: #1f2937;
+    color: var(--color-accent-light);
+    border: var(--glass-border);
   }
 
   .documentation-footer {
     padding: 20px 24px;
-    border-top: 1px solid #e5e7eb;
-    background: #f9fafb;
+    border-top: var(--glass-border);
+    background: var(--bg-surface);
     text-align: center;
-  }
-
-  .btn-primary {
-    padding: 12px 24px;
-    background: #3b82f6;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-primary:hover {
-    background: #2563eb;
   }
 
   @media (max-width: 640px) {
@@ -1275,8 +1285,18 @@
       padding: 16px;
     }
 
+    .header-content {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
     .export-actions {
       padding: 16px;
+      flex-direction: column;
+    }
+
+    .export-buttons {
       flex-direction: column;
     }
 

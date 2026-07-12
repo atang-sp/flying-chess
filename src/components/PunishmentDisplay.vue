@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import { Zap, Check, SkipForward } from '@lucide/vue'
   import type { PunishmentAction, Player } from '../types/game'
 
   interface Props {
@@ -24,51 +25,62 @@
 </script>
 
 <template>
-  <div v-if="punishment" class="punishment-display">
-    <div class="punishment-header">
-      <h3>⚡ 惩罚时间</h3>
-      <p>你踩到了惩罚格子！</p>
-    </div>
-
-    <div class="punishment-content">
-      <!-- 执行惩罚的玩家信息 -->
-      <div v-if="executorPlayer" class="executor-info">
-        <div class="executor-header">
-          <span class="executor-label">执行惩罚的玩家:</span>
-        </div>
-        <div class="executor-player">
-          <div class="executor-avatar" :style="{ backgroundColor: executorPlayer.color }"></div>
-          <span class="executor-name">{{ executorPlayer.name }}</span>
-        </div>
+  <div v-if="punishment" class="modal-overlay">
+    <div class="modal-content punishment-display">
+      <div class="punishment-header">
+        <h3>
+          <Zap :size="20" />
+          惩罚时间
+        </h3>
+        <p>你踩到了惩罚格子！</p>
       </div>
 
-      <div class="punishment-details">
-        <div class="punishment-item">
-          <span class="label">工具:</span>
-          <span class="value tool">{{ punishment.tool.name }}</span>
-          <span class="intensity">强度: {{ punishment.tool.intensity }}/10</span>
+      <div class="punishment-content">
+        <!-- 执行惩罚的玩家信息 -->
+        <div v-if="executorPlayer" class="executor-info">
+          <div class="executor-header">
+            <span class="executor-label">执行惩罚的玩家:</span>
+          </div>
+          <div class="executor-player">
+            <div class="executor-avatar" :style="{ backgroundColor: executorPlayer.color }"></div>
+            <span class="executor-name">{{ executorPlayer.name }}</span>
+          </div>
         </div>
 
-        <div class="punishment-item">
-          <span class="label">部位:</span>
-          <span class="value body-part">{{ punishment.bodyPart.name }}</span>
-          <span class="sensitivity">耐受度: {{ punishment.bodyPart.sensitivity }}/10</span>
+        <div class="punishment-details">
+          <div class="punishment-item">
+            <span class="label">工具:</span>
+            <span class="value tool">{{ punishment.tool.name }}</span>
+            <span class="intensity">强度: {{ punishment.tool.intensity }}/10</span>
+          </div>
+
+          <div class="punishment-item">
+            <span class="label">部位:</span>
+            <span class="value body-part">{{ punishment.bodyPart.name }}</span>
+            <span class="sensitivity">耐受度: {{ punishment.bodyPart.sensitivity }}/10</span>
+          </div>
+
+          <div class="punishment-item">
+            <span class="label">姿势:</span>
+            <span class="value position">{{ punishment.position.name }}</span>
+          </div>
         </div>
 
-        <div class="punishment-item">
-          <span class="label">姿势:</span>
-          <span class="value position">{{ punishment.position.name }}</span>
+        <div class="punishment-summary">
+          <h4>执行内容:</h4>
+          <p class="summary-text">{{ punishment.description }}</p>
         </div>
-      </div>
 
-      <div class="punishment-summary">
-        <h4>执行内容:</h4>
-        <p class="summary-text">{{ punishment.description }}</p>
-      </div>
-
-      <div class="punishment-actions">
-        <button class="btn-confirm" @click="confirmPunishment">✅ 确认执行</button>
-        <button class="btn-skip" @click="skipPunishment">⏭️ 跳过惩罚</button>
+        <div class="punishment-actions">
+          <button class="btn btn-success" @click="confirmPunishment">
+            <Check :size="18" />
+            确认执行
+          </button>
+          <button class="btn btn-secondary" @click="skipPunishment">
+            <SkipForward :size="18" />
+            跳过惩罚
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -76,20 +88,8 @@
 
 <style scoped>
   .punishment-display {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    padding: 2rem;
+    border: 1px solid rgba(255, 71, 87, 0.3);
     max-width: 500px;
-    width: 90%;
-    z-index: 1000;
-    border: 3px solid #ff6b6b;
-    max-height: 90vh;
-    overflow-y: auto;
   }
 
   .punishment-header {
@@ -98,14 +98,18 @@
   }
 
   .punishment-header h3 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
     margin: 0 0 0.5rem 0;
-    color: #ff6b6b;
+    color: var(--color-punishment);
     font-size: 1.5rem;
   }
 
   .punishment-header p {
     margin: 0;
-    color: #666;
+    color: var(--text-secondary);
     font-size: 1.1rem;
   }
 
@@ -115,12 +119,12 @@
     gap: 1.5rem;
   }
 
-  /* 执行惩罚的玩家信息样式 */
   .executor-info {
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    border-radius: 8px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    border-radius: var(--radius-sm);
     padding: 1rem;
-    border: 2px solid #4ecdc4;
+    border: 1px solid var(--player-2);
   }
 
   .executor-header {
@@ -129,7 +133,7 @@
 
   .executor-label {
     font-weight: bold;
-    color: #333;
+    color: var(--text-secondary);
     font-size: 1rem;
   }
 
@@ -143,14 +147,14 @@
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.8);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: var(--glass-shadow);
   }
 
   .executor-name {
     font-weight: bold;
     font-size: 1.1rem;
-    color: #333;
+    color: var(--text-primary);
   }
 
   .punishment-details {
@@ -164,14 +168,14 @@
     align-items: center;
     gap: 1rem;
     padding: 1rem;
-    background: #f8f9fa;
-    border-radius: 8px;
-    border-left: 4px solid #ff6b6b;
+    background: var(--bg-glass);
+    border-radius: var(--radius-sm);
+    border-left: 4px solid var(--color-punishment);
   }
 
   .label {
     font-weight: bold;
-    color: #333;
+    color: var(--text-secondary);
     min-width: 60px;
   }
 
@@ -179,39 +183,37 @@
     font-weight: bold;
     font-size: 1.1rem;
     flex: 1;
+    color: var(--text-primary);
   }
 
   .tool {
-    color: #e74c3c;
+    color: var(--color-punishment);
   }
 
   .body-part {
-    color: #9b59b6;
+    color: var(--color-restart);
   }
 
   .position {
-    color: #f39c12;
-  }
-
-  .strikes {
-    color: #e67e22;
+    color: var(--color-special);
   }
 
   .intensity,
   .sensitivity {
     font-size: 0.8rem;
-    color: #666;
-    background: #e0e0e0;
+    color: var(--text-muted);
+    background: var(--bg-glass-hover);
     padding: 0.25rem 0.5rem;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
   }
 
   .punishment-summary {
     text-align: center;
     padding: 1rem;
-    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-    border-radius: 8px;
-    color: white;
+    background: linear-gradient(135deg, #c0392b, #922b21);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    box-shadow: var(--glow-sm) rgba(255, 71, 87, 0.3);
   }
 
   .punishment-summary h4 {
@@ -232,48 +234,12 @@
     margin-top: 1rem;
   }
 
-  .btn-confirm,
-  .btn-skip {
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 6px;
-    font-size: 1rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-height: 44px;
-  }
-
-  .btn-confirm {
-    background: linear-gradient(135deg, #2ed573, #1e90ff);
-    color: white;
-  }
-
-  .btn-confirm:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(46, 213, 115, 0.3);
-  }
-
-  .btn-skip {
-    background: linear-gradient(135deg, #ffa726, #ff9800);
-    color: white;
-  }
-
-  .btn-skip:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 167, 38, 0.3);
-  }
-
   /* 移动端适配 */
   @media (max-width: 768px) {
     .punishment-display {
       padding: 1rem;
       width: 95%;
       max-height: 95vh;
-      margin: 1rem;
     }
 
     .punishment-header h3 {
@@ -324,8 +290,7 @@
       margin-top: 1.5rem;
     }
 
-    .btn-confirm,
-    .btn-skip {
+    .punishment-actions .btn {
       width: 100%;
       justify-content: center;
       padding: 1rem 1.5rem;
@@ -394,8 +359,7 @@
       margin-top: 1rem;
     }
 
-    .btn-confirm,
-    .btn-skip {
+    .punishment-actions .btn {
       padding: 0.9rem 1rem;
       font-size: 1rem;
       min-height: 48px;
@@ -428,8 +392,7 @@
       font-size: 0.9rem;
     }
 
-    .btn-confirm,
-    .btn-skip {
+    .punishment-actions .btn {
       padding: 0.8rem 0.8rem;
       font-size: 0.95rem;
       min-height: 44px;

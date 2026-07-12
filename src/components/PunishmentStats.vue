@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { computed } from 'vue'
+  import { Target, RotateCcw, Rocket } from '@lucide/vue'
   import type { PunishmentCombination } from '../types/game'
 
   interface Props {
@@ -86,10 +87,13 @@
 
 <template>
   <div v-if="show" class="punishment-stats">
-    <div class="stats-overlay" @click="handleOverlayClick">
+    <div class="modal-overlay stats-overlay" @click="handleOverlayClick">
       <div class="stats-modal" @click.stop>
         <div class="modal-header">
-          <h3>📊 惩罚组合统计</h3>
+          <h3>
+            <Target :size="22" />
+            惩罚组合统计
+          </h3>
           <p>以下是确认的惩罚组合的分布情况</p>
         </div>
 
@@ -152,8 +156,14 @@
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" @click="handleRegenerate">🔄 重新生成</button>
-          <button class="btn-primary" @click="handleConfirm">✅ 开始游戏</button>
+          <button class="btn btn-secondary" @click="handleRegenerate">
+            <RotateCcw :size="18" />
+            重新生成
+          </button>
+          <button class="btn btn-primary" @click="handleConfirm">
+            <Rocket :size="18" />
+            开始游戏
+          </button>
         </div>
       </div>
     </div>
@@ -163,37 +173,32 @@
 <style scoped>
   .punishment-stats {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     z-index: 1000;
   }
 
   .stats-overlay {
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
     padding: 1rem;
   }
 
   .stats-modal {
-    background: white;
-    border-radius: 16px;
+    background: rgba(20, 20, 40, 0.95);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    border-radius: var(--radius-xl);
     max-width: 900px;
     width: 100%;
     max-height: 90vh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--glass-shadow-lg);
+    padding: 0;
+    animation: modalSlideIn 0.3s ease;
   }
 
   .modal-header {
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(135deg, var(--color-accent) 0%, #764ba2 100%);
     color: white;
     padding: 1.5rem;
     text-align: center;
@@ -203,12 +208,17 @@
     margin: 0 0 0.5rem 0;
     font-size: 1.5rem;
     font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
   }
 
   .modal-header p {
     margin: 0;
     font-size: 1rem;
     opacity: 0.9;
+    color: rgba(255, 255, 255, 0.9);
   }
 
   .stats-content {
@@ -225,15 +235,16 @@
   }
 
   .stats-item {
-    background: #f8f9fa;
-    border-radius: 12px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    border-radius: var(--radius-md);
     padding: 1.5rem;
-    border: 1px solid #e9ecef;
+    border: var(--glass-border);
   }
 
   .stats-label {
     font-weight: bold;
-    color: #495057;
+    color: var(--text-primary);
     margin-bottom: 1rem;
     font-size: 1.1rem;
     text-align: center;
@@ -254,38 +265,39 @@
 
   .stat-name {
     min-width: 80px;
-    color: #495057;
+    color: var(--text-secondary);
     font-weight: 500;
   }
 
   .stat-bar-container {
     flex: 1;
     height: 10px;
-    background: #e9ecef;
+    background: var(--bg-secondary);
     border-radius: 5px;
     overflow: hidden;
   }
 
   .stat-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, #667eea, #764ba2);
+    background: linear-gradient(90deg, var(--color-accent), #764ba2);
     border-radius: 5px;
-    transition: width 0.3s ease;
+    transition: width var(--transition-normal);
   }
 
   .stat-value {
     min-width: 80px;
     text-align: right;
-    color: #6c757d;
+    color: var(--text-muted);
     font-weight: bold;
     font-size: 0.85rem;
   }
 
   .stats-summary {
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    border-radius: 12px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    border-radius: var(--radius-md);
     padding: 1.5rem;
-    border: 1px solid #dee2e6;
+    border: var(--glass-border);
   }
 
   .summary-item {
@@ -293,7 +305,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 0.5rem 0;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .summary-item:last-child {
@@ -302,12 +314,12 @@
 
   .summary-label {
     font-weight: bold;
-    color: #495057;
+    color: var(--text-secondary);
     font-size: 1rem;
   }
 
   .summary-value {
-    color: #667eea;
+    color: var(--color-accent-light);
     font-weight: bold;
     font-size: 1.1rem;
   }
@@ -317,49 +329,11 @@
     justify-content: center;
     gap: 1rem;
     padding: 1.5rem;
-    background: #f8f9fa;
-    border-top: 1px solid #e9ecef;
+    background: var(--bg-surface);
+    border-top: var(--glass-border);
     flex-wrap: wrap;
   }
 
-  .btn-primary {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 1rem 2rem;
-    font-size: 1.1rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-  }
-
-  .btn-secondary {
-    background: #6c757d;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-  }
-
-  .btn-secondary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
-  }
-
-  /* 响应式设计 */
   @media (max-width: 768px) {
     .stats-overlay {
       padding: 0.5rem;
@@ -368,8 +342,7 @@
     .stats-modal {
       max-width: 100%;
       max-height: 95vh;
-      margin: 0;
-      border-radius: 12px;
+      border-radius: var(--radius-md);
     }
 
     .modal-header {
@@ -436,16 +409,6 @@
     .modal-actions {
       padding: 1rem;
     }
-
-    .btn-primary {
-      padding: 0.8rem 1.5rem;
-      font-size: 1rem;
-    }
-
-    .btn-secondary {
-      padding: 0.75rem 1.2rem;
-      font-size: 0.9rem;
-    }
   }
 
   @media (max-width: 480px) {
@@ -455,7 +418,7 @@
 
     .stats-modal {
       max-height: 98vh;
-      border-radius: 8px;
+      border-radius: var(--radius-sm);
     }
 
     .modal-header {
@@ -516,16 +479,6 @@
 
     .modal-actions {
       padding: 0.75rem;
-    }
-
-    .btn-primary {
-      padding: 0.7rem 1.2rem;
-      font-size: 0.9rem;
-    }
-
-    .btn-secondary {
-      padding: 0.7rem 1.2rem;
-      font-size: 0.9rem;
     }
   }
 </style>

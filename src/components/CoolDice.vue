@@ -145,6 +145,7 @@
     align-items: center;
     gap: 1.5rem;
     padding: 2rem;
+    background: transparent;
   }
 
   .dice-scene {
@@ -160,12 +161,12 @@
     transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     margin: 3rem;
-    filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3));
+    filter: drop-shadow(0 4px 12px rgba(102, 126, 234, 0.3));
   }
 
   .dice-cube:hover:not(.rolling) {
     transform: scale(1.05) rotateX(5deg) rotateY(5deg);
-    filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.4));
+    filter: drop-shadow(0 6px 16px rgba(102, 126, 234, 0.5));
   }
 
   .dice-cube.can-roll {
@@ -174,7 +175,7 @@
 
   .dice-cube.rolling {
     animation: roll 2.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    filter: drop-shadow(0 15px 40px rgba(0, 0, 0, 0.5));
+    filter: drop-shadow(0 6px 20px rgba(102, 126, 234, 0.5));
   }
 
   /* 骰子面 */
@@ -182,17 +183,16 @@
     position: absolute;
     width: 100px;
     height: 100px;
-    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 50%, #e9ecef 100%);
-    border: 4px solid #dee2e6;
+    background: rgba(20, 20, 40, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow:
-      inset 0 0 20px rgba(0, 0, 0, 0.1),
-      inset 0 3px 6px rgba(255, 255, 255, 0.8),
-      0 8px 16px rgba(0, 0, 0, 0.3),
-      0 16px 32px rgba(0, 0, 0, 0.2);
+      inset 0 0 20px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      var(--glass-shadow);
     backface-visibility: hidden;
   }
 
@@ -205,9 +205,9 @@
     bottom: 4px;
     background: linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.9) 0%,
-      rgba(255, 255, 255, 0.6) 50%,
-      rgba(255, 255, 255, 0.3) 100%
+      rgba(255, 255, 255, 0.06) 0%,
+      rgba(255, 255, 255, 0.02) 50%,
+      transparent 100%
     );
     border-radius: 16px;
     z-index: 1;
@@ -223,14 +223,14 @@
     background: linear-gradient(
       45deg,
       transparent 20%,
-      rgba(255, 255, 255, 0.4) 40%,
-      rgba(255, 255, 255, 0.6) 50%,
-      rgba(255, 255, 255, 0.4) 60%,
+      rgba(255, 255, 255, 0.06) 40%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0.06) 60%,
       transparent 80%
     );
     border-radius: 20px;
     z-index: 3;
-    opacity: 0.8;
+    opacity: 0.6;
   }
 
   /* 3D定位 */
@@ -257,13 +257,11 @@
   .dot {
     width: 16px;
     height: 16px;
-    background: radial-gradient(circle at 25% 25%, #ff4757, #ff3742, #c44569);
+    background: var(--text-primary);
     border-radius: 50%;
     box-shadow:
-      0 4px 8px rgba(0, 0, 0, 0.5),
-      0 2px 4px rgba(0, 0, 0, 0.3),
-      inset 0 1px 2px rgba(255, 255, 255, 0.4),
-      inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+      0 0 6px rgba(255, 255, 255, 0.4),
+      0 2px 4px rgba(0, 0, 0, 0.3);
     z-index: 4;
     position: relative;
   }
@@ -381,11 +379,12 @@
   /* 结果显示 */
   .result-display {
     text-align: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: var(--bg-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
     padding: 1rem 2rem;
-    border-radius: 20px;
-    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--glass-shadow);
     animation: resultPop 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   }
 
@@ -393,11 +392,12 @@
     font-size: 2.5rem;
     font-weight: bold;
     margin-bottom: 0.5rem;
+    color: var(--text-primary);
   }
 
   .result-label {
     font-size: 1rem;
-    opacity: 0.9;
+    color: var(--text-secondary);
   }
 
   @keyframes resultPop {
@@ -438,26 +438,16 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1.5rem;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     font-weight: 600;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    background: var(--bg-glass);
+    color: var(--text-secondary);
   }
 
   .status-rolling {
-    background: rgba(255, 107, 107, 0.2);
-    color: #ff6b6b;
     animation: pulse 1.5s ease-in-out infinite;
-  }
-
-  .status-result {
-    background: rgba(34, 197, 94, 0.2);
-    color: #22c55e;
-  }
-
-  .status-prompt {
-    background: rgba(59, 130, 246, 0.2);
-    color: #3b82f6;
   }
 
   .icon {
