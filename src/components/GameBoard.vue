@@ -4,6 +4,8 @@
   import { CELL_ICON_NAMES } from '../config/gameConfig'
   import { Zap, Gift, Undo2, Moon, RotateCcw, Skull, Rocket, Sparkles, Link } from '@lucide/vue'
   import CoolDice from './CoolDice.vue'
+  import ScorePanel from './ScorePanel.vue'
+  import BoardParticles from './BoardParticles.vue'
 
   interface Props {
     board: BoardCell[]
@@ -42,14 +44,16 @@
   const activatedCell = ref<number | null>(null)
   const landingCell = ref<number | null>(null)
 
-  const boardRingRef = ref<HTMLElement | null>(null)
+  const boardRef = ref<HTMLElement | null>(null)
+  const pathRef = ref<SVGPathElement | null>(null)
   const containerWidth = ref(800)
   const containerHeight = ref(600)
+  const pathMounted = ref(0)
   let resizeObserver: ResizeObserver | null = null
 
   onMounted(() => {
-    if (boardRingRef.value) {
-      const rect = boardRingRef.value.getBoundingClientRect()
+    if (boardRef.value) {
+      const rect = boardRef.value.getBoundingClientRect()
       containerWidth.value = rect.width || 800
       containerHeight.value = rect.height || 600
     }
@@ -59,9 +63,10 @@
         containerHeight.value = entry.contentRect.height
       }
     })
-    if (boardRingRef.value) {
-      resizeObserver.observe(boardRingRef.value)
+    if (boardRef.value) {
+      resizeObserver.observe(boardRef.value)
     }
+    nextTick(() => { pathMounted.value++ })
   })
 
   onUnmounted(() => {
@@ -70,37 +75,74 @@
 
   const isMobile = computed(() => containerWidth.value < 600)
 
-  const layoutRatio = computed(() => {
-    const isPortrait = containerHeight.value > containerWidth.value
-    return isPortrait ? 1.0 : 1.6
+  const svgWidth = computed(() => containerWidth.value)
+  const svgHeight = computed(() => containerHeight.value)
+
+  const trackPathD = computed(() => {
+    const w = svgWidth.value
+    const h = svgHeight.value
+    const mx = isMobile.value ? 36 : 56
+    const my = isMobile.value ? 36 : 48
+
+    const isPortrait = h > w
+    const rows = isPortrait ? 5 : 4
+    const rowHeight = (h - my * 2) / (rows - 1)
+
+    let d = `M ${mx} ${h - my}`
+    for (let i = 1; i < rows; i++) {
+      const y = h - my - i * rowHeight
+      const prevY = h - my - (i - 1) * rowHeight
+      const isEven = (i - 1) % 2 === 0
+      const startX = isEven ? mx : w - mx
+      const endX = isEven ? w - mx : mx
+      const cpY = (prevY + y) / 2
+      d += ` C ${startX} ${cpY}, ${endX} ${cpY}, ${endX} ${y}`
+    }
+    return d
   })
 
-  const ringLayout = computed(() => {
-    const totalCells = props.board.length
-    if (totalCells === 0) return { top: [], right: [], bottom: [], left: [] }
+  const cellPositions = computed(() => {
+    void pathMounted.value
+    void containerWidth.value
+    if (!pathRef.value || props.board.length === 0) return []
+    const totalLen = pathRef.value.getTotalLength()
+    if (totalLen === 0) return []
 
-    const ratio = layoutRatio.value
-    const adjustedHorizontal = Math.ceil((totalCells * ratio) / (2 * (1 + ratio)))
-    const adjustedVertical = Math.ceil((totalCells - 2 * adjustedHorizontal) / 2)
+    const padding = totalLen * 0.01
+    const usableLen = totalLen - padding * 2
+    const count = props.board.length
 
-    const topCount = adjustedHorizontal
-    const rightCount = adjustedVertical
-    const bottomCount = Math.min(adjustedHorizontal, totalCells - topCount - rightCount)
-    const leftCount = totalCells - topCount - rightCount - bottomCount
+    return props.board.map((cell, i) => {
+      const ratio = count === 1 ? 0.5 : i / (count - 1)
+      const point = pathRef.value!.getPointAtLength(padding + ratio * usableLen)
+      return { ...cell, x: point.x, y: point.y }
+    })
+  })
 
-    let idx = 0
-    const top: number[] = []
-    const right: number[] = []
-    const bottom: number[] = []
-    const left: number[] = []
+  const cellSize = computed(() => {
+    void pathMounted.value
+    void containerWidth.value
+    const totalCells = props.board.length || 40
+    const pathLen = pathRef.value?.getTotalLength() ?? 1000
+    const spacing = pathLen / totalCells
+    const ideal = Math.floor(spacing * 0.7)
+    return Math.max(28, Math.min(ideal, 56))
+  })
 
-    for (let i = 0; i < topCount && idx < totalCells; i++) top.push(props.board[idx++].position)
-    for (let i = 0; i < rightCount && idx < totalCells; i++) right.push(props.board[idx++].position)
-    for (let i = 0; i < bottomCount && idx < totalCells; i++)
-      bottom.push(props.board[idx++].position)
-    for (let i = 0; i < leftCount && idx < totalCells; i++) left.push(props.board[idx++].position)
+  const cellIconSize = computed(() => Math.max(12, Math.round(cellSize.value * 0.4)))
 
-    return { top, right, bottom: bottom.reverse(), left: left.reverse() }
+  const markerSize = computed(() => Math.max(16, Math.min(Math.round(cellSize.value * 0.42), 24)))
+
+  const boardCssVars = computed(() => ({
+    '--marker-size': `${markerSize.value}px`,
+  }))
+
+  const diceScale = computed(() => {
+    if (isMobile.value) return 0.6
+    const s = cellSize.value
+    if (s >= 50) return 0.85
+    if (s >= 40) return 0.7
+    return 0.6
   })
 
   const getCellByPosition = (position: number): BoardCell => {
@@ -114,25 +156,24 @@
     }
   }
 
-  const getCellClass = (position: number): string => {
-    const cell = getCellByPosition(position)
+  const getCellClass = (cell: BoardCell): string => {
     const classes = [`cell-${cell.type}`]
-    if (props.players.some(p => p.position === position)) classes.push('cell-occupied')
-    if (activatedCell.value === position) classes.push('cell-activated')
-    if (landingCell.value === position) classes.push('cell-landing')
-    if (position === 1) classes.push('cell-start')
+    if (props.players.some(p => p.position === cell.position)) classes.push('cell-occupied')
+    if (activatedCell.value === cell.position) classes.push('cell-activated')
+    if (landingCell.value === cell.position) classes.push('cell-landing')
+    if (cell.position === 1) classes.push('cell-start')
+    if (cell.position === props.board.length) classes.push('cell-end')
     return classes.join(' ')
   }
 
-  const getCellIconComponent = (position: number): string | null => {
-    const cell = getCellByPosition(position)
+  const getCellIconComponent = (cell: BoardCell): string | null => {
     if (cell.effect?.type === 'rest') return 'Moon'
     if (cell.effect?.type === 'reverse') return 'Undo2'
     return CELL_ICON_NAMES[cell.type] || null
   }
 
-  const getCellIcon = (position: number) => {
-    const name = getCellIconComponent(position)
+  const getCellIcon = (cell: BoardCell) => {
+    const name = getCellIconComponent(cell)
     return name ? iconComponents[name] : null
   }
 
@@ -152,52 +193,10 @@
     return props.players.filter(p => p.position === position)
   }
 
-  const cellSize = computed(() => {
-    const { top, bottom } = ringLayout.value
-    const maxHorizontalCells = Math.max(top.length, bottom.length, 1)
-    const gap = 4
-    const edgePadding = 4
-    const availableWidth = containerWidth.value - edgePadding - (maxHorizontalCells - 1) * gap
-    const idealSize = Math.floor(availableWidth / maxHorizontalCells)
-    return Math.max(24, Math.min(idealSize, 56))
-  })
-
-  const cellIconSize = computed(() => Math.max(10, Math.round(cellSize.value * 0.38)))
-
-  const cellBorderRadius = computed(() => Math.max(6, Math.round(cellSize.value * 0.2)))
-
-  const markerSize = computed(() => Math.max(14, Math.min(Math.round(cellSize.value * 0.4), 24)))
-
-  const boardAspect = computed(() => {
-    const r = containerWidth.value / Math.max(containerHeight.value, 1)
-    if (r >= 1.6) return 1.8
-    if (r >= 1.0) return 0.4 * r + 1.16
-    return 1.0
-  })
-
-  const diceScale = computed(() => {
-    const s = cellSize.value
-    if (s >= 50) return 1
-    if (s >= 40) return 0.75
-    if (s >= 32) return 0.6
-    return 0.5
-  })
-
-  const boardCssVars = computed(() => ({
-    '--cell-size': `${cellSize.value}px`,
-    '--cell-icon-size': `${cellIconSize.value}px`,
-    '--cell-border-radius': `${cellBorderRadius.value}px`,
-    '--marker-size': `${markerSize.value}px`,
-    '--marker-offset': `${-markerSize.value / 2}px`,
-    '--board-aspect': `${boardAspect.value} / 1`,
-    '--dice-scale': `${diceScale.value}`,
-    '--edge-gap': `${cellSize.value >= 44 ? 4 : cellSize.value >= 36 ? 3 : 2}px`,
-  }))
-
   const getPlayerOffset = (playerIndex: number, totalOnCell: number): { x: number; y: number } => {
     if (totalOnCell === 1) return { x: 0, y: 0 }
     const angle = ((2 * Math.PI) / totalOnCell) * playerIndex - Math.PI / 2
-    const radius = Math.max(8, cellSize.value * 0.25)
+    const radius = Math.max(8, cellSize.value * 0.3)
     return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius }
   }
 
@@ -328,216 +327,184 @@
 
   const currentPlayer = computed(() => props.players[props.currentPlayerIndex])
   const playersAtStart = computed(() => props.players.filter(p => p.position === 0))
+
+  const centerPosition = computed(() => {
+    const w = svgWidth.value
+    const h = svgHeight.value
+    return { x: w / 2, y: h / 2 }
+  })
+
+  defineExpose({ triggerCellActivation, triggerLanding })
 </script>
 
 <template>
-  <div class="game-board" @click="handleBoardClick">
-    <div ref="boardRingRef" class="board-ring" :style="boardCssVars">
-      <!-- Top edge -->
-      <div class="ring-edge ring-top">
-        <div
-          v-for="pos in ringLayout.top"
-          :key="'t-' + pos"
-          class="board-cell"
-          :class="getCellClass(pos)"
-          @click="handleCellClick(getCellByPosition(pos))"
-          @mouseenter="showTooltip(getCellByPosition(pos), $event)"
-          @mouseleave="hideTooltip"
-          @touchstart.passive="handleTouchStart(getCellByPosition(pos), $event)"
-          @touchend.passive="handleTouchEnd()"
-          @touchmove.passive="handleTouchMove()"
-        >
-          <div class="cell-glow"></div>
-          <div class="cell-icon">
-            <component :is="getCellIcon(pos)" v-if="getCellIcon(pos)" :size="cellIconSize" />
-          </div>
-          <span class="cell-number">{{ pos }}</span>
-          <div class="cell-players">
-            <div
-              v-for="(player, pIdx) in getPlayersOnCell(pos)"
-              :key="'p-' + player.id"
-              class="player-marker"
-              :class="{
-                'current-player': player.id === currentPlayer?.id,
-                'player-moving': player.isMoving,
-              }"
-              :style="{
-                backgroundColor: player.color,
-                transform: `translate(${getPlayerOffset(pIdx, getPlayersOnCell(pos).length).x}px, ${getPlayerOffset(pIdx, getPlayersOnCell(pos).length).y}px)`,
-              }"
-            >
-              {{ player.name.charAt(0) }}
-            </div>
+  <div class="game-board" ref="boardRef" :style="boardCssVars" @click="handleBoardClick">
+    <!-- Particle background -->
+    <BoardParticles />
+
+    <!-- SVG Track Layer -->
+    <svg
+      class="board-svg"
+      :viewBox="`0 0 ${svgWidth} ${svgHeight}`"
+      :width="svgWidth"
+      :height="svgHeight"
+      preserveAspectRatio="xMidYMid meet"
+    >
+      <defs>
+        <linearGradient id="trackGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#00d2ff" stop-opacity="0.8" />
+          <stop offset="40%" stop-color="#667eea" stop-opacity="0.9" />
+          <stop offset="70%" stop-color="#a855f7" stop-opacity="0.9" />
+          <stop offset="100%" stop-color="#fbbf24" stop-opacity="0.8" />
+        </linearGradient>
+        <linearGradient id="trackGlowGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#00d2ff" stop-opacity="0.3" />
+          <stop offset="50%" stop-color="#667eea" stop-opacity="0.3" />
+          <stop offset="100%" stop-color="#a855f7" stop-opacity="0.3" />
+        </linearGradient>
+        <filter id="trackGlow">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="6" />
+        </filter>
+        <filter id="trackGlowWide">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="12" />
+        </filter>
+      </defs>
+
+      <!-- Wide glow behind track -->
+      <path
+        :d="trackPathD"
+        fill="none"
+        stroke="url(#trackGlowGradient)"
+        stroke-width="28"
+        stroke-linecap="round"
+        filter="url(#trackGlowWide)"
+        class="track-glow-wide"
+      />
+      <!-- Medium glow -->
+      <path
+        :d="trackPathD"
+        fill="none"
+        stroke="url(#trackGlowGradient)"
+        stroke-width="14"
+        stroke-linecap="round"
+        filter="url(#trackGlow)"
+        class="track-glow"
+      />
+      <!-- Main track path -->
+      <path
+        ref="pathRef"
+        :d="trackPathD"
+        fill="none"
+        stroke="url(#trackGradient)"
+        stroke-width="3"
+        stroke-linecap="round"
+        stroke-dasharray="8 4"
+        class="track-main"
+      />
+      <!-- Energy flow overlay -->
+      <path
+        :d="trackPathD"
+        fill="none"
+        stroke="url(#trackGradient)"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-dasharray="4 40"
+        class="track-energy"
+      />
+    </svg>
+
+    <!-- Cell Layer (absolutely positioned on top of SVG) -->
+    <div class="cell-layer">
+      <div
+        v-for="cell in cellPositions"
+        :key="cell.id"
+        class="board-cell"
+        :class="getCellClass(cell)"
+        :style="{
+          width: cellSize + 'px',
+          height: cellSize + 'px',
+          transform: `translate(${cell.x - cellSize / 2}px, ${cell.y - cellSize / 2}px)`,
+        }"
+        @click="handleCellClick(cell)"
+        @mouseenter="showTooltip(cell, $event)"
+        @mouseleave="hideTooltip"
+        @touchstart.passive="handleTouchStart(cell, $event)"
+        @touchend.passive="handleTouchEnd()"
+        @touchmove.passive="handleTouchMove()"
+      >
+        <div class="cell-aura"></div>
+        <div class="cell-ring"></div>
+        <div class="cell-inner">
+          <component :is="getCellIcon(cell)" v-if="getCellIcon(cell)" :size="cellIconSize" />
+        </div>
+        <span class="cell-number">{{ cell.position }}</span>
+        <div class="cell-players">
+          <div
+            v-for="(player, pIdx) in getPlayersOnCell(cell.position)"
+            :key="'p-' + player.id"
+            class="player-marker"
+            :class="{
+              'current-player': player.id === currentPlayer?.id,
+              'player-moving': player.isMoving,
+            }"
+            :style="{
+              backgroundColor: player.color,
+              transform: `translate(${getPlayerOffset(pIdx, getPlayersOnCell(cell.position).length).x}px, ${getPlayerOffset(pIdx, getPlayersOnCell(cell.position).length).y}px)`,
+            }"
+          >
+            {{ player.name.charAt(0) }}
           </div>
         </div>
       </div>
-
-      <!-- Right edge -->
-      <div class="ring-edge ring-right">
-        <div
-          v-for="pos in ringLayout.right"
-          :key="'r-' + pos"
-          class="board-cell"
-          :class="getCellClass(pos)"
-          @click="handleCellClick(getCellByPosition(pos))"
-          @mouseenter="showTooltip(getCellByPosition(pos), $event)"
-          @mouseleave="hideTooltip"
-          @touchstart.passive="handleTouchStart(getCellByPosition(pos), $event)"
-          @touchend.passive="handleTouchEnd()"
-          @touchmove.passive="handleTouchMove()"
-        >
-          <div class="cell-glow"></div>
-          <div class="cell-icon">
-            <component :is="getCellIcon(pos)" v-if="getCellIcon(pos)" :size="cellIconSize" />
-          </div>
-          <span class="cell-number">{{ pos }}</span>
-          <div class="cell-players">
-            <div
-              v-for="(player, pIdx) in getPlayersOnCell(pos)"
-              :key="'p-' + player.id"
-              class="player-marker"
-              :class="{
-                'current-player': player.id === currentPlayer?.id,
-                'player-moving': player.isMoving,
-              }"
-              :style="{
-                backgroundColor: player.color,
-                transform: `translate(${getPlayerOffset(pIdx, getPlayersOnCell(pos).length).x}px, ${getPlayerOffset(pIdx, getPlayersOnCell(pos).length).y}px)`,
-              }"
-            >
-              {{ player.name.charAt(0) }}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Center area -->
-      <div class="ring-center">
-        <div class="center-dice">
-          <CoolDice
-            :can-roll="canRoll ?? false"
-            :value="diceValue ?? null"
-            @roll="handleDiceRoll"
-          />
-        </div>
-        <div v-if="currentPlayer && !isMobile" class="center-status">
-          <div class="status-player">
-            <span class="status-avatar" :style="{ backgroundColor: currentPlayer.color }">
-              {{ currentPlayer.name.charAt(0) }}
-            </span>
-            <span class="status-name">{{ currentPlayer.name }}</span>
-            <span v-if="turnCount" class="status-turn">R{{ turnCount }}</span>
-          </div>
-          <div class="status-position">
-            {{ currentPlayer.position === 0 ? '等待起飞' : `第 ${currentPlayer.position} 格` }}
-          </div>
-        </div>
-        <div v-if="playersAtStart.length > 0" class="start-zone">
-          <Rocket :size="14" class="start-zone-icon" />
-          <div class="start-zone-players">
-            <div
-              v-for="player in playersAtStart"
-              :key="'start-' + player.id"
-              class="player-marker start-marker"
-              :class="{ 'current-player': player.id === currentPlayer?.id }"
-              :style="{ backgroundColor: player.color }"
-            >
-              {{ player.name.charAt(0) }}
-            </div>
-          </div>
-        </div>
-        <div v-if="lastEffect && !isMobile" class="center-effect">
-          <Sparkles :size="14" />
-          <span>{{ lastEffect }}</span>
-        </div>
-      </div>
-
-      <!-- Bottom edge -->
-      <div class="ring-edge ring-bottom">
-        <div
-          v-for="pos in ringLayout.bottom"
-          :key="'b-' + pos"
-          class="board-cell"
-          :class="getCellClass(pos)"
-          @click="handleCellClick(getCellByPosition(pos))"
-          @mouseenter="showTooltip(getCellByPosition(pos), $event)"
-          @mouseleave="hideTooltip"
-          @touchstart.passive="handleTouchStart(getCellByPosition(pos), $event)"
-          @touchend.passive="handleTouchEnd()"
-          @touchmove.passive="handleTouchMove()"
-        >
-          <div class="cell-glow"></div>
-          <div class="cell-icon">
-            <component :is="getCellIcon(pos)" v-if="getCellIcon(pos)" :size="cellIconSize" />
-          </div>
-          <span class="cell-number">{{ pos }}</span>
-          <div class="cell-players">
-            <div
-              v-for="(player, pIdx) in getPlayersOnCell(pos)"
-              :key="'p-' + player.id"
-              class="player-marker"
-              :class="{
-                'current-player': player.id === currentPlayer?.id,
-                'player-moving': player.isMoving,
-              }"
-              :style="{
-                backgroundColor: player.color,
-                transform: `translate(${getPlayerOffset(pIdx, getPlayersOnCell(pos).length).x}px, ${getPlayerOffset(pIdx, getPlayersOnCell(pos).length).y}px)`,
-              }"
-            >
-              {{ player.name.charAt(0) }}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Left edge -->
-      <div class="ring-edge ring-left">
-        <div
-          v-for="pos in ringLayout.left"
-          :key="'l-' + pos"
-          class="board-cell"
-          :class="getCellClass(pos)"
-          @click="handleCellClick(getCellByPosition(pos))"
-          @mouseenter="showTooltip(getCellByPosition(pos), $event)"
-          @mouseleave="hideTooltip"
-          @touchstart.passive="handleTouchStart(getCellByPosition(pos), $event)"
-          @touchend.passive="handleTouchEnd()"
-          @touchmove.passive="handleTouchMove()"
-        >
-          <div class="cell-glow"></div>
-          <div class="cell-icon">
-            <component :is="getCellIcon(pos)" v-if="getCellIcon(pos)" :size="cellIconSize" />
-          </div>
-          <span class="cell-number">{{ pos }}</span>
-          <div class="cell-players">
-            <div
-              v-for="(player, pIdx) in getPlayersOnCell(pos)"
-              :key="'p-' + player.id"
-              class="player-marker"
-              :class="{
-                'current-player': player.id === currentPlayer?.id,
-                'player-moving': player.isMoving,
-              }"
-              :style="{
-                backgroundColor: player.color,
-                transform: `translate(${getPlayerOffset(pIdx, getPlayersOnCell(pos).length).x}px, ${getPlayerOffset(pIdx, getPlayersOnCell(pos).length).y}px)`,
-              }"
-            >
-              {{ player.name.charAt(0) }}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Corner connectors for visual flow -->
-      <div class="corner corner-tr"></div>
-      <div class="corner corner-br"></div>
-      <div class="corner corner-bl"></div>
-      <div class="corner corner-tl"></div>
     </div>
 
-    <!-- Desktop tooltip (follows cursor) -->
+    <!-- Center Panel (Dice + Scoreboard) -->
+    <div class="center-panel" :style="{ left: centerPosition.x + 'px', top: centerPosition.y + 'px' }">
+      <div class="center-dice" :style="{ transform: `scale(${diceScale})` }">
+        <CoolDice
+          :can-roll="canRoll ?? false"
+          :value="diceValue ?? null"
+          @roll="handleDiceRoll"
+        />
+      </div>
+      <ScorePanel
+        v-if="!isMobile"
+        :players="players"
+        :current-player-index="currentPlayerIndex"
+        :total-cells="board.length"
+        :last-effect="lastEffect"
+        :turn-count="turnCount"
+      />
+      <div v-if="playersAtStart.length > 0" class="start-zone">
+        <Rocket :size="14" class="start-zone-icon" />
+        <div class="start-zone-players">
+          <div
+            v-for="player in playersAtStart"
+            :key="'start-' + player.id"
+            class="player-marker start-marker"
+            :class="{ 'current-player': player.id === currentPlayer?.id }"
+            :style="{ backgroundColor: player.color }"
+          >
+            {{ player.name.charAt(0) }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile bottom status bar -->
+    <div v-if="isMobile && currentPlayer" class="mobile-status-bar">
+      <span class="status-avatar" :style="{ backgroundColor: currentPlayer.color }">
+        {{ currentPlayer.name.charAt(0) }}
+      </span>
+      <span class="status-name">{{ currentPlayer.name }}</span>
+      <span class="status-pos">
+        {{ currentPlayer.position === 0 ? '起飞区' : `#${currentPlayer.position}` }}
+      </span>
+      <span v-if="turnCount" class="status-turn">R{{ turnCount }}</span>
+      <span v-if="lastEffect" class="status-effect">{{ lastEffect }}</span>
+    </div>
+
+    <!-- Desktop tooltip -->
     <Teleport to="body">
       <div
         v-if="tooltipVisible && tooltipCell && !isMobile"
@@ -611,327 +578,348 @@
   .game-board {
     width: 100%;
     height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem;
     position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(102, 126, 234, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 80%, rgba(168, 85, 247, 0.06) 0%, transparent 50%),
+      linear-gradient(180deg, #080818 0%, #0a0a1a 50%, #0d0820 100%);
   }
 
-  /* === Ring Layout (CSS-var driven) === */
-  .board-ring {
-    display: grid;
-    grid-template-areas:
-      '.    top    .'
-      'left center right'
-      '.    bottom .';
-    grid-template-columns: auto 1fr auto;
-    grid-template-rows: auto 1fr auto;
-    gap: 0;
-    width: 100%;
-    max-width: 1100px;
-    aspect-ratio: var(--board-aspect, 1.4 / 1);
-    position: relative;
-  }
-
-  .ring-edge {
-    display: flex;
-    gap: var(--edge-gap, 4px);
-    padding: 2px;
-  }
-
-  .ring-top {
-    grid-area: top;
-    flex-direction: row;
-    justify-content: space-between;
-  }
-
-  .ring-right {
-    grid-area: right;
-    flex-direction: column;
-    justify-content: space-between;
-  }
-
-  .ring-bottom {
-    grid-area: bottom;
-    flex-direction: row;
-    justify-content: space-between;
-  }
-
-  .ring-left {
-    grid-area: left;
-    flex-direction: column;
-    justify-content: space-between;
-  }
-
-  .ring-center {
-    grid-area: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    min-height: 0;
-  }
-
-  /* === Corner Connectors === */
-  .corner {
+  /* === SVG Track === */
+  .board-svg {
     position: absolute;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(102, 126, 234, 0.4), transparent);
-  }
-  .corner-tr {
-    top: 0;
-    right: 0;
-  }
-  .corner-br {
-    bottom: 0;
-    right: 0;
-  }
-  .corner-bl {
-    bottom: 0;
-    left: 0;
-  }
-  .corner-tl {
-    top: 0;
-    left: 0;
-  }
-
-  /* === Cell Design (dynamic via CSS vars) === */
-  .board-cell {
-    position: relative;
-    width: var(--cell-size, 56px);
-    height: var(--cell-size, 56px);
-    border-radius: var(--cell-border-radius, 12px);
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: rgba(15, 15, 35, 0.8);
-    border: 2px solid rgba(255, 255, 255, 0.08);
-    transition:
-      transform 0.2s ease,
-      box-shadow 0.2s ease,
-      border-color 0.2s ease;
-    flex-shrink: 0;
-    overflow: visible;
-  }
-
-  .board-cell::before {
-    content: '';
-    position: absolute;
-    inset: -4px;
+    inset: 0;
+    pointer-events: none;
     z-index: 1;
   }
 
-  .board-cell:hover {
-    transform: scale(1.12);
-    z-index: 5;
+  .track-main {
+    opacity: 0.9;
   }
 
-  .board-cell .cell-glow {
-    position: absolute;
-    inset: -2px;
-    border-radius: calc(var(--cell-border-radius, 12px) + 2px);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-    display: none;
+  .track-glow {
+    opacity: 0.5;
   }
 
-  .board-cell:hover .cell-glow,
-  .board-cell.cell-occupied .cell-glow {
-    display: block;
-    opacity: 0.4;
+  .track-glow-wide {
+    opacity: 0.3;
   }
 
-  .board-cell:hover .cell-glow {
+  .track-energy {
     opacity: 0.8;
+    animation: energyFlow 4s linear infinite;
   }
 
-  .board-cell .cell-icon {
+  @keyframes energyFlow {
+    from {
+      stroke-dashoffset: 0;
+    }
+    to {
+      stroke-dashoffset: -88;
+    }
+  }
+
+  /* === Cell Layer === */
+  .cell-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .board-cell {
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    pointer-events: all;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 2;
+    will-change: transform;
+    transition:
+      box-shadow 0.2s ease,
+      filter 0.2s ease;
   }
 
-  .board-cell .cell-number {
+  .cell-inner {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(12, 12, 30, 0.85);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+
+  .cell-ring {
     position: absolute;
-    bottom: 1px;
+    inset: -3px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 255, 255, 0.06);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .cell-aura {
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    opacity: 0;
+    z-index: 1;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .board-cell:hover .cell-aura {
+    opacity: 1;
+  }
+
+  .board-cell:hover .cell-inner {
+    transform: scale(1.12);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  .board-cell:hover {
+    z-index: 10;
+  }
+
+  .cell-number {
+    position: absolute;
+    bottom: -2px;
     right: 2px;
     font-size: 0.5rem;
-    font-weight: 600;
+    font-weight: 700;
     opacity: 0.4;
-    z-index: 2;
+    z-index: 4;
+    pointer-events: none;
   }
 
-  /* Cell type styles */
-  .cell-punishment {
-    border-color: rgba(255, 71, 87, 0.4);
-    box-shadow: 0 0 8px rgba(255, 71, 87, 0.15);
-  }
-  .cell-punishment .cell-glow {
-    background: radial-gradient(circle, rgba(255, 71, 87, 0.3), transparent 70%);
-  }
-  .cell-punishment .cell-icon {
+  /* === Cell Type Styles === */
+  .cell-punishment .cell-inner {
+    border-color: rgba(255, 71, 87, 0.5);
     color: #ff4757;
+    box-shadow: inset 0 0 8px rgba(255, 71, 87, 0.15);
   }
-  .cell-punishment:hover {
-    border-color: rgba(255, 71, 87, 0.7);
-    box-shadow: 0 0 16px rgba(255, 71, 87, 0.4);
+  .cell-punishment .cell-aura {
+    background: radial-gradient(circle, rgba(255, 71, 87, 0.25), transparent 70%);
+  }
+  .cell-punishment .cell-ring {
+    border-color: rgba(255, 71, 87, 0.2);
+  }
+  .cell-punishment::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: conic-gradient(from var(--aura-angle, 0deg), rgba(255, 71, 87, 0.3), transparent 30%, rgba(255, 99, 72, 0.2), transparent 60%, rgba(255, 71, 87, 0.3));
+    animation: auraRotate 4s linear infinite;
+    opacity: 0.6;
+    z-index: 0;
+    pointer-events: none;
   }
 
-  .cell-chain_punishment {
-    border-color: rgba(255, 165, 2, 0.4);
-    box-shadow: 0 0 8px rgba(255, 165, 2, 0.15);
-  }
-  .cell-chain_punishment .cell-glow {
-    background: radial-gradient(circle, rgba(255, 165, 2, 0.3), transparent 70%);
-  }
-  .cell-chain_punishment .cell-icon {
+  .cell-chain_punishment .cell-inner {
+    border-color: rgba(255, 165, 2, 0.5);
     color: #ffa502;
+    box-shadow: inset 0 0 8px rgba(255, 165, 2, 0.15);
   }
-  .cell-chain_punishment:hover {
-    border-color: rgba(255, 165, 2, 0.7);
-    box-shadow: 0 0 16px rgba(255, 165, 2, 0.4);
+  .cell-chain_punishment .cell-aura {
+    background: radial-gradient(circle, rgba(255, 165, 2, 0.25), transparent 70%);
+  }
+  .cell-chain_punishment .cell-ring {
+    border-color: rgba(255, 165, 2, 0.2);
+  }
+  .cell-chain_punishment::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: conic-gradient(from var(--aura-angle, 0deg), rgba(255, 165, 2, 0.3), transparent 30%, rgba(255, 140, 0, 0.2), transparent 60%, rgba(255, 165, 2, 0.3));
+    animation: auraRotate 3.5s linear infinite;
+    opacity: 0.6;
+    z-index: 0;
+    pointer-events: none;
   }
 
-  .cell-bonus {
-    border-color: rgba(46, 213, 115, 0.4);
-    box-shadow: 0 0 8px rgba(46, 213, 115, 0.15);
-  }
-  .cell-bonus .cell-glow {
-    background: radial-gradient(circle, rgba(46, 213, 115, 0.3), transparent 70%);
-  }
-  .cell-bonus .cell-icon {
+  .cell-bonus .cell-inner {
+    border-color: rgba(46, 213, 115, 0.5);
     color: #2ed573;
+    box-shadow: inset 0 0 8px rgba(46, 213, 115, 0.15);
   }
-  .cell-bonus:hover {
-    border-color: rgba(46, 213, 115, 0.7);
-    box-shadow: 0 0 16px rgba(46, 213, 115, 0.4);
+  .cell-bonus .cell-aura {
+    background: radial-gradient(circle, rgba(46, 213, 115, 0.25), transparent 70%);
+  }
+  .cell-bonus .cell-ring {
+    border-color: rgba(46, 213, 115, 0.2);
+  }
+  .cell-bonus::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(46, 213, 115, 0.2), transparent 70%);
+    animation: auraPulse 2.5s ease-in-out infinite;
+    z-index: 0;
+    pointer-events: none;
   }
 
-  .cell-special {
-    border-color: rgba(255, 165, 2, 0.4);
-    box-shadow: 0 0 8px rgba(255, 165, 2, 0.15);
+  .cell-restart .cell-inner {
+    border-color: rgba(168, 85, 247, 0.5);
+    color: #a855f7;
+    box-shadow: inset 0 0 8px rgba(168, 85, 247, 0.15);
   }
-  .cell-special .cell-glow {
-    background: radial-gradient(circle, rgba(255, 165, 2, 0.3), transparent 70%);
+  .cell-restart .cell-aura {
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.25), transparent 70%);
   }
-  .cell-special .cell-icon {
+  .cell-restart .cell-ring {
+    border-color: rgba(168, 85, 247, 0.2);
+  }
+  .cell-restart::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: conic-gradient(from var(--aura-angle, 0deg), rgba(168, 85, 247, 0.35), transparent 40%, rgba(139, 92, 246, 0.2), transparent 70%, rgba(168, 85, 247, 0.35));
+    animation: auraRotate 5s linear infinite reverse;
+    opacity: 0.6;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .cell-trap .cell-inner {
+    border-color: rgba(220, 38, 38, 0.5);
+    color: #dc2626;
+    box-shadow: inset 0 0 8px rgba(220, 38, 38, 0.2);
+  }
+  .cell-trap .cell-aura {
+    background: radial-gradient(circle, rgba(220, 38, 38, 0.25), transparent 70%);
+  }
+  .cell-trap .cell-ring {
+    border-color: rgba(220, 38, 38, 0.25);
+  }
+  .cell-trap::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(220, 38, 38, 0.3), transparent 60%);
+    animation: dangerFlicker 1.8s steps(3) infinite;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .cell-special .cell-inner {
+    border-color: rgba(255, 165, 2, 0.5);
     color: #ffa502;
   }
-  .cell-special:hover {
-    border-color: rgba(255, 165, 2, 0.7);
-    box-shadow: 0 0 16px rgba(255, 165, 2, 0.4);
+  .cell-special .cell-aura {
+    background: radial-gradient(circle, rgba(255, 165, 2, 0.2), transparent 70%);
   }
 
-  .cell-restart {
-    border-color: rgba(168, 85, 247, 0.4);
-    box-shadow: 0 0 8px rgba(168, 85, 247, 0.15);
+  /* Start & End cells - larger, special decorations */
+  .cell-start .cell-inner {
+    border-color: rgba(0, 210, 255, 0.6);
+    color: #00d2ff;
+    box-shadow:
+      inset 0 0 12px rgba(0, 210, 255, 0.2),
+      0 0 16px rgba(0, 210, 255, 0.2);
   }
-  .cell-restart .cell-glow {
-    background: radial-gradient(circle, rgba(168, 85, 247, 0.3), transparent 70%);
+  .cell-start .cell-ring {
+    border-color: rgba(0, 210, 255, 0.3);
+    inset: -5px;
   }
-  .cell-restart .cell-icon {
-    color: #a855f7;
-  }
-  .cell-restart:hover {
-    border-color: rgba(168, 85, 247, 0.7);
-    box-shadow: 0 0 16px rgba(168, 85, 247, 0.4);
-  }
-
-  .cell-trap {
-    border-color: rgba(220, 38, 38, 0.4);
-    box-shadow: 0 0 8px rgba(220, 38, 38, 0.15);
-  }
-  .cell-trap .cell-glow {
-    background: radial-gradient(circle, rgba(220, 38, 38, 0.3), transparent 70%);
-  }
-  .cell-trap .cell-icon {
-    color: #dc2626;
-  }
-  .cell-trap:hover {
-    border-color: rgba(220, 38, 38, 0.7);
-    box-shadow: 0 0 16px rgba(220, 38, 38, 0.4);
+  .cell-start::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 1.5px dashed rgba(0, 210, 255, 0.3);
+    animation: auraRotate 8s linear infinite;
+    z-index: 0;
+    pointer-events: none;
   }
 
-  .cell-start {
-    border-color: rgba(102, 126, 234, 0.6);
-    box-shadow: 0 0 12px rgba(102, 126, 234, 0.3);
-    background: rgba(102, 126, 234, 0.1);
+  .cell-end .cell-inner {
+    border-color: rgba(251, 191, 36, 0.6);
+    color: #fbbf24;
+    box-shadow:
+      inset 0 0 12px rgba(251, 191, 36, 0.2),
+      0 0 16px rgba(251, 191, 36, 0.2);
+  }
+  .cell-end .cell-ring {
+    border-color: rgba(251, 191, 36, 0.3);
+    inset: -5px;
+  }
+  .cell-end::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 1.5px dashed rgba(251, 191, 36, 0.3);
+    animation: auraRotate 8s linear infinite reverse;
+    z-index: 0;
+    pointer-events: none;
   }
 
-  .cell-occupied {
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+  .cell-occupied .cell-inner {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
   }
 
-  /* === Cell Animations === */
-  .cell-activated {
+  /* === Animations === */
+  @property --aura-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+
+  @keyframes auraRotate {
+    from { --aura-angle: 0deg; }
+    to { --aura-angle: 360deg; }
+  }
+
+  @keyframes auraPulse {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.15); }
+  }
+
+  @keyframes dangerFlicker {
+    0%, 100% { opacity: 0.5; }
+    33% { opacity: 0.9; }
+    66% { opacity: 0.3; }
+  }
+
+  .cell-activated .cell-inner {
     animation: cellPulse 0.5s ease-out 3;
   }
 
-  .cell-landing {
+  .cell-landing .cell-inner {
     animation: cellLand 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   @keyframes cellPulse {
-    0%,
-    100% {
-      box-shadow: 0 0 8px currentColor;
-    }
-    50% {
-      box-shadow:
-        0 0 24px currentColor,
-        0 0 48px currentColor;
-    }
+    0%, 100% { box-shadow: 0 0 8px currentColor; }
+    50% { box-shadow: 0 0 24px currentColor, 0 0 48px currentColor; }
   }
 
   @keyframes cellLand {
-    0% {
-      transform: scale(1);
-    }
-    40% {
-      transform: scale(1.2);
-    }
-    70% {
-      transform: scale(0.95);
-    }
-    100% {
-      transform: scale(1);
-    }
+    0% { transform: scale(1); }
+    40% { transform: scale(1.25); }
+    70% { transform: scale(0.93); }
+    100% { transform: scale(1); }
   }
 
-  .cell-landing::after {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: calc(var(--cell-border-radius, 12px) + 4px);
-    border: 2px solid rgba(255, 255, 255, 0.5);
-    animation: ripple 0.8s ease-out forwards;
-    pointer-events: none;
-  }
-
-  @keyframes ripple {
-    0% {
-      transform: scale(1);
-      opacity: 1;
-    }
-    100% {
-      transform: scale(1.6);
-      opacity: 0;
-    }
-  }
-
-  /* === Player Markers (dynamic via CSS vars) === */
+  /* === Player Markers === */
   .cell-players {
     position: absolute;
-    top: var(--marker-offset, -12px);
+    top: -10px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
@@ -942,17 +930,17 @@
   }
 
   .player-marker {
-    width: var(--marker-size, 24px);
-    height: var(--marker-size, 24px);
+    width: var(--marker-size, 20px);
+    height: var(--marker-size, 20px);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
     font-weight: 700;
-    font-size: calc(var(--marker-size, 24px) * 0.4);
+    font-size: 0.55rem;
     border: 2px solid rgba(255, 255, 255, 0.7);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
     text-transform: uppercase;
     position: absolute;
     transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -964,7 +952,6 @@
       0 0 8px rgba(255, 215, 0, 0.6),
       0 0 20px rgba(255, 215, 0, 0.3);
     animation: playerPulse 2s ease-in-out infinite;
-    will-change: transform, box-shadow;
   }
 
   .player-marker.player-moving {
@@ -972,111 +959,55 @@
   }
 
   @keyframes playerPulse {
-    0%,
-    100% {
-      box-shadow:
-        0 0 8px rgba(255, 215, 0, 0.6),
-        0 0 20px rgba(255, 215, 0, 0.3);
-      transform: translateY(-2px);
+    0%, 100% {
+      box-shadow: 0 0 8px rgba(255, 215, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.3);
     }
     50% {
-      box-shadow:
-        0 0 14px rgba(255, 215, 0, 0.8),
-        0 0 32px rgba(255, 215, 0, 0.4);
-      transform: translateY(-5px);
+      box-shadow: 0 0 14px rgba(255, 215, 0, 0.8), 0 0 32px rgba(255, 215, 0, 0.4);
     }
   }
 
   @keyframes playerBounce {
-    0% {
-      transform: translateY(0) scale(1);
-    }
-    30% {
-      transform: translateY(-10px) scale(1.1);
-    }
-    60% {
-      transform: translateY(-3px) scale(0.95);
-    }
-    100% {
-      transform: translateY(0) scale(1);
-    }
+    0% { transform: translateY(0) scale(1); }
+    30% { transform: translateY(-10px) scale(1.1); }
+    60% { transform: translateY(-3px) scale(0.95); }
+    100% { transform: translateY(0) scale(1); }
   }
 
-  /* === Center Area === */
-  .center-dice {
-    transform-origin: center;
-    transform: scale(var(--dice-scale, 1));
-  }
-
-  .center-status {
+  /* === Center Panel === */
+  .center-panel {
+    position: absolute;
+    z-index: 5;
+    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.3rem 0.6rem;
-    background: rgba(255, 255, 255, 0.04);
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-  }
-
-  .status-player {
-    display: flex;
-    align-items: center;
     gap: 0.5rem;
+    pointer-events: all;
   }
 
-  .status-avatar {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 700;
-    font-size: 9px;
-    text-transform: uppercase;
-  }
-
-  .status-name {
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: var(--text-primary);
-  }
-
-  .status-turn {
-    font-size: 0.65rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    background: rgba(255, 255, 255, 0.06);
-    padding: 0.1rem 0.35rem;
-    border-radius: 4px;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .status-position {
-    font-size: 0.75rem;
-    color: var(--text-muted);
+  .center-dice {
+    transform-origin: center;
   }
 
   .start-zone {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.8rem;
-    background: rgba(102, 126, 234, 0.08);
+    gap: 0.4rem;
+    padding: 0.35rem 0.7rem;
+    background: rgba(102, 126, 234, 0.1);
     border: 1px dashed rgba(102, 126, 234, 0.3);
     border-radius: 8px;
+    backdrop-filter: blur(4px);
   }
 
   .start-zone-icon {
-    color: var(--color-accent-light);
-    opacity: 0.6;
+    color: rgba(102, 126, 234, 0.7);
   }
 
   .start-zone-players {
     display: flex;
-    gap: 0.3rem;
+    gap: 0.25rem;
   }
 
   .start-marker {
@@ -1084,56 +1015,82 @@
     transform: none !important;
   }
 
-  .center-effect {
+  /* === Mobile Status Bar === */
+  .mobile-status-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.4rem 0.8rem;
-    background: rgba(102, 126, 234, 0.15);
-    border: 1px solid rgba(102, 126, 234, 0.3);
-    border-radius: 8px;
+    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    background: rgba(10, 10, 26, 0.9);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     font-size: 0.75rem;
+  }
+
+  .status-avatar {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 0.5rem;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+
+  .status-name {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .status-pos {
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .status-turn {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+  }
+
+  .status-effect {
     color: var(--color-accent-light);
-    animation: effectSlideIn 0.4s ease-out;
-    max-width: 200px;
-    text-align: center;
+    margin-left: auto;
+    font-size: 0.65rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  @keyframes effectSlideIn {
-    from {
-      opacity: 0;
-      transform: translateY(8px) scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  /* === Tooltip (desktop) === */
+  /* === Tooltip === */
   .cell-tooltip {
     position: fixed;
     z-index: 10000;
-    background: rgba(15, 15, 35, 0.95);
+    background: rgba(12, 12, 30, 0.95);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 10px;
     padding: 0.75rem;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
     max-width: 220px;
     pointer-events: none;
     animation: tooltipIn 0.15s ease-out;
   }
 
   @keyframes tooltipIn {
-    from {
-      opacity: 0;
-      transform: translateY(-4px) scale(0.97);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
+    from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
   }
 
   .tooltip-header {
@@ -1158,24 +1115,12 @@
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.06);
   }
-  .tooltip-type.type-punishment {
-    color: #ff4757;
-  }
-  .tooltip-type.type-bonus {
-    color: #2ed573;
-  }
-  .tooltip-type.type-special {
-    color: #ffa502;
-  }
-  .tooltip-type.type-restart {
-    color: #a855f7;
-  }
-  .tooltip-type.type-trap {
-    color: #dc2626;
-  }
-  .tooltip-type.type-chain_punishment {
-    color: #ffa502;
-  }
+  .tooltip-type.type-punishment { color: #ff4757; }
+  .tooltip-type.type-bonus { color: #2ed573; }
+  .tooltip-type.type-special { color: #ffa502; }
+  .tooltip-type.type-restart { color: #a855f7; }
+  .tooltip-type.type-trap { color: #dc2626; }
+  .tooltip-type.type-chain_punishment { color: #ffa502; }
 
   .tooltip-body {
     font-size: 0.75rem;
@@ -1201,7 +1146,7 @@
     font-size: 0.7rem;
   }
 
-  /* === Mobile Tooltip (bottom bar) === */
+  /* === Mobile Tooltip === */
   .mobile-tooltip-bar {
     position: fixed;
     bottom: 0;
@@ -1212,7 +1157,7 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
-    background: rgba(15, 15, 35, 0.95);
+    background: rgba(12, 12, 30, 0.95);
     backdrop-filter: blur(12px);
     border-top: 1px solid rgba(255, 255, 255, 0.12);
     font-size: 0.8rem;
@@ -1247,7 +1192,7 @@
     transform: translateY(100%);
   }
 
-  /* === Full-screen Effect Flash === */
+  /* === Effect Flash === */
   .effect-flash {
     position: fixed;
     inset: 0;
@@ -1275,12 +1220,8 @@
   }
 
   @keyframes flashPulse {
-    0% {
-      opacity: 0.25;
-    }
-    100% {
-      opacity: 0;
-    }
+    0% { opacity: 0.25; }
+    100% { opacity: 0; }
   }
 
   .flash-enter-active {
@@ -1290,28 +1231,19 @@
     animation: flashPulse 0.3s ease-out reverse;
   }
 
-  /* === Landscape mode === */
-  @media (orientation: landscape) and (max-height: 600px) {
-    .game-board {
-      padding: 0.25rem;
-    }
-
-    .ring-center {
-      gap: 0.25rem;
-      padding: 0.25rem;
-    }
-  }
-
-  /* === Reduced motion === */
+  /* === Reduced Motion === */
   @media (prefers-reduced-motion: reduce) {
     .board-cell,
+    .board-cell::after,
     .player-marker,
-    .center-effect {
+    .track-energy,
+    .cell-aura {
       transition: none !important;
       animation: none !important;
     }
 
-    .cell-landing::after {
+    .cell-landing .cell-inner,
+    .cell-activated .cell-inner {
       animation: none !important;
     }
 
