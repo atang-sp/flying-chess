@@ -77,6 +77,19 @@
   --glow-sm: 0 0 8px;
   --glow-md: 0 0 16px;
   --glow-lg: 0 0 24px;
+
+  /* Animation timing */
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --move-step-duration: 180ms;
+
+  /* Cell type colors (enhanced saturation for glow) */
+  --color-punishment-glow: rgba(255, 71, 87, 0.4);
+  --color-bonus-glow: rgba(46, 213, 115, 0.4);
+  --color-special-glow: rgba(255, 165, 2, 0.4);
+  --color-restart-glow: rgba(168, 85, 247, 0.4);
+  --color-trap-glow: rgba(220, 38, 38, 0.4);
+  --color-chain-glow: rgba(255, 165, 2, 0.4);
 }
 
 *,

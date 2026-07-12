@@ -29,7 +29,6 @@
   import IntroPage from './components/IntroPage.vue'
   import GameBoard from './components/GameBoard.vue'
   import PlayerPanel from './components/PlayerPanel.vue'
-  import CoolDice from './components/CoolDice.vue'
   import BoardConfigPanel from './components/BoardConfig.vue'
   import PunishmentConfigPanel from './components/PunishmentConfig.vue'
   import TrapConfigPanel from './components/TrapConfig.vue'
@@ -2047,28 +2046,9 @@
 
       <!-- 主要内容区域 -->
       <main class="game-main">
-        <!-- 左侧骰子区域 -->
+        <!-- 左侧控制区域 -->
         <div class="left-sidebar">
           <div class="sidebar-content">
-            <!-- 骰子区域 -->
-            <Card class="dice-card">
-              <template #title>
-                <div class="card-title">
-                  <i class="pi pi-circle"></i>
-                  <span>投掷骰子</span>
-                </div>
-              </template>
-              <template #content>
-                <div class="dice-section">
-                  <CoolDice
-                    :can-roll="canRollDice"
-                    :value="gameState.diceValue"
-                    @roll="handleDiceRoll"
-                  />
-                </div>
-              </template>
-            </Card>
-
             <!-- 控制按钮 -->
             <div class="control-buttons">
               <PButton
@@ -2093,18 +2073,8 @@
         <div class="game-area">
           <!-- 移动端控制面板 -->
           <div class="mobile-control-panel">
-            <!-- 左侧骰子区域 -->
-            <div class="mobile-dice-section">
-              <CoolDice
-                :can-roll="canRollDice"
-                :value="gameState.diceValue"
-                @roll="handleDiceRoll"
-              />
-            </div>
-
-            <!-- 右侧玩家状态区域 -->
+            <!-- 玩家状态区域 -->
             <div class="mobile-status-section">
-              <!-- 合并的回合数和游戏状态显示 -->
               <div class="mobile-combined-status">
                 <div class="mobile-turn-display">
                   <div class="turn-number">{{ turnCount }}</div>
@@ -2119,7 +2089,7 @@
                 </div>
               </div>
 
-              <!-- 玩家状态面板 (移动端) - 扩展显示区域 -->
+              <!-- 玩家状态面板 (移动端) -->
               <div class="mobile-players-container">
                 <PlayerPanel
                   :players="gameState.players"
@@ -2211,7 +2181,10 @@
               :players="gameState.players"
               :current-player-index="gameState.currentPlayerIndex"
               :last-effect="lastEffect"
+              :can-roll="canRollDice"
+              :dice-value="gameState.diceValue"
               @cell-click="handleCellClick"
+              @roll="handleDiceRoll"
             />
           </div>
         </div>
