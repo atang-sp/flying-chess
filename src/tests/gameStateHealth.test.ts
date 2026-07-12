@@ -24,15 +24,12 @@ describe('游戏移动状态健康检查', () => {
     'takeoffRelief',
     'doublePunishmentReveal',
     'chainPunishmentRoll',
-  ] as const)(
-    '%s 覆盖层显示期间不恢复移动状态',
-    overlay => {
-      expect(
-        shouldRecoverMovingState('moving', 5001, {
-          ...noBlockingOverlay,
-          [overlay]: true,
-        })
-      ).toBe(false)
-    }
-  )
+  ] as const)('%s 覆盖层显示期间不恢复移动状态', overlay => {
+    expect(
+      shouldRecoverMovingState('moving', 5001, {
+        ...noBlockingOverlay,
+        [overlay]: true,
+      })
+    ).toBe(false)
+  })
 })

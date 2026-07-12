@@ -2284,16 +2284,10 @@
     />
 
     <!-- 翻倍惩罚揭示弹窗 -->
-    <DoublePunishmentReveal
-      :visible="showDoublePunishmentReveal"
-      @confirm="confirmDoubleReveal"
-    />
+    <DoublePunishmentReveal :visible="showDoublePunishmentReveal" @confirm="confirmDoubleReveal" />
 
     <!-- 连锁惩罚掷骰弹窗 -->
-    <ChainPunishmentRoll
-      :visible="showChainPunishmentRoll"
-      @result="handleChainRollResult"
-    />
+    <ChainPunishmentRoll :visible="showChainPunishmentRoll" @result="handleChainRollResult" />
 
     <!-- 胜利结算画面 -->
     <VictoryScreen
