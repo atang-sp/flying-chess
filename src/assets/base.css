@@ -90,6 +90,12 @@
   --color-restart-glow: rgba(168, 85, 247, 0.4);
   --color-trap-glow: rgba(220, 38, 38, 0.4);
   --color-chain-glow: rgba(255, 165, 2, 0.4);
+
+  /* Track colors */
+  --track-start: #00d2ff;
+  --track-mid: #667eea;
+  --track-end: #a855f7;
+  --track-finish: #fbbf24;
 }
 
 *,
