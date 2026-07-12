@@ -113,6 +113,17 @@ export class GameService {
     )
     currentIndex += punishmentCount
 
+    // 连锁惩罚格子
+    const chainPunishmentCount = Math.min(
+      boardConf.chainPunishmentCells,
+      availableCount - currentIndex
+    )
+    const chainPunishmentPositions = availablePositions.slice(
+      currentIndex,
+      currentIndex + chainPunishmentCount
+    )
+    currentIndex += chainPunishmentCount
+
     // 奖励格子
     const bonusCount = Math.min(boardConf.bonusCells, availableCount - currentIndex)
     const bonusPositions = availablePositions.slice(currentIndex, currentIndex + bonusCount)
@@ -150,6 +161,23 @@ export class GameService {
           type: 'punishment',
           value: 0,
           description: punishment.description,
+          punishment,
+        },
+      })
+    })
+
+    // 填充连锁惩罚格子
+    chainPunishmentPositions.forEach(pos => {
+      const punishment = createCompatiblePunishmentAction(config)
+
+      cellMap.set(pos, {
+        id: pos,
+        type: 'chain_punishment',
+        position: pos,
+        effect: {
+          type: 'chain_punishment',
+          value: 0,
+          description: `连锁惩罚：${punishment.description}`,
           punishment,
         },
       })
@@ -272,6 +300,7 @@ export class GameService {
   // 打印棋盘统计信息
   private static logBoardStats(board: BoardCell[], title: string): void {
     const punishmentCount = board.filter(c => c.type === 'punishment').length
+    const chainPunishmentCount = board.filter(c => c.type === 'chain_punishment').length
     const bonusCount = board.filter(c => c.type === 'bonus').length
     const reverseCount = board.filter(
       c => c.type === 'special' && c.effect?.type === 'reverse'
@@ -283,13 +312,20 @@ export class GameService {
     devLog(title, {
       totalCells: board.length,
       punishmentCount,
+      chainPunishmentCount,
       bonusCount,
       reverseCount,
       restCount,
       restartCount,
       trapCount,
       totalAssigned:
-        punishmentCount + bonusCount + reverseCount + restCount + restartCount + trapCount,
+        punishmentCount +
+        chainPunishmentCount +
+        bonusCount +
+        reverseCount +
+        restCount +
+        restartCount +
+        trapCount,
     })
 
     // 输出每个格子
@@ -369,16 +405,18 @@ export class GameService {
       maxStrikes: GAME_CONFIG.DEFAULT_PUNISHMENT_STRIKES.max,
       step: GAME_CONFIG.DEFAULT_PUNISHMENT_STRIKES.step,
       maxTakeoffFailures: 5,
+      doublePunishmentChance: GAME_CONFIG.DEFAULT_DOUBLE_PUNISHMENT_CHANCE,
     }
   }
 
   static createBoardConfig(): BoardConfig {
-    return { ...GAME_CONFIG.DEFAULT_BOARD_CONFIG }
+    return { ...GAME_CONFIG.DEFAULT_BOARD_CONFIG } as BoardConfig
   }
 
   static validateBoardConfig(config: BoardConfig): boolean {
     const assignedCounts = [
       config.punishmentCells,
+      config.chainPunishmentCells,
       config.bonusCells,
       config.reverseCells,
       config.restCells,
@@ -403,7 +441,8 @@ export class GameService {
 
     const assignableCells = totalCells - 2
     const targets: Array<{ field: BoardEffectCountField; ratio: number }> = [
-      { field: 'punishmentCells', ratio: 0.75 },
+      { field: 'punishmentCells', ratio: 0.68 },
+      { field: 'chainPunishmentCells', ratio: 0.07 },
       { field: 'restartCells', ratio: 0.1 },
       { field: 'bonusCells', ratio: 0.025 },
       { field: 'reverseCells', ratio: 0.05 },
@@ -431,6 +470,7 @@ export class GameService {
 
     const config: BoardConfig = {
       punishmentCells: 0,
+      chainPunishmentCells: 0,
       bonusCells: 0,
       reverseCells: 0,
       restCells: 0,
@@ -657,6 +697,13 @@ export class GameService {
           }
           break
 
+        case 'chain_punishment':
+          if (targetCell.effect.punishment) {
+            punishment = targetCell.effect.punishment
+            effect = `🔗 触发连锁惩罚：${targetCell.effect.punishment.tool.name} ${targetCell.effect.punishment.bodyPart.name} ${targetCell.effect.punishment.position.name}`
+          }
+          break
+
         case 'trap':
           // 机关格子直接使用描述内容，不再生成随机惩罚
           effect = `💀 触发机关陷阱！${targetCell.effect.description}`
@@ -751,6 +798,10 @@ export class GameService {
         newPosition = player.position
         effect = cellEffect.description || '接受惩罚'
         break
+      case 'chain_punishment':
+        newPosition = player.position
+        effect = cellEffect.description || '连锁惩罚'
+        break
       case 'trap':
         newPosition = player.position
         effect = cellEffect.description || '触发机关'
@@ -829,7 +880,7 @@ export class GameService {
   static getCellType(
     position: number,
     board: BoardCell[] = this.latestBoard
-  ): 'punishment' | 'bonus' | 'special' | 'restart' | 'trap' {
+  ): 'punishment' | 'bonus' | 'special' | 'restart' | 'trap' | 'chain_punishment' {
     const cell = this.getBoardCellByPosition(position, board)
     if (!cell) {
       return 'bonus'

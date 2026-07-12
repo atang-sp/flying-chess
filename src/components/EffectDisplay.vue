@@ -3,7 +3,7 @@
   import { Gift, ArrowLeft, RotateCcw, Moon, Sparkles } from '@lucide/vue'
 
   interface Effect {
-    type: 'move' | 'skip' | 'reverse' | 'restart' | 'rest' | 'bounce'
+    type: 'move' | 'skip' | 'reverse' | 'restart' | 'rest' | 'bounce' | 'chain_punishment'
     value: number
     description: string
   }

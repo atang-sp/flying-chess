@@ -6,6 +6,8 @@ const noBlockingOverlay = {
   trap: false,
   bounce: false,
   takeoffRelief: false,
+  doublePunishmentReveal: false,
+  chainPunishmentRoll: false,
 }
 
 describe('游戏移动状态健康检查', () => {
@@ -15,7 +17,14 @@ describe('游戏移动状态健康检查', () => {
     expect(shouldRecoverMovingState('waiting', 5001, noBlockingOverlay)).toBe(false)
   })
 
-  it.each(['takeoffPunishment', 'trap', 'bounce', 'takeoffRelief'] as const)(
+  it.each([
+    'takeoffPunishment',
+    'trap',
+    'bounce',
+    'takeoffRelief',
+    'doublePunishmentReveal',
+    'chainPunishmentRoll',
+  ] as const)(
     '%s 覆盖层显示期间不恢复移动状态',
     overlay => {
       expect(

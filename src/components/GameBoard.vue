@@ -2,7 +2,7 @@
   import { computed, ref } from 'vue'
   import type { BoardCell, Player } from '../types/game'
   import { CELL_ICON_NAMES } from '../config/gameConfig'
-  import { Zap, Gift, Undo2, Moon, RotateCcw, Skull, Rocket, Sparkles } from '@lucide/vue'
+  import { Zap, Gift, Undo2, Moon, RotateCcw, Skull, Rocket, Sparkles, Link } from '@lucide/vue'
 
   interface Props {
     board: BoardCell[]
@@ -18,7 +18,17 @@
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
 
-  const iconComponents: Record<string, any> = { Zap, Gift, Undo2, Moon, RotateCcw, Skull, Rocket, Sparkles }
+  const iconComponents: Record<string, any> = {
+    Zap,
+    Gift,
+    Undo2,
+    Moon,
+    RotateCcw,
+    Skull,
+    Rocket,
+    Sparkles,
+    Link,
+  }
 
   // 浮窗状态
   const tooltipVisible = ref(false)
@@ -455,6 +465,13 @@
     color: var(--color-restart);
   }
 
+  .cell-chain_punishment {
+    border-left: 3px solid var(--color-chain-punishment);
+  }
+  .cell-chain_punishment .cell-icon {
+    color: var(--color-chain-punishment);
+  }
+
   .cell-trap {
     border-left: 3px solid var(--color-trap);
   }
@@ -490,7 +507,9 @@
 
   .player-marker.current-player {
     border-color: rgba(255, 255, 255, 0.9);
-    box-shadow: 0 0 12px rgba(255, 215, 0, 0.6), 0 0 24px rgba(255, 215, 0, 0.3);
+    box-shadow:
+      0 0 12px rgba(255, 215, 0, 0.6),
+      0 0 24px rgba(255, 215, 0, 0.3);
     animation: pulseGlow 2s ease-in-out infinite;
   }
 
@@ -502,10 +521,14 @@
   @keyframes pulseGlow {
     0%,
     100% {
-      box-shadow: 0 0 12px rgba(255, 215, 0, 0.6), 0 0 24px rgba(255, 215, 0, 0.3);
+      box-shadow:
+        0 0 12px rgba(255, 215, 0, 0.6),
+        0 0 24px rgba(255, 215, 0, 0.3);
     }
     50% {
-      box-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.4);
+      box-shadow:
+        0 0 20px rgba(255, 215, 0, 0.8),
+        0 0 40px rgba(255, 215, 0, 0.4);
     }
   }
 
