@@ -114,7 +114,7 @@
     </div>
 
     <!-- Stacked Bar (PC) -->
-    <div class="rd-bar" v-if="items.length > 0">
+    <div v-if="items.length > 0" class="rd-bar">
       <div
         v-for="(item, idx) in items"
         :key="item.name"
@@ -133,7 +133,7 @@
     </div>
 
     <!-- Mobile List -->
-    <div class="rd-list" v-if="items.length > 0">
+    <div v-if="items.length > 0" class="rd-list">
       <div
         v-for="(item, idx) in items"
         :key="item.name"
@@ -162,7 +162,7 @@
     </div>
 
     <!-- Empty state -->
-    <div class="rd-empty" v-if="items.length === 0">
+    <div v-if="items.length === 0" class="rd-empty">
       <span>暂无条目，点击 + 添加</span>
     </div>
 

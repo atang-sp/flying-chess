@@ -202,7 +202,7 @@
           <span class="stat-num-value">{{ combinations.length }}</span>
           <span class="stat-num-label">总数</span>
         </div>
-        <div class="stat-num" v-if="removedCombinations.size > 0">
+        <div v-if="removedCombinations.size > 0" class="stat-num">
           <span class="stat-num-value stat-num-removed">{{ removedCombinations.size }}</span>
           <span class="stat-num-label">已删除</span>
         </div>
@@ -248,7 +248,7 @@
               <span class="detail-badge">强度 {{ combo.tool.intensity }}/10</span>
               <span class="detail-badge">耐受度 {{ combo.bodyPart.sensitivity }}/10</span>
             </div>
-            <div class="combo-detail-desc" v-if="combo.description">
+            <div v-if="combo.description" class="combo-detail-desc">
               {{ combo.description }}
             </div>
             <div class="combo-detail-footer">

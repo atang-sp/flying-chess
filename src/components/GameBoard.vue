@@ -46,27 +46,33 @@
 
   const boardRef = ref<HTMLElement | null>(null)
   const pathRef = ref<SVGPathElement | null>(null)
-  const containerWidth = ref(800)
-  const containerHeight = ref(600)
+  const containerWidth = ref(0)
+  const containerHeight = ref(0)
   const pathMounted = ref(0)
   let resizeObserver: ResizeObserver | null = null
 
   onMounted(() => {
     if (boardRef.value) {
       const rect = boardRef.value.getBoundingClientRect()
-      containerWidth.value = rect.width || 800
-      containerHeight.value = rect.height || 600
+      containerWidth.value = rect.width || 0
+      containerHeight.value = rect.height || 0
     }
     resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
-        containerWidth.value = entry.contentRect.width
-        containerHeight.value = entry.contentRect.height
+        if (entry.contentRect.width > 0) {
+          containerWidth.value = entry.contentRect.width
+        }
+        if (entry.contentRect.height > 0) {
+          containerHeight.value = entry.contentRect.height
+        }
       }
     })
     if (boardRef.value) {
       resizeObserver.observe(boardRef.value)
     }
-    nextTick(() => { pathMounted.value++ })
+    nextTick(() => {
+      pathMounted.value++
+    })
   })
 
   onUnmounted(() => {
@@ -75,8 +81,8 @@
 
   const isMobile = computed(() => containerWidth.value < 600)
 
-  const svgWidth = computed(() => containerWidth.value)
-  const svgHeight = computed(() => containerHeight.value)
+  const svgWidth = computed(() => containerWidth.value || 800)
+  const svgHeight = computed(() => containerHeight.value || 600)
 
   const trackPathD = computed(() => {
     const w = svgWidth.value
@@ -338,230 +344,236 @@
 </script>
 
 <template>
-  <div class="game-board" ref="boardRef" :style="boardCssVars" @click="handleBoardClick">
+  <div ref="boardRef" class="game-board" :style="boardCssVars" @click="handleBoardClick">
     <!-- Particle background -->
     <BoardParticles />
 
-    <!-- SVG Track Layer -->
-    <svg
-      class="board-svg"
-      :viewBox="`0 0 ${svgWidth} ${svgHeight}`"
-      :width="svgWidth"
-      :height="svgHeight"
-      preserveAspectRatio="xMidYMid meet"
-    >
-      <defs>
-        <linearGradient id="trackGradient" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#00d2ff" stop-opacity="0.8" />
-          <stop offset="40%" stop-color="#667eea" stop-opacity="0.9" />
-          <stop offset="70%" stop-color="#a855f7" stop-opacity="0.9" />
-          <stop offset="100%" stop-color="#fbbf24" stop-opacity="0.8" />
-        </linearGradient>
-        <linearGradient id="trackGlowGradient" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#00d2ff" stop-opacity="0.3" />
-          <stop offset="50%" stop-color="#667eea" stop-opacity="0.3" />
-          <stop offset="100%" stop-color="#a855f7" stop-opacity="0.3" />
-        </linearGradient>
-        <filter id="trackGlow">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="6" />
-        </filter>
-        <filter id="trackGlowWide">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="12" />
-        </filter>
-      </defs>
-
-      <!-- Wide glow behind track -->
-      <path
-        :d="trackPathD"
-        fill="none"
-        stroke="url(#trackGlowGradient)"
-        stroke-width="28"
-        stroke-linecap="round"
-        filter="url(#trackGlowWide)"
-        class="track-glow-wide"
-      />
-      <!-- Medium glow -->
-      <path
-        :d="trackPathD"
-        fill="none"
-        stroke="url(#trackGlowGradient)"
-        stroke-width="14"
-        stroke-linecap="round"
-        filter="url(#trackGlow)"
-        class="track-glow"
-      />
-      <!-- Main track path -->
-      <path
-        ref="pathRef"
-        :d="trackPathD"
-        fill="none"
-        stroke="url(#trackGradient)"
-        stroke-width="3"
-        stroke-linecap="round"
-        stroke-dasharray="8 4"
-        class="track-main"
-      />
-      <!-- Energy flow overlay -->
-      <path
-        :d="trackPathD"
-        fill="none"
-        stroke="url(#trackGradient)"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-dasharray="4 40"
-        class="track-energy"
-      />
-    </svg>
-
-    <!-- Cell Layer (absolutely positioned on top of SVG) -->
-    <div class="cell-layer">
-      <div
-        v-for="cell in cellPositions"
-        :key="cell.id"
-        class="board-cell"
-        :class="getCellClass(cell)"
-        :style="{
-          width: cellSize + 'px',
-          height: cellSize + 'px',
-          transform: `translate(${cell.x - cellSize / 2}px, ${cell.y - cellSize / 2}px)`,
-        }"
-        @click="handleCellClick(cell)"
-        @mouseenter="showTooltip(cell, $event)"
-        @mouseleave="hideTooltip"
-        @touchstart.passive="handleTouchStart(cell, $event)"
-        @touchend.passive="handleTouchEnd()"
-        @touchmove.passive="handleTouchMove()"
+    <template v-if="containerWidth > 0">
+      <!-- SVG Track Layer -->
+      <svg
+        class="board-svg"
+        :viewBox="`0 0 ${svgWidth} ${svgHeight}`"
+        :width="svgWidth"
+        :height="svgHeight"
+        preserveAspectRatio="xMidYMid meet"
       >
-        <div class="cell-aura"></div>
-        <div class="cell-ring"></div>
-        <div class="cell-inner">
-          <component :is="getCellIcon(cell)" v-if="getCellIcon(cell)" :size="cellIconSize" />
-        </div>
-        <span class="cell-number">{{ cell.position }}</span>
-        <div class="cell-players">
-          <div
-            v-for="(player, pIdx) in getPlayersOnCell(cell.position)"
-            :key="'p-' + player.id"
-            class="player-marker"
-            :class="{
-              'current-player': player.id === currentPlayer?.id,
-              'player-moving': player.isMoving,
-            }"
-            :style="{
-              backgroundColor: player.color,
-              transform: `translate(${getPlayerOffset(pIdx, getPlayersOnCell(cell.position).length).x}px, ${getPlayerOffset(pIdx, getPlayersOnCell(cell.position).length).y}px)`,
-            }"
-          >
-            {{ player.name.charAt(0) }}
-          </div>
-        </div>
-      </div>
-    </div>
+        <defs>
+          <linearGradient id="trackGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#00d2ff" stop-opacity="0.8" />
+            <stop offset="40%" stop-color="#667eea" stop-opacity="0.9" />
+            <stop offset="70%" stop-color="#a855f7" stop-opacity="0.9" />
+            <stop offset="100%" stop-color="#fbbf24" stop-opacity="0.8" />
+          </linearGradient>
+          <linearGradient id="trackGlowGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#00d2ff" stop-opacity="0.3" />
+            <stop offset="50%" stop-color="#667eea" stop-opacity="0.3" />
+            <stop offset="100%" stop-color="#a855f7" stop-opacity="0.3" />
+          </linearGradient>
+          <filter id="trackGlow">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="6" />
+          </filter>
+          <filter id="trackGlowWide">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="12" />
+          </filter>
+        </defs>
 
-    <!-- Center Panel (Dice + Scoreboard) -->
-    <div class="center-panel" :style="{ left: centerPosition.x + 'px', top: centerPosition.y + 'px' }">
-      <div class="center-dice" :style="{ transform: `scale(${diceScale})` }">
-        <CoolDice
-          :can-roll="canRoll ?? false"
-          :value="diceValue ?? null"
-          @roll="handleDiceRoll"
+        <!-- Wide glow behind track -->
+        <path
+          :d="trackPathD"
+          fill="none"
+          stroke="url(#trackGlowGradient)"
+          stroke-width="28"
+          stroke-linecap="round"
+          filter="url(#trackGlowWide)"
+          class="track-glow-wide"
         />
-      </div>
-      <ScorePanel
-        v-if="!isMobile"
-        :players="players"
-        :current-player-index="currentPlayerIndex"
-        :total-cells="board.length"
-        :last-effect="lastEffect"
-        :turn-count="turnCount"
-      />
-      <div v-if="playersAtStart.length > 0" class="start-zone">
-        <Rocket :size="14" class="start-zone-icon" />
-        <div class="start-zone-players">
-          <div
-            v-for="player in playersAtStart"
-            :key="'start-' + player.id"
-            class="player-marker start-marker"
-            :class="{ 'current-player': player.id === currentPlayer?.id }"
-            :style="{ backgroundColor: player.color }"
-          >
-            {{ player.name.charAt(0) }}
+        <!-- Medium glow -->
+        <path
+          :d="trackPathD"
+          fill="none"
+          stroke="url(#trackGlowGradient)"
+          stroke-width="14"
+          stroke-linecap="round"
+          filter="url(#trackGlow)"
+          class="track-glow"
+        />
+        <!-- Main track path -->
+        <path
+          ref="pathRef"
+          :d="trackPathD"
+          fill="none"
+          stroke="url(#trackGradient)"
+          stroke-width="3"
+          stroke-linecap="round"
+          stroke-dasharray="8 4"
+          class="track-main"
+        />
+        <!-- Energy flow overlay -->
+        <path
+          :d="trackPathD"
+          fill="none"
+          stroke="url(#trackGradient)"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-dasharray="4 40"
+          class="track-energy"
+        />
+      </svg>
+
+      <!-- Cell Layer (absolutely positioned on top of SVG) -->
+      <div class="cell-layer">
+        <div
+          v-for="cell in cellPositions"
+          :key="cell.id"
+          class="board-cell"
+          :class="getCellClass(cell)"
+          :style="{
+            width: cellSize + 'px',
+            height: cellSize + 'px',
+            transform: `translate(${cell.x - cellSize / 2}px, ${cell.y - cellSize / 2}px)`,
+          }"
+          @click="handleCellClick(cell)"
+          @mouseenter="showTooltip(cell, $event)"
+          @mouseleave="hideTooltip"
+          @touchstart.passive="handleTouchStart(cell, $event)"
+          @touchend.passive="handleTouchEnd()"
+          @touchmove.passive="handleTouchMove()"
+        >
+          <div class="cell-aura"></div>
+          <div class="cell-ring"></div>
+          <div class="cell-inner">
+            <component :is="getCellIcon(cell)" v-if="getCellIcon(cell)" :size="cellIconSize" />
+          </div>
+          <span class="cell-number">{{ cell.position }}</span>
+          <div class="cell-players">
+            <div
+              v-for="(player, pIdx) in getPlayersOnCell(cell.position)"
+              :key="'p-' + player.id"
+              class="player-marker"
+              :class="{
+                'current-player': player.id === currentPlayer?.id,
+                'player-moving': player.isMoving,
+              }"
+              :style="{
+                backgroundColor: player.color,
+                transform: `translate(${getPlayerOffset(pIdx, getPlayersOnCell(cell.position).length).x}px, ${getPlayerOffset(pIdx, getPlayersOnCell(cell.position).length).y}px)`,
+              }"
+            >
+              {{ player.name.charAt(0) }}
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Mobile bottom status bar -->
-    <div v-if="isMobile && currentPlayer" class="mobile-status-bar">
-      <span class="status-avatar" :style="{ backgroundColor: currentPlayer.color }">
-        {{ currentPlayer.name.charAt(0) }}
-      </span>
-      <span class="status-name">{{ currentPlayer.name }}</span>
-      <span class="status-pos">
-        {{ currentPlayer.position === 0 ? '起飞区' : `#${currentPlayer.position}` }}
-      </span>
-      <span v-if="turnCount" class="status-turn">R{{ turnCount }}</span>
-      <span v-if="lastEffect" class="status-effect">{{ lastEffect }}</span>
-    </div>
-
-    <!-- Desktop tooltip -->
-    <Teleport to="body">
+      <!-- Center Panel (Dice + Scoreboard) -->
       <div
-        v-if="tooltipVisible && tooltipCell && !isMobile"
-        class="cell-tooltip"
-        :style="tooltipStyle"
+        class="center-panel"
+        :style="{ left: centerPosition.x + 'px', top: centerPosition.y + 'px' }"
       >
-        <div class="tooltip-header">
+        <div class="center-dice" :style="{ transform: `scale(${diceScale})` }">
+          <CoolDice
+            :can-roll="canRoll ?? false"
+            :value="diceValue ?? null"
+            @roll="handleDiceRoll"
+          />
+        </div>
+        <ScorePanel
+          v-if="!isMobile"
+          :players="players"
+          :current-player-index="currentPlayerIndex"
+          :total-cells="board.length"
+          :last-effect="lastEffect"
+          :turn-count="turnCount"
+        />
+        <div v-if="playersAtStart.length > 0" class="start-zone">
+          <Rocket :size="14" class="start-zone-icon" />
+          <div class="start-zone-players">
+            <div
+              v-for="player in playersAtStart"
+              :key="'start-' + player.id"
+              class="player-marker start-marker"
+              :class="{ 'current-player': player.id === currentPlayer?.id }"
+              :style="{ backgroundColor: player.color }"
+            >
+              {{ player.name.charAt(0) }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile bottom status bar -->
+      <div v-if="isMobile && currentPlayer" class="mobile-status-bar">
+        <span class="status-avatar" :style="{ backgroundColor: currentPlayer.color }">
+          {{ currentPlayer.name.charAt(0) }}
+        </span>
+        <span class="status-name">{{ currentPlayer.name }}</span>
+        <span class="status-pos">
+          {{ currentPlayer.position === 0 ? '起飞区' : `#${currentPlayer.position}` }}
+        </span>
+        <span v-if="turnCount" class="status-turn">R{{ turnCount }}</span>
+        <span v-if="lastEffect" class="status-effect">{{ lastEffect }}</span>
+      </div>
+
+      <!-- Desktop tooltip -->
+      <Teleport to="body">
+        <div
+          v-if="tooltipVisible && tooltipCell && !isMobile"
+          class="cell-tooltip"
+          :style="tooltipStyle"
+        >
+          <div class="tooltip-header">
+            <span class="tooltip-number">#{{ tooltipCell.position }}</span>
+            <span class="tooltip-type" :class="'type-' + tooltipCell.type">
+              {{ getCellTypeName(tooltipCell.type) }}
+            </span>
+          </div>
+          <div class="tooltip-body">
+            <template v-if="tooltipCell.effect">
+              <div class="tooltip-desc">{{ tooltipCell.effect.description }}</div>
+              <div
+                v-if="tooltipCell.effect.type === 'punishment' && tooltipCell.effect.punishment"
+                class="tooltip-details"
+              >
+                <span>{{ tooltipCell.effect.punishment.tool.name }}</span>
+                <span>{{ tooltipCell.effect.punishment.bodyPart.name }}</span>
+                <span>{{ tooltipCell.effect.punishment.position.name }}</span>
+              </div>
+              <div v-else-if="tooltipCell.effect.type === 'move'" class="tooltip-details">
+                <span>
+                  移动 {{ tooltipCell.effect.value > 0 ? '+' : ''
+                  }}{{ tooltipCell.effect.value }} 步
+                </span>
+              </div>
+              <div v-else-if="tooltipCell.effect.type === 'rest'" class="tooltip-details">
+                <span>休息 {{ tooltipCell.effect.value }} 回合</span>
+              </div>
+              <div v-else-if="tooltipCell.effect.type === 'reverse'" class="tooltip-details">
+                <span>后退 {{ tooltipCell.effect.value }} 步</span>
+              </div>
+              <div v-else-if="tooltipCell.effect.type === 'restart'" class="tooltip-details">
+                <span>回到起点</span>
+              </div>
+              <div v-else-if="tooltipCell.effect.type === 'trap'" class="tooltip-details">
+                <span>随机惩罚</span>
+              </div>
+            </template>
+          </div>
+        </div>
+      </Teleport>
+
+      <!-- Mobile tooltip (bottom bar) -->
+      <Transition name="mobile-tooltip">
+        <div v-if="tooltipVisible && tooltipCell && isMobile" class="mobile-tooltip-bar">
           <span class="tooltip-number">#{{ tooltipCell.position }}</span>
           <span class="tooltip-type" :class="'type-' + tooltipCell.type">
             {{ getCellTypeName(tooltipCell.type) }}
           </span>
+          <span v-if="tooltipCell.effect" class="tooltip-desc-inline">
+            {{ tooltipCell.effect.description }}
+          </span>
         </div>
-        <div class="tooltip-body">
-          <template v-if="tooltipCell.effect">
-            <div class="tooltip-desc">{{ tooltipCell.effect.description }}</div>
-            <div
-              v-if="tooltipCell.effect.type === 'punishment' && tooltipCell.effect.punishment"
-              class="tooltip-details"
-            >
-              <span>{{ tooltipCell.effect.punishment.tool.name }}</span>
-              <span>{{ tooltipCell.effect.punishment.bodyPart.name }}</span>
-              <span>{{ tooltipCell.effect.punishment.position.name }}</span>
-            </div>
-            <div v-else-if="tooltipCell.effect.type === 'move'" class="tooltip-details">
-              <span>
-                移动 {{ tooltipCell.effect.value > 0 ? '+' : '' }}{{ tooltipCell.effect.value }} 步
-              </span>
-            </div>
-            <div v-else-if="tooltipCell.effect.type === 'rest'" class="tooltip-details">
-              <span>休息 {{ tooltipCell.effect.value }} 回合</span>
-            </div>
-            <div v-else-if="tooltipCell.effect.type === 'reverse'" class="tooltip-details">
-              <span>后退 {{ tooltipCell.effect.value }} 步</span>
-            </div>
-            <div v-else-if="tooltipCell.effect.type === 'restart'" class="tooltip-details">
-              <span>回到起点</span>
-            </div>
-            <div v-else-if="tooltipCell.effect.type === 'trap'" class="tooltip-details">
-              <span>随机惩罚</span>
-            </div>
-          </template>
-        </div>
-      </div>
-    </Teleport>
-
-    <!-- Mobile tooltip (bottom bar) -->
-    <Transition name="mobile-tooltip">
-      <div v-if="tooltipVisible && tooltipCell && isMobile" class="mobile-tooltip-bar">
-        <span class="tooltip-number">#{{ tooltipCell.position }}</span>
-        <span class="tooltip-type" :class="'type-' + tooltipCell.type">
-          {{ getCellTypeName(tooltipCell.type) }}
-        </span>
-        <span v-if="tooltipCell.effect" class="tooltip-desc-inline">
-          {{ tooltipCell.effect.description }}
-        </span>
-      </div>
-    </Transition>
+      </Transition>
+    </template>
 
     <!-- Full-screen effect flash -->
     <Transition name="flash">
@@ -576,15 +588,21 @@
 
 <style scoped>
   .game-board {
-    width: 100%;
-    height: 100%;
-    position: relative;
+    position: absolute;
+    inset: 0.5rem;
     overflow: hidden;
+    contain: paint;
     border-radius: 16px;
     background:
       radial-gradient(ellipse at 30% 20%, rgba(102, 126, 234, 0.08) 0%, transparent 50%),
       radial-gradient(ellipse at 70% 80%, rgba(168, 85, 247, 0.06) 0%, transparent 50%),
       linear-gradient(180deg, #080818 0%, #0a0a1a 50%, #0d0820 100%);
+  }
+
+  @media (max-width: 768px) {
+    .game-board {
+      inset: 0.25rem;
+    }
   }
 
   /* === SVG Track === */
@@ -656,7 +674,9 @@
     border-radius: 50%;
     background: rgba(12, 12, 30, 0.85);
     border: 2px solid rgba(255, 255, 255, 0.1);
-    transition: border-color 0.2s ease, transform 0.2s ease;
+    transition:
+      border-color 0.2s ease,
+      transform 0.2s ease;
   }
 
   .cell-ring {
@@ -719,7 +739,14 @@
     position: absolute;
     inset: -4px;
     border-radius: 50%;
-    background: conic-gradient(from var(--aura-angle, 0deg), rgba(255, 71, 87, 0.3), transparent 30%, rgba(255, 99, 72, 0.2), transparent 60%, rgba(255, 71, 87, 0.3));
+    background: conic-gradient(
+      from var(--aura-angle, 0deg),
+      rgba(255, 71, 87, 0.3),
+      transparent 30%,
+      rgba(255, 99, 72, 0.2),
+      transparent 60%,
+      rgba(255, 71, 87, 0.3)
+    );
     animation: auraRotate 4s linear infinite;
     opacity: 0.6;
     z-index: 0;
@@ -742,7 +769,14 @@
     position: absolute;
     inset: -4px;
     border-radius: 50%;
-    background: conic-gradient(from var(--aura-angle, 0deg), rgba(255, 165, 2, 0.3), transparent 30%, rgba(255, 140, 0, 0.2), transparent 60%, rgba(255, 165, 2, 0.3));
+    background: conic-gradient(
+      from var(--aura-angle, 0deg),
+      rgba(255, 165, 2, 0.3),
+      transparent 30%,
+      rgba(255, 140, 0, 0.2),
+      transparent 60%,
+      rgba(255, 165, 2, 0.3)
+    );
     animation: auraRotate 3.5s linear infinite;
     opacity: 0.6;
     z-index: 0;
@@ -787,7 +821,14 @@
     position: absolute;
     inset: -4px;
     border-radius: 50%;
-    background: conic-gradient(from var(--aura-angle, 0deg), rgba(168, 85, 247, 0.35), transparent 40%, rgba(139, 92, 246, 0.2), transparent 70%, rgba(168, 85, 247, 0.35));
+    background: conic-gradient(
+      from var(--aura-angle, 0deg),
+      rgba(168, 85, 247, 0.35),
+      transparent 40%,
+      rgba(139, 92, 246, 0.2),
+      transparent 70%,
+      rgba(168, 85, 247, 0.35)
+    );
     animation: auraRotate 5s linear infinite reverse;
     opacity: 0.6;
     z-index: 0;
@@ -881,19 +922,37 @@
   }
 
   @keyframes auraRotate {
-    from { --aura-angle: 0deg; }
-    to { --aura-angle: 360deg; }
+    from {
+      --aura-angle: 0deg;
+    }
+    to {
+      --aura-angle: 360deg;
+    }
   }
 
   @keyframes auraPulse {
-    0%, 100% { opacity: 0.4; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.15); }
+    0%,
+    100% {
+      opacity: 0.4;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.8;
+      transform: scale(1.15);
+    }
   }
 
   @keyframes dangerFlicker {
-    0%, 100% { opacity: 0.5; }
-    33% { opacity: 0.9; }
-    66% { opacity: 0.3; }
+    0%,
+    100% {
+      opacity: 0.5;
+    }
+    33% {
+      opacity: 0.9;
+    }
+    66% {
+      opacity: 0.3;
+    }
   }
 
   .cell-activated .cell-inner {
@@ -905,15 +964,30 @@
   }
 
   @keyframes cellPulse {
-    0%, 100% { box-shadow: 0 0 8px currentColor; }
-    50% { box-shadow: 0 0 24px currentColor, 0 0 48px currentColor; }
+    0%,
+    100% {
+      box-shadow: 0 0 8px currentColor;
+    }
+    50% {
+      box-shadow:
+        0 0 24px currentColor,
+        0 0 48px currentColor;
+    }
   }
 
   @keyframes cellLand {
-    0% { transform: scale(1); }
-    40% { transform: scale(1.25); }
-    70% { transform: scale(0.93); }
-    100% { transform: scale(1); }
+    0% {
+      transform: scale(1);
+    }
+    40% {
+      transform: scale(1.25);
+    }
+    70% {
+      transform: scale(0.93);
+    }
+    100% {
+      transform: scale(1);
+    }
   }
 
   /* === Player Markers === */
@@ -959,19 +1033,32 @@
   }
 
   @keyframes playerPulse {
-    0%, 100% {
-      box-shadow: 0 0 8px rgba(255, 215, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.3);
+    0%,
+    100% {
+      box-shadow:
+        0 0 8px rgba(255, 215, 0, 0.6),
+        0 0 20px rgba(255, 215, 0, 0.3);
     }
     50% {
-      box-shadow: 0 0 14px rgba(255, 215, 0, 0.8), 0 0 32px rgba(255, 215, 0, 0.4);
+      box-shadow:
+        0 0 14px rgba(255, 215, 0, 0.8),
+        0 0 32px rgba(255, 215, 0, 0.4);
     }
   }
 
   @keyframes playerBounce {
-    0% { transform: translateY(0) scale(1); }
-    30% { transform: translateY(-10px) scale(1.1); }
-    60% { transform: translateY(-3px) scale(0.95); }
-    100% { transform: translateY(0) scale(1); }
+    0% {
+      transform: translateY(0) scale(1);
+    }
+    30% {
+      transform: translateY(-10px) scale(1.1);
+    }
+    60% {
+      transform: translateY(-3px) scale(0.95);
+    }
+    100% {
+      transform: translateY(0) scale(1);
+    }
   }
 
   /* === Center Panel === */
@@ -1026,6 +1113,7 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.4rem 0.75rem;
+    padding-bottom: calc(0.4rem + env(safe-area-inset-bottom));
     background: rgba(10, 10, 26, 0.9);
     backdrop-filter: blur(12px);
     border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -1089,8 +1177,14 @@
   }
 
   @keyframes tooltipIn {
-    from { opacity: 0; transform: translateY(-4px) scale(0.97); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
 
   .tooltip-header {
@@ -1115,12 +1209,24 @@
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.06);
   }
-  .tooltip-type.type-punishment { color: #ff4757; }
-  .tooltip-type.type-bonus { color: #2ed573; }
-  .tooltip-type.type-special { color: #ffa502; }
-  .tooltip-type.type-restart { color: #a855f7; }
-  .tooltip-type.type-trap { color: #dc2626; }
-  .tooltip-type.type-chain_punishment { color: #ffa502; }
+  .tooltip-type.type-punishment {
+    color: #ff4757;
+  }
+  .tooltip-type.type-bonus {
+    color: #2ed573;
+  }
+  .tooltip-type.type-special {
+    color: #ffa502;
+  }
+  .tooltip-type.type-restart {
+    color: #a855f7;
+  }
+  .tooltip-type.type-trap {
+    color: #dc2626;
+  }
+  .tooltip-type.type-chain_punishment {
+    color: #ffa502;
+  }
 
   .tooltip-body {
     font-size: 0.75rem;
@@ -1157,6 +1263,7 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
     background: rgba(12, 12, 30, 0.95);
     backdrop-filter: blur(12px);
     border-top: 1px solid rgba(255, 255, 255, 0.12);
@@ -1220,8 +1327,12 @@
   }
 
   @keyframes flashPulse {
-    0% { opacity: 0.25; }
-    100% { opacity: 0; }
+    0% {
+      opacity: 0.25;
+    }
+    100% {
+      opacity: 0;
+    }
   }
 
   .flash-enter-active {
@@ -1229,6 +1340,28 @@
   }
   .flash-leave-active {
     animation: flashPulse 0.3s ease-out reverse;
+  }
+
+  /* === Mobile Cell Aura Tightening === */
+  @media (max-width: 600px) {
+    .cell-aura {
+      inset: -4px;
+    }
+    .cell-punishment::after,
+    .cell-chain_punishment::after,
+    .cell-restart::after {
+      inset: -2px;
+    }
+    .cell-bonus::after {
+      inset: -3px;
+    }
+    .cell-trap::after {
+      inset: -3px;
+    }
+    .cell-start::after,
+    .cell-end::after {
+      inset: -4px;
+    }
   }
 
   /* === Reduced Motion === */
