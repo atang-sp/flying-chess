@@ -37,6 +37,43 @@ test('mobile page has no horizontal overflow', async ({ page }, testInfo) => {
   expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth)
 })
 
+test('mobile game board page has no horizontal overflow', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chrome')
+
+  await page.goto('/flying-chess/')
+
+  // 1. 点击开始游戏进入设置页
+  await page.locator('.start-btn').click()
+  await page.waitForTimeout(100)
+
+  // 2. 点击下一步进入惩罚配置
+  await page.locator('.page-actions .btn-primary').click()
+  await page.waitForTimeout(100)
+
+  // 3. 点击下一步进入陷阱配置
+  await page.locator('.page-actions .btn-primary').click()
+  await page.waitForTimeout(100)
+
+  // 4. 点击生成惩罚组合
+  await page.getByRole('button', { name: /生成惩罚组合/ }).click()
+  await page.waitForSelector('.confirm-actions')
+
+  // 5. 点击开始游戏
+  await page.locator('.confirm-actions .btn-primary').click()
+
+  // 6. 等待棋盘渲染完成并稳定
+  await page.waitForSelector('.game-board')
+  await page.waitForTimeout(500)
+
+  // 7. 检查是否有横向溢出
+  const dimensions = await page.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    documentWidth: document.documentElement.scrollWidth,
+  }))
+
+  expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth)
+})
+
 test('total cell changes update the generated board', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chrome')
 
@@ -91,7 +128,8 @@ test('automatic board distribution reserves start and finish', async ({ page }, 
     ).gameState.boardConfig
   })
   expect(boardConfig).toEqual({
-    punishmentCells: 58,
+    punishmentCells: 53,
+    chainPunishmentCells: 5,
     bonusCells: 2,
     reverseCells: 4,
     restCells: 2,
@@ -265,7 +303,8 @@ test('invalid legacy board cache does not break startup', async ({ page }, testI
     return cached.boardConfig
   })
   expect(repairedBoardConfig).toEqual({
-    punishmentCells: 28,
+    punishmentCells: 26,
+    chainPunishmentCells: 2,
     bonusCells: 1,
     reverseCells: 2,
     restCells: 1,

@@ -2693,6 +2693,7 @@
     align-items: center;
     min-height: 0;
     padding: 0.5rem;
+    position: relative;
   }
 
   /* 状态样式 */
@@ -2749,6 +2750,13 @@
 
     .header-content {
       gap: 0.4rem;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .header-content::-webkit-scrollbar {
+      display: none;
     }
 
     .game-header h1 {
