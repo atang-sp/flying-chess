@@ -144,7 +144,7 @@
   }))
 
   const diceScale = computed(() => {
-    if (isMobile.value) return 0.6
+    if (isMobile.value) return 0.8
     const s = cellSize.value
     if (s >= 50) return 0.85
     if (s >= 40) return 0.7

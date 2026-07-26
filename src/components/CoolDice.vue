@@ -54,64 +54,67 @@
   <div class="cool-dice-container">
     <!-- 3D骰子 -->
     <div class="dice-scene">
-      <div
+      <button
+        type="button"
         class="dice-cube"
         :class="{
           rolling: isRolling,
           'can-roll': canRoll && !isRolling,
           [getCurrentFaceClass()]: !isRolling,
         }"
+        :aria-label="isRolling ? '骰子滚动中' : canRoll ? '投掷骰子' : '当前不可投掷骰子'"
+        :disabled="!canRoll || isRolling"
         @click="handleRoll"
       >
         <!-- 面1: 中心一个点 -->
-        <div class="face face-1">
-          <div class="dot center"></div>
-        </div>
+        <span class="face face-1">
+          <span class="dot center"></span>
+        </span>
 
         <!-- 面2: 对角两个点 -->
-        <div class="face face-2">
-          <div class="dot top-left"></div>
-          <div class="dot bottom-right"></div>
-        </div>
+        <span class="face face-2">
+          <span class="dot top-left"></span>
+          <span class="dot bottom-right"></span>
+        </span>
 
         <!-- 面3: 对角三个点 -->
-        <div class="face face-3">
-          <div class="dot top-left"></div>
-          <div class="dot center"></div>
-          <div class="dot bottom-right"></div>
-        </div>
+        <span class="face face-3">
+          <span class="dot top-left"></span>
+          <span class="dot center"></span>
+          <span class="dot bottom-right"></span>
+        </span>
 
         <!-- 面4: 四角四个点 -->
-        <div class="face face-4">
-          <div class="dot top-left"></div>
-          <div class="dot top-right"></div>
-          <div class="dot bottom-left"></div>
-          <div class="dot bottom-right"></div>
-        </div>
+        <span class="face face-4">
+          <span class="dot top-left"></span>
+          <span class="dot top-right"></span>
+          <span class="dot bottom-left"></span>
+          <span class="dot bottom-right"></span>
+        </span>
 
         <!-- 面5: 四角加中心 -->
-        <div class="face face-5">
-          <div class="dot top-left"></div>
-          <div class="dot top-right"></div>
-          <div class="dot center"></div>
-          <div class="dot bottom-left"></div>
-          <div class="dot bottom-right"></div>
-        </div>
+        <span class="face face-5">
+          <span class="dot top-left"></span>
+          <span class="dot top-right"></span>
+          <span class="dot center"></span>
+          <span class="dot bottom-left"></span>
+          <span class="dot bottom-right"></span>
+        </span>
 
         <!-- 面6: 两列各三个点 -->
-        <div class="face face-6">
-          <div class="column left">
-            <div class="dot"></div>
-            <div class="dot"></div>
-            <div class="dot"></div>
-          </div>
-          <div class="column right">
-            <div class="dot"></div>
-            <div class="dot"></div>
-            <div class="dot"></div>
-          </div>
-        </div>
-      </div>
+        <span class="face face-6">
+          <span class="column left">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          </span>
+          <span class="column right">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          </span>
+        </span>
+      </button>
     </div>
 
     <!-- 结果显示 -->
@@ -157,6 +160,11 @@
     position: relative;
     width: 100px;
     height: 100px;
+    padding: 0;
+    color: inherit;
+    appearance: none;
+    background: transparent;
+    border: 0;
     transform-style: preserve-3d;
     transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
@@ -167,6 +175,15 @@
   .dice-cube:hover:not(.rolling) {
     transform: scale(1.05) rotateX(5deg) rotateY(5deg);
     filter: drop-shadow(0 6px 16px rgba(102, 126, 234, 0.5));
+  }
+
+  .dice-cube:disabled {
+    cursor: default;
+  }
+
+  .dice-cube:focus-visible {
+    outline: 3px solid var(--color-accent-light);
+    outline-offset: 8px;
   }
 
   .dice-cube.can-roll {

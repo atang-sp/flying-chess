@@ -80,72 +80,74 @@
       </div>
 
       <div class="punishment-content">
-        <div v-if="targetPlayer" class="target-info">
-          <span class="target-label">受罚玩家</span>
-          <div class="target-player">
-            <div class="target-avatar" :style="{ backgroundColor: targetPlayer.color }"></div>
-            <span class="target-name">{{ targetPlayer.name }}</span>
+        <div class="punishment-scroll-body">
+          <div v-if="targetPlayer" class="target-info">
+            <span class="target-label">受罚玩家</span>
+            <div class="target-player">
+              <div class="target-avatar" :style="{ backgroundColor: targetPlayer.color }"></div>
+              <span class="target-name">{{ targetPlayer.name }}</span>
+            </div>
           </div>
+
+          <!-- 执行惩罚的玩家信息 -->
+          <div v-if="executorPlayer" class="executor-info">
+            <div class="executor-header">
+              <span class="executor-label">执行惩罚的玩家:</span>
+            </div>
+            <div class="executor-player">
+              <div class="executor-avatar" :style="{ backgroundColor: executorPlayer.color }"></div>
+              <span class="executor-name">{{ executorPlayer.name }}</span>
+            </div>
+          </div>
+
+          <div class="punishment-details">
+            <div class="punishment-item">
+              <span class="label">工具:</span>
+              <span class="value tool">{{ punishment.tool.name }}</span>
+              <span class="intensity">强度: {{ punishment.tool.intensity }}/10</span>
+            </div>
+
+            <div class="punishment-item">
+              <span class="label">部位:</span>
+              <span class="value body-part">{{ punishment.bodyPart.name }}</span>
+              <span class="sensitivity">耐受度: {{ punishment.bodyPart.sensitivity }}/10</span>
+            </div>
+
+            <div class="punishment-item">
+              <span class="label">姿势:</span>
+              <span class="value position">{{ punishment.position.name }}</span>
+            </div>
+
+            <div v-if="punishment.strikes != null" class="punishment-item">
+              <span class="label">次数:</span>
+              <span class="value strikes">{{ punishment.strikes }} 下</span>
+            </div>
+          </div>
+
+          <div class="punishment-summary">
+            <h4>执行内容:</h4>
+            <p v-if="countSelection" class="summary-text">
+              由{{ executorPlayer?.name || '其他玩家' }}决定本次惩罚次数
+            </p>
+            <p v-else class="summary-text">{{ punishment.description }}</p>
+          </div>
+
+          <label v-if="countSelection" class="count-selection">
+            <span>惩罚次数</span>
+            <select v-model.number="selectedCount" aria-label="惩罚次数">
+              <option v-for="count in countOptions" :key="count" :value="count">
+                {{ count }} 下
+              </option>
+            </select>
+            <small>
+              可选范围 {{ countSelection.minimum }}–{{ countSelection.maximum }}，按
+              {{ countSelection.step }} 递增
+            </small>
+            <small v-if="countMultiplier > 1" class="multiplier-preview">
+              本次倍率 ×{{ countMultiplier }}，最终执行 {{ finalizedCountPreview }} 下
+            </small>
+          </label>
         </div>
-
-        <!-- 执行惩罚的玩家信息 -->
-        <div v-if="executorPlayer" class="executor-info">
-          <div class="executor-header">
-            <span class="executor-label">执行惩罚的玩家:</span>
-          </div>
-          <div class="executor-player">
-            <div class="executor-avatar" :style="{ backgroundColor: executorPlayer.color }"></div>
-            <span class="executor-name">{{ executorPlayer.name }}</span>
-          </div>
-        </div>
-
-        <div class="punishment-details">
-          <div class="punishment-item">
-            <span class="label">工具:</span>
-            <span class="value tool">{{ punishment.tool.name }}</span>
-            <span class="intensity">强度: {{ punishment.tool.intensity }}/10</span>
-          </div>
-
-          <div class="punishment-item">
-            <span class="label">部位:</span>
-            <span class="value body-part">{{ punishment.bodyPart.name }}</span>
-            <span class="sensitivity">耐受度: {{ punishment.bodyPart.sensitivity }}/10</span>
-          </div>
-
-          <div class="punishment-item">
-            <span class="label">姿势:</span>
-            <span class="value position">{{ punishment.position.name }}</span>
-          </div>
-
-          <div v-if="punishment.strikes != null" class="punishment-item">
-            <span class="label">次数:</span>
-            <span class="value strikes">{{ punishment.strikes }} 下</span>
-          </div>
-        </div>
-
-        <div class="punishment-summary">
-          <h4>执行内容:</h4>
-          <p v-if="countSelection" class="summary-text">
-            由{{ executorPlayer?.name || '其他玩家' }}决定本次惩罚次数
-          </p>
-          <p v-else class="summary-text">{{ punishment.description }}</p>
-        </div>
-
-        <label v-if="countSelection" class="count-selection">
-          <span>惩罚次数</span>
-          <select v-model.number="selectedCount" aria-label="惩罚次数">
-            <option v-for="count in countOptions" :key="count" :value="count">
-              {{ count }} 下
-            </option>
-          </select>
-          <small>
-            可选范围 {{ countSelection.minimum }}–{{ countSelection.maximum }}，按
-            {{ countSelection.step }} 递增
-          </small>
-          <small v-if="countMultiplier > 1" class="multiplier-preview">
-            本次倍率 ×{{ countMultiplier }}，最终执行 {{ finalizedCountPreview }} 下
-          </small>
-        </label>
 
         <div class="punishment-actions">
           <button
@@ -174,6 +176,10 @@
   .punishment-display {
     border: 1px solid rgba(255, 71, 87, 0.3);
     max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    max-height: 90dvh;
+    overflow: hidden;
   }
 
   .punishment-header {
@@ -201,6 +207,16 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    min-height: 0;
+  }
+
+  .punishment-scroll-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 0.25rem;
   }
 
   .target-info,
@@ -374,8 +390,10 @@
     display: flex;
     gap: 1rem;
     justify-content: center;
-    margin-top: 1rem;
     flex-wrap: wrap;
+    flex-shrink: 0;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .btn-mercy {
@@ -393,7 +411,7 @@
     .punishment-display {
       padding: 1rem;
       width: 95%;
-      max-height: 95vh;
+      max-height: 95dvh;
     }
 
     .punishment-header h3 {
@@ -441,7 +459,7 @@
     .punishment-actions {
       flex-direction: column;
       gap: 0.75rem;
-      margin-top: 1.5rem;
+      padding-top: 0.75rem;
     }
 
     .punishment-actions .btn {
@@ -458,7 +476,7 @@
     .punishment-display {
       padding: 0.75rem;
       width: 98%;
-      max-height: 98vh;
+      max-height: 98dvh;
     }
 
     .punishment-header {
@@ -510,7 +528,7 @@
 
     .punishment-actions {
       gap: 0.5rem;
-      margin-top: 1rem;
+      padding-top: 0.5rem;
     }
 
     .punishment-actions .btn {

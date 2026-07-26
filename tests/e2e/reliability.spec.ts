@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -10,6 +11,21 @@ test.beforeEach(async ({ page }) => {
     )
   })
 })
+
+async function enterDefaultSettings(page: Page) {
+  await page.goto('/flying-chess/')
+  await page.locator('.start-btn').click()
+  await expect(page.getByRole('heading', { name: '游戏设置' })).toBeVisible()
+}
+
+async function startDefaultGame(page: Page) {
+  await enterDefaultSettings(page)
+  await page.locator('.page-actions .btn-primary').click()
+  await page.locator('.page-actions .btn-primary').click()
+  await page.getByRole('button', { name: /生成惩罚组合/ }).click()
+  await page.getByRole('button', { name: /开始游戏/ }).click()
+  await expect(page.locator('.game-board')).toBeVisible()
+}
 
 test('desktop app fills the viewport width', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chrome')
@@ -72,6 +88,134 @@ test('mobile game board page has no horizontal overflow', async ({ page }, testI
   }))
 
   expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth)
+})
+
+test('mobile settings return to the top when advancing a step', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chrome')
+
+  await enterDefaultSettings(page)
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+
+  await page.locator('.page-actions .btn-primary').click()
+
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+  await expect(page.getByRole('heading', { name: '惩罚设置' })).toBeVisible()
+})
+
+test('mobile floating controls do not cover settings actions', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chrome')
+
+  await enterDefaultSettings(page)
+  await page.locator('.page-actions .btn-primary').click()
+  await page.locator('.page-actions .btn-primary').click()
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+
+  const overlaps = await page.evaluate(() => {
+    const rect = (selector: string) => {
+      const element = document.querySelector(selector)
+      if (!element) return null
+      const bounds = element.getBoundingClientRect()
+      return {
+        left: bounds.left,
+        top: bounds.top,
+        right: bounds.right,
+        bottom: bounds.bottom,
+      }
+    }
+    const intersects = (first: ReturnType<typeof rect>, second: ReturnType<typeof rect>): boolean =>
+      Boolean(
+        first &&
+          second &&
+          first.left < second.right &&
+          first.right > second.left &&
+          first.top < second.bottom &&
+          first.bottom > second.top
+      )
+
+    const primary = rect('.page-actions .btn-primary')
+    const secondary = rect('.page-actions .btn-secondary')
+    return {
+      helpOverPrimary: intersects(rect('.guide-btn'), primary),
+      settingsOverSecondary: intersects(rect('.settings-toggle'), secondary),
+    }
+  })
+
+  expect(overlaps).toEqual({
+    helpOverPrimary: false,
+    settingsOverSecondary: false,
+  })
+})
+
+test('mobile dice is an accessible touch-sized button', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chrome')
+
+  await startDefaultGame(page)
+
+  const diceButton = page.getByRole('button', { name: '投掷骰子' })
+  await expect(diceButton).toBeVisible()
+  const bounds = await diceButton.boundingBox()
+
+  expect(bounds).not.toBeNull()
+  expect(bounds?.width).toBeGreaterThanOrEqual(44)
+  expect(bounds?.height).toBeGreaterThanOrEqual(44)
+})
+
+test('mobile punishment actions stay visible without a competing pause button', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chrome')
+
+  await startDefaultGame(page)
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        gameStatus: string
+        players: Array<{
+          id: number
+          name: string
+          color: string
+          position: number
+          isWinner: boolean
+          hasTakenOff: boolean
+        }>
+      }
+      currentPunishment: { value: unknown }
+      currentPunishmentTarget: { value: unknown }
+      currentPunishmentExecutor: { value: unknown }
+    }
+
+    debugWindow.currentPunishment.value = {
+      tool: { name: '测试工具', intensity: 3, ratio: 100 },
+      bodyPart: { name: '测试部位', sensitivity: 5, ratio: 100 },
+      position: {
+        name: '测试姿势',
+        ratio: 100,
+        compatibleBodyParts: ['测试部位'],
+      },
+      strikes: 20,
+      description: '移动端惩罚弹窗测试',
+    }
+    debugWindow.currentPunishmentTarget.value = debugWindow.gameState.players[1]
+    debugWindow.currentPunishmentExecutor.value = debugWindow.gameState.players[0]
+    debugWindow.gameState.gameStatus = 'configuring'
+  })
+
+  const actionButtons = page.locator('.punishment-actions button')
+  await expect(actionButtons).toHaveCount(3)
+  const viewportHeight = page.viewportSize()?.height ?? 0
+  const actionBounds = await actionButtons.evaluateAll(buttons =>
+    buttons.map(button => {
+      const bounds = button.getBoundingClientRect()
+      return { top: bounds.top, bottom: bounds.bottom }
+    })
+  )
+
+  for (const bounds of actionBounds) {
+    expect(bounds.top).toBeGreaterThanOrEqual(0)
+    expect(bounds.bottom).toBeLessThanOrEqual(viewportHeight)
+  }
+  await expect(page.getByRole('button', { name: '暂停本局' })).toBeHidden()
 })
 
 test('total cell changes update the generated board', async ({ page }, testInfo) => {
