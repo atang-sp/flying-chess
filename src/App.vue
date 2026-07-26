@@ -132,6 +132,13 @@
   const punishmentCombinations = ref<PunishmentCombination[]>([])
   const punishmentStep = ref<'config' | 'confirm'>('config')
 
+  watch([settingsTab, punishmentStep], () => {
+    if (!isMobileView.value) return
+    void nextTick(() => {
+      window.scrollTo({ top: 0, behavior: 'auto' })
+    })
+  })
+
   // 新增效果位置状态
   const effectFromPosition = ref<number | undefined>(undefined)
   const effectToPosition = ref<number | undefined>(undefined)
@@ -2229,7 +2236,13 @@
 </script>
 
 <template>
-  <div class="app">
+  <div
+    class="app"
+    :class="{
+      'app--settings':
+        gameState.gameStatus === 'board_settings' || gameState.gameStatus === 'settings',
+    }"
+  >
     <!-- 开始页面 -->
     <IntroPage v-if="gameState.gameStatus === 'intro'" @start="handleIntroStart" />
 
@@ -2551,6 +2564,7 @@
     <button
       v-if="canPauseSession && !sessionPaused"
       class="session-pause-trigger"
+      :class="{ 'session-pause-trigger--blocked': hasActiveForcedOverlay }"
       aria-label="暂停本局"
       @click="pauseSession"
     >
@@ -3389,9 +3403,17 @@
 
   /* 移动端适配 */
   @media (max-width: 768px) {
+    .app--settings .guide-controls {
+      display: none;
+    }
+
     .session-pause-trigger {
       right: 0.75rem;
       bottom: 4.75rem;
+    }
+
+    .session-pause-trigger--blocked {
+      display: none;
     }
 
     .session-pause-trigger span {
