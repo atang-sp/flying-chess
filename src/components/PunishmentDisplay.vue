@@ -1,26 +1,62 @@
 <script setup lang="ts">
+  import { computed, ref, watch } from 'vue'
   import { Zap, Check, SkipForward, HandHeart } from '@lucide/vue'
-  import type { PunishmentAction, Player } from '../types/game'
+  import type { PunishmentAction, Player, ResolvedPunishmentCount } from '../types/game'
+
+  type ExternalCountSelection = Extract<
+    ResolvedPunishmentCount,
+    { kind: 'awaiting_external_count' }
+  >
 
   interface Props {
     punishment: PunishmentAction | null
     executorPlayer?: Player | null
+    targetPlayer?: Player | null
+    countSelection?: ExternalCountSelection | null
+    countMultiplier?: number
     canRequestMercy?: boolean
   }
 
   interface Emits {
-    (e: 'confirm'): void
+    (e: 'confirm', selectedCount?: number): void
     (e: 'skip'): void
     (e: 'request-mercy'): void
   }
 
-  withDefaults(defineProps<Props>(), {
+  const props = withDefaults(defineProps<Props>(), {
     canRequestMercy: false,
+    countMultiplier: 1,
   })
   const emit = defineEmits<Emits>()
 
+  const countOptions = computed(() => {
+    if (!props.countSelection) return []
+
+    const step = Math.max(1, props.countSelection.step)
+    const firstOption = Math.ceil(props.countSelection.minimum / step) * step
+    const options: number[] = []
+    for (let count = firstOption; count <= props.countSelection.maximum; count += step) {
+      options.push(count)
+    }
+    return options
+  })
+  const selectedCount = ref<number | undefined>()
+  const finalizedCountPreview = computed(() =>
+    selectedCount.value === undefined
+      ? undefined
+      : Math.ceil(selectedCount.value * props.countMultiplier)
+  )
+
+  watch(
+    countOptions,
+    options => {
+      selectedCount.value = options[0]
+    },
+    { immediate: true }
+  )
+
   const confirmPunishment = () => {
-    emit('confirm')
+    emit('confirm', props.countSelection ? selectedCount.value : undefined)
   }
 
   const skipPunishment = () => {
@@ -44,6 +80,14 @@
       </div>
 
       <div class="punishment-content">
+        <div v-if="targetPlayer" class="target-info">
+          <span class="target-label">受罚玩家</span>
+          <div class="target-player">
+            <div class="target-avatar" :style="{ backgroundColor: targetPlayer.color }"></div>
+            <span class="target-name">{{ targetPlayer.name }}</span>
+          </div>
+        </div>
+
         <!-- 执行惩罚的玩家信息 -->
         <div v-if="executorPlayer" class="executor-info">
           <div class="executor-header">
@@ -72,15 +116,43 @@
             <span class="label">姿势:</span>
             <span class="value position">{{ punishment.position.name }}</span>
           </div>
+
+          <div v-if="punishment.strikes != null" class="punishment-item">
+            <span class="label">次数:</span>
+            <span class="value strikes">{{ punishment.strikes }} 下</span>
+          </div>
         </div>
 
         <div class="punishment-summary">
           <h4>执行内容:</h4>
-          <p class="summary-text">{{ punishment.description }}</p>
+          <p v-if="countSelection" class="summary-text">
+            由{{ executorPlayer?.name || '其他玩家' }}决定本次惩罚次数
+          </p>
+          <p v-else class="summary-text">{{ punishment.description }}</p>
         </div>
 
+        <label v-if="countSelection" class="count-selection">
+          <span>惩罚次数</span>
+          <select v-model.number="selectedCount" aria-label="惩罚次数">
+            <option v-for="count in countOptions" :key="count" :value="count">
+              {{ count }} 下
+            </option>
+          </select>
+          <small>
+            可选范围 {{ countSelection.minimum }}–{{ countSelection.maximum }}，按
+            {{ countSelection.step }} 递增
+          </small>
+          <small v-if="countMultiplier > 1" class="multiplier-preview">
+            本次倍率 ×{{ countMultiplier }}，最终执行 {{ finalizedCountPreview }} 下
+          </small>
+        </label>
+
         <div class="punishment-actions">
-          <button class="btn btn-success" @click="confirmPunishment">
+          <button
+            class="btn btn-success"
+            :disabled="Boolean(countSelection) && selectedCount === undefined"
+            @click="confirmPunishment"
+          >
             <Check :size="18" />
             确认执行
           </button>
@@ -129,6 +201,61 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+  }
+
+  .target-info,
+  .count-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    padding: 1rem;
+    border: 1px solid rgba(255, 71, 87, 0.35);
+    border-radius: var(--radius-sm);
+    background: rgba(255, 71, 87, 0.08);
+  }
+
+  .target-label,
+  .count-selection > span {
+    color: var(--text-secondary);
+    font-weight: 700;
+  }
+
+  .target-player {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .target-avatar {
+    width: 32px;
+    height: 32px;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    border-radius: 50%;
+  }
+
+  .target-name {
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  .count-selection select {
+    min-height: 44px;
+    padding: 0.65rem 0.75rem;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--color-punishment);
+    border-radius: var(--radius-sm);
+    font: inherit;
+  }
+
+  .count-selection small {
+    color: var(--text-muted);
+  }
+
+  .count-selection .multiplier-preview {
+    color: var(--color-warning);
+    font-weight: 700;
   }
 
   .executor-info {
@@ -208,6 +335,10 @@
 
   .position {
     color: var(--color-special);
+  }
+
+  .strikes {
+    color: var(--color-warning);
   }
 
   .intensity,

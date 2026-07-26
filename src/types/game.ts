@@ -9,6 +9,8 @@ export interface Player {
   failedTakeoffAttempts?: number // 起飞失败次数
   /** 求饶成功后的下次惩罚倍数（如 1.5），用完即清除 */
   pendingMercyMultiplier?: number
+  /** 尚未消费的跳过回合数 */
+  pendingSkippedTurns?: number
 }
 
 export interface PunishmentTool {
@@ -94,6 +96,7 @@ export interface ResolvedPunishmentResult {
   readonly executorIndex?: number
   readonly action: ResolvedPunishmentAction
   readonly count: ResolvedPunishmentCount
+  readonly countMultiplier?: number
   readonly turnConsequence: TurnConsequence
 }
 

@@ -192,6 +192,341 @@ test('movement watchdog preserves a turn while a trap overlay is active', async 
   })
 })
 
+test('dynamic punishment resolves its target and external count before confirmation', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        players: Array<{
+          id: number
+          name: string
+          color: string
+          position: number
+          isWinner: boolean
+          hasTakenOff: boolean
+        }>
+        board: Array<{ position: number; type: string; effect?: unknown }>
+        currentPlayerIndex: number
+        gameStatus: string
+        diceValue: number | null
+        punishmentConfig: {
+          minStrikes: number
+          maxStrikes: number
+          step: number
+          doublePunishmentChance: number
+        }
+      }
+      gameStarted: { value: boolean }
+    }
+    debugWindow.gameState.players = [
+      {
+        id: 1,
+        name: '红方',
+        color: '#ef4444',
+        position: 4,
+        isWinner: false,
+        hasTakenOff: true,
+      },
+      {
+        id: 2,
+        name: '蓝方',
+        color: '#3b82f6',
+        position: 12,
+        isWinner: false,
+        hasTakenOff: true,
+      },
+      {
+        id: 3,
+        name: '绿方',
+        color: '#22c55e',
+        position: 10,
+        isWinner: false,
+        hasTakenOff: true,
+      },
+    ]
+    debugWindow.gameState.currentPlayerIndex = 1
+    debugWindow.gameState.gameStatus = 'waiting'
+    debugWindow.gameState.diceValue = null
+    debugWindow.gameState.punishmentConfig.minStrikes = 5
+    debugWindow.gameState.punishmentConfig.maxStrikes = 15
+    debugWindow.gameState.punishmentConfig.step = 5
+    debugWindow.gameState.punishmentConfig.doublePunishmentChance = 0
+    debugWindow.gameStarted.value = true
+
+    const landingCell = debugWindow.gameState.board.find(cell => cell.position === 16)
+    if (!landingCell) throw new Error('缺少第16格')
+    landingCell.type = 'punishment'
+    landingCell.effect = {
+      type: 'punishment',
+      value: 0,
+      description: '数量由其他玩家决定',
+      punishment: {
+        tool: { name: '藤条', intensity: 3, ratio: 100 },
+        bodyPart: { name: '臀部', sensitivity: 4, ratio: 100 },
+        position: { name: '手抓膝盖', ratio: 100, compatibleBodyParts: ['臀部'] },
+        strikes: 10,
+        description: '数量由其他玩家决定',
+        dynamicType: 'other_player_choice',
+      },
+    }
+
+    let randomCall = 0
+    Object.defineProperty(window.crypto, 'getRandomValues', {
+      configurable: true,
+      value: (values: Uint32Array) => {
+        values[0] = randomCall++ % 2 === 0 ? 0 : 3
+        return values
+      },
+    })
+  })
+
+  await page.locator('.dice-cube').click({ force: true })
+  await expect(page.getByText('受罚玩家')).toBeVisible()
+  await expect(page.locator('.target-name')).toHaveText('蓝方')
+  await expect(page.getByLabel('惩罚次数')).toHaveValue('5')
+  await page.getByLabel('惩罚次数').selectOption('15')
+  await page.getByRole('button', { name: '确认执行' }).click()
+  await expect(page.getByText('惩罚时间')).toBeHidden()
+})
+
+test('rest effect consumes the affected player next turn without a dice roll', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        players: Array<{
+          id: number
+          name: string
+          color: string
+          position: number
+          isWinner: boolean
+          hasTakenOff: boolean
+          pendingSkippedTurns?: number
+        }>
+        board: Array<{ position: number; type: string; effect?: unknown }>
+        currentPlayerIndex: number
+        gameStatus: string
+        diceValue: number | null
+        pendingEffect: unknown
+      }
+      gameStarted: { value: boolean }
+      turnCount: { value: number }
+    }
+    debugWindow.gameState.players = [
+      {
+        id: 1,
+        name: '红方',
+        color: '#ef4444',
+        position: 7,
+        isWinner: false,
+        hasTakenOff: true,
+      },
+      {
+        id: 2,
+        name: '蓝方',
+        color: '#3b82f6',
+        position: 5,
+        isWinner: false,
+        hasTakenOff: true,
+      },
+    ]
+    debugWindow.gameState.currentPlayerIndex = 0
+    debugWindow.gameState.gameStatus = 'waiting'
+    debugWindow.gameState.diceValue = null
+    debugWindow.gameState.pendingEffect = null
+    debugWindow.gameStarted.value = true
+    debugWindow.turnCount.value = 1
+
+    const restCell = debugWindow.gameState.board.find(cell => cell.position === 8)
+    if (!restCell) throw new Error('缺少第8格')
+    restCell.type = 'special'
+    restCell.effect = {
+      type: 'rest',
+      value: 1,
+      description: '休息一回合',
+    }
+
+    Object.defineProperty(window.crypto, 'getRandomValues', {
+      configurable: true,
+      value: (values: Uint32Array) => {
+        values[0] = 0
+        return values
+      },
+    })
+  })
+
+  await page.locator('.dice-cube').click({ force: true })
+  await expect(page.getByText('休息一回合', { exact: true }).first()).toBeVisible()
+  await page.getByRole('button', { name: '确认', exact: true }).click()
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const debugWindow = window as typeof window & {
+          gameState: {
+            currentPlayerIndex: number
+            players: Array<{ pendingSkippedTurns?: number }>
+          }
+        }
+        return {
+          currentPlayerIndex: debugWindow.gameState.currentPlayerIndex,
+          pendingSkippedTurns: debugWindow.gameState.players[0].pendingSkippedTurns,
+        }
+      })
+    )
+    .toEqual({ currentPlayerIndex: 1, pendingSkippedTurns: 1 })
+
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        board: Array<{ position: number; type: string; effect?: unknown }>
+      }
+    }
+    const landingCell = debugWindow.gameState.board.find(cell => cell.position === 6)
+    if (!landingCell) throw new Error('缺少第6格')
+    landingCell.type = 'bonus'
+    delete landingCell.effect
+  })
+
+  await expect(page.locator('.dice-cube')).toHaveClass(/can-roll/)
+  await page.locator('.dice-cube').click({ force: true })
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const debugWindow = window as typeof window & {
+          gameState: {
+            currentPlayerIndex: number
+            players: Array<{ pendingSkippedTurns?: number }>
+          }
+          lastEffect: { value: string }
+        }
+        return {
+          currentPlayerIndex: debugWindow.gameState.currentPlayerIndex,
+          pendingSkippedTurns: debugWindow.gameState.players[0].pendingSkippedTurns,
+          lastEffect: debugWindow.lastEffect.value,
+        }
+      })
+    )
+    .toEqual({
+      currentPlayerIndex: 1,
+      pendingSkippedTurns: 0,
+      lastEffect: '红方休息一回合，本回合已跳过',
+    })
+})
+
+test('a forced overlay can pause, resume, and end the local session safely', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        players: Array<{
+          id: number
+          name: string
+          color: string
+          position: number
+          isWinner: boolean
+          hasTakenOff: boolean
+        }>
+        board: Array<{ position: number; type: string; effect?: unknown }>
+        currentPlayerIndex: number
+        gameStatus: string
+        diceValue: number | null
+      }
+      gameStarted: { value: boolean }
+    }
+    debugWindow.gameState.players = [
+      {
+        id: 1,
+        name: '红方',
+        color: '#ef4444',
+        position: 7,
+        isWinner: false,
+        hasTakenOff: true,
+      },
+      {
+        id: 2,
+        name: '蓝方',
+        color: '#3b82f6',
+        position: 5,
+        isWinner: false,
+        hasTakenOff: true,
+      },
+    ]
+    debugWindow.gameState.currentPlayerIndex = 0
+    debugWindow.gameState.gameStatus = 'waiting'
+    debugWindow.gameState.diceValue = null
+    debugWindow.gameStarted.value = true
+
+    const trapCell = debugWindow.gameState.board.find(cell => cell.position === 8)
+    if (!trapCell) throw new Error('缺少第8格')
+    trapCell.type = 'trap'
+    trapCell.effect = {
+      type: 'trap',
+      value: 0,
+      description: '测试机关',
+    }
+
+    Object.defineProperty(window.crypto, 'getRandomValues', {
+      configurable: true,
+      value: (values: Uint32Array) => {
+        values[0] = 0
+        return values
+      },
+    })
+  })
+
+  await page.locator('.dice-cube').click({ force: true })
+  await expect(page.getByText('测试机关', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '暂停本局' }).click()
+  await expect(page.getByRole('heading', { name: '本局已暂停' })).toBeVisible()
+
+  const trapWhilePaused = await page.evaluate(() => {
+    return (
+      window as typeof window & {
+        showTrapDisplay: { value: boolean }
+      }
+    ).showTrapDisplay.value
+  })
+  expect(trapWhilePaused).toBe(true)
+
+  await page.getByRole('button', { name: '继续游戏' }).click()
+  await expect(page.getByText('测试机关', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: '暂停本局' }).click()
+  await page.getByRole('button', { name: '结束本局' }).click()
+  await expect(page.getByRole('heading', { name: '游戏设置' })).toBeVisible()
+  await expect(page.getByText('测试机关', { exact: true })).toBeHidden()
+
+  const resetResolutionState = await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      currentPunishmentTarget: { value: unknown }
+      pendingRuleResolution: { value: unknown }
+      sessionPaused: { value: boolean }
+    }
+    return {
+      currentPunishmentTarget: debugWindow.currentPunishmentTarget.value,
+      pendingRuleResolution: debugWindow.pendingRuleResolution.value,
+      sessionPaused: debugWindow.sessionPaused.value,
+    }
+  })
+  expect(resetResolutionState).toEqual({
+    currentPunishmentTarget: null,
+    pendingRuleResolution: null,
+    sessionPaused: false,
+  })
+})
+
 test('clear local game data removes every persisted game key', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chrome')
 
