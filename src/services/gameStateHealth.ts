@@ -8,6 +8,7 @@ export interface BlockingOverlayState {
   doublePunishmentReveal: boolean
   chainPunishmentRoll: boolean
   mercyDecision: boolean
+  sessionPaused: boolean
 }
 
 export const hasBlockingOverlay = (overlays: BlockingOverlayState): boolean =>

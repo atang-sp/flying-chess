@@ -1,8 +1,21 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createCompatiblePunishmentAction, resolveRule } from '../services/ruleResolution'
+import {
+  applyTurnConsequence,
+  consumePendingSkippedTurn,
+  createCompatiblePunishmentAction,
+  finalizePunishmentCount,
+  resolveRule,
+  scaleResolvedPunishmentCount,
+} from '../services/ruleResolution'
 import { GameService } from '../services/gameService'
 import { SecureRandom } from '../utils/secureRandom'
-import type { BoardConfig, Player, PunishmentAction, PunishmentConfig } from '../types/game'
+import type {
+  BoardCell,
+  BoardConfig,
+  Player,
+  PunishmentAction,
+  PunishmentConfig,
+} from '../types/game'
 
 const players: Player[] = [
   {
@@ -199,7 +212,7 @@ describe('规则结果解析', () => {
     expect(result).toMatchObject({
       targetPlayerIndex: 1,
       count: { kind: 'fixed', value: 12 },
-      action: { strikes: 12 },
+      action: { strikes: 12, description: boardAction.description },
     })
   })
 
@@ -232,6 +245,44 @@ describe('规则结果解析', () => {
     expect(() => (eligibleChooserIndices as number[]).push(7)).toThrow(TypeError)
   })
 
+  it('用其他玩家选择的合法次数完成待定惩罚', () => {
+    const pendingResult = resolveRule({
+      source: 'board_punishment',
+      actorIndex: 1,
+      players: threePlayers,
+      punishmentConfig: compatibilityConfig,
+      boardAction: { ...boardAction, dynamicType: 'other_player_choice' },
+    })
+
+    const finalizedResult = finalizePunishmentCount(pendingResult, 15)
+
+    expect(finalizedResult).toMatchObject({
+      count: { kind: 'fixed', value: 15 },
+      action: {
+        strikes: 15,
+        description: '用皮拍打臀部15下，姿势：俯卧',
+      },
+    })
+    expect(pendingResult).toMatchObject({
+      count: { kind: 'awaiting_external_count' },
+      action: { strikes: undefined },
+    })
+  })
+
+  it.each([4, 12, 20])('拒绝不符合范围或步长的外部次数 %i', selectedCount => {
+    const pendingResult = resolveRule({
+      source: 'board_punishment',
+      actorIndex: 1,
+      players: threePlayers,
+      punishmentConfig: compatibilityConfig,
+      boardAction: { ...boardAction, dynamicType: 'other_player_choice' },
+    })
+
+    expect(() => finalizePunishmentCount(pendingResult, selectedCount)).toThrow(
+      '选择的惩罚次数不符合规则'
+    )
+  })
+
   it('在规则结果中解析执行者并安全处理单人局', () => {
     const multiplayerResult = resolveRule({
       source: 'board_punishment',
@@ -252,5 +303,134 @@ describe('规则结果解析', () => {
 
     expect(multiplayerResult.executorIndex).toBe(2)
     expect(singlePlayerResult.executorIndex).toBeUndefined()
+  })
+
+  it('把受罚玩家待结算倍率写入同一个固定次数结果', () => {
+    const result = resolveRule({
+      source: 'board_punishment',
+      actorIndex: 0,
+      players: [{ ...players[0], pendingMercyMultiplier: 1.5 }, players[1]],
+      punishmentConfig: compatibilityConfig,
+      boardAction,
+    })
+
+    expect(result).toMatchObject({
+      count: { kind: 'fixed', value: 15 },
+      action: { strikes: 15 },
+      countMultiplier: 1.5,
+    })
+  })
+
+  it('在外部次数确定时一并结算受罚玩家倍率', () => {
+    const pendingResult = resolveRule({
+      source: 'board_punishment',
+      actorIndex: 0,
+      players: [{ ...players[0], pendingMercyMultiplier: 1.5 }, players[1]],
+      punishmentConfig: compatibilityConfig,
+      boardAction: { ...boardAction, dynamicType: 'other_player_choice' },
+    })
+
+    const finalizedResult = finalizePunishmentCount(pendingResult, 15)
+
+    expect(finalizedResult).toMatchObject({
+      count: { kind: 'fixed', value: 23 },
+      action: { strikes: 23 },
+      countMultiplier: 1.5,
+    })
+  })
+
+  it('用结构化结果结算求饶减半而不改写原结果', () => {
+    const originalResult = resolveRule({
+      source: 'board_punishment',
+      actorIndex: 0,
+      players,
+      punishmentConfig: compatibilityConfig,
+      boardAction,
+    })
+
+    const halvedResult = scaleResolvedPunishmentCount(originalResult, 0.5)
+
+    expect(halvedResult).toMatchObject({
+      count: { kind: 'fixed', value: 5 },
+      action: { strikes: 5 },
+    })
+    expect(originalResult).toMatchObject({
+      count: { kind: 'fixed', value: 10 },
+      action: { strikes: 10 },
+    })
+  })
+
+  it('把休息格解析为下一回合跳过一次', () => {
+    const restEffect: NonNullable<BoardCell['effect']> = {
+      type: 'rest',
+      value: 1,
+      description: '休息一回合',
+    }
+
+    const result = resolveRule({
+      source: 'cell_effect',
+      actorIndex: 0,
+      players,
+      effect: restEffect,
+    })
+
+    expect(result).toMatchObject({
+      kind: 'cell_effect',
+      source: 'cell_effect',
+      actorIndex: 0,
+      effect: restEffect,
+      turnConsequence: { kind: 'skip_next_turns', count: 1 },
+    })
+  })
+
+  it('把机关解析为必须确认的结构化结果', () => {
+    const trapEffect: NonNullable<BoardCell['effect']> = {
+      type: 'trap',
+      value: 0,
+      description: '戴眼罩完成下一回合',
+    }
+
+    const result = resolveRule({
+      source: 'trap',
+      actorIndex: 1,
+      players,
+      effect: trapEffect,
+    })
+
+    expect(result).toMatchObject({
+      kind: 'trap',
+      source: 'trap',
+      actorIndex: 1,
+      acknowledgementRequired: true,
+      description: '戴眼罩完成下一回合',
+      turnConsequence: { kind: 'none' },
+    })
+  })
+
+  it('累积并只消费一次待跳过回合', () => {
+    const consequence = {
+      kind: 'skip_next_turns' as const,
+      count: 2,
+    }
+
+    const restedPlayer = applyTurnConsequence(players[0], consequence)
+    const firstTurn = consumePendingSkippedTurn(restedPlayer)
+    const secondTurn = consumePendingSkippedTurn(firstTurn.player)
+    const thirdTurn = consumePendingSkippedTurn(secondTurn.player)
+
+    expect(restedPlayer.pendingSkippedTurns).toBe(2)
+    expect(players[0].pendingSkippedTurns).toBeUndefined()
+    expect(firstTurn).toMatchObject({
+      shouldSkip: true,
+      player: { pendingSkippedTurns: 1 },
+    })
+    expect(secondTurn).toMatchObject({
+      shouldSkip: true,
+      player: { pendingSkippedTurns: 0 },
+    })
+    expect(thirdTurn).toMatchObject({
+      shouldSkip: false,
+      player: { pendingSkippedTurns: 0 },
+    })
   })
 })

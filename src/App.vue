@@ -2,6 +2,13 @@
   /* eslint-disable @typescript-eslint/ban-ts-comment */
   import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
   import { GameService } from './services/gameService'
+  import {
+    applyTurnConsequence,
+    consumePendingSkippedTurn,
+    finalizePunishmentCount,
+    resolveRule,
+    scaleResolvedPunishmentCount,
+  } from './services/ruleResolution'
   import { GAME_CONFIG } from './config/gameConfig'
   import {
     ArrowLeft,
@@ -16,6 +23,7 @@
     Volume2,
     VolumeX,
     AlertCircle,
+    Pause,
   } from '@lucide/vue'
   import type {
     GameState,
@@ -26,6 +34,8 @@
     PunishmentCombination,
     BoardConfig,
     TrapAction,
+    ResolvedPunishmentAction,
+    ResolvedRuleResult,
   } from './types/game'
   import IntroPage from './components/IntroPage.vue'
   import GameBoard from './components/GameBoard.vue'
@@ -44,6 +54,7 @@
   import DoublePunishmentReveal from './components/DoublePunishmentReveal.vue'
   import ChainPunishmentRoll from './components/ChainPunishmentRoll.vue'
   import MercyDecision from './components/MercyDecision.vue'
+  import SessionPauseOverlay from './components/SessionPauseOverlay.vue'
   import ConfigExport from './components/ConfigExport.vue'
   import { saveConfig, loadConfig, loadPlayerSettings } from './utils/cache'
   import { SecureRandom } from './utils/secureRandom'
@@ -75,6 +86,7 @@
   // 游戏控制状态
   const gameStarted = ref(false)
   const gameFinished = ref(false)
+  const sessionPaused = ref(false)
 
   // 移动端 PlayerPanel 折叠状态
   const playerPanelCollapsed = ref(true)
@@ -113,6 +125,8 @@
   const turnCount = ref(0)
   const lastEffect = ref<string>('')
   const currentPunishment = ref<PunishmentAction | null>(null)
+  const currentPunishmentTarget = ref<Player | null>(null)
+  const pendingRuleResolution = ref<ResolvedRuleResult | null>(null)
 
   // 惩罚组合确认状态
   const punishmentCombinations = ref<PunishmentCombination[]>([])
@@ -195,28 +209,32 @@
   // 胜利结算画面状态
   const showVictoryScreen = ref(false)
 
-  const canRequestBoardMercy = computed(() => !isDoublePunishment.value && !mercyRequested.value)
+  const currentPunishmentCountSelection = computed(() => {
+    const resolution = pendingRuleResolution.value
+    const count = resolution?.kind === 'punishment' ? resolution.count : null
+    return count?.kind === 'awaiting_external_count' ? count : null
+  })
+  const currentPunishmentCountMultiplier = computed(() => {
+    const resolution = pendingRuleResolution.value
+    return resolution?.kind === 'punishment' ? (resolution.countMultiplier ?? 1) : 1
+  })
+  const canRequestBoardMercy = computed(
+    () =>
+      !isDoublePunishment.value &&
+      !mercyRequested.value &&
+      currentPunishmentCountSelection.value === null
+  )
   const canRequestTakeoffMercy = computed(() => !mercyRequested.value)
 
-  const rebuildPunishmentDescription = (punishment: PunishmentAction, strikes: number): string => {
-    return `用${punishment.tool.name}打${punishment.bodyPart.name}${strikes}下，姿势：${punishment.position.name}`
-  }
-
-  /** 消耗受罚方 pendingMercyMultiplier，返回可安全修改的惩罚副本 */
-  const preparePunishmentForDisplay = (
-    punishment: PunishmentAction,
-    targetPlayer: Player
-  ): PunishmentAction => {
-    const cloned: PunishmentAction = { ...punishment }
-    const multiplier = targetPlayer.pendingMercyMultiplier
-    if (multiplier && multiplier > 1 && cloned.strikes != null) {
-      const newStrikes = Math.ceil(cloned.strikes * multiplier)
-      cloned.strikes = newStrikes
-      cloned.description = rebuildPunishmentDescription(cloned, newStrikes)
-      targetPlayer.pendingMercyMultiplier = undefined
-    }
-    return cloned
-  }
+  const toMutablePunishmentAction = (punishment: ResolvedPunishmentAction): PunishmentAction => ({
+    ...punishment,
+    tool: { ...punishment.tool },
+    bodyPart: { ...punishment.bodyPart },
+    position: {
+      ...punishment.position,
+      compatibleBodyParts: [...punishment.position.compatibleBodyParts],
+    },
+  })
 
   const handleMercyRequest = (source: 'board' | 'takeoff') => {
     const punishment = source === 'board' ? currentPunishment.value : currentTakeoffPunishment.value
@@ -224,7 +242,10 @@
 
     mercySource.value = source
     mercyHalvedStrikes.value = Math.ceil(punishment.strikes / 2)
-    mercyTargetPlayer.value = gameState.players[gameState.currentPlayerIndex] ?? null
+    mercyTargetPlayer.value =
+      source === 'board'
+        ? currentPunishmentTarget.value
+        : (gameState.players[gameState.currentPlayerIndex] ?? null)
     if (source === 'board') {
       mercyExecutorPlayer.value = currentPunishmentExecutor.value
     } else {
@@ -241,22 +262,27 @@
 
     if (!accepted) return
 
-    const targetPlayer = gameState.players[gameState.currentPlayerIndex]
+    const targetPlayer =
+      mercySource.value === 'board'
+        ? currentPunishmentTarget.value
+        : gameState.players[gameState.currentPlayerIndex]
     if (!targetPlayer) return
 
-    const applyHalve = (punishment: PunishmentAction): PunishmentAction => {
-      const halved = Math.ceil((punishment.strikes ?? 0) / 2)
-      return {
-        ...punishment,
-        strikes: halved,
-        description: rebuildPunishmentDescription(punishment, halved),
-      }
+    const punishmentResolution = pendingRuleResolution.value
+    if (
+      punishmentResolution?.kind !== 'punishment' ||
+      punishmentResolution.count.kind !== 'fixed'
+    ) {
+      return
     }
+    const halvedResolution = scaleResolvedPunishmentCount(punishmentResolution, 0.5)
+    pendingRuleResolution.value = halvedResolution
+    const halvedAction = toMutablePunishmentAction(halvedResolution.action)
 
-    if (mercySource.value === 'board' && currentPunishment.value) {
-      currentPunishment.value = applyHalve(currentPunishment.value)
-    } else if (mercySource.value === 'takeoff' && currentTakeoffPunishment.value) {
-      currentTakeoffPunishment.value = applyHalve(currentTakeoffPunishment.value)
+    if (mercySource.value === 'board') {
+      currentPunishment.value = halvedAction
+    } else {
+      currentTakeoffPunishment.value = halvedAction
     }
 
     targetPlayer.pendingMercyMultiplier = MERCY_MULTIPLIER
@@ -277,7 +303,6 @@
     newPosition: number
     punishment?: PunishmentAction
     cellEffect?: BoardCell['effect']
-    executorIndex?: number
     diceValue?: number
   }
 
@@ -287,7 +312,6 @@
     newPosition,
     punishment,
     cellEffect,
-    executorIndex,
     diceValue,
   }: LandingEffectPayload) => {
     const resolvedCellEffect = cellEffect ?? getCellEffectByPosition(newPosition)
@@ -317,50 +341,78 @@
       effectChainCount.value++
     }
 
-    // 当玩家尚未起飞(仍停留在起点)且出现惩罚时，视为未起飞惩罚
-    if (resolvedPunishment && !currentPlayer.hasTakenOff) {
-      currentTakeoffPunishment.value = preparePunishmentForDisplay(
-        resolvedPunishment,
-        currentPlayer
-      )
-      currentTakeoffDiceValue.value = diceValue ?? gameState.diceValue ?? 0
-      currentTakeoffExecutorIndex.value = executorIndex !== undefined ? executorIndex : -1
-      mercyRequested.value = false
-      showTakeoffPunishmentDisplay.value = true
-      audioService.play('punishment')
-      handleTakeoffPunishmentDisplay()
-      return
-    }
-
     if (resolvedPunishment) {
-      currentPunishment.value = preparePunishmentForDisplay(resolvedPunishment, currentPlayer)
+      const actorIndex = gameState.currentPlayerIndex
+      const punishmentResolution = !currentPlayer.hasTakenOff
+        ? resolveRule({
+            source: 'takeoff_failure',
+            actorIndex,
+            players: gameState.players,
+            punishmentConfig: gameState.punishmentConfig,
+            diceValue: diceValue ?? gameState.diceValue ?? undefined,
+            punishmentAction: resolvedPunishment,
+          })
+        : resolveRule({
+            source: 'board_punishment',
+            actorIndex,
+            players: gameState.players,
+            punishmentConfig: gameState.punishmentConfig,
+            diceValue: diceValue ?? gameState.diceValue ?? undefined,
+            boardAction: resolvedPunishment,
+          })
+      const targetPlayer = gameState.players[punishmentResolution.targetPlayerIndex]
+      const executorPlayer =
+        punishmentResolution.executorIndex === undefined
+          ? null
+          : (gameState.players[punishmentResolution.executorIndex] ?? null)
+      const displayAction = toMutablePunishmentAction(punishmentResolution.action)
+      if (punishmentResolution.countMultiplier) {
+        targetPlayer.pendingMercyMultiplier = undefined
+      }
+      pendingRuleResolution.value = punishmentResolution
+
+      // 当玩家尚未起飞(仍停留在起点)且出现惩罚时，视为未起飞惩罚
+      if (!currentPlayer.hasTakenOff) {
+        currentTakeoffPunishment.value = displayAction
+        currentTakeoffDiceValue.value = diceValue ?? gameState.diceValue ?? 0
+        currentTakeoffExecutorIndex.value = punishmentResolution.executorIndex ?? -1
+        mercyRequested.value = false
+        showTakeoffPunishmentDisplay.value = true
+        audioService.play('punishment')
+        handleTakeoffPunishmentDisplay()
+        return
+      }
+
+      currentPunishment.value = displayAction
+      currentPunishmentTarget.value = targetPlayer
+      currentPunishmentExecutor.value = executorPlayer
       mercyRequested.value = false
       audioService.play('punishment')
-      if (
-        executorIndex !== undefined &&
-        executorIndex >= 0 &&
-        executorIndex < gameState.players.length
-      ) {
-        currentPunishmentExecutor.value = gameState.players[executorIndex]
-      } else {
-        const otherPlayers = gameState.players.filter(
-          (_, index) => index !== gameState.currentPlayerIndex
-        )
-        currentPunishmentExecutor.value =
-          otherPlayers.length > 0 ? SecureRandom.choice(otherPlayers) : null
-      }
       gameState.gameStatus = 'configuring'
       return
     }
 
     if (resolvedCellEffect && resolvedCellEffect.type === 'trap') {
-      currentTrapDescription.value = resolvedCellEffect.description || '未知机关'
+      const trapResolution = resolveRule({
+        source: 'trap',
+        actorIndex: gameState.currentPlayerIndex,
+        players: gameState.players,
+        effect: resolvedCellEffect,
+      })
+      pendingRuleResolution.value = trapResolution
+      currentTrapDescription.value = trapResolution.description || '未知机关'
       showTrapDisplay.value = true
       audioService.play('trap')
       return
     }
 
     if (resolvedCellEffect && resolvedCellEffect.type === 'bounce') {
+      pendingRuleResolution.value = resolveRule({
+        source: 'cell_effect',
+        actorIndex: gameState.currentPlayerIndex,
+        players: gameState.players,
+        effect: resolvedCellEffect,
+      })
       bounceFromPosition.value = fromPosition
       bounceTargetPosition.value = fromPosition + (diceValue ?? gameState.diceValue ?? 0)
       bounceFinalPosition.value = newPosition
@@ -382,6 +434,7 @@
       }
       // 到达第1格（飞机场）时，不显示效果确认弹窗
       if (newPosition === 1) {
+        pendingRuleResolution.value = null
         await continueAfterMove()
         return
       }
@@ -397,15 +450,26 @@
               ? -newPosition
               : 0)
 
+      const effectResolution = resolveRule({
+        source: 'cell_effect',
+        actorIndex: gameState.currentPlayerIndex,
+        players: gameState.players,
+        effect: {
+          type: effectType,
+          value: resolvedCellEffect.value,
+          description: getThreeStepMoveDescription(
+            fromPosition,
+            newPosition,
+            finalPosition,
+            effectType
+          ),
+        },
+      })
+      pendingRuleResolution.value = effectResolution
       gameState.pendingEffect = {
         type: effectType,
         value: resolvedCellEffect.value,
-        description: getThreeStepMoveDescription(
-          fromPosition,
-          newPosition,
-          finalPosition,
-          effectType
-        ),
+        description: effectResolution.effect.description,
       }
       effectFromPosition.value = fromPosition
       effectToPosition.value = newPosition
@@ -413,6 +477,7 @@
       return
     }
 
+    pendingRuleResolution.value = null
     await continueAfterMove()
   }
 
@@ -422,6 +487,7 @@
       gameStarted.value &&
       !gameFinished.value &&
       gameState.gameStatus === 'waiting' &&
+      !sessionPaused.value &&
       !currentPunishment.value &&
       !showTakeoffPunishmentDisplay.value &&
       !showTrapDisplay.value &&
@@ -429,6 +495,28 @@
       !showChainPunishmentRoll.value
     )
   })
+
+  const hasActiveForcedOverlay = computed(
+    () =>
+      Boolean(currentPunishment.value) ||
+      showTakeoffPunishmentDisplay.value ||
+      showTrapDisplay.value ||
+      showBounceDisplay.value ||
+      showDoublePunishmentReveal.value ||
+      showChainPunishmentRoll.value ||
+      showMercyDecision.value ||
+      showTakeoffReliefDisplay.value ||
+      gameState.gameStatus === 'showing_effect'
+  )
+
+  const canPauseSession = computed(
+    () =>
+      gameStarted.value &&
+      !gameFinished.value &&
+      (gameState.gameStatus === 'waiting' ||
+        gameState.gameStatus === 'configuring' ||
+        hasActiveForcedOverlay.value)
+  )
 
   const isConfigValid = computed(() => {
     return GameService.validatePunishmentConfig(gameState.punishmentConfig).isValid
@@ -491,6 +579,8 @@
 
     // 清除其他状态
     currentPunishment.value = null
+    currentPunishmentTarget.value = null
+    pendingRuleResolution.value = null
     showTakeoffPunishmentDisplay.value = false
     currentTakeoffPunishment.value = null
     effectFromPosition.value = undefined
@@ -504,6 +594,7 @@
     mercyRequested.value = false
     mercyExecutorPlayer.value = null
     mercyTargetPlayer.value = null
+    sessionPaused.value = false
     resetEffectChainCount()
 
     devLog('游戏状态已重置')
@@ -530,6 +621,7 @@
       doublePunishmentReveal: showDoublePunishmentReveal.value,
       chainPunishmentRoll: showChainPunishmentRoll.value,
       mercyDecision: showMercyDecision.value,
+      sessionPaused: sessionPaused.value,
     }
 
     // 检查是否卡在 moving 状态超过 5 秒
@@ -673,6 +765,9 @@
         currentTakeoffDiceValue: typeof currentTakeoffDiceValue
         currentTakeoffExecutorIndex: typeof currentTakeoffExecutorIndex
         currentPunishmentExecutor: typeof currentPunishmentExecutor
+        currentPunishmentTarget: typeof currentPunishmentTarget
+        pendingRuleResolution: typeof pendingRuleResolution
+        sessionPaused: typeof sessionPaused
         showTrapDisplay: typeof showTrapDisplay
         currentTrapPunishment: typeof currentTrapPunishment
         currentTrapDescription: typeof currentTrapDescription
@@ -695,6 +790,9 @@
       debugWindow.currentTakeoffDiceValue = currentTakeoffDiceValue
       debugWindow.currentTakeoffExecutorIndex = currentTakeoffExecutorIndex
       debugWindow.currentPunishmentExecutor = currentPunishmentExecutor
+      debugWindow.currentPunishmentTarget = currentPunishmentTarget
+      debugWindow.pendingRuleResolution = pendingRuleResolution
+      debugWindow.sessionPaused = sessionPaused
       debugWindow.showTrapDisplay = showTrapDisplay
       debugWindow.currentTrapPunishment = currentTrapPunishment
       debugWindow.currentTrapDescription = currentTrapDescription
@@ -772,10 +870,13 @@
 
     gameStarted.value = false
     gameFinished.value = false
+    sessionPaused.value = false
     turnCount.value = 0
     lastEffect.value = ''
     currentPunishment.value = null
     currentPunishmentExecutor.value = null // 清除执行惩罚的玩家
+    currentPunishmentTarget.value = null
+    pendingRuleResolution.value = null
 
     // 清除惩罚组合确认状态
     punishmentCombinations.value = []
@@ -890,12 +991,27 @@
     lastEffect.value = ''
     currentPunishment.value = null
     currentPunishmentExecutor.value = null // 清除执行惩罚的玩家
+    currentPunishmentTarget.value = null
+    pendingRuleResolution.value = null
+    sessionPaused.value = false
 
     // 清除惩罚组合确认状态
     punishmentCombinations.value = []
     punishmentStep.value = 'config'
     showTakeoffPunishmentDisplay.value = false
     currentTakeoffPunishment.value = null
+    currentTakeoffExecutorIndex.value = -1
+
+    // 清除所有强制结算弹层，结束本局后不残留旧流程
+    showTrapDisplay.value = false
+    currentTrapPunishment.value = null
+    currentTrapDescription.value = ''
+    showDoublePunishmentReveal.value = false
+    isDoublePunishment.value = false
+    pendingDoublePunishment.value = null
+    showChainPunishmentRoll.value = false
+    isChainPunishment.value = false
+    showTakeoffReliefDisplay.value = false
 
     // 清除反弹效果状态
     showBounceDisplay.value = false
@@ -918,9 +1034,33 @@
     gameState.gameStatus = 'board_settings'
   }
 
+  const pauseSession = () => {
+    if (!canPauseSession.value) return
+    sessionPaused.value = true
+  }
+
+  const resumeSession = () => {
+    sessionPaused.value = false
+  }
+
+  const endPausedSession = () => {
+    sessionPaused.value = false
+    resetGame()
+  }
+
   // 处理骰子滚动
   const handleDiceRoll = async () => {
     if (!canRollDice.value) return
+
+    const currentPlayerIndex = gameState.currentPlayerIndex
+    const currentPlayer = gameState.players[currentPlayerIndex]
+    const pendingTurn = consumePendingSkippedTurn(currentPlayer)
+    if (pendingTurn.shouldSkip) {
+      gameState.players[currentPlayerIndex] = pendingTurn.player
+      lastEffect.value = `${currentPlayer.name}休息一回合，本回合已跳过`
+      advanceToNextPlayablePlayer()
+      return
+    }
 
     audioService.play('diceRoll')
     resetEffectChainCount()
@@ -949,22 +1089,15 @@
 
       const fromPosition = currentPlayer.position
 
-      const {
-        newPosition,
-        effect,
-        punishment,
-        cellEffect,
-        canTakeOff,
-        executorIndex,
-        forcedTakeoffDueToFailure,
-      } = GameService.movePlayer(
-        currentPlayer,
-        diceValue,
-        gameState.board,
-        gameState.currentPlayerIndex,
-        gameState.players.length,
-        gameState.punishmentConfig
-      )
+      const { newPosition, effect, punishment, cellEffect, canTakeOff, forcedTakeoffDueToFailure } =
+        GameService.movePlayer(
+          currentPlayer,
+          diceValue,
+          gameState.board,
+          gameState.currentPlayerIndex,
+          gameState.players.length,
+          gameState.punishmentConfig
+        )
 
       // 更新玩家位置
       currentPlayer.position = newPosition
@@ -1011,7 +1144,6 @@
         newPosition,
         punishment,
         cellEffect,
-        executorIndex,
         diceValue,
       })
     } catch (error) {
@@ -1035,11 +1167,16 @@
         return
       }
 
-      const currentPlayer = gameState.players[gameState.currentPlayerIndex]
+      let currentPlayer = gameState.players[gameState.currentPlayerIndex]
       const landingPositionBeforeEffect = currentPlayer.position
 
       // 保存效果类型，因为后面会清除pendingEffect
-      const effectType = gameState.pendingEffect.type
+      const pendingEffect = gameState.pendingEffect
+      const effectType = pendingEffect.type
+      const effectResolution = pendingRuleResolution.value
+      if (effectResolution?.kind !== 'cell_effect') {
+        throw new Error('缺少已解析的格子效果')
+      }
 
       // 记录三段路径的位置
       const originalPosition = effectFromPosition.value // 原始位置（骰子移动前）
@@ -1049,15 +1186,18 @@
       const currentBoardSize = gameState.board.length
       const { newPosition } = GameService.processCellEffect(
         currentPlayer,
-        gameState.pendingEffect,
+        pendingEffect,
         currentBoardSize
       )
 
-      // 更新玩家位置
+      // 更新玩家位置与回合后果
+      currentPlayer = applyTurnConsequence(currentPlayer, effectResolution.turnConsequence)
       currentPlayer.position = newPosition
+      gameState.players[gameState.currentPlayerIndex] = currentPlayer
 
       // 立即清除待处理效果和状态，避免显示多余的弹窗
       gameState.pendingEffect = null
+      pendingRuleResolution.value = null
       effectFromPosition.value = undefined
       effectToPosition.value = undefined
       gameState.gameStatus = 'waiting'
@@ -1110,6 +1250,7 @@
       // 确保在发生错误时重置游戏状态
       gameState.gameStatus = 'waiting'
       gameState.pendingEffect = null
+      pendingRuleResolution.value = null
       effectFromPosition.value = undefined
       effectToPosition.value = undefined
       // 清除玩家移动状态
@@ -1172,6 +1313,42 @@
     }
   }
 
+  function advanceToNextPlayablePlayer() {
+    if (gameState.players.length === 0) return
+
+    gameState.currentPlayerIndex = GameService.getNextPlayer(
+      gameState.currentPlayerIndex,
+      gameState.players.length
+    )
+    turnCount.value++
+
+    const pendingTurnBudget =
+      gameState.players.reduce(
+        (total, player) => total + Math.max(0, player.pendingSkippedTurns ?? 0),
+        0
+      ) + gameState.players.length
+    let remainingChecks = pendingTurnBudget
+
+    while (remainingChecks > 0) {
+      const playerIndex = gameState.currentPlayerIndex
+      const player = gameState.players[playerIndex]
+      const consumedTurn = consumePendingSkippedTurn(player)
+      if (!consumedTurn.shouldSkip) break
+
+      gameState.players[playerIndex] = consumedTurn.player
+      lastEffect.value = `${player.name}休息一回合，本回合已跳过`
+      gameState.currentPlayerIndex = GameService.getNextPlayer(
+        playerIndex,
+        gameState.players.length
+      )
+      turnCount.value++
+      remainingChecks--
+    }
+
+    gameState.diceValue = null
+    gameState.gameStatus = 'waiting'
+  }
+
   // 移动后的继续流程
   const continueAfterMove = async () => {
     try {
@@ -1191,15 +1368,7 @@
       // 等待移动动画完成
       await new Promise(resolve => setTimeout(resolve, 500))
 
-      // 切换到下一个玩家
-      gameState.currentPlayerIndex = GameService.getNextPlayer(
-        gameState.currentPlayerIndex,
-        gameState.players.length
-      )
-
-      turnCount.value++
-      gameState.diceValue = null
-      gameState.gameStatus = 'waiting'
+      advanceToNextPlayablePlayer()
 
       // 清除上一步效果
       setTimeout(() => {
@@ -1219,8 +1388,21 @@
   }
 
   // 确认惩罚
-  const confirmPunishment = async () => {
+  const confirmPunishment = async (selectedCount?: number) => {
     try {
+      const punishmentResolution = pendingRuleResolution.value
+      if (
+        punishmentResolution?.kind === 'punishment' &&
+        punishmentResolution.count.kind === 'awaiting_external_count'
+      ) {
+        if (selectedCount === undefined || !currentPunishmentTarget.value) {
+          throw new Error('需要先选择本次惩罚次数')
+        }
+        const finalizedResolution = finalizePunishmentCount(punishmentResolution, selectedCount)
+        currentPunishment.value = toMutablePunishmentAction(finalizedResolution.action)
+        pendingRuleResolution.value = finalizedResolution
+      }
+
       // 连锁惩罚：确认后进入连锁掷骰阶段
       if (isChainPunishment.value) {
         currentPunishment.value = null
@@ -1243,6 +1425,8 @@
       isDoublePunishment.value = false
       currentPunishment.value = null
       currentPunishmentExecutor.value = null
+      currentPunishmentTarget.value = null
+      pendingRuleResolution.value = null
       gameState.gameStatus = 'waiting'
 
       // 继续游戏流程
@@ -1252,6 +1436,8 @@
       gameState.gameStatus = 'waiting'
       currentPunishment.value = null
       currentPunishmentExecutor.value = null
+      currentPunishmentTarget.value = null
+      pendingRuleResolution.value = null
       isDoublePunishment.value = false
       isChainPunishment.value = false
     }
@@ -1272,16 +1458,33 @@
     showChainPunishmentRoll.value = false
     if (continueChain) {
       const newPunishment = GameService.generateRandomPunishment(gameState.punishmentConfig)
-      const targetPlayer = gameState.players[gameState.currentPlayerIndex]
-      currentPunishment.value = targetPlayer
-        ? preparePunishmentForDisplay(newPunishment, targetPlayer)
-        : newPunishment
+      const chainResolution = resolveRule({
+        source: 'board_punishment',
+        actorIndex: gameState.currentPlayerIndex,
+        players: gameState.players,
+        punishmentConfig: gameState.punishmentConfig,
+        diceValue: gameState.diceValue ?? undefined,
+        boardAction: newPunishment,
+      })
+      const targetPlayer = gameState.players[chainResolution.targetPlayerIndex]
+      pendingRuleResolution.value = chainResolution
+      currentPunishmentTarget.value = targetPlayer
+      currentPunishmentExecutor.value =
+        chainResolution.executorIndex === undefined
+          ? null
+          : (gameState.players[chainResolution.executorIndex] ?? null)
+      currentPunishment.value = toMutablePunishmentAction(chainResolution.action)
+      if (chainResolution.countMultiplier) {
+        targetPlayer.pendingMercyMultiplier = undefined
+      }
       mercyRequested.value = false
       gameState.gameStatus = 'configuring'
     } else {
       isChainPunishment.value = false
       currentPunishment.value = null
       currentPunishmentExecutor.value = null
+      currentPunishmentTarget.value = null
+      pendingRuleResolution.value = null
       gameState.gameStatus = 'waiting'
       continueAfterPunishment()
     }
@@ -1301,6 +1504,8 @@
       isChainPunishment.value = false
       currentPunishment.value = null
       currentPunishmentExecutor.value = null
+      currentPunishmentTarget.value = null
+      pendingRuleResolution.value = null
       gameState.gameStatus = 'waiting'
 
       // 继续游戏流程
@@ -1310,6 +1515,8 @@
       gameState.gameStatus = 'waiting'
       currentPunishment.value = null
       currentPunishmentExecutor.value = null
+      currentPunishmentTarget.value = null
+      pendingRuleResolution.value = null
       isDoublePunishment.value = false
       isChainPunishment.value = false
     }
@@ -1334,15 +1541,7 @@
       // 等待移动动画完成
       await new Promise(resolve => setTimeout(resolve, 500))
 
-      // 切换到下一个玩家
-      gameState.currentPlayerIndex = GameService.getNextPlayer(
-        gameState.currentPlayerIndex,
-        gameState.players.length
-      )
-
-      turnCount.value++
-      gameState.diceValue = null
-      gameState.gameStatus = 'waiting'
+      advanceToNextPlayablePlayer()
 
       // 清除上一步效果
       setTimeout(() => {
@@ -1401,6 +1600,7 @@
   const confirmTakeoffPunishment = async () => {
     showTakeoffPunishmentDisplay.value = false
     currentTakeoffPunishment.value = null
+    pendingRuleResolution.value = null
     gameState.gameStatus = 'waiting'
 
     // 继续游戏流程
@@ -1464,9 +1664,15 @@
   // 确认机关陷阱
   const confirmTrap = async () => {
     try {
+      const trapResolution = pendingRuleResolution.value
+      if (trapResolution?.kind !== 'trap' || !trapResolution.acknowledgementRequired) {
+        throw new Error('缺少已解析的机关确认')
+      }
+
       showTrapDisplay.value = false
       currentTrapPunishment.value = null
       currentTrapDescription.value = ''
+      pendingRuleResolution.value = null
       gameState.gameStatus = 'waiting'
 
       // 继续游戏流程
@@ -1478,12 +1684,17 @@
       showTrapDisplay.value = false
       currentTrapPunishment.value = null
       currentTrapDescription.value = ''
+      pendingRuleResolution.value = null
     }
   }
 
   // 确认反弹效果
   const confirmBounce = async () => {
     try {
+      if (pendingRuleResolution.value?.kind !== 'cell_effect') {
+        throw new Error('缺少已解析的反弹效果')
+      }
+
       const currentPlayer = gameState.players[gameState.currentPlayerIndex]
       const landingPosition = currentPlayer.position
       const bounceStartPosition = bounceFromPosition.value || landingPosition
@@ -1493,6 +1704,7 @@
       bounceTargetPosition.value = 0
       bounceFinalPosition.value = 0
       bounceOverflowSteps.value = 0
+      pendingRuleResolution.value = null
       gameState.gameStatus = 'waiting'
 
       // 反弹确认后继续结算反弹落点格子的效果
@@ -1510,6 +1722,7 @@
       bounceTargetPosition.value = 0
       bounceFinalPosition.value = 0
       bounceOverflowSteps.value = 0
+      pendingRuleResolution.value = null
     }
   }
 
@@ -2252,6 +2465,9 @@
       <PunishmentDisplay
         :punishment="currentPunishment"
         :executor-player="currentPunishmentExecutor"
+        :target-player="currentPunishmentTarget"
+        :count-selection="currentPunishmentCountSelection"
+        :count-multiplier="currentPunishmentCountMultiplier"
         :can-request-mercy="canRequestBoardMercy"
         @confirm="confirmPunishment"
         @skip="skipPunishment"
@@ -2330,6 +2546,22 @@
       :visible="showTakeoffReliefDisplay"
       :failed-count="failedTakeoffCountForMessage"
       @confirm="confirmTakeoffRelief"
+    />
+
+    <button
+      v-if="canPauseSession && !sessionPaused"
+      class="session-pause-trigger"
+      aria-label="暂停本局"
+      @click="pauseSession"
+    >
+      <Pause :size="18" aria-hidden="true" />
+      <span>暂停本局</span>
+    </button>
+
+    <SessionPauseOverlay
+      :visible="sessionPaused"
+      @resume="resumeSession"
+      @end-session="endPausedSession"
     />
 
     <!-- 用户引导按钮和设置 -->
@@ -3126,8 +3358,46 @@
     line-height: 1.3;
   }
 
+  .session-pause-trigger {
+    position: fixed;
+    z-index: 19000;
+    right: 1rem;
+    bottom: 6rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 44px;
+    padding: 0.7rem 1rem;
+    color: white;
+    background: rgba(30, 41, 59, 0.96);
+    border: 1px solid rgba(147, 197, 253, 0.55);
+    border-radius: 999px;
+    box-shadow: var(--glass-shadow-lg);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .session-pause-trigger:hover {
+    background: rgba(37, 99, 235, 0.96);
+  }
+
+  .session-pause-trigger:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 3px;
+  }
+
   /* 移动端适配 */
   @media (max-width: 768px) {
+    .session-pause-trigger {
+      right: 0.75rem;
+      bottom: 4.75rem;
+    }
+
+    .session-pause-trigger span {
+      display: none;
+    }
+
     .guide-btn {
       width: 50px;
       height: 50px;
