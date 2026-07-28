@@ -1,8 +1,34 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 
+interface BrowserTelemetryEvent {
+  name: string
+  data: Record<string, string>
+}
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
+    const telemetryWindow = window as typeof window & {
+      __GAME_TELEMETRY_EVENTS__: BrowserTelemetryEvent[]
+      __GAME_TELEMETRY_FAILURE__: 'none' | 'throw' | 'reject'
+      __GAME_TELEMETRY_TEST_ADAPTER__: {
+        track: (name: string, data: Record<string, string>) => void | Promise<void>
+      }
+    }
+    telemetryWindow.__GAME_TELEMETRY_EVENTS__ = []
+    telemetryWindow.__GAME_TELEMETRY_FAILURE__ = 'none'
+    telemetryWindow.__GAME_TELEMETRY_TEST_ADAPTER__ = {
+      track: (name, data) => {
+        if (telemetryWindow.__GAME_TELEMETRY_FAILURE__ === 'throw') {
+          throw new Error('telemetry transport failed synchronously')
+        }
+        if (telemetryWindow.__GAME_TELEMETRY_FAILURE__ === 'reject') {
+          return Promise.reject(new Error('telemetry transport failed asynchronously'))
+        }
+        telemetryWindow.__GAME_TELEMETRY_EVENTS__.push({ name, data })
+      },
+    }
+
     localStorage.clear()
     localStorage.setItem('autoGuideEnabled', 'false')
     localStorage.setItem(
@@ -26,6 +52,163 @@ async function startDefaultGame(page: Page) {
   await page.getByRole('button', { name: /开始游戏/ }).click()
   await expect(page.locator('.game-board')).toBeVisible()
 }
+
+async function getTelemetryEvents(page: Page): Promise<BrowserTelemetryEvent[]> {
+  return page.evaluate(() => {
+    return (
+      window as typeof window & {
+        __GAME_TELEMETRY_EVENTS__: BrowserTelemetryEvent[]
+      }
+    ).__GAME_TELEMETRY_EVENTS__
+  })
+}
+
+async function completeGameForTelemetry(page: Page) {
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        gameStatus: string
+        winner: unknown
+        players: unknown[]
+      }
+      gameFinished: { value: boolean }
+    }
+    debugWindow.gameState.winner = debugWindow.gameState.players[0]
+    debugWindow.gameState.gameStatus = 'finished'
+    debugWindow.gameFinished.value = true
+  })
+}
+
+test('tracks the anonymous completed-game lifecycle and play again in order', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  await page.locator('.name-input').first().fill('机密玩家姓名')
+  await page.locator('.start-btn').click()
+  await page.locator('.page-actions .btn-primary').click()
+  await page.locator('.page-actions .btn-primary').click()
+  await page.getByRole('button', { name: /生成惩罚组合/ }).click()
+  await page.getByRole('button', { name: /开始游戏/ }).click()
+  await completeGameForTelemetry(page)
+  await page.locator('.header-actions').getByRole('button', { name: '再来一局' }).click()
+
+  await expect(page.getByRole('heading', { name: '游戏设置' })).toBeVisible()
+  await expect
+    .poll(async () => (await getTelemetryEvents(page)).map(event => event.name))
+    .toEqual([
+      'app_open',
+      'setup_started',
+      'game_started',
+      'game_completed',
+      'play_again',
+      'setup_started',
+    ])
+
+  const events = await getTelemetryEvents(page)
+  const serializedEvents = JSON.stringify(events)
+  const eventDataKeys = events.flatMap(event => Object.keys(event.data))
+  expect(serializedEvents).not.toContain('机密玩家姓名')
+  expect(eventDataKeys).not.toContain('player_count')
+  expect(eventDataKeys).not.toContain('turn_count')
+  expect(eventDataKeys).not.toContain('duration_ms')
+})
+
+test('tracks ending a paused game as user_ended', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await startDefaultGame(page)
+  await page.getByRole('button', { name: '暂停本局' }).click()
+  await page.getByRole('button', { name: '结束本局' }).click()
+
+  await expect(page.getByRole('heading', { name: '游戏设置' })).toBeVisible()
+  await expect
+    .poll(async () => (await getTelemetryEvents(page)).find(event => event.name === 'game_ended'))
+    .toBeTruthy()
+  expect(
+    (await getTelemetryEvents(page)).find(event => event.name === 'game_ended')?.data.end_type
+  ).toBe('user_ended')
+})
+
+test('tracks a successful in-game configuration import as config_import', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await startDefaultGame(page)
+  await page.locator('.guide-controls .export-btn').click()
+  await page.getByRole('button', { name: '导入', exact: true }).click()
+  await page.locator('.json-textarea').fill(
+    JSON.stringify({
+      version: '1.0.0',
+      exportedAt: '2026-07-28T00:00:00.000Z',
+      gameTitle: '机密配置内容',
+      data: {
+        playerSettings: {
+          playerCount: 2,
+          playerNames: ['导入姓名甲', '导入姓名乙'],
+        },
+      },
+    })
+  )
+  await page.locator('.import-text-btn').click()
+
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as typeof window & { gameStarted: { value: boolean } }).gameStarted.value
+      )
+    )
+    .toBe(false)
+  await expect
+    .poll(
+      async () =>
+        (await getTelemetryEvents(page)).find(event => event.name === 'game_ended')?.data.end_type
+    )
+    .toBe('config_import')
+  const serializedEvents = JSON.stringify(await getTelemetryEvents(page))
+  expect(serializedEvents).not.toContain('导入姓名甲')
+  expect(serializedEvents).not.toContain('机密配置内容')
+})
+
+test('telemetry transport failures do not block setup, play, dice, or completion', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+  const pageErrors: string[] = []
+  page.on('pageerror', error => pageErrors.push(error.message))
+
+  await page.goto('/flying-chess/')
+  await page.evaluate(() => {
+    const telemetryWindow = window as typeof window & {
+      __GAME_TELEMETRY_FAILURE__: 'throw'
+    }
+    telemetryWindow.__GAME_TELEMETRY_FAILURE__ = 'throw'
+  })
+  await page.locator('.start-btn').click()
+  await expect(page.getByRole('heading', { name: '游戏设置' })).toBeVisible()
+
+  await page.evaluate(() => {
+    const telemetryWindow = window as typeof window & {
+      __GAME_TELEMETRY_FAILURE__: 'reject'
+    }
+    telemetryWindow.__GAME_TELEMETRY_FAILURE__ = 'reject'
+  })
+  await page.locator('.page-actions .btn-primary').click()
+  await page.locator('.page-actions .btn-primary').click()
+  await page.getByRole('button', { name: /生成惩罚组合/ }).click()
+  await page.getByRole('button', { name: /开始游戏/ }).click()
+  await expect(page.getByRole('button', { name: '投掷骰子' })).toBeEnabled()
+  await page.getByRole('button', { name: '投掷骰子' }).click({ force: true })
+  await expect(page.locator('.game-board')).toBeVisible()
+
+  await completeGameForTelemetry(page)
+  await expect(
+    page.locator('.header-actions').getByRole('button', { name: '再来一局' })
+  ).toBeVisible()
+  expect(pageErrors).toEqual([])
+})
 
 test('desktop app fills the viewport width', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chrome')

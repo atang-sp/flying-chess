@@ -2,6 +2,7 @@
   /* eslint-disable @typescript-eslint/ban-ts-comment */
   import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
   import { GameService } from './services/gameService'
+  import { gameTelemetry } from './services/gameTelemetry'
   import {
     applyTurnConsequence,
     consumePendingSkippedTurn,
@@ -127,6 +128,18 @@
   const currentPunishment = ref<PunishmentAction | null>(null)
   const currentPunishmentTarget = ref<Player | null>(null)
   const pendingRuleResolution = ref<ResolvedRuleResult | null>(null)
+
+  watch(gameStarted, (started, wasStarted) => {
+    if (started && !wasStarted) {
+      gameTelemetry.startGame(gameState.players.length)
+    }
+  })
+
+  watch(gameFinished, (finished, wasFinished) => {
+    if (finished && !wasFinished) {
+      gameTelemetry.finishGame('completed', turnCount.value)
+    }
+  })
 
   // 惩罚组合确认状态
   const punishmentCombinations = ref<PunishmentCombination[]>([])
@@ -689,6 +702,7 @@
   }
 
   onMounted(() => {
+    gameTelemetry.openApp()
     audioService.init()
     audioEnabled.value = audioService.enabled
 
@@ -1052,6 +1066,7 @@
 
   const endPausedSession = () => {
     sessionPaused.value = false
+    gameTelemetry.finishGame('user_ended', turnCount.value)
     resetGame()
   }
 
@@ -1634,6 +1649,7 @@
 
   // 修改IntroPage组件的调用，使其能够接收玩家配置信息并传递给startGame方法
   const handleIntroStart = (playerConfig?: { count: number; names: string[] }) => {
+    gameTelemetry.startSetup(playerConfig?.count ?? gameState.players.length)
     startGame(playerConfig)
   }
 
@@ -1735,8 +1751,11 @@
 
   // 处理胜利结算画面的"再来一局"按钮
   const handleVictoryPlayAgain = () => {
+    const playerCount = gameState.players.length
+    gameTelemetry.playAgain()
     showVictoryScreen.value = false
     resetGame()
+    gameTelemetry.startSetup(playerCount)
   }
 
   const showTakeoffReliefDisplay = ref(false)
@@ -2093,6 +2112,9 @@
 
   const handleImportSuccess = async (message: string) => {
     devLog(`配置导入成功: ${message}`)
+    if (gameStarted.value) {
+      gameTelemetry.finishGame('config_import', turnCount.value)
+    }
 
     // 重新加载玩家设置
     const playerSettings = loadPlayerSettings()
@@ -2444,7 +2466,7 @@
               label="再来一局"
               icon="pi pi-refresh"
               class="p-button-info p-button-sm"
-              @click="resetGame"
+              @click="handleVictoryPlayAgain"
             />
             <button
               class="audio-toggle-btn"

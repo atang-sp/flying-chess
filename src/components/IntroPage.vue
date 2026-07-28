@@ -342,6 +342,11 @@
           </div>
         </div>
 
+        <p class="privacy-note">
+          本应用使用无 Cookie
+          的匿名统计改进体验；不会上传玩家姓名、游戏配置内容，也不启用录屏或页面回放。
+        </p>
+
         <!-- 清空缓存选项 -->
         <div class="cache-controls">
           <button
@@ -886,6 +891,19 @@
   .info-icon {
     color: var(--color-accent-light);
     flex-shrink: 0;
+  }
+
+  .privacy-note {
+    max-width: 620px;
+    margin: 0;
+    padding: 0.75rem 1rem;
+    color: var(--text-muted);
+    font-size: clamp(0.72rem, 2vw, 0.82rem);
+    line-height: 1.6;
+    text-align: center;
+    background: rgba(15, 23, 42, 0.38);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: var(--radius-md);
   }
 
   /* 背景装饰 */
