@@ -1,6 +1,6 @@
 # 🎲 惩罚飞行棋（Ludo Punishment Game）
 
-一个基于 **Vue 3 + TypeScript** 的创新飞行棋游戏，支持自定义惩罚机制、机关陷阱、详细统计和多端适配。适合聚会、娱乐和“自律”场景。
+一个基于 **Vue 3 + TypeScript** 的创新飞行棋游戏，支持自定义惩罚机制、机关陷阱、匿名统计和多端适配。适合聚会、娱乐和“自律”场景。
 
 ---
 
@@ -9,7 +9,7 @@
 - **自定义惩罚系统**：支持多种工具、身体部位、受罚姿势的自由组合，自动生成惩罚方案。
 - **机关陷阱**：棋盘可配置机关格，触发特殊事件或惩罚。
 - **3D 骰子动画**：真实 3D 效果，动画可自定义。
-- **详细统计**：本地/云端统计游玩次数、会话、胜率等，支持 Supabase 云同步。
+- **匿名统计**：生产环境使用无 Cookie 的 Umami 统计关键游戏流程，不上传玩家姓名或配置内容。
 - **多端适配**：响应式设计，适配桌面和移动端。
 - **版本号与构建时间显示**：右上角实时显示版本号，支持 Git Tag 自动注入。
 - **新手引导**：内置可重置的新手引导，帮助快速上手。
@@ -42,12 +42,15 @@
   - 惩罚次数范围、步长
   - 机关格、奖励格、后退格等数量和分布
 
-### 统计功能
+### 匿名统计
 
-- 配置文件：`src/config/statistics.ts`
-- 支持本地统计和 Supabase 云端统计（需配置环境变量）
-- 统计内容包括：累计游玩次数、最后游玩时间、会话数据等
-- 可在 UI 中查看和重置统计数据
+- 遥测逻辑集中在 `src/services/gameTelemetry.ts`，生产环境通过 Umami Cloud 的
+  `script.js` 上报，本地开发默认禁用。
+- 自定义事件只包含应用版本、经典模式、设备类型以及玩家数、局长、回合数的宽分桶。
+- 不上传玩家姓名、惩罚内容、导入配置、原始玩家数、原始时长、原始回合数或任何自定义标识符。
+- 不调用 `umami.identify()`，不加载 `recorder.js`，不启用录屏、热力图或性能采集。
+- 生产构建从 GitHub Actions 仓库变量 `UMAMI_WEBSITE_ID` 和 `UMAMI_SCRIPT_URL`
+  注入配置；Website ID 必须是 UUID。
 
 ### 版本号与构建时间
 
@@ -59,14 +62,14 @@
 
 ## 📊 统计与分析
 
-- 游戏内置统计弹窗（点击界面按钮可查看）
-- 支持本地和云端（Supabase）两种统计模式
-- 统计内容包括：
-  - 累计游玩次数
-  - 最后游玩时间
-  - 记录起始时间
-  - 惩罚组合分布（工具/部位/姿势统计）
-- 可一键重置统计数据
+- v1.7.4 仅记录 `app_open`、`setup_started`、`game_started`、`game_completed`、
+  `game_ended` 和 `play_again` 六类自定义事件，模式固定为 `classic`。
+- Umami 保留标准匿名页面和会话元数据；跟踪器限制域名为 `atang-sp.github.io`，尊重
+  Do Not Track，并排除 URL 查询参数与 Hash。
+- 统计基线从 v1.7.4 成功部署后开始，历史游戏不会补算。
+- 广告拦截、Do Not Track、离线、关闭或刷新页面、脚本加载失败和换设备都会造成少算。
+  应用不使用指纹、持久化队列、离线补传或重试来提高上报率。
+- 仓库没有 Supabase 统计后端，也没有本地统计弹窗或统计重置入口。
 
 ---
 
@@ -74,7 +77,7 @@
 
 ### 环境要求
 
-- Node.js 16+
+- Node.js 18+
 - npm 或 yarn
 
 ### 安装步骤
@@ -125,6 +128,8 @@ npm install primevue primeicons
 ## 🚀 部署
 
 - **GitHub Pages**：支持自动/手动部署，详见 `deploy.sh` 和 `.github/workflows/deploy.yml`
+- **Umami Cloud**：生产网站名为 `flying-chess-production`，域名为
+  `atang-sp.github.io`；Replays、Heatmaps、Performance 与公开 Share URL 必须保持关闭。
 - **Vercel/Netlify**：直接连接仓库，构建命令 `npm run build`，输出目录 `dist`
 - **自定义服务器**：将 `dist` 目录部署到任意静态服务器
 
@@ -150,7 +155,7 @@ npm install primevue primeicons
 - **前端框架**：Vue 3 + TypeScript
 - **构建工具**：Vite
 - **UI/动画**：CSS3 + 3D 变换
-- **统计后端**：可选 Supabase
+- **匿名统计**：Umami Cloud（仅生产环境）
 - **PWA 支持**：可安装为桌面/移动应用
 
 ---
@@ -158,7 +163,7 @@ npm install primevue primeicons
 ## 📚 相关文档
 
 - 游戏参数与惩罚机制详见 `src/config/gameConfig.ts`
-- 统计功能配置详见 `src/config/statistics.ts`
+- 匿名统计事件契约与隐私边界见 `src/services/gameTelemetry.ts`
 - 版本号注入逻辑见 `vite-plugin-version.ts`
 - 详细开发路线、更新日志请见 [ROADMAP.md] 和 [RELEASE_NOTES.md]（如有）
 
