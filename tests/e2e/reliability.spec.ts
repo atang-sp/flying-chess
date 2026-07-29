@@ -53,6 +53,14 @@ async function startDefaultGame(page: Page) {
   await expect(page.locator('.game-board')).toBeVisible()
 }
 
+async function startPartyGame(page: Page) {
+  await page.goto('/flying-chess/')
+  await page.getByTestId('mode-party').click()
+  await page.getByTestId('start-game').click()
+  await expect(page.getByTestId('party-status')).toBeVisible()
+  await expect(page.locator('.game-board')).toBeVisible()
+}
+
 async function getTelemetryEvents(page: Page): Promise<BrowserTelemetryEvent[]> {
   return page.evaluate(() => {
     return (
@@ -78,6 +86,290 @@ async function completeGameForTelemetry(page: Page) {
     debugWindow.gameFinished.value = true
   })
 }
+
+test('selects and starts party mode with anonymous mode telemetry', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await startPartyGame(page)
+
+  await expect
+    .poll(async () => (await getTelemetryEvents(page)).map(event => event.name))
+    .toEqual(['app_open', 'mode_selected', 'mode_switched', 'setup_started', 'game_started'])
+
+  const events = await getTelemetryEvents(page)
+  expect(events[1].data).toMatchObject({
+    mode_id: 'party',
+    ruleset_version: 'party_v1',
+  })
+  expect(events[2].data).toMatchObject({
+    mode_id: 'party',
+    previous_mode_id: 'classic',
+    ruleset_version: 'party_v1',
+  })
+  expect(events[4].data).toMatchObject({
+    mode_id: 'party',
+    ruleset_version: 'party_v1',
+    player_count_bucket: '2',
+  })
+  for (const event of events) {
+    expect(event.data).not.toHaveProperty('player_name')
+    expect(event.data).not.toHaveProperty('punishment')
+    expect(event.data).not.toHaveProperty('duration_ms')
+    expect(event.data).not.toHaveProperty('turn_count')
+  }
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('flying-chess-game-mode')))
+    .toBe('party')
+})
+
+test('party mode preserves the classic custom configuration while running and after reset', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        punishmentConfig: { minStrikes: number }
+      }
+    }
+    debugWindow.gameState.punishmentConfig.minStrikes = 10
+  })
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const cached = JSON.parse(localStorage.getItem('ludo_game_config') ?? '{}') as {
+          punishmentConfig?: { minStrikes?: number }
+        }
+        return cached.punishmentConfig?.minStrikes
+      })
+    )
+    .toBe(10)
+
+  await page.getByTestId('mode-party').click()
+  await page.getByTestId('start-game').click()
+  await expect(page.getByTestId('party-status')).toBeVisible()
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const cached = JSON.parse(localStorage.getItem('ludo_game_config') ?? '{}') as {
+          punishmentConfig?: { minStrikes?: number }
+        }
+        return cached.punishmentConfig?.minStrikes
+      })
+    )
+    .toBe(10)
+
+  await page.getByRole('button', { name: '暂停本局' }).click()
+  await page.getByRole('button', { name: '结束本局' }).click()
+  await expect(page.getByTestId('mode-party')).toBeVisible()
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const cached = JSON.parse(localStorage.getItem('ludo_game_config') ?? '{}') as {
+          punishmentConfig?: { minStrikes?: number }
+        }
+        return cached.punishmentConfig?.minStrikes
+      })
+    )
+    .toBe(10)
+})
+
+test('party reaction resolves before the active player may spend one reroll token', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await startPartyGame(page)
+  await page.getByRole('button', { name: '投掷骰子' }).click({ force: true })
+  await expect(page.getByTestId('party-reaction-overlay')).toBeVisible()
+  await page.getByTestId('predict-low').click()
+
+  await expect
+    .poll(
+      async () =>
+        (await page.getByTestId('reaction-keep').isVisible()) ||
+        (await page.getByTestId('party-dice-decision').isVisible())
+    )
+    .toBe(true)
+
+  if (await page.getByTestId('reaction-keep').isVisible()) {
+    await page.getByTestId('reaction-keep').click()
+  }
+
+  await expect(page.getByTestId('party-dice-decision')).toBeVisible()
+  await expect(page.getByTestId('party-reroll')).toBeEnabled()
+  await page.getByTestId('party-reroll').click()
+  await expect(page.getByTestId('party-status')).toContainText('玩家1 1 枚')
+})
+
+test('pausing party mode freezes an active decision countdown', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await startPartyGame(page)
+  await page.getByRole('button', { name: '投掷骰子' }).click({ force: true })
+  await page.getByTestId('predict-low').click()
+  await expect
+    .poll(
+      async () =>
+        (await page.getByTestId('reaction-keep').isVisible()) ||
+        (await page.getByTestId('party-dice-decision').isVisible())
+    )
+    .toBe(true)
+  if (await page.getByTestId('reaction-keep').isVisible()) {
+    await page.getByTestId('reaction-keep').click()
+  }
+  await expect(page.getByTestId('party-dice-decision')).toBeVisible()
+
+  await page.getByRole('button', { name: '暂停本局' }).click()
+  await page.waitForTimeout(5_500)
+  await page.getByRole('button', { name: '继续游戏' }).click()
+
+  await expect(page.getByTestId('party-dice-decision')).toBeVisible()
+})
+
+test('party punishment choice spends one token before existing punishment resolution', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await startPartyGame(page)
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        players: Array<{ position: number; hasTakenOff?: boolean }>
+        board: Array<{
+          position: number
+          type: string
+          effect?: Record<string, unknown>
+        }>
+      }
+    }
+    debugWindow.gameState.players[0].position = 1
+    debugWindow.gameState.players[0].hasTakenOff = true
+    for (const cell of debugWindow.gameState.board) {
+      if (cell.position < 2 || cell.position > 7) continue
+      cell.type = 'punishment'
+      cell.effect = {
+        type: 'punishment',
+        value: 0,
+        description: '测试静态惩罚',
+        punishment: {
+          tool: { name: '手掌', intensity: 1, ratio: 100 },
+          bodyPart: { name: '手心', sensitivity: 2, ratio: 100 },
+          position: {
+            name: '站立',
+            ratio: 100,
+            compatibleBodyParts: ['手心'],
+          },
+          strikes: 5,
+          description: '测试静态惩罚',
+        },
+      }
+    }
+  })
+
+  await page.getByRole('button', { name: '投掷骰子' }).click({ force: true })
+  await page.getByTestId('predict-low').click()
+  await expect
+    .poll(
+      async () =>
+        (await page.getByTestId('reaction-keep').isVisible()) ||
+        (await page.getByTestId('party-dice-decision').isVisible())
+    )
+    .toBe(true)
+  if (await page.getByTestId('reaction-keep').isVisible()) {
+    await page.getByTestId('reaction-keep').click()
+  }
+  await page.getByTestId('party-continue').click()
+
+  await expect(page.getByTestId('party-punishment-choice')).toBeVisible()
+  await page.getByTestId('party-choice-0').click()
+
+  await expect(page.getByTestId('party-status')).toContainText('玩家1 1 枚')
+  await expect(page.locator('.punishment-display')).toBeVisible()
+})
+
+test('party victory renders a local-only non-sensitive highlight card', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await startPartyGame(page)
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      finishGameWithPlayer: (playerIndex: number) => void
+    }
+    debugWindow.finishGameWithPlayer(0)
+  })
+
+  const highlight = page.getByTestId('party-highlight-card')
+  await expect(highlight).toBeVisible()
+  await expect(highlight).toContainText('本地高光卡 · 不上传')
+  await expect(highlight).toContainText('成功反应 0 次')
+  await expect(highlight).not.toContainText('玩家1')
+})
+
+test('party time limit finishes the round and resolves tied leaders by dice', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await startPartyGame(page)
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: { players: Array<{ position: number }> }
+      partyMode: {
+        session: {
+          value: Record<string, unknown> | null
+        }
+      }
+      completePartyTurnForPlayer: (playerIndex: number) => boolean
+    }
+    debugWindow.gameState.players[0].position = 12
+    debugWindow.gameState.players[1].position = 12
+    const session = debugWindow.partyMode.session.value
+    if (!session) throw new Error('party session missing')
+    debugWindow.partyMode.session.value = {
+      ...session,
+      startedAt: performance.now() - 20 * 60_000 - 1,
+    }
+
+    const randomValues = [5, 0, 0, 0]
+    let randomValueIndex = 0
+    Object.defineProperty(window.crypto, 'getRandomValues', {
+      configurable: true,
+      value: (values: Uint32Array) => {
+        values[0] = randomValues[randomValueIndex] ?? 0
+        randomValueIndex += 1
+        return values
+      },
+    })
+
+    debugWindow.completePartyTurnForPlayer(0)
+    debugWindow.completePartyTurnForPlayer(1)
+  })
+
+  await expect(page.getByTestId('party-tie-break')).toBeVisible()
+  await page.getByTestId('party-tie-roll').click()
+  await page.getByTestId('party-tie-roll').click()
+
+  await expect(page.getByTestId('party-tie-break')).toBeHidden()
+  await expect(page.getByTestId('party-highlight-card')).toBeVisible()
+})
+
+test('party mode stays within the mobile viewport', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chrome')
+
+  await startPartyGame(page)
+
+  const viewport = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    innerWidth: window.innerWidth,
+  }))
+  expect(viewport.scrollWidth).toBeLessThanOrEqual(viewport.innerWidth)
+})
 
 test('tracks the anonymous completed-game lifecycle and play again in order', async ({
   page,
@@ -862,6 +1154,7 @@ test('clear local game data removes every persisted game key', async ({ page }, 
     'ludo_game_config',
     'ludo_player_settings',
     'flying-chess-config-backup',
+    'flying-chess-game-mode',
     'hasShownGuide',
     'autoGuideEnabled',
   ]

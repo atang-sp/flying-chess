@@ -1,13 +1,16 @@
 import type { BoardConfig, PunishmentConfig, TrapAction } from '../types/game'
+import { DEFAULT_GAME_MODE, GAME_MODES, type GameMode } from '../config/modes'
 
 // 缓存键名
 export const GAME_CONFIG_STORAGE_KEY = 'ludo_game_config'
 export const PLAYER_SETTINGS_STORAGE_KEY = 'ludo_player_settings'
 export const CONFIG_BACKUP_STORAGE_KEY = 'flying-chess-config-backup'
+export const GAME_MODE_STORAGE_KEY = 'flying-chess-game-mode'
 export const LOCAL_GAME_STORAGE_KEYS = [
   GAME_CONFIG_STORAGE_KEY,
   PLAYER_SETTINGS_STORAGE_KEY,
   CONFIG_BACKUP_STORAGE_KEY,
+  GAME_MODE_STORAGE_KEY,
   'hasShownGuide',
   'autoGuideEnabled',
 ] as const
@@ -89,5 +92,21 @@ export function loadPlayerSettings(): PlayerSettings | null {
   } catch (err) {
     console.warn('读取玩家设置失败:', err)
     return null
+  }
+}
+
+type GameModeStorageReader = Pick<Storage, 'getItem'>
+type GameModeStorageWriter = Pick<Storage, 'setItem'>
+
+export function loadGameMode(storage: GameModeStorageReader = localStorage): GameMode {
+  const storedMode = storage.getItem(GAME_MODE_STORAGE_KEY)
+  return GAME_MODES.includes(storedMode as GameMode) ? (storedMode as GameMode) : DEFAULT_GAME_MODE
+}
+
+export function saveGameMode(mode: GameMode, storage: GameModeStorageWriter = localStorage): void {
+  try {
+    storage.setItem(GAME_MODE_STORAGE_KEY, mode)
+  } catch (error) {
+    console.warn('保存本局玩法失败:', error)
   }
 }

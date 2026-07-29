@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, onMounted, onUnmounted, watch } from 'vue'
+  import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
   import {
     Dices,
     Star,
@@ -15,21 +15,28 @@
     Target,
     Eraser,
     Check,
+    Flame,
+    ShieldCheck,
   } from '@lucide/vue'
   import { savePlayerSettings, loadPlayerSettings, clearAllLocalGameData } from '../utils/cache'
   import { SecureRandom } from '../utils/secureRandom'
   import { devLog } from '../utils/logger'
   import VersionDisplay from './VersionDisplay.vue'
+  import type { GameMode } from '../config/modes'
 
   interface Emits {
-    (e: 'start', playerConfig: { count: number; names: string[] }): void
+    (e: 'start', playerConfig: { count: number; names: string[]; mode: GameMode }): void
+    (e: 'mode-selected', mode: GameMode): void
   }
 
+  const props = defineProps<{ initialMode: GameMode }>()
   const emit = defineEmits<Emits>()
 
   // 玩家配置状态
   const playerCount = ref(2)
   const playerNames = ref<string[]>(['玩家1', '玩家2'])
+  const selectedMode = ref<GameMode>(props.initialMode)
+  const canStart = computed(() => selectedMode.value === 'classic' || playerCount.value >= 2)
 
   // 加载玩家设置的函数
   const loadAndApplyPlayerSettings = () => {
@@ -81,7 +88,17 @@
   }
 
   const startGame = () => {
-    emit('start', { count: playerCount.value, names: playerNames.value })
+    if (!canStart.value) return
+    emit('start', {
+      count: playerCount.value,
+      names: playerNames.value,
+      mode: selectedMode.value,
+    })
+  }
+
+  const selectMode = (mode: GameMode) => {
+    selectedMode.value = mode
+    emit('mode-selected', mode)
   }
 
   // 监听玩家设置更新事件
@@ -262,6 +279,54 @@
         </div>
       </div>
 
+      <section class="mode-chooser" aria-labelledby="mode-chooser-title">
+        <div class="settings-header">
+          <h2 id="mode-chooser-title" class="settings-title">
+            <Dices :size="22" class="settings-icon" />
+            <span class="settings-title-text">本局玩法</span>
+          </h2>
+          <div class="settings-underline"></div>
+        </div>
+
+        <div class="mode-grid">
+          <button
+            type="button"
+            class="mode-card"
+            :class="{ 'mode-card--selected': selectedMode === 'classic' }"
+            :aria-pressed="selectedMode === 'classic'"
+            data-testid="mode-classic"
+            @click="selectMode('classic')"
+          >
+            <span class="mode-card__icon mode-card__icon--classic">
+              <ShieldCheck :size="26" />
+            </span>
+            <span class="mode-card__content">
+              <strong>经典局</strong>
+              <span>完整保留当前开局、移动、惩罚和胜利规则</span>
+            </span>
+            <span class="mode-card__badge">classic_v1</span>
+          </button>
+
+          <button
+            type="button"
+            class="mode-card mode-card--party"
+            :class="{ 'mode-card--selected': selectedMode === 'party' }"
+            :aria-pressed="selectedMode === 'party'"
+            data-testid="mode-party"
+            @click="selectMode('party')"
+          >
+            <span class="mode-card__icon mode-card__icon--party">
+              <Flame :size="26" />
+            </span>
+            <span class="mode-card__content">
+              <strong>升温局</strong>
+              <span>实验玩法 · 约 20 分钟 · 三幕、筹码与同场反应</span>
+            </span>
+            <span class="mode-card__badge mode-card__badge--party">party_v1</span>
+          </button>
+        </div>
+      </section>
+
       <!-- 玩家设置区域 -->
       <div class="player-settings">
         <div class="settings-header">
@@ -326,15 +391,27 @@
 
       <!-- 操作区域 -->
       <div class="intro-actions">
-        <button class="btn btn-primary start-btn" @click="startGame">
+        <button
+          class="btn btn-primary start-btn"
+          :disabled="!canStart"
+          data-testid="start-game"
+          @click="startGame"
+        >
           <Rocket :size="22" />
-          <span class="btn-text">开始游戏</span>
+          <span class="btn-text">
+            {{ selectedMode === 'party' ? '一键开始升温局' : '开始配置' }}
+          </span>
         </button>
+        <p v-if="selectedMode === 'party' && playerCount < 2" class="party-player-hint">
+          升温局需要至少两名玩家参与反应。
+        </p>
 
         <div class="game-info">
           <div class="info-item">
             <Clock :size="16" class="info-icon" />
-            <span class="info-text">游戏时长：约10-20分钟</span>
+            <span class="info-text">
+              游戏时长：{{ selectedMode === 'party' ? '约20分钟' : '约10-20分钟' }}
+            </span>
           </div>
           <div class="info-item">
             <Target :size="16" class="info-icon" />
@@ -658,6 +735,109 @@
   }
 
   /* 玩家设置区域 */
+  .mode-chooser {
+    margin: clamp(2rem, 6vw, 3rem) 0 0;
+    padding: clamp(1.25rem, 4vw, 1.75rem);
+    background: rgba(15, 23, 42, 0.72);
+    border: var(--glass-border);
+    border-radius: var(--radius-xl);
+    backdrop-filter: blur(var(--glass-blur));
+    box-shadow: var(--glass-shadow);
+  }
+
+  .mode-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .mode-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.85rem;
+    min-height: 132px;
+    padding: 1.1rem;
+    color: var(--text-primary);
+    text-align: left;
+    background: rgba(15, 23, 42, 0.76);
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition:
+      transform var(--transition-fast),
+      border-color var(--transition-fast),
+      background var(--transition-fast);
+  }
+
+  .mode-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(129, 140, 248, 0.7);
+    background: rgba(30, 41, 59, 0.9);
+  }
+
+  .mode-card--selected {
+    border-color: #818cf8;
+    box-shadow:
+      0 0 0 2px rgba(129, 140, 248, 0.18),
+      0 16px 34px rgba(15, 23, 42, 0.35);
+  }
+
+  .mode-card--party.mode-card--selected {
+    border-color: #fb7185;
+    box-shadow:
+      0 0 0 2px rgba(251, 113, 133, 0.18),
+      0 16px 34px rgba(76, 5, 25, 0.28);
+  }
+
+  .mode-card__icon {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+  }
+
+  .mode-card__icon--classic {
+    color: #c7d2fe;
+    background: rgba(99, 102, 241, 0.2);
+  }
+
+  .mode-card__icon--party {
+    color: #fecdd3;
+    background: rgba(244, 63, 94, 0.2);
+  }
+
+  .mode-card__content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding-right: 0.5rem;
+  }
+
+  .mode-card__content strong {
+    font-size: 1.1rem;
+  }
+
+  .mode-card__content span {
+    color: var(--text-secondary);
+    font-size: 0.86rem;
+    line-height: 1.5;
+  }
+
+  .mode-card__badge {
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0.65rem;
+    color: #c7d2fe;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+  }
+
+  .mode-card__badge--party {
+    color: #fecdd3;
+  }
+
   .player-settings {
     margin: clamp(2rem, 6vw, 3rem) 0;
     padding: clamp(1.5rem, 4vw, 2rem);
@@ -862,6 +1042,12 @@
     flex-direction: column;
     align-items: center;
     gap: clamp(2rem, 5vw, 3rem);
+  }
+
+  .party-player-hint {
+    margin: -0.5rem 0 0;
+    color: #fda4af;
+    font-size: 0.86rem;
   }
 
   .start-btn {
@@ -1582,6 +1768,14 @@
 
   /* 移动端适配 */
   @media (max-width: 768px) {
+    .mode-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .mode-card {
+      min-height: 112px;
+    }
+
     .cache-controls {
       margin-top: 1rem;
     }
