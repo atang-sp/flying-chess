@@ -5,6 +5,14 @@ export type PartyAct = 'warmup' | 'heating' | 'finale'
 export type PartyTokenAction = 'reroll' | 'punishment_choice'
 export type PartyPrediction = 'low' | 'high'
 export type PartyReactionDecision = 'keep' | 'mirror'
+export type PartyDiceDecision = 'continue'
+export type PartyPunishmentDecision = 'skip'
+
+export const PARTY_MIN_PLAYERS = 2
+export const PARTY_DECISION_TIMEOUT_SECONDS = 5
+export const PARTY_DEFAULT_REACTION_DECISION: PartyReactionDecision = 'keep'
+export const PARTY_DEFAULT_DICE_DECISION: PartyDiceDecision = 'continue'
+export const PARTY_DEFAULT_PUNISHMENT_DECISION: PartyPunishmentDecision = 'skip'
 
 export interface PartyReaction {
   readonly status: 'awaiting_prediction' | 'awaiting_roll' | 'awaiting_decision' | 'resolved'
@@ -25,6 +33,7 @@ export interface PartySession {
   readonly roundNumber: number
   readonly act: PartyAct
   readonly activeElapsedMs: number
+  readonly timeLimitPending: boolean
   readonly shouldEnd: boolean
   readonly pausedAt?: number
   readonly pausedDurationMs: number
@@ -45,6 +54,18 @@ export interface PartyHighlight {
   readonly keyDecision: string
   readonly reactionSummary: string
   readonly chainSummary: string
+}
+
+export interface PartyTieBreakState {
+  readonly candidatePlayerIndices: readonly number[]
+  readonly rolls: Readonly<Record<number, number>>
+  readonly currentCandidateOffset: number
+  readonly roundNumber: number
+}
+
+export interface PartyTieBreakRollResult {
+  readonly state: PartyTieBreakState
+  readonly winnerPlayerIndex?: number
 }
 
 interface CreatePartySessionInput {
@@ -151,7 +172,7 @@ export function createPartySession({
   playerCount,
   startedAt,
 }: CreatePartySessionInput): PartySession {
-  if (!Number.isInteger(playerCount) || playerCount < 2) {
+  if (!Number.isInteger(playerCount) || playerCount < PARTY_MIN_PLAYERS) {
     throw new Error('升温局至少需要两名玩家')
   }
 
@@ -163,6 +184,7 @@ export function createPartySession({
     roundNumber: 1,
     act: 'warmup',
     activeElapsedMs: 0,
+    timeLimitPending: false,
     shouldEnd: false,
     pausedDurationMs: 0,
     tokensRemaining: Object.freeze(Array.from({ length: playerCount }, () => 2)),
@@ -344,6 +366,72 @@ export function getPartyTimeLimitLeaders(positions: readonly number[]): readonly
   )
 }
 
+export function createPartyTieBreakState(
+  candidatePlayerIndices: readonly number[]
+): PartyTieBreakState {
+  const candidates = [...new Set(candidatePlayerIndices)]
+  if (
+    candidates.length < 2 ||
+    candidates.some(playerIndex => !Number.isInteger(playerIndex) || playerIndex < 0)
+  ) {
+    throw new Error('并列决胜至少需要两名有效玩家')
+  }
+
+  return Object.freeze({
+    candidatePlayerIndices: Object.freeze(candidates),
+    rolls: Object.freeze({}),
+    currentCandidateOffset: 0,
+    roundNumber: 1,
+  })
+}
+
+export function rollPartyTieBreak(
+  state: PartyTieBreakState,
+  playerIndex: number,
+  rolledValue: number
+): PartyTieBreakRollResult {
+  const expectedPlayerIndex = state.candidatePlayerIndices[state.currentCandidateOffset]
+  if (playerIndex !== expectedPlayerIndex) {
+    throw new Error('并列玩家必须按当前顺序掷骰')
+  }
+  if (!Number.isInteger(rolledValue) || rolledValue < 1 || rolledValue > 6) {
+    throw new Error('骰子点数必须在一到六之间')
+  }
+
+  const rolls = Object.freeze({ ...state.rolls, [playerIndex]: rolledValue })
+  if (state.currentCandidateOffset < state.candidatePlayerIndices.length - 1) {
+    return Object.freeze({
+      state: Object.freeze({
+        ...state,
+        rolls,
+        currentCandidateOffset: state.currentCandidateOffset + 1,
+      }),
+    })
+  }
+
+  const highestRoll = Math.max(
+    ...state.candidatePlayerIndices.map(candidatePlayerIndex => rolls[candidatePlayerIndex] ?? 0)
+  )
+  const leaders = state.candidatePlayerIndices.filter(
+    candidatePlayerIndex => rolls[candidatePlayerIndex] === highestRoll
+  )
+  if (leaders.length === 1) {
+    return Object.freeze({
+      state: Object.freeze({ ...state, rolls }),
+      winnerPlayerIndex: leaders[0],
+    })
+  }
+
+  return Object.freeze({
+    state: Object.freeze({
+      candidatePlayerIndices: Object.freeze(leaders),
+      rolls: Object.freeze({}),
+      currentCandidateOffset: 0,
+      roundNumber: state.roundNumber + 1,
+    }),
+  })
+}
+
 export function pausePartySession(session: PartySession, now: number): PartySession {
   if (session.pausedAt !== undefined) return session
   return Object.freeze({ ...session, pausedAt: now })
@@ -374,6 +462,7 @@ export function completePartyTurn(
   )
   const reachedRoundBoundary = completedTurns % session.playerCount === 0
   const preferredReactionTarget = completedRounds % session.playerCount
+  const timeLimitPending = session.timeLimitPending || activeElapsedMs >= PARTY_TIME_LIMIT_MS
 
   return Object.freeze({
     ...session,
@@ -386,8 +475,8 @@ export function completePartyTurn(
     roundNumber: completedRounds + 1,
     act: reachedRoundBoundary ? actForRoundBoundary(completedRounds, activeElapsedMs) : session.act,
     activeElapsedMs,
-    shouldEnd:
-      session.shouldEnd || (reachedRoundBoundary && activeElapsedMs >= PARTY_TIME_LIMIT_MS),
+    timeLimitPending,
+    shouldEnd: session.shouldEnd || (reachedRoundBoundary && timeLimitPending),
     reactionTargetPlayerIndex: reachedRoundBoundary
       ? nextEligibleReactionTarget(
           preferredReactionTarget,

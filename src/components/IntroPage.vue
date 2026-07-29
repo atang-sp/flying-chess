@@ -23,6 +23,7 @@
   import { devLog } from '../utils/logger'
   import VersionDisplay from './VersionDisplay.vue'
   import type { GameMode } from '../config/modes'
+  import { PARTY_MIN_PLAYERS } from '../services/partyMode'
 
   interface Emits {
     (e: 'start', playerConfig: { count: number; names: string[]; mode: GameMode }): void
@@ -36,7 +37,9 @@
   const playerCount = ref(2)
   const playerNames = ref<string[]>(['玩家1', '玩家2'])
   const selectedMode = ref<GameMode>(props.initialMode)
-  const canStart = computed(() => selectedMode.value === 'classic' || playerCount.value >= 2)
+  const canStart = computed(
+    () => selectedMode.value === 'classic' || playerCount.value >= PARTY_MIN_PLAYERS
+  )
 
   // 加载玩家设置的函数
   const loadAndApplyPlayerSettings = () => {
@@ -402,7 +405,10 @@
             {{ selectedMode === 'party' ? '一键开始升温局' : '开始配置' }}
           </span>
         </button>
-        <p v-if="selectedMode === 'party' && playerCount < 2" class="party-player-hint">
+        <p
+          v-if="selectedMode === 'party' && playerCount < PARTY_MIN_PLAYERS"
+          class="party-player-hint"
+        >
           升温局需要至少两名玩家参与反应。
         </p>
 

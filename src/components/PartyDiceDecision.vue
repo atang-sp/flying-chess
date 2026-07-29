@@ -1,6 +1,10 @@
 <script setup lang="ts">
   import { onBeforeUnmount, ref, watch } from 'vue'
   import { Coins, MoveRight, RotateCcw, Timer } from '@lucide/vue'
+  import {
+    PARTY_DECISION_TIMEOUT_SECONDS,
+    PARTY_DEFAULT_DICE_DECISION,
+  } from '../services/partyMode'
 
   const props = defineProps<{
     visible: boolean
@@ -16,7 +20,7 @@
     (event: 'continue'): void
   }>()
 
-  const secondsRemaining = ref(5)
+  const secondsRemaining = ref(PARTY_DECISION_TIMEOUT_SECONDS)
   let timer: number | undefined
 
   const clearTimer = () => {
@@ -28,12 +32,12 @@
 
   const startTimer = (resetCountdown: boolean) => {
     clearTimer()
-    if (resetCountdown) secondsRemaining.value = 5
+    if (resetCountdown) secondsRemaining.value = PARTY_DECISION_TIMEOUT_SECONDS
     timer = window.setInterval(() => {
       secondsRemaining.value -= 1
       if (secondsRemaining.value <= 0) {
         clearTimer()
-        emit('continue')
+        emit(PARTY_DEFAULT_DICE_DECISION)
       }
     }, 1000)
   }

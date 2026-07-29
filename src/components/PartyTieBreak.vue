@@ -3,6 +3,11 @@
   import { Dices, Trophy } from '@lucide/vue'
   import { SecureRandom } from '../utils/secureRandom'
   import type { Player } from '../types/game'
+  import {
+    createPartyTieBreakState,
+    rollPartyTieBreak,
+    type PartyTieBreakState,
+  } from '../services/partyMode'
 
   const props = defineProps<{
     visible: boolean
@@ -14,19 +19,18 @@
     (event: 'winner', playerIndex: number): void
   }>()
 
-  const candidates = ref<number[]>([])
-  const rolls = ref<Record<number, number>>({})
-  const currentCandidateOffset = ref(0)
-  const tieRound = ref(1)
+  const state = ref<PartyTieBreakState | null>(null)
 
-  const currentPlayerIndex = computed(() => candidates.value[currentCandidateOffset.value])
+  const candidates = computed(() => state.value?.candidatePlayerIndices ?? [])
+  const rolls = computed(() => state.value?.rolls ?? {})
+  const currentPlayerIndex = computed(
+    () => candidates.value[state.value?.currentCandidateOffset ?? 0]
+  )
   const currentPlayer = computed(() => props.players[currentPlayerIndex.value] ?? null)
+  const tieRound = computed(() => state.value?.roundNumber ?? 1)
 
   const reset = () => {
-    candidates.value = [...props.candidateIndices]
-    rolls.value = {}
-    currentCandidateOffset.value = 0
-    tieRound.value = 1
+    state.value = createPartyTieBreakState(props.candidateIndices)
   }
 
   watch(
@@ -38,29 +42,12 @@
   )
 
   const roll = () => {
+    const currentState = state.value
     const playerIndex = currentPlayerIndex.value
-    if (playerIndex === undefined) return
-    rolls.value = {
-      ...rolls.value,
-      [playerIndex]: SecureRandom.randomInt(1, 6),
-    }
-
-    if (currentCandidateOffset.value < candidates.value.length - 1) {
-      currentCandidateOffset.value += 1
-      return
-    }
-
-    const highestRoll = Math.max(...candidates.value.map(index => rolls.value[index] ?? 0))
-    const leaders = candidates.value.filter(index => rolls.value[index] === highestRoll)
-    if (leaders.length === 1) {
-      emit('winner', leaders[0])
-      return
-    }
-
-    candidates.value = leaders
-    rolls.value = {}
-    currentCandidateOffset.value = 0
-    tieRound.value += 1
+    if (!currentState || playerIndex === undefined) return
+    const result = rollPartyTieBreak(currentState, playerIndex, SecureRandom.randomInt(1, 6))
+    state.value = result.state
+    if (result.winnerPlayerIndex !== undefined) emit('winner', result.winnerPlayerIndex)
   }
 </script>
 

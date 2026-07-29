@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   beginPartyTurn,
   completePartyTurn,
+  createPartyTieBreakState,
   createPartyHighlight,
   createPartyPunishmentChoices,
   createPartySession,
@@ -11,6 +12,7 @@ import {
   pausePartySession,
   resolvePartyReactionRoll,
   recordPartyChain,
+  rollPartyTieBreak,
   resumePartySession,
   spendPartyToken,
   submitPartyPrediction,
@@ -71,7 +73,10 @@ describe('升温局阶段导演', () => {
     expect(session).toMatchObject({ act: 'finale', shouldEnd: false })
 
     session = completePartyTurn(session, { playerIndex: 0, now: 21 * minute })
-    expect(session.shouldEnd).toBe(false)
+    expect(session).toMatchObject({
+      timeLimitPending: true,
+      shouldEnd: false,
+    })
 
     session = completePartyTurn(session, { playerIndex: 1, now: 21 * minute })
     expect(session.shouldEnd).toBe(true)
@@ -295,5 +300,30 @@ describe('升温局阶段导演', () => {
   it('二十分钟结束时保留所有最远位置玩家进入掷骰决胜', () => {
     expect(getPartyTimeLimitLeaders([12, 18, 18, 7])).toEqual([1, 2])
     expect(getPartyTimeLimitLeaders([40, 21])).toEqual([0])
+  })
+
+  it('并列决胜只保留最高点玩家并在再次并列时继续', () => {
+    let state = createPartyTieBreakState([0, 1, 2])
+
+    let result = rollPartyTieBreak(state, 0, 6)
+    state = result.state
+    result = rollPartyTieBreak(state, 1, 6)
+    state = result.state
+    result = rollPartyTieBreak(state, 2, 4)
+    state = result.state
+
+    expect(result.winnerPlayerIndex).toBeUndefined()
+    expect(state).toMatchObject({
+      candidatePlayerIndices: [0, 1],
+      currentCandidateOffset: 0,
+      roundNumber: 2,
+      rolls: {},
+    })
+
+    result = rollPartyTieBreak(state, 0, 5)
+    state = result.state
+    result = rollPartyTieBreak(state, 1, 3)
+
+    expect(result.winnerPlayerIndex).toBe(0)
   })
 })

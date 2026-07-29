@@ -922,6 +922,7 @@
         partyMode: typeof partyMode
         finishGameWithPlayer: typeof finishGameWithPlayer
         completePartyTurnForPlayer: typeof completePartyTurnForPlayer
+        resolveNaturalVictory: typeof resolveNaturalVictory
       }
 
       debugWindow.gameState = gameState
@@ -952,6 +953,7 @@
       debugWindow.partyMode = partyMode
       debugWindow.finishGameWithPlayer = finishGameWithPlayer
       debugWindow.completePartyTurnForPlayer = completePartyTurnForPlayer
+      debugWindow.resolveNaturalVictory = resolveNaturalVictory
     }
 
     // 从localStorage恢复设置
@@ -1277,13 +1279,17 @@
     resetEffectChainCount()
   }
 
-  const completePartyTurnForPlayer = (playerIndex: number, enforceTimeLimit = true): boolean => {
-    if (!isPartyGame.value) return false
+  type PartyTurnCompletion = 'continue' | 'time_limit_pending' | 'ended'
+
+  const completePartyTurnForPlayer = (playerIndex: number): PartyTurnCompletion => {
+    if (!isPartyGame.value) return 'continue'
     const nextRoundEligibleReactionTargets = gameState.players.flatMap((player, index) =>
       (player.pendingSkippedTurns ?? 0) > 0 ? [] : [index]
     )
     const completedSession = partyMode.completeTurn(playerIndex, nextRoundEligibleReactionTargets)
-    if (!enforceTimeLimit || !completedSession.shouldEnd) return false
+    if (!completedSession.shouldEnd) {
+      return completedSession.timeLimitPending ? 'time_limit_pending' : 'continue'
+    }
 
     const leaders = getPartyTimeLimitLeaders(gameState.players.map(player => player.position))
     if (leaders.length === 1) {
@@ -1292,7 +1298,17 @@
       gameState.gameStatus = 'configuring'
       partyTieCandidates.value = leaders
     }
-    return true
+    return 'ended'
+  }
+
+  const resolveNaturalVictory = (playerIndex: number, preserveClassicVictoryAudio = true): void => {
+    const completion = completePartyTurnForPlayer(playerIndex)
+    if (completion === 'ended') return
+    if (completion === 'time_limit_pending') {
+      advanceToNextPlayablePlayer(true)
+      return
+    }
+    finishGameWithPlayer(playerIndex, preserveClassicVictoryAudio)
   }
 
   const continuePartyMove = async () => {
@@ -1415,8 +1431,7 @@
       // 检查是否到达终点
       const boardSize = gameState.board.length
       if (newPosition === boardSize) {
-        completePartyTurnForPlayer(gameState.currentPlayerIndex, false)
-        finishGameWithPlayer(gameState.currentPlayerIndex)
+        resolveNaturalVictory(gameState.currentPlayerIndex)
         return
       }
 
@@ -1515,8 +1530,7 @@
       // 检查是否到达终点
       const boardSize = gameState.board.length
       if (newPosition === boardSize) {
-        completePartyTurnForPlayer(gameState.currentPlayerIndex, false)
-        finishGameWithPlayer(gameState.currentPlayerIndex, false)
+        resolveNaturalVictory(gameState.currentPlayerIndex, false)
         return
       }
 
@@ -1599,10 +1613,15 @@
     }
   }
 
-  function advanceToNextPlayablePlayer() {
+  function advanceToNextPlayablePlayer(currentTurnAlreadyCompleted = false) {
     if (gameState.players.length === 0) return
 
-    if (completePartyTurnForPlayer(gameState.currentPlayerIndex)) return
+    if (
+      !currentTurnAlreadyCompleted &&
+      completePartyTurnForPlayer(gameState.currentPlayerIndex) === 'ended'
+    ) {
+      return
+    }
 
     gameState.currentPlayerIndex = GameService.getNextPlayer(
       gameState.currentPlayerIndex,
@@ -1625,7 +1644,7 @@
 
       gameState.players[playerIndex] = consumedTurn.player
       lastEffect.value = `${player.name}休息一回合，本回合已跳过`
-      if (completePartyTurnForPlayer(playerIndex)) return
+      if (completePartyTurnForPlayer(playerIndex) === 'ended') return
       gameState.currentPlayerIndex = GameService.getNextPlayer(
         playerIndex,
         gameState.players.length
@@ -1646,8 +1665,7 @@
 
       // 检查是否获胜
       if (GameService.checkWinner(currentPlayer, gameState.board.length)) {
-        completePartyTurnForPlayer(gameState.currentPlayerIndex, false)
-        finishGameWithPlayer(gameState.currentPlayerIndex, false)
+        resolveNaturalVictory(gameState.currentPlayerIndex, false)
         return
       }
 
@@ -1816,8 +1834,7 @@
 
       // 检查是否获胜
       if (GameService.checkWinner(currentPlayer, gameState.board.length)) {
-        completePartyTurnForPlayer(gameState.currentPlayerIndex, false)
-        finishGameWithPlayer(gameState.currentPlayerIndex, false)
+        resolveNaturalVictory(gameState.currentPlayerIndex, false)
         return
       }
 

@@ -359,6 +359,60 @@ test('party time limit finishes the round and resolves tied leaders by dice', as
   await expect(page.getByTestId('party-highlight-card')).toBeVisible()
 })
 
+test('party defers a natural finish reached after the time limit until round end', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await startPartyGame(page)
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        currentPlayerIndex: number
+        players: Array<{ position: number }>
+      }
+      partyMode: {
+        session: {
+          value: Record<string, unknown> | null
+        }
+      }
+      resolveNaturalVictory: (playerIndex: number) => void
+    }
+    debugWindow.gameState.players[0].position = 40
+    debugWindow.gameState.players[1].position = 12
+    const session = debugWindow.partyMode.session.value
+    if (!session) throw new Error('party session missing')
+    debugWindow.partyMode.session.value = {
+      ...session,
+      startedAt: performance.now() - 20 * 60_000 - 1,
+    }
+    debugWindow.resolveNaturalVictory(0)
+  })
+
+  await expect(page.getByTestId('party-highlight-card')).toBeHidden()
+  await expect(page.getByTestId('party-status')).toBeVisible()
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            window as typeof window & {
+              gameState: { currentPlayerIndex: number }
+            }
+          ).gameState.currentPlayerIndex
+      )
+    )
+    .toBe(1)
+
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      completePartyTurnForPlayer: (playerIndex: number) => string
+    }
+    debugWindow.completePartyTurnForPlayer(1)
+  })
+  await expect(page.getByTestId('party-highlight-card')).toBeVisible()
+})
+
 test('party mode stays within the mobile viewport', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile-chrome')
 

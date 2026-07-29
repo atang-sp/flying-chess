@@ -1,7 +1,13 @@
 <script setup lang="ts">
   import { computed, onBeforeUnmount, ref, watch } from 'vue'
   import { Eye, RefreshCw, Timer } from '@lucide/vue'
-  import type { PartyPrediction, PartyReaction, PartyReactionDecision } from '../services/partyMode'
+  import {
+    PARTY_DECISION_TIMEOUT_SECONDS,
+    PARTY_DEFAULT_REACTION_DECISION,
+    type PartyPrediction,
+    type PartyReaction,
+    type PartyReactionDecision,
+  } from '../services/partyMode'
   import type { Player } from '../types/game'
 
   const props = defineProps<{
@@ -15,7 +21,7 @@
     (event: 'decide', decision: PartyReactionDecision): void
   }>()
 
-  const secondsRemaining = ref(5)
+  const secondsRemaining = ref(PARTY_DECISION_TIMEOUT_SECONDS)
   let decisionTimer: number | undefined
 
   const reactorName = computed(
@@ -34,12 +40,12 @@
 
   const startDecisionTimer = (resetCountdown: boolean) => {
     clearDecisionTimer()
-    if (resetCountdown) secondsRemaining.value = 5
+    if (resetCountdown) secondsRemaining.value = PARTY_DECISION_TIMEOUT_SECONDS
     decisionTimer = window.setInterval(() => {
       secondsRemaining.value -= 1
       if (secondsRemaining.value <= 0) {
         clearDecisionTimer()
-        emit('decide', 'keep')
+        emit('decide', PARTY_DEFAULT_REACTION_DECISION)
       }
     }, 1000)
   }
