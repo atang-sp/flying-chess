@@ -39,6 +39,10 @@
     ResolvedRuleResult,
   } from './types/game'
   import IntroPage from './components/IntroPage.vue'
+  import PartyReactionOverlay from './components/PartyReactionOverlay.vue'
+  import PartyDiceDecision from './components/PartyDiceDecision.vue'
+  import PartyPunishmentChoice from './components/PartyPunishmentChoice.vue'
+  import PartyTieBreak from './components/PartyTieBreak.vue'
   import GameBoard from './components/GameBoard.vue'
   import PlayerPanel from './components/PlayerPanel.vue'
   import BoardConfigPanel from './components/BoardConfig.vue'
@@ -57,7 +61,13 @@
   import MercyDecision from './components/MercyDecision.vue'
   import SessionPauseOverlay from './components/SessionPauseOverlay.vue'
   import ConfigExport from './components/ConfigExport.vue'
-  import { saveConfig, loadConfig, loadPlayerSettings } from './utils/cache'
+  import {
+    saveConfig,
+    loadConfig,
+    loadPlayerSettings,
+    loadGameMode,
+    saveGameMode,
+  } from './utils/cache'
   import { SecureRandom } from './utils/secureRandom'
   import { devLog } from './utils/logger'
   import {
@@ -69,6 +79,15 @@
   import { usePlayerState } from './composables/usePlayerState'
   import { usePunishmentConfigNormalizer } from './composables/usePunishmentConfigNormalizer'
   import { useImportFeedbackDialog } from './composables/useImportFeedbackDialog'
+  import { usePartyMode } from './composables/usePartyMode'
+  import { type GameMode } from './config/modes'
+  import {
+    createPartyPunishmentChoices,
+    getPartyTimeLimitLeaders,
+    isPartyPunishmentChoiceEligible,
+    type PartyPrediction,
+    type PartyReactionDecision,
+  } from './services/partyMode'
   import { driver as createDriver } from 'driver.js'
 
   // 游戏状态
@@ -88,6 +107,48 @@
   const gameStarted = ref(false)
   const gameFinished = ref(false)
   const sessionPaused = ref(false)
+  const selectedMode = ref<GameMode>(loadGameMode())
+  const activeMode = ref<GameMode | null>(null)
+  const partyMode = usePartyMode()
+  const isPartyGame = computed(() => activeMode.value === 'party' && partyMode.isActive.value)
+  const partySession = computed(() => partyMode.session.value)
+  const partyReaction = computed(() => partySession.value?.reaction ?? null)
+  const partyHighlight = computed(() => partyMode.highlight.value)
+  const partyActLabel = computed(() => {
+    switch (partySession.value?.act) {
+      case 'heating':
+        return '升温'
+      case 'finale':
+        return '终局'
+      default:
+        return '暖场'
+    }
+  })
+  const currentPartyTokens = computed(
+    () => partySession.value?.tokensRemaining[gameState.currentPlayerIndex] ?? 0
+  )
+  const canCurrentPlayerReroll = computed(
+    () =>
+      currentPartyTokens.value > 0 &&
+      partySession.value?.interventionUsedThisTurn === undefined &&
+      !partySession.value?.diceChangedThisTurn
+  )
+  const partyDiceDecisionVisible = ref(false)
+  const partyPunishmentChoices = ref<readonly PunishmentAction[]>([])
+  const partyTieCandidates = ref<readonly number[]>([])
+  const classicConfigSnapshot = ref<{
+    boardConfig: BoardConfig
+    punishmentConfig: PunishmentConfig
+    trapConfig: TrapAction[]
+  } | null>(null)
+  const partyInteractionBlocking = computed(
+    () =>
+      partyDiceDecisionVisible.value ||
+      partyPunishmentChoices.value.length > 0 ||
+      partyTieCandidates.value.length > 0 ||
+      partyReaction.value?.status === 'awaiting_prediction' ||
+      partyReaction.value?.status === 'awaiting_decision'
+  )
 
   // 移动端 PlayerPanel 折叠状态
   const playerPanelCollapsed = ref(true)
@@ -184,6 +245,7 @@
   watch(
     () => [gameState.boardConfig, gameState.punishmentConfig, trapConfig.value],
     () => {
+      if (activeMode.value === 'party') return
       // 直接从响应式状态读取，避免类型推断问题
       saveConfig({
         boardConfig: gameState.boardConfig,
@@ -326,14 +388,19 @@
     diceValue?: number
   }
 
-  const handleLandingCellEffect = async ({
-    currentPlayer,
-    fromPosition,
-    newPosition,
-    punishment,
-    cellEffect,
-    diceValue,
-  }: LandingEffectPayload) => {
+  const pendingPartyLanding = ref<LandingEffectPayload | null>(null)
+
+  const handleLandingCellEffect = async (
+    {
+      currentPlayer,
+      fromPosition,
+      newPosition,
+      punishment,
+      cellEffect,
+      diceValue,
+    }: LandingEffectPayload,
+    allowPartyChoice = true
+  ) => {
     const resolvedCellEffect = cellEffect ?? getCellEffectByPosition(newPosition)
     const resolvedPunishment =
       punishment ||
@@ -359,9 +426,45 @@
         return
       }
       effectChainCount.value++
+      if (isPartyGame.value) partyMode.recordChain(effectChainCount.value)
     }
 
     if (resolvedPunishment) {
+      const partySessionSnapshot = partySession.value
+      const partyChoiceSource = currentPlayer.hasTakenOff ? 'board_punishment' : 'takeoff_failure'
+      const partyChoiceCellType =
+        resolvedCellEffect?.type === 'chain_punishment' ? 'chain_punishment' : 'punishment'
+      const canSpendChoiceToken =
+        partySessionSnapshot !== null &&
+        (partySessionSnapshot.tokensRemaining[gameState.currentPlayerIndex] ?? 0) > 0 &&
+        partySessionSnapshot.interventionUsedThisTurn === undefined
+
+      if (
+        allowPartyChoice &&
+        isPartyGame.value &&
+        canSpendChoiceToken &&
+        isPartyPunishmentChoiceEligible({
+          source: partyChoiceSource,
+          cellType: partyChoiceCellType,
+          action: resolvedPunishment,
+        })
+      ) {
+        try {
+          partyPunishmentChoices.value = createPartyPunishmentChoices(gameState.punishmentConfig)
+          pendingPartyLanding.value = {
+            currentPlayer,
+            fromPosition,
+            newPosition,
+            punishment,
+            cellEffect,
+            diceValue,
+          }
+          return
+        } catch {
+          // A very narrow custom configuration may not contain two distinct choices.
+        }
+      }
+
       const actorIndex = gameState.currentPlayerIndex
       const punishmentResolution = !currentPlayer.hasTakenOff
         ? resolveRule({
@@ -501,6 +604,24 @@
     await continueAfterMove()
   }
 
+  const resolvePartyPunishmentChoice = async (selectedIndex?: number) => {
+    const pendingLanding = pendingPartyLanding.value
+    if (!pendingLanding) return
+    const selectedPunishment =
+      selectedIndex === undefined
+        ? pendingLanding.punishment
+        : partyPunishmentChoices.value[selectedIndex]
+
+    pendingPartyLanding.value = null
+    partyPunishmentChoices.value = []
+
+    if (selectedIndex !== undefined) {
+      partyMode.spendToken(gameState.currentPlayerIndex, 'punishment_choice')
+    }
+
+    await handleLandingCellEffect({ ...pendingLanding, punishment: selectedPunishment }, false)
+  }
+
   // 计算属性
   const canRollDice = computed(() => {
     return (
@@ -512,7 +633,8 @@
       !showTakeoffPunishmentDisplay.value &&
       !showTrapDisplay.value &&
       !showDoublePunishmentReveal.value &&
-      !showChainPunishmentRoll.value
+      !showChainPunishmentRoll.value &&
+      !partyInteractionBlocking.value
     )
   })
 
@@ -526,6 +648,7 @@
       showChainPunishmentRoll.value ||
       showMercyDecision.value ||
       showTakeoffReliefDisplay.value ||
+      partyInteractionBlocking.value ||
       gameState.gameStatus === 'showing_effect'
   )
 
@@ -702,6 +825,7 @@
   }
 
   onMounted(() => {
+    gameTelemetry.setMode(selectedMode.value)
     gameTelemetry.openApp()
     audioService.init()
     audioEnabled.value = audioService.enabled
@@ -793,6 +917,12 @@
         currentTrapPunishment: typeof currentTrapPunishment
         currentTrapDescription: typeof currentTrapDescription
         checkGameStateHealth: typeof checkGameStateHealth
+        selectedMode: typeof selectedMode
+        activeMode: typeof activeMode
+        partyMode: typeof partyMode
+        finishGameWithPlayer: typeof finishGameWithPlayer
+        completePartyTurnForPlayer: typeof completePartyTurnForPlayer
+        resolveNaturalVictory: typeof resolveNaturalVictory
       }
 
       debugWindow.gameState = gameState
@@ -818,6 +948,12 @@
       debugWindow.currentTrapPunishment = currentTrapPunishment
       debugWindow.currentTrapDescription = currentTrapDescription
       debugWindow.checkGameStateHealth = checkGameStateHealth
+      debugWindow.selectedMode = selectedMode
+      debugWindow.activeMode = activeMode
+      debugWindow.partyMode = partyMode
+      debugWindow.finishGameWithPlayer = finishGameWithPlayer
+      debugWindow.completePartyTurnForPlayer = completePartyTurnForPlayer
+      debugWindow.resolveNaturalVictory = resolveNaturalVictory
     }
 
     // 从localStorage恢复设置
@@ -892,6 +1028,13 @@
     gameStarted.value = false
     gameFinished.value = false
     sessionPaused.value = false
+    activeMode.value = null
+    classicConfigSnapshot.value = null
+    partyMode.clear()
+    partyDiceDecisionVisible.value = false
+    partyPunishmentChoices.value = []
+    pendingPartyLanding.value = null
+    partyTieCandidates.value = []
     turnCount.value = 0
     lastEffect.value = ''
     currentPunishment.value = null
@@ -928,6 +1071,42 @@
       gameState.boardConfig,
       traps
     )
+  }
+
+  const handleModeSelected = (mode: GameMode) => {
+    selectedMode.value = mode
+    saveGameMode(mode)
+    gameTelemetry.selectMode(mode)
+  }
+
+  const cloneConfig = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T
+
+  const startPartyGame = (playerConfig: { count: number; names: string[]; mode: 'party' }) => {
+    classicConfigSnapshot.value = {
+      boardConfig: cloneConfig(gameState.boardConfig),
+      punishmentConfig: cloneConfig(gameState.punishmentConfig),
+      trapConfig: cloneConfig(trapConfig.value),
+    }
+    activeMode.value = 'party'
+    gameState.players = GameService.createCustomPlayers(playerConfig.count, playerConfig.names)
+    gameState.currentPlayerIndex = 0
+    gameState.diceValue = null
+    gameState.winner = null
+    gameState.pendingEffect = null
+    gameState.punishmentConfig = GameService.createPunishmentConfig()
+    gameState.boardConfig = GameService.createBoardConfig()
+    trapConfig.value = GameService.trapsToArray(GAME_CONFIG.DEFAULT_TRAPS)
+    gameState.board = GameService.createBoard(
+      gameState.punishmentConfig,
+      gameState.boardConfig,
+      trapConfig.value
+    )
+    gameState.gameStatus = 'waiting'
+    gameTelemetry.setMode('party')
+    partyMode.start(gameState.players.length)
+    turnCount.value = 1
+    gameFinished.value = false
+    gameStarted.value = true
   }
 
   // 开始游戏
@@ -994,6 +1173,13 @@
 
   // 重置游戏
   const resetGame = () => {
+    const resetMode = activeMode.value
+    if (resetMode === 'party' && classicConfigSnapshot.value) {
+      gameState.boardConfig = classicConfigSnapshot.value.boardConfig
+      gameState.punishmentConfig = classicConfigSnapshot.value.punishmentConfig
+      trapConfig.value = classicConfigSnapshot.value.trapConfig
+      classicConfigSnapshot.value = null
+    }
     // 重置游戏状态但保持配置
     const cachedPlayerSettings = loadPlayerSettings()
     gameState.players = createPlayersForReset(gameState.players, cachedPlayerSettings)
@@ -1015,6 +1201,12 @@
     currentPunishmentTarget.value = null
     pendingRuleResolution.value = null
     sessionPaused.value = false
+    partyMode.clear()
+    partyDiceDecisionVisible.value = false
+    partyPunishmentChoices.value = []
+    pendingPartyLanding.value = null
+    partyTieCandidates.value = []
+    activeMode.value = null
 
     // 清除惩罚组合确认状态
     punishmentCombinations.value = []
@@ -1051,16 +1243,18 @@
     mercyExecutorPlayer.value = null
     mercyTargetPlayer.value = null
 
-    // 直接跳转到棋盘设置页面
-    gameState.gameStatus = 'board_settings'
+    // 升温局重置后回首页方可切换玩法；经典局保留原配置流程。
+    gameState.gameStatus = resetMode === 'party' ? 'intro' : 'board_settings'
   }
 
   const pauseSession = () => {
     if (!canPauseSession.value) return
+    if (isPartyGame.value) partyMode.pause()
     sessionPaused.value = true
   }
 
   const resumeSession = () => {
+    if (isPartyGame.value) partyMode.resume()
     sessionPaused.value = false
   }
 
@@ -1068,6 +1262,107 @@
     sessionPaused.value = false
     gameTelemetry.finishGame('user_ended', turnCount.value)
     resetGame()
+  }
+
+  const finishGameWithPlayer = (playerIndex: number, preserveClassicVictoryAudio = true) => {
+    const winner = gameState.players[playerIndex]
+    if (!winner) return
+    winner.isWinner = true
+    gameState.winner = winner
+    gameState.gameStatus = 'finished'
+    gameFinished.value = true
+    showVictoryScreen.value = true
+    partyTieCandidates.value = []
+    if (isPartyGame.value || preserveClassicVictoryAudio) {
+      audioService.play('victory')
+    }
+    resetEffectChainCount()
+  }
+
+  type PartyTurnCompletion = 'continue' | 'time_limit_pending' | 'ended'
+
+  const completePartyTurnForPlayer = (playerIndex: number): PartyTurnCompletion => {
+    if (!isPartyGame.value) return 'continue'
+    const nextRoundEligibleReactionTargets = gameState.players.flatMap((player, index) =>
+      (player.pendingSkippedTurns ?? 0) > 0 ? [] : [index]
+    )
+    const completedSession = partyMode.completeTurn(playerIndex, nextRoundEligibleReactionTargets)
+    if (!completedSession.shouldEnd) {
+      return completedSession.timeLimitPending ? 'time_limit_pending' : 'continue'
+    }
+
+    const leaders = getPartyTimeLimitLeaders(gameState.players.map(player => player.position))
+    if (leaders.length === 1) {
+      finishGameWithPlayer(leaders[0])
+    } else {
+      gameState.gameStatus = 'configuring'
+      partyTieCandidates.value = leaders
+    }
+    return 'ended'
+  }
+
+  const resolveNaturalVictory = (playerIndex: number, preserveClassicVictoryAudio = true): void => {
+    const completion = completePartyTurnForPlayer(playerIndex)
+    if (completion === 'ended') return
+    if (completion === 'time_limit_pending') {
+      advanceToNextPlayablePlayer(true)
+      return
+    }
+    finishGameWithPlayer(playerIndex, preserveClassicVictoryAudio)
+  }
+
+  const continuePartyMove = async () => {
+    partyDiceDecisionVisible.value = false
+    gameState.gameStatus = 'moving'
+    await moveCurrentPlayer()
+  }
+
+  const performDiceRoll = async (isReroll = false) => {
+    audioService.play('diceRoll')
+    resetEffectChainCount()
+    gameState.gameStatus = 'rolling'
+    gameState.diceValue = GameService.rollDice()
+
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    if (
+      isPartyGame.value &&
+      !isReroll &&
+      partyMode.session.value?.reaction?.status === 'awaiting_roll'
+    ) {
+      const resolvedSession = partyMode.resolveRoll(gameState.diceValue)
+      if (resolvedSession.reaction?.status === 'awaiting_decision') return
+      gameState.diceValue = resolvedSession.reaction?.finalDiceValue ?? gameState.diceValue
+    }
+
+    if (isPartyGame.value && !isReroll) {
+      partyDiceDecisionVisible.value = true
+      return
+    }
+
+    await continuePartyMove()
+  }
+
+  const handlePartyReactionPrediction = async (prediction: PartyPrediction) => {
+    const reactorPlayerIndex = partyReaction.value?.reactorPlayerIndex
+    if (reactorPlayerIndex === undefined) return
+    partyMode.submitPrediction(reactorPlayerIndex, prediction)
+    await performDiceRoll()
+  }
+
+  const handlePartyReactionDecision = async (decision: PartyReactionDecision) => {
+    const reactorPlayerIndex = partyReaction.value?.reactorPlayerIndex
+    if (reactorPlayerIndex === undefined) return
+    const resolvedSession = partyMode.decideReaction(reactorPlayerIndex, decision)
+    gameState.diceValue = resolvedSession.reaction?.finalDiceValue ?? gameState.diceValue
+    partyDiceDecisionVisible.value = true
+  }
+
+  const handlePartyReroll = async () => {
+    if (!isPartyGame.value) return
+    partyMode.spendToken(gameState.currentPlayerIndex, 'reroll')
+    partyDiceDecisionVisible.value = false
+    await performDiceRoll(true)
   }
 
   // 处理骰子滚动
@@ -1084,18 +1379,12 @@
       return
     }
 
-    audioService.play('diceRoll')
-    resetEffectChainCount()
-    gameState.gameStatus = 'rolling'
-    gameState.diceValue = GameService.rollDice()
+    if (isPartyGame.value) {
+      const partyTurn = partyMode.beginTurn(currentPlayerIndex)
+      if (partyTurn.reaction?.status === 'awaiting_prediction') return
+    }
 
-    // 等待骰子动画完成
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    gameState.gameStatus = 'moving'
-
-    // 移动玩家
-    await moveCurrentPlayer()
+    await performDiceRoll()
   }
 
   // 移动当前玩家（第一步：基本移动）
@@ -1142,13 +1431,7 @@
       // 检查是否到达终点
       const boardSize = gameState.board.length
       if (newPosition === boardSize) {
-        currentPlayer.isWinner = true
-        gameState.winner = currentPlayer
-        gameState.gameStatus = 'finished'
-        gameFinished.value = true
-        showVictoryScreen.value = true
-        audioService.play('victory')
-        resetEffectChainCount()
+        resolveNaturalVictory(gameState.currentPlayerIndex)
         return
       }
 
@@ -1247,12 +1530,7 @@
       // 检查是否到达终点
       const boardSize = gameState.board.length
       if (newPosition === boardSize) {
-        currentPlayer.isWinner = true
-        gameState.winner = currentPlayer
-        gameState.gameStatus = 'finished'
-        gameFinished.value = true
-        showVictoryScreen.value = true
-        resetEffectChainCount()
+        resolveNaturalVictory(gameState.currentPlayerIndex, false)
         return
       }
 
@@ -1335,8 +1613,15 @@
     }
   }
 
-  function advanceToNextPlayablePlayer() {
+  function advanceToNextPlayablePlayer(currentTurnAlreadyCompleted = false) {
     if (gameState.players.length === 0) return
+
+    if (
+      !currentTurnAlreadyCompleted &&
+      completePartyTurnForPlayer(gameState.currentPlayerIndex) === 'ended'
+    ) {
+      return
+    }
 
     gameState.currentPlayerIndex = GameService.getNextPlayer(
       gameState.currentPlayerIndex,
@@ -1359,6 +1644,7 @@
 
       gameState.players[playerIndex] = consumedTurn.player
       lastEffect.value = `${player.name}休息一回合，本回合已跳过`
+      if (completePartyTurnForPlayer(playerIndex) === 'ended') return
       gameState.currentPlayerIndex = GameService.getNextPlayer(
         playerIndex,
         gameState.players.length
@@ -1379,11 +1665,7 @@
 
       // 检查是否获胜
       if (GameService.checkWinner(currentPlayer, gameState.board.length)) {
-        currentPlayer.isWinner = true
-        gameState.winner = currentPlayer
-        gameState.gameStatus = 'finished'
-        gameFinished.value = true
-        showVictoryScreen.value = true
+        resolveNaturalVictory(gameState.currentPlayerIndex, false)
         return
       }
 
@@ -1552,11 +1834,7 @@
 
       // 检查是否获胜
       if (GameService.checkWinner(currentPlayer, gameState.board.length)) {
-        currentPlayer.isWinner = true
-        gameState.winner = currentPlayer
-        gameState.gameStatus = 'finished'
-        gameFinished.value = true
-        showVictoryScreen.value = true
+        resolveNaturalVictory(gameState.currentPlayerIndex, false)
         return
       }
 
@@ -1648,8 +1926,19 @@
   }
 
   // 修改IntroPage组件的调用，使其能够接收玩家配置信息并传递给startGame方法
-  const handleIntroStart = (playerConfig?: { count: number; names: string[] }) => {
-    gameTelemetry.startSetup(playerConfig?.count ?? gameState.players.length)
+  const handleIntroStart = (playerConfig: { count: number; names: string[]; mode: GameMode }) => {
+    selectedMode.value = playerConfig.mode
+    saveGameMode(playerConfig.mode)
+    gameTelemetry.setMode(playerConfig.mode)
+    gameTelemetry.startSetup(playerConfig.count)
+
+    if (playerConfig.mode === 'party') {
+      startPartyGame({ ...playerConfig, mode: 'party' })
+      return
+    }
+
+    activeMode.value = 'classic'
+    partyMode.clear()
     startGame(playerConfig)
   }
 
@@ -1750,11 +2039,20 @@
   }
 
   // 处理胜利结算画面的"再来一局"按钮
-  const handleVictoryPlayAgain = () => {
+  const handleVictoryPlayAgain = async () => {
     const playerCount = gameState.players.length
+    const playerNames = gameState.players.map(player => player.name)
+    const completedMode = activeMode.value
     gameTelemetry.playAgain()
     showVictoryScreen.value = false
     resetGame()
+
+    if (completedMode === 'party') {
+      await nextTick()
+      startPartyGame({ count: playerCount, names: playerNames, mode: 'party' })
+      return
+    }
+
     gameTelemetry.startSetup(playerCount)
   }
 
@@ -2266,7 +2564,12 @@
     }"
   >
     <!-- 开始页面 -->
-    <IntroPage v-if="gameState.gameStatus === 'intro'" @start="handleIntroStart" />
+    <IntroPage
+      v-if="gameState.gameStatus === 'intro'"
+      :initial-mode="selectedMode"
+      @start="handleIntroStart"
+      @mode-selected="handleModeSelected"
+    />
 
     <!-- 统一设置页面（Stepper 引导布局） -->
     <div
@@ -2481,6 +2784,26 @@
       </header>
 
       <main class="game-main">
+        <section
+          v-if="isPartyGame && partySession"
+          class="party-status-strip"
+          data-testid="party-status"
+        >
+          <div>
+            <span>升温局 · {{ partyActLabel }}</span>
+            <strong>第 {{ partySession.roundNumber }} 轮</strong>
+          </div>
+          <div class="party-token-list">
+            <span
+              v-for="(player, index) in gameState.players"
+              :key="player.id"
+              :class="{ 'party-token-current': index === gameState.currentPlayerIndex }"
+            >
+              {{ player.name }} {{ partySession.tokensRemaining[index] }} 枚
+            </span>
+          </div>
+        </section>
+
         <div class="board-section">
           <GameBoard
             :board="gameState.board"
@@ -2568,11 +2891,48 @@
     <!-- 连锁惩罚掷骰弹窗 -->
     <ChainPunishmentRoll :visible="showChainPunishmentRoll" @result="handleChainRollResult" />
 
+    <PartyReactionOverlay
+      :reaction="partyReaction"
+      :players="gameState.players"
+      :paused="sessionPaused"
+      @predict="handlePartyReactionPrediction"
+      @decide="handlePartyReactionDecision"
+    />
+
+    <PartyDiceDecision
+      :visible="partyDiceDecisionVisible"
+      :player-name="gameState.players[gameState.currentPlayerIndex]?.name ?? '当前玩家'"
+      :dice-value="gameState.diceValue ?? 0"
+      :tokens-remaining="currentPartyTokens"
+      :can-reroll="canCurrentPlayerReroll"
+      :paused="sessionPaused"
+      @reroll="handlePartyReroll"
+      @continue="continuePartyMove"
+    />
+
+    <PartyPunishmentChoice
+      :visible="partyPunishmentChoices.length === 2"
+      :choices="partyPunishmentChoices"
+      :tokens-remaining="currentPartyTokens"
+      :paused="sessionPaused"
+      @select="resolvePartyPunishmentChoice"
+      @skip="resolvePartyPunishmentChoice()"
+    />
+
+    <PartyTieBreak
+      :visible="partyTieCandidates.length > 1"
+      :players="gameState.players"
+      :candidate-indices="partyTieCandidates"
+      @winner="finishGameWithPlayer"
+    />
+
     <!-- 胜利结算画面 -->
     <VictoryScreen
       :show="showVictoryScreen"
       :winner="gameState.winner"
       :all-players="gameState.players"
+      :mode="activeMode"
+      :party-highlight="partyHighlight"
       @play-again="handleVictoryPlayAgain"
     />
 
@@ -2952,6 +3312,66 @@
     flex-direction: column;
     width: 100%;
     min-height: 0;
+  }
+
+  .party-status-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0.75rem 1rem 0;
+    padding: 0.75rem 1rem;
+    color: #f8fafc;
+    background:
+      linear-gradient(120deg, rgba(190, 24, 93, 0.34), rgba(79, 70, 229, 0.3)),
+      rgba(15, 23, 42, 0.82);
+    border: 1px solid rgba(251, 113, 133, 0.4);
+    border-radius: 16px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.2);
+  }
+
+  .party-status-strip > div:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    white-space: nowrap;
+  }
+
+  .party-status-strip strong {
+    color: #fecdd3;
+  }
+
+  .party-token-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.45rem;
+  }
+
+  .party-token-list span {
+    padding: 0.3rem 0.55rem;
+    color: #cbd5e1;
+    font-size: 0.78rem;
+    background: rgba(15, 23, 42, 0.48);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 999px;
+  }
+
+  .party-token-list .party-token-current {
+    color: #fff;
+    border-color: rgba(253, 164, 175, 0.68);
+  }
+
+  @media (max-width: 600px) {
+    .party-status-strip {
+      align-items: flex-start;
+      margin: 0.5rem 0.5rem 0;
+      padding: 0.65rem 0.75rem;
+    }
+
+    .party-token-list {
+      justify-content: flex-start;
+    }
   }
 
   .board-section {

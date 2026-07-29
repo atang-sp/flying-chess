@@ -2,11 +2,15 @@
   import { computed } from 'vue'
   import { Trophy, Gamepad2 } from '@lucide/vue'
   import type { Player } from '../types/game'
+  import type { GameMode } from '../config/modes'
+  import type { PartyHighlight } from '../services/partyMode'
 
   interface Props {
     show: boolean
     winner: Player | null
     allPlayers: Player[]
+    mode?: GameMode | null
+    partyHighlight?: PartyHighlight | null
   }
 
   interface Emits {
@@ -17,8 +21,9 @@
   const emit = defineEmits<Emits>()
 
   const otherPlayers = computed(() => {
-    if (!props.winner) return []
-    return props.allPlayers.filter(player => player.id !== props.winner!.id)
+    const winner = props.winner
+    if (!winner) return []
+    return props.allPlayers.filter(player => player.id !== winner.id)
   })
 
   const handlePlayAgain = () => {
@@ -64,6 +69,20 @@
             </div>
           </div>
         </div>
+
+        <section
+          v-if="mode === 'party' && partyHighlight"
+          class="party-highlight-card"
+          data-testid="party-highlight-card"
+        >
+          <p class="party-highlight-kicker">本地高光卡 · 不上传</p>
+          <h2>{{ partyHighlight.act === 'finale' ? '终局高光' : '本局高光' }}</h2>
+          <div class="party-highlight-grid">
+            <span>{{ partyHighlight.keyDecision }}</span>
+            <span>{{ partyHighlight.reactionSummary }}</span>
+            <span>{{ partyHighlight.chainSummary }}</span>
+          </div>
+        </section>
       </div>
 
       <div class="victory-actions">
@@ -166,6 +185,50 @@
     border: var(--glass-border);
     border-radius: var(--radius-md);
     padding: 1.5rem;
+  }
+
+  .party-highlight-card {
+    margin-top: 1rem;
+    padding: 1.1rem;
+    text-align: left;
+    background:
+      linear-gradient(135deg, rgba(190, 24, 93, 0.22), rgba(79, 70, 229, 0.18)), var(--bg-glass);
+    border: 1px solid rgba(251, 113, 133, 0.4);
+    border-radius: var(--radius-md);
+  }
+
+  .party-highlight-kicker {
+    margin: 0;
+    color: #fda4af;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+  }
+
+  .party-highlight-card h2 {
+    margin: 0.45rem 0 0.8rem;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+  }
+
+  .party-highlight-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  .party-highlight-grid span {
+    padding: 0.65rem;
+    color: var(--text-secondary);
+    font-size: 0.86rem;
+    line-height: 1.45;
+    background: rgba(15, 23, 42, 0.45);
+    border-radius: 10px;
+  }
+
+  @media (max-width: 520px) {
+    .party-highlight-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
   .reward-title {

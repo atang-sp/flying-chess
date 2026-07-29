@@ -1,6 +1,10 @@
+import { DEFAULT_GAME_MODE, RULESET_VERSION_BY_MODE, type GameMode } from '../config/modes'
+
 export type GameEndOutcome = 'completed' | 'user_ended' | 'config_import'
 
 export interface GameTelemetry {
+  setMode(mode: GameMode): void
+  selectMode(mode: GameMode): void
   openApp(): void
   startSetup(playerCount: number): void
   startGame(playerCount: number): void
@@ -15,6 +19,8 @@ export type TelemetryEventName =
   | 'game_completed'
   | 'game_ended'
   | 'play_again'
+  | 'mode_selected'
+  | 'mode_switched'
 
 type DeviceType = 'mobile' | 'desktop'
 
@@ -60,12 +66,13 @@ interface UmamiAdapterOptions {
   readonly getTracker?: () => UmamiTracker | undefined
 }
 
-const APP_VERSION = '1.7.4'
-const MODE_ID = 'classic'
+const APP_VERSION = '1.8.0'
 const MAX_BUFFERED_EVENTS = 20
-const COMMON_FIELDS = ['app_version', 'mode_id', 'device_type'] as const
+const COMMON_FIELDS = ['app_version', 'mode_id', 'ruleset_version', 'device_type'] as const
 const EVENT_FIELDS: Record<TelemetryEventName, readonly string[]> = {
   app_open: COMMON_FIELDS,
+  mode_selected: COMMON_FIELDS,
+  mode_switched: [...COMMON_FIELDS, 'previous_mode_id'],
   setup_started: [...COMMON_FIELDS, 'player_count_bucket'],
   game_started: [...COMMON_FIELDS, 'player_count_bucket'],
   game_completed: [
@@ -226,6 +233,7 @@ export function createGameTelemetry({
   getViewportWidth = () => window.innerWidth,
 }: GameTelemetryOptions): GameTelemetry {
   let appOpened = false
+  let currentMode: GameMode = DEFAULT_GAME_MODE
   let activeGame: { readonly playerCount: number; readonly startedAt: number } | undefined
   let lastCompletedGame: Record<string, string> | undefined
 
@@ -233,7 +241,8 @@ export function createGameTelemetry({
 
   const commonData = (): Record<string, unknown> => ({
     app_version: APP_VERSION,
-    mode_id: MODE_ID,
+    mode_id: currentMode,
+    ruleset_version: RULESET_VERSION_BY_MODE[currentMode],
     device_type: getDeviceType(),
   })
 
@@ -256,6 +265,24 @@ export function createGameTelemetry({
   }
 
   return {
+    setMode(mode: GameMode): void {
+      safely(() => {
+        currentMode = mode
+      })
+    },
+    selectMode(mode: GameMode): void {
+      safely(() => {
+        const previousMode = currentMode
+        currentMode = mode
+        track('mode_selected', commonData())
+        if (previousMode !== mode) {
+          track('mode_switched', {
+            ...commonData(),
+            previous_mode_id: previousMode,
+          })
+        }
+      })
+    },
     openApp(): void {
       safely(() => {
         if (appOpened) return

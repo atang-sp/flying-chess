@@ -21,9 +21,43 @@ describe('gameTelemetry', () => {
       {
         name: 'app_open',
         data: {
-          app_version: '1.7.4',
+          app_version: '1.8.0',
           mode_id: 'classic',
+          ruleset_version: 'classic_v1',
           device_type: 'mobile',
+        },
+      },
+    ])
+  })
+
+  it('tracks a real mode selection and switch with only categorical mode fields', () => {
+    const adapter = new MemoryTelemetryAdapter()
+    const telemetry = createGameTelemetry({
+      adapter,
+      getViewportWidth: () => 1280,
+    })
+
+    telemetry.setMode('party')
+    telemetry.selectMode('classic')
+
+    expect(adapter.events).toEqual([
+      {
+        name: 'mode_selected',
+        data: {
+          app_version: '1.8.0',
+          mode_id: 'classic',
+          ruleset_version: 'classic_v1',
+          device_type: 'desktop',
+        },
+      },
+      {
+        name: 'mode_switched',
+        data: {
+          app_version: '1.8.0',
+          mode_id: 'classic',
+          ruleset_version: 'classic_v1',
+          device_type: 'desktop',
+          previous_mode_id: 'party',
         },
       },
     ])
@@ -49,8 +83,9 @@ describe('gameTelemetry', () => {
       {
         name: 'setup_started',
         data: {
-          app_version: '1.7.4',
+          app_version: '1.8.0',
           mode_id: 'classic',
+          ruleset_version: 'classic_v1',
           device_type: 'desktop',
           player_count_bucket: bucket,
         },
@@ -99,8 +134,9 @@ describe('gameTelemetry', () => {
       expect(adapter.events[1]).toEqual({
         name: 'game_completed',
         data: {
-          app_version: '1.7.4',
+          app_version: '1.8.0',
           mode_id: 'classic',
+          ruleset_version: 'classic_v1',
           device_type: 'desktop',
           player_count_bucket: '2',
           duration_bucket: durationBucket,
@@ -153,8 +189,9 @@ describe('gameTelemetry', () => {
     expect(adapter.events[2]).toEqual({
       name: 'play_again',
       data: {
-        app_version: '1.7.4',
+        app_version: '1.8.0',
         mode_id: 'classic',
+        ruleset_version: 'classic_v1',
         device_type: 'mobile',
         player_count_bucket: '3_4',
         duration_bucket: '20_40m',
