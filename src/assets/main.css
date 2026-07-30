@@ -36,15 +36,15 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-accent) 0%, #764ba2 100%);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  background: linear-gradient(180deg, #e1c27f, #b98e47);
+  color: #17231f;
+  border: 1px solid #e8cc92;
+  box-shadow: 0 5px 18px rgba(5, 15, 12, 0.36);
 }
 
 .btn-primary:not(:disabled):hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 8px 22px rgba(5, 15, 12, 0.44);
 }
 
 .btn-secondary {
@@ -112,8 +112,9 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
+  background:
+    radial-gradient(circle at 50% 0%, rgb(199 157 82 / 0.12), transparent 40%), rgb(2 12 10 / 0.82);
+  backdrop-filter: blur(9px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -123,11 +124,13 @@
 }
 
 .modal-content {
-  background: rgba(20, 20, 40, 0.95);
+  background: linear-gradient(rgb(255 255 255 / 0.025), transparent 28%), #12231e;
   backdrop-filter: blur(var(--glass-blur));
-  border: var(--glass-border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--glass-shadow-lg);
+  border: 1px solid rgb(218 181 111 / 0.38);
+  border-radius: 22px;
+  box-shadow:
+    var(--glass-shadow-lg),
+    inset 0 0 0 4px rgb(255 255 255 / 0.02);
   max-width: min(500px, 92vw);
   width: 100%;
   max-height: 90vh;

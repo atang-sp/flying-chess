@@ -1,35 +1,35 @@
-/* Dark Premium Design Tokens */
+/* Modern tabletop design tokens */
 :root {
   /* Background layers */
-  --bg-primary: #0a0a1a;
-  --bg-secondary: rgba(255, 255, 255, 0.05);
-  --bg-glass: rgba(255, 255, 255, 0.08);
-  --bg-glass-hover: rgba(255, 255, 255, 0.12);
-  --bg-glass-active: rgba(255, 255, 255, 0.16);
-  --bg-surface: rgba(255, 255, 255, 0.04);
+  --bg-primary: #071713;
+  --bg-secondary: rgba(245, 235, 211, 0.06);
+  --bg-glass: rgba(236, 226, 202, 0.08);
+  --bg-glass-hover: rgba(236, 226, 202, 0.13);
+  --bg-glass-active: rgba(236, 226, 202, 0.17);
+  --bg-surface: rgba(236, 226, 202, 0.045);
 
   /* Text */
-  --text-primary: rgba(255, 255, 255, 0.92);
-  --text-secondary: rgba(255, 255, 255, 0.6);
-  --text-muted: rgba(255, 255, 255, 0.35);
-  --text-inverse: #0a0a1a;
+  --text-primary: #fbf5e9;
+  --text-secondary: #b9c7bd;
+  --text-muted: #74877c;
+  --text-inverse: #14221d;
 
   /* Cell type colors */
-  --color-punishment: #ff4757;
-  --color-chain-punishment: #ff6348;
-  --color-bonus: #2ed573;
-  --color-special: #ffa502;
-  --color-restart: #a855f7;
-  --color-trap: #dc2626;
-  --color-normal: rgba(255, 255, 255, 0.2);
+  --color-punishment: #bd4b4b;
+  --color-chain-punishment: #a33d31;
+  --color-bonus: #39795b;
+  --color-special: #c18a3e;
+  --color-restart: #70598f;
+  --color-trap: #973b35;
+  --color-normal: rgba(237, 222, 191, 0.24);
 
   /* Accent */
-  --color-accent: #667eea;
-  --color-accent-light: #8b9cf7;
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-info: #3b82f6;
+  --color-accent: #c9a461;
+  --color-accent-light: #e1c78e;
+  --color-success: #4a8b68;
+  --color-warning: #d39849;
+  --color-danger: #c0534d;
+  --color-info: #52808f;
 
   /* Player colors */
   --player-1: #ff6b6b;
@@ -49,10 +49,10 @@
 
   /* Glass effects */
   --glass-blur: 12px;
-  --glass-border: 1px solid rgba(255, 255, 255, 0.1);
-  --glass-border-hover: 1px solid rgba(255, 255, 255, 0.2);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  --glass-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.4);
+  --glass-border: 1px solid rgba(223, 196, 142, 0.16);
+  --glass-border-hover: 1px solid rgba(223, 196, 142, 0.3);
+  --glass-shadow: 0 8px 32px rgba(1, 10, 8, 0.3);
+  --glass-shadow-lg: 0 18px 54px rgba(1, 10, 8, 0.48);
 
   /* Border radius */
   --radius-sm: 8px;
@@ -109,7 +109,8 @@
 body {
   min-height: 100vh;
   color: var(--text-primary);
-  background: var(--bg-primary);
+  background:
+    radial-gradient(circle at 50% -15%, rgb(64 101 82 / 0.25), transparent 42%), var(--bg-primary);
   line-height: 1.6;
   font-family:
     Inter,

@@ -1,9 +1,11 @@
 <script setup lang="ts">
   import { computed } from 'vue'
-  import { Trophy, Gamepad2 } from '@lucide/vue'
-  import type { Player } from '../types/game'
+  import { Gamepad2, Sparkles } from '@lucide/vue'
+  import finishFlagUrl from '../assets/kenney/flag_triangle.svg?url'
   import type { GameMode } from '../config/modes'
   import type { PartyHighlight } from '../services/partyMode'
+  import type { Player } from '../types/game'
+  import PlayerMeeple from './PlayerMeeple.vue'
 
   interface Props {
     show: boolean
@@ -14,61 +16,74 @@
   }
 
   interface Emits {
-    (e: 'play-again'): void
+    (event: 'play-again'): void
   }
 
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
 
-  const otherPlayers = computed(() => {
-    const winner = props.winner
-    if (!winner) return []
-    return props.allPlayers.filter(player => player.id !== winner.id)
-  })
-
-  const handlePlayAgain = () => {
-    emit('play-again')
-  }
+  const winnerIndex = computed(() =>
+    props.winner ? props.allPlayers.findIndex(player => player.id === props.winner?.id) : -1
+  )
+  const otherPlayers = computed(() =>
+    props.winner ? props.allPlayers.filter(player => player.id !== props.winner?.id) : []
+  )
 </script>
 
 <template>
   <div v-if="show && winner" class="victory-screen-overlay">
-    <div class="victory-screen">
-      <div class="victory-header">
-        <h1 class="victory-title">
-          <Trophy :size="32" />
-          游戏胜利！
-        </h1>
-        <div class="winner-info">
-          <div class="winner-avatar" :style="{ backgroundColor: winner.color }"></div>
-          <span class="winner-name">{{ winner.name }}</span>
+    <section
+      class="victory-screen"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="victory-title"
+      data-testid="victory-scorecard"
+    >
+      <header class="victory-header">
+        <div class="finish-mark" aria-hidden="true">
+          <img :src="finishFlagUrl" alt="" />
+          <span>FINISH</span>
         </div>
+        <div class="victory-copy">
+          <p>FLIGHT LOG · 本局结算</p>
+          <h1 id="victory-title">游戏胜利！</h1>
+        </div>
+      </header>
+
+      <div class="winner-card">
+        <PlayerMeeple
+          :color="winner.color"
+          :number="winnerIndex + 1"
+          :name="winner.name"
+          size="large"
+        />
+        <div>
+          <span>冠军飞行员</span>
+          <strong>{{ winner.name }}</strong>
+          <small>率先抵达终点，完成本局航线</small>
+        </div>
+        <Sparkles class="winner-sparkle" :size="24" aria-hidden="true" />
       </div>
 
       <div class="victory-content">
-        <div class="reward-section">
-          <h2 class="reward-title">
-            <Trophy :size="24" />
-            胜利奖励
-          </h2>
-          <div class="reward-description">
-            <p>恭喜 {{ winner.name }} 获得胜利！</p>
-            <p class="reward-action">
-              作为奖励，{{ winner.name }} 可以用手对所有其他玩家打屁股5下：
-            </p>
-          </div>
+        <section class="reward-section">
+          <p class="section-kicker">胜利奖励</p>
+          <p>恭喜 {{ winner.name }} 获得胜利！</p>
+          <p class="reward-action">作为奖励，{{ winner.name }} 可以用手对所有其他玩家打屁股5下：</p>
 
-          <div class="other-players-list">
-            <h3>其他玩家列表：</h3>
-            <div class="players-grid">
-              <div v-for="player in otherPlayers" :key="player.id" class="player-item">
-                <div class="player-avatar" :style="{ backgroundColor: player.color }"></div>
-                <span class="player-name">{{ player.name }}</span>
-                <div class="punishment-count">5下</div>
-              </div>
-            </div>
+          <div class="players-grid" aria-label="其他玩家列表">
+            <article v-for="player in otherPlayers" :key="player.id" class="player-item">
+              <PlayerMeeple
+                :color="player.color"
+                :number="allPlayers.findIndex(item => item.id === player.id) + 1"
+                :name="player.name"
+                size="small"
+              />
+              <span class="player-name">{{ player.name }}</span>
+              <span class="punishment-count">5 下</span>
+            </article>
           </div>
-        </div>
+        </section>
 
         <section
           v-if="mode === 'party' && partyHighlight"
@@ -85,327 +100,330 @@
         </section>
       </div>
 
-      <div class="victory-actions">
-        <button class="btn btn-primary" @click="handlePlayAgain">
-          <Gamepad2 :size="18" />
+      <footer class="victory-actions">
+        <button type="button" class="play-again-button" @click="emit('play-again')">
+          <Gamepad2 :size="19" aria-hidden="true" />
           再来一局
         </button>
-      </div>
-    </div>
+      </footer>
+    </section>
   </div>
 </template>
 
 <style scoped>
   .victory-screen-overlay {
     position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
     z-index: 2000;
-    backdrop-filter: blur(4px);
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
+    overflow-y: auto;
+    background:
+      radial-gradient(circle at 50% 0%, rgb(198 157 83 / 0.18), transparent 38%),
+      rgb(3 14 12 / 0.86);
+    backdrop-filter: blur(10px);
   }
 
   .victory-screen {
-    background: rgba(20, 20, 40, 0.95);
-    backdrop-filter: blur(var(--glass-blur));
-    border: var(--glass-border);
-    border-radius: var(--radius-xl);
-    padding: 2rem;
-    max-width: 90vw;
-    width: 500px;
-    text-align: center;
+    width: min(660px, 100%);
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    border: 1px solid rgb(218 181 111 / 0.5);
+    border-radius: 26px;
+    color: #f9f1e2;
+    background:
+      linear-gradient(rgb(255 255 255 / 0.025), transparent 24%),
+      linear-gradient(145deg, #192a24, #0d1e1a);
     box-shadow:
-      var(--glass-shadow-lg),
-      var(--glow-md) rgba(102, 126, 234, 0.3);
-    animation: victorySlideIn 0.5s ease-out;
+      0 30px 90px rgb(0 0 0 / 0.56),
+      inset 0 0 0 5px rgb(255 255 255 / 0.025);
+    animation: victory-enter 360ms cubic-bezier(0.22, 0.7, 0.24, 1);
   }
 
-  @keyframes victorySlideIn {
+  @keyframes victory-enter {
     from {
       opacity: 0;
-      transform: translateY(-50px) scale(0.9);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
+      transform: translateY(18px) scale(0.97);
     }
   }
 
   .victory-header {
-    margin-bottom: 2rem;
-  }
-
-  .victory-title {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    color: var(--text-primary);
-    font-size: 2rem;
-    font-weight: bold;
-    margin: 0 0 1rem 0;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  }
-
-  .victory-title :deep(svg) {
-    color: var(--color-accent);
-    flex-shrink: 0;
-  }
-
-  .winner-info {
-    display: flex;
-    align-items: center;
-    justify-content: center;
     gap: 1rem;
-    margin-top: 1rem;
+    padding: 1.35rem 1.5rem 1rem;
+    border-bottom: 1px solid rgb(221 191 133 / 0.14);
   }
 
-  .winner-avatar {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    border: 3px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  .finish-mark {
+    width: 62px;
+    height: 62px;
+    flex: 0 0 62px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgb(232 199 134 / 0.35);
+    border-radius: 18px;
+    color: #d6b16e;
+    background: #0a1a17;
   }
 
-  .winner-name {
-    color: var(--text-primary);
-    font-size: 1.5rem;
-    font-weight: bold;
+  .finish-mark img {
+    width: 33px;
+    height: 31px;
+    object-fit: contain;
+    filter: invert(80%) sepia(45%) saturate(620%) hue-rotate(355deg) brightness(91%);
+  }
+
+  .finish-mark span {
+    margin-top: -8px;
+    font-size: 0.48rem;
+    font-weight: 850;
+    letter-spacing: 0.14em;
+  }
+
+  .victory-copy p,
+  .section-kicker,
+  .party-highlight-kicker {
+    margin: 0;
+    color: #c8a565;
+    font-size: 0.62rem;
+    font-weight: 850;
+    letter-spacing: 0.15em;
+  }
+
+  .victory-copy h1 {
+    margin: 0.25rem 0 0;
+    color: #fffaf0;
+    font-size: clamp(1.55rem, 5vw, 2.25rem);
+    line-height: 1;
+  }
+
+  .winner-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1rem;
+    margin: 1.1rem 1.5rem;
+    padding: 1.1rem 1.2rem;
+    overflow: hidden;
+    border: 1px solid rgb(227 192 124 / 0.3);
+    border-radius: 18px;
+    background:
+      radial-gradient(circle at 90% 20%, rgb(229 184 97 / 0.18), transparent 34%),
+      rgb(32 53 45 / 0.72);
+  }
+
+  .winner-card > div {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .winner-card span {
+    color: #d2b77f;
+    font-size: 0.68rem;
+    font-weight: 750;
+  }
+
+  .winner-card strong {
+    overflow: hidden;
+    color: #fff9e9;
+    font-size: 1.4rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .winner-card small {
+    margin-top: 0.15rem;
+    color: #b9c7bd;
+    font-size: 0.72rem;
+  }
+
+  .winner-sparkle {
+    color: #dfb968;
   }
 
   .victory-content {
-    margin-bottom: 2rem;
-  }
-
-  .reward-section {
-    background: var(--bg-glass);
-    border: var(--glass-border);
-    border-radius: var(--radius-md);
-    padding: 1.5rem;
-  }
-
-  .party-highlight-card {
-    margin-top: 1rem;
-    padding: 1.1rem;
-    text-align: left;
-    background:
-      linear-gradient(135deg, rgba(190, 24, 93, 0.22), rgba(79, 70, 229, 0.18)), var(--bg-glass);
-    border: 1px solid rgba(251, 113, 133, 0.4);
-    border-radius: var(--radius-md);
-  }
-
-  .party-highlight-kicker {
-    margin: 0;
-    color: #fda4af;
-    font-size: 0.78rem;
-    letter-spacing: 0.04em;
-  }
-
-  .party-highlight-card h2 {
-    margin: 0.45rem 0 0.8rem;
-    color: var(--text-primary);
-    font-size: 1.2rem;
-  }
-
-  .party-highlight-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.6rem;
+    gap: 0.85rem;
+    padding: 0 1.5rem;
   }
 
-  .party-highlight-grid span {
-    padding: 0.65rem;
-    color: var(--text-secondary);
-    font-size: 0.86rem;
+  .reward-section,
+  .party-highlight-card {
+    padding: 1.05rem;
+    border: 1px solid rgb(255 255 255 / 0.08);
+    border-radius: 16px;
+    background: rgb(5 21 18 / 0.5);
+  }
+
+  .reward-section > p:not(.section-kicker) {
+    margin: 0.45rem 0 0;
+    color: #dce5de;
+    font-size: 0.84rem;
     line-height: 1.45;
-    background: rgba(15, 23, 42, 0.45);
-    border-radius: 10px;
   }
 
-  @media (max-width: 520px) {
-    .party-highlight-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  .reward-title {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    color: var(--text-primary);
-    font-size: 1.3rem;
-    margin: 0 0 1rem 0;
-  }
-
-  .reward-title :deep(svg) {
-    color: var(--color-accent);
-    flex-shrink: 0;
-  }
-
-  .reward-description {
-    color: var(--text-secondary);
-    margin-bottom: 1.5rem;
-  }
-
-  .reward-description p {
-    margin: 0.5rem 0;
-    font-size: 1rem;
-  }
-
-  .reward-action {
-    font-weight: bold;
-    color: var(--color-warning);
-  }
-
-  .other-players-list h3 {
-    color: var(--text-secondary);
-    margin: 0 0 1rem 0;
-    font-size: 1.1rem;
+  .reward-section .reward-action {
+    color: #efd7aa;
+    font-weight: 720;
   }
 
   .players-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 1rem;
-    margin-top: 1rem;
+    gap: 0.55rem;
+    margin-top: 0.9rem;
   }
 
   .player-item {
-    background: var(--bg-glass);
-    border-radius: var(--radius-sm);
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
     gap: 0.5rem;
-    border: var(--glass-border);
-    transition:
-      transform var(--transition-fast),
-      background var(--transition-fast);
-  }
-
-  .player-item:hover {
-    transform: translateY(-2px);
-    background: var(--bg-glass-hover);
-  }
-
-  .player-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    padding: 0.6rem;
+    border: 1px solid rgb(255 255 255 / 0.07);
+    border-radius: 12px;
+    background: rgb(255 255 255 / 0.035);
   }
 
   .player-name {
-    color: var(--text-primary);
-    font-weight: bold;
-    font-size: 0.9rem;
+    overflow: hidden;
+    color: #f5efe4;
+    font-size: 0.74rem;
+    font-weight: 740;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .punishment-count {
-    background: #ff6b6b;
-    color: white;
-    padding: 0.25rem 0.5rem;
-    border-radius: 15px;
-    font-size: 0.8rem;
-    font-weight: bold;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    padding: 0.2rem 0.45rem;
+    border-radius: 7px;
+    color: #f4d2c0;
+    background: rgb(154 68 54 / 0.26);
+    font-size: 0.65rem;
+    font-weight: 760;
+    text-align: center;
+  }
+
+  .party-highlight-card {
+    text-align: left;
+    background:
+      linear-gradient(135deg, rgb(138 66 48 / 0.26), rgb(34 76 63 / 0.28)), rgb(5 21 18 / 0.5);
+  }
+
+  .party-highlight-card h2 {
+    margin: 0.35rem 0 0.75rem;
+    color: #fff4df;
+    font-size: 1rem;
+  }
+
+  .party-highlight-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
+
+  .party-highlight-grid span {
+    padding: 0.65rem;
+    border-radius: 10px;
+    color: #c7d3cb;
+    background: rgb(4 18 15 / 0.48);
+    font-size: 0.72rem;
+    line-height: 1.45;
   }
 
   .victory-actions {
     display: flex;
-    justify-content: center;
+    justify-content: flex-end;
+    padding: 1rem 1.5rem 1.4rem;
   }
 
-  .btn {
-    padding: 0.75rem 2rem;
-    border: none;
-    border-radius: 25px;
-    font-size: 1rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all var(--transition-normal);
-    text-decoration: none;
+  .play-again-button {
+    min-width: 150px;
+    min-height: 48px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    min-width: 120px;
+    gap: 0.45rem;
+    border: 1px solid #ebca89;
+    border-radius: 999px;
+    color: #17221e;
+    background: linear-gradient(180deg, #f2d797, #cda45d);
+    box-shadow: 0 8px 24px rgb(5 11 9 / 0.36);
+    font-size: 0.88rem;
+    font-weight: 850;
+    cursor: pointer;
   }
 
-  .btn-primary {
-    background: linear-gradient(135deg, var(--color-accent), #764ba2);
-    color: white;
-    box-shadow:
-      0 4px 15px rgba(102, 126, 234, 0.4),
-      var(--glow-sm) rgba(102, 126, 234, 0.3);
+  .play-again-button:hover {
+    filter: brightness(1.07);
+    transform: translateY(-1px);
   }
 
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow:
-      0 6px 20px rgba(102, 126, 234, 0.5),
-      var(--glow-md) rgba(102, 126, 234, 0.4);
+  .play-again-button:focus-visible {
+    outline: 3px solid #fff0bd;
+    outline-offset: 3px;
   }
 
-  .btn-primary:active {
-    transform: translateY(0);
-  }
+  @media (max-width: 560px) {
+    .victory-screen-overlay {
+      align-items: end;
+      padding: 0;
+    }
 
-  /* 响应式设计 */
-  @media (max-width: 768px) {
     .victory-screen {
-      padding: 1.5rem;
-      margin: 1rem;
+      width: 100%;
+      max-height: calc(100dvh - max(0.5rem, env(safe-area-inset-top)));
+      border-radius: 24px 24px 0 0;
     }
 
-    .victory-title {
-      font-size: 1.5rem;
+    .victory-header,
+    .winner-card,
+    .victory-content,
+    .victory-actions {
+      margin-right: 0;
+      margin-left: 0;
+      padding-right: 1rem;
+      padding-left: 1rem;
     }
 
-    .winner-name {
-      font-size: 1.2rem;
+    .finish-mark {
+      width: 52px;
+      height: 52px;
+      flex-basis: 52px;
+      border-radius: 15px;
     }
 
-    .players-grid {
-      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-      gap: 0.75rem;
+    .party-highlight-grid {
+      grid-template-columns: 1fr;
     }
 
-    .player-item {
-      padding: 0.75rem;
+    .victory-actions {
+      position: sticky;
+      bottom: 0;
+      background: linear-gradient(transparent, #0d1e1a 30%);
+      padding-top: 1.5rem;
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
     }
 
-    .player-avatar {
-      width: 35px;
-      height: 35px;
-    }
-
-    .player-name {
-      font-size: 0.8rem;
+    .play-again-button {
+      width: 100%;
     }
   }
 
-  @media (max-width: 480px) {
+  @media (prefers-reduced-motion: reduce) {
     .victory-screen {
-      padding: 1rem;
+      animation: none;
     }
 
-    .victory-title {
-      font-size: 1.3rem;
-    }
-
-    .winner-avatar {
-      width: 50px;
-      height: 50px;
-    }
-
-    .players-grid {
-      grid-template-columns: repeat(2, 1fr);
+    .play-again-button {
+      transition: none;
     }
   }
 </style>
