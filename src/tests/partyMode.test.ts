@@ -291,7 +291,7 @@ describe('升温局阶段导演', () => {
 
     expect(createPartyHighlight(session)).toEqual({
       act: 'warmup',
-      keyDecision: '随机二选一使用 1 次',
+      keyDecision: '筹码使用: 二选一 1 次',
       reactionSummary: '成功反应 1 次',
       chainSummary: '最长连锁 4 次',
     })

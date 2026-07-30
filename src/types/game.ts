@@ -62,7 +62,13 @@ export interface PunishmentAction {
   targetPlayer?: 'current' | 'previous' | 'next' | 'other'
 }
 
-export type RuleResolutionSource = 'takeoff_failure' | 'board_punishment' | 'trap' | 'cell_effect'
+export type RuleResolutionSource =
+  | 'takeoff_failure'
+  | 'board_punishment'
+  | 'trap'
+  | 'cell_effect'
+  | 'qa'
+  | 'dare'
 
 export type ResolvedPunishmentCount =
   | Readonly<{ kind: 'fixed'; value: number }>
@@ -98,6 +104,7 @@ export interface ResolvedPunishmentResult {
   readonly count: ResolvedPunishmentCount
   readonly countMultiplier?: number
   readonly turnConsequence: TurnConsequence
+  readonly variant?: PunishmentVariant
 }
 
 export interface ResolvedTrapResult {
@@ -107,6 +114,10 @@ export interface ResolvedTrapResult {
   readonly acknowledgementRequired: true
   readonly description: string
   readonly turnConsequence: TurnConsequence
+  readonly trapVariant?: TrapVariant
+  readonly choiceA?: string
+  readonly choiceB?: string
+  readonly rouletteTargetIndex?: number
 }
 
 export interface ResolvedCellEffectResult {
@@ -121,10 +132,12 @@ export type ResolvedRuleResult =
   | ResolvedPunishmentResult
   | ResolvedTrapResult
   | ResolvedCellEffectResult
+  | ResolvedQAResult
+  | ResolvedDareResult
 
 export interface BoardCell {
   id: number
-  type: 'punishment' | 'bonus' | 'special' | 'restart' | 'trap' | 'chain_punishment'
+  type: 'punishment' | 'bonus' | 'special' | 'restart' | 'trap' | 'chain_punishment' | 'qa' | 'dare'
   effect?: {
     type:
       | 'punishment'
@@ -135,30 +148,37 @@ export interface BoardCell {
       | 'trap'
       | 'bounce'
       | 'chain_punishment'
+      | 'qa'
+      | 'dare'
     value: number
     description: string
     punishment?: PunishmentAction
     dynamicType?: 'dice_multiplier' | 'previous_player' | 'next_player' | 'other_player_choice'
     multiplier?: number
+    trapVariant?: TrapVariant
+    choiceA?: string
+    choiceB?: string
   }
   position: number
 }
 
 export interface CellEffect {
-  type: 'move' | 'rest' | 'reverse' | 'restart' | 'bounce' | 'chain_punishment'
+  type: 'move' | 'rest' | 'reverse' | 'restart' | 'bounce' | 'chain_punishment' | 'qa' | 'dare'
   value: number
   description: string
 }
 
 export interface BoardConfig {
-  punishmentCells: number // 惩罚格子数量
-  chainPunishmentCells: number // 连锁惩罚格子数量
-  bonusCells: number // 奖励格子数量
-  reverseCells: number // 后退格子数量
-  restCells: number // 休息格子数量
-  restartCells: number // 回到起点格子数量
-  trapCells: number // 机关格子数量
-  totalCells: number // 总格子数量
+  punishmentCells: number
+  chainPunishmentCells: number
+  bonusCells: number
+  reverseCells: number
+  restCells: number
+  restartCells: number
+  trapCells: number
+  totalCells: number
+  qaCells?: number
+  dareCells?: number
 }
 
 export interface GameState {
@@ -191,3 +211,59 @@ export interface TrapAction {
   name: string
   description: string
 }
+
+// --- Party mode extensions (升温局专属) ---
+
+/** Constraints for act-aware punishment generation in party mode */
+export interface PunishmentConstraints {
+  readonly maxToolIntensity?: number
+  readonly minStrikes?: number
+  readonly maxStrikes?: number
+  readonly doublePunishmentChance?: number
+}
+
+/** Q&A question entry for party mode 问答格 */
+export interface QAQuestion {
+  readonly text: string
+  readonly act: 'warmup' | 'heating' | 'finale'
+}
+
+/** Dare instruction entry for party mode 指令格 */
+export interface DareInstruction {
+  readonly text: string
+  readonly act: 'warmup' | 'heating' | 'finale'
+}
+
+/** Structured trap type discriminator */
+export type TrapVariant = 'text' | 'all_players' | 'choice' | 'roulette'
+
+/** Extended trap with structured type */
+export interface StructuredTrapAction extends TrapAction {
+  readonly trapVariant: TrapVariant
+  readonly choiceA?: string
+  readonly choiceB?: string
+}
+
+/** Punishment variant for party mode */
+export type PunishmentVariant = 'blindbox' | 'conditional' | 'deferred' | 'mutual'
+
+/** Resolved QA result */
+export interface ResolvedQAResult {
+  readonly kind: 'qa'
+  readonly source: 'qa'
+  readonly actorIndex: number
+  readonly question: string
+  readonly turnConsequence: TurnConsequence
+}
+
+/** Resolved Dare result */
+export interface ResolvedDareResult {
+  readonly kind: 'dare'
+  readonly source: 'dare'
+  readonly actorIndex: number
+  readonly instruction: string
+  readonly turnConsequence: TurnConsequence
+}
+
+/** Party mode scene preset identifier */
+export type PartyScenePreset = 'icebreaker' | 'hardcore' | 'intimate' | 'group_fun'

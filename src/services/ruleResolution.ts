@@ -4,11 +4,15 @@ import type {
   PunishmentAction,
   PunishmentBodyPart,
   PunishmentConfig,
+  PunishmentConstraints,
   PunishmentPosition,
   PunishmentTool,
+  PunishmentVariant,
   ResolvedCellEffectResult,
+  ResolvedDareResult,
   ResolvedPunishmentAction,
   ResolvedPunishmentResult,
+  ResolvedQAResult,
   ResolvedRuleResult,
   ResolvedTrapResult,
   TurnConsequence,
@@ -49,7 +53,26 @@ export interface TrapRuleInput {
   effect: NonNullable<BoardCell['effect']>
 }
 
-export type RuleInput = PunishmentRuleInput | CellEffectRuleInput | TrapRuleInput
+export interface QARuleInput {
+  source: 'qa'
+  actorIndex: number
+  players: readonly Player[]
+  effect: NonNullable<BoardCell['effect']>
+}
+
+export interface DareRuleInput {
+  source: 'dare'
+  actorIndex: number
+  players: readonly Player[]
+  effect: NonNullable<BoardCell['effect']>
+}
+
+export type RuleInput =
+  | PunishmentRuleInput
+  | CellEffectRuleInput
+  | TrapRuleInput
+  | QARuleInput
+  | DareRuleInput
 
 export interface RuleRandomSource {
   weightedChoice<T>(entries: readonly T[], weights: readonly number[]): T
@@ -98,7 +121,8 @@ const hasCompatiblePosition = (
 
 export const createCompatiblePunishmentAction = (
   config: PunishmentConfig,
-  randomSource: RuleRandomSource = secureRandomSource
+  randomSource: RuleRandomSource = secureRandomSource,
+  constraints?: PunishmentConstraints
 ): PunishmentAction => {
   const tools = entriesWithNames<PunishmentTool>(config.tools)
   const bodyParts = entriesWithNames<PunishmentBodyPart>(config.bodyParts)
@@ -106,9 +130,12 @@ export const createCompatiblePunishmentAction = (
   const enabledBodyParts = bodyParts.filter(bodyPart => bodyPart.ratio > 0)
   const enabledPositions = positions.filter(position => position.ratio > 0)
 
+  const maxIntensity = constraints?.maxToolIntensity ?? Infinity
+
   const viableTools = tools.filter(
     tool =>
       tool.ratio > 0 &&
+      tool.intensity <= maxIntensity &&
       enabledBodyParts.some(
         bodyPart =>
           bodyPart.sensitivity >= tool.intensity &&
@@ -129,8 +156,8 @@ export const createCompatiblePunishmentAction = (
   const position = chooseWeighted(compatiblePositions, randomSource)
 
   const step = Math.max(1, config.step || 1)
-  const minimum = Math.max(1, config.minStrikes || step)
-  const maximum = Math.max(minimum, config.maxStrikes || minimum)
+  const minimum = Math.max(1, constraints?.minStrikes ?? config.minStrikes ?? step)
+  const maximum = Math.max(minimum, constraints?.maxStrikes ?? config.maxStrikes ?? minimum)
   const minimumMultiple = Math.ceil(minimum / step)
   const maximumMultiple = Math.floor(maximum / step)
   if (minimumMultiple > maximumMultiple) {
@@ -145,6 +172,26 @@ export const createCompatiblePunishmentAction = (
     strikes,
     description: `用${tool.name}打${bodyPart.name}${strikes}下，姿势：${position.name}`,
   }
+}
+
+/** Pick a random punishment variant for party mode based on act and probability */
+export const pickPunishmentVariant = (
+  act: 'warmup' | 'heating' | 'finale',
+  randomSource: RuleRandomSource = secureRandomSource
+): PunishmentVariant | undefined => {
+  const variantChances: Record<string, Partial<Record<PunishmentVariant, number>>> = {
+    warmup: {},
+    heating: { blindbox: 15, conditional: 10 },
+    finale: { blindbox: 15, conditional: 10, deferred: 10, mutual: 10 },
+  }
+  const chances = variantChances[act]
+  const roll = randomSource.randomInt(1, 100)
+  let cumulative = 0
+  for (const [variant, chance] of Object.entries(chances)) {
+    cumulative += chance!
+    if (roll <= cumulative) return variant as PunishmentVariant
+  }
+  return undefined
 }
 
 const copyAction = (
@@ -241,14 +288,46 @@ export const consumePendingSkippedTurn = (
 export function resolveRule(input: PunishmentRuleInput): ResolvedPunishmentResult
 export function resolveRule(input: CellEffectRuleInput): ResolvedCellEffectResult
 export function resolveRule(input: TrapRuleInput): ResolvedTrapResult
+export function resolveRule(input: QARuleInput): ResolvedQAResult
+export function resolveRule(input: DareRuleInput): ResolvedDareResult
 export function resolveRule(input: RuleInput): ResolvedRuleResult {
   if (input.actorIndex < 0 || input.actorIndex >= input.players.length) {
     throw new Error('规则解析需要有效的触发玩家索引')
   }
 
+  if (input.source === 'qa') {
+    return Object.freeze({
+      kind: 'qa',
+      source: 'qa',
+      actorIndex: input.actorIndex,
+      question: input.effect.description,
+      turnConsequence: Object.freeze({ kind: 'none' }),
+    })
+  }
+
+  if (input.source === 'dare') {
+    return Object.freeze({
+      kind: 'dare',
+      source: 'dare',
+      actorIndex: input.actorIndex,
+      instruction: input.effect.description,
+      turnConsequence: Object.freeze({ kind: 'none' }),
+    })
+  }
+
   if (input.source === 'trap') {
     if (input.effect.type !== 'trap') {
       throw new Error('机关规则需要 trap 类型效果')
+    }
+
+    const trapVariant = input.effect.trapVariant
+    let rouletteTargetIndex: number | undefined
+    if (trapVariant === 'roulette' && input.players.length > 1) {
+      const randomSource = secureRandomSource
+      const candidates = input.players.flatMap((_, index) =>
+        index === input.actorIndex ? [] : [index]
+      )
+      rouletteTargetIndex = candidates.length > 0 ? randomSource.choice(candidates) : undefined
     }
 
     return Object.freeze({
@@ -258,6 +337,10 @@ export function resolveRule(input: RuleInput): ResolvedRuleResult {
       acknowledgementRequired: true,
       description: input.effect.description,
       turnConsequence: Object.freeze({ kind: 'none' }),
+      trapVariant,
+      choiceA: input.effect.choiceA,
+      choiceB: input.effect.choiceB,
+      rouletteTargetIndex,
     })
   }
 

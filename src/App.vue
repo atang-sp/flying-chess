@@ -6,6 +6,7 @@
   import {
     applyTurnConsequence,
     consumePendingSkippedTurn,
+    createCompatiblePunishmentAction,
     finalizePunishmentCount,
     resolveRule,
     scaleResolvedPunishmentCount,
@@ -37,6 +38,8 @@
     TrapAction,
     ResolvedPunishmentAction,
     ResolvedRuleResult,
+    PartyScenePreset,
+    PunishmentConstraints,
   } from './types/game'
   import IntroPage from './components/IntroPage.vue'
   import PartyReactionOverlay from './components/PartyReactionOverlay.vue'
@@ -55,6 +58,9 @@
   import EffectDisplay from './components/EffectDisplay.vue'
   import TakeoffPunishmentDisplay from './components/TakeoffPunishmentDisplay.vue'
   import TrapDisplay from './components/TrapDisplay.vue'
+  import TrapChoiceDisplay from './components/TrapChoiceDisplay.vue'
+  import QADisplay from './components/QADisplay.vue'
+  import DareDisplay from './components/DareDisplay.vue'
   import VictoryScreen from './components/VictoryScreen.vue'
   import TakeoffReliefDisplay from './components/TakeoffReliefDisplay.vue'
   import BounceDisplay from './components/BounceDisplay.vue'
@@ -85,6 +91,8 @@
   import { type GameMode } from './config/modes'
   import {
     createPartyPunishmentChoices,
+    getActConstraints,
+    getActDoublePunishmentChance,
     getPartyTimeLimitLeaders,
     isPartyPunishmentChoiceEligible,
     type PartyPrediction,
@@ -260,8 +268,20 @@
 
   // 机关陷阱弹窗状态
   const showTrapDisplay = ref(false)
+  const showTrapChoiceDisplay = ref(false)
   const currentTrapPunishment = ref<PunishmentAction | null>(null)
   const currentTrapDescription = ref<string>('')
+  const currentTrapChoiceA = ref('')
+  const currentTrapChoiceB = ref('')
+  const currentTrapVariant = ref<string | undefined>()
+  const currentTrapRouletteTarget = ref<Player | null>(null)
+
+  // 升温局问答 / 指令格弹窗
+  const showQADisplay = ref(false)
+  const currentQAQuestion = ref('')
+  const showDareDisplay = ref(false)
+  const currentDareInstruction = ref('')
+  const selectedPartyScene = ref<PartyScenePreset | 'default'>('default')
 
   // 反弹效果弹窗状态
   const showBounceDisplay = ref(false)
@@ -433,6 +453,14 @@
 
     if (resolvedPunishment) {
       const partySessionSnapshot = partySession.value
+      const actConstraints =
+        isPartyGame.value && partySessionSnapshot
+          ? getActConstraints(partySessionSnapshot.act)
+          : undefined
+      const actAwarePunishment =
+        actConstraints !== undefined
+          ? createCompatiblePunishmentAction(gameState.punishmentConfig, undefined, actConstraints)
+          : resolvedPunishment
       const partyChoiceSource = currentPlayer.hasTakenOff ? 'board_punishment' : 'takeoff_failure'
       const partyChoiceCellType =
         resolvedCellEffect?.type === 'chain_punishment' ? 'chain_punishment' : 'punishment'
@@ -448,16 +476,20 @@
         isPartyPunishmentChoiceEligible({
           source: partyChoiceSource,
           cellType: partyChoiceCellType,
-          action: resolvedPunishment,
+          action: actAwarePunishment,
         })
       ) {
         try {
-          partyPunishmentChoices.value = createPartyPunishmentChoices(gameState.punishmentConfig)
+          partyPunishmentChoices.value = createPartyPunishmentChoices(
+            gameState.punishmentConfig,
+            undefined,
+            actConstraints
+          )
           pendingPartyLanding.value = {
             currentPlayer,
             fromPosition,
             newPosition,
-            punishment,
+            punishment: actAwarePunishment,
             cellEffect,
             diceValue,
           }
@@ -474,16 +506,16 @@
             actorIndex,
             players: gameState.players,
             punishmentConfig: gameState.punishmentConfig,
+            punishmentAction: actAwarePunishment,
             diceValue: diceValue ?? gameState.diceValue ?? undefined,
-            punishmentAction: resolvedPunishment,
           })
         : resolveRule({
             source: 'board_punishment',
             actorIndex,
             players: gameState.players,
             punishmentConfig: gameState.punishmentConfig,
+            boardAction: actAwarePunishment,
             diceValue: diceValue ?? gameState.diceValue ?? undefined,
-            boardAction: resolvedPunishment,
           })
       const targetPlayer = gameState.players[punishmentResolution.targetPlayerIndex]
       const executorPlayer =
@@ -526,8 +558,50 @@
       })
       pendingRuleResolution.value = trapResolution
       currentTrapDescription.value = trapResolution.description || '未知机关'
-      showTrapDisplay.value = true
+      currentTrapVariant.value = trapResolution.trapVariant
+      currentTrapChoiceA.value = trapResolution.choiceA ?? ''
+      currentTrapChoiceB.value = trapResolution.choiceB ?? ''
+      currentTrapRouletteTarget.value =
+        trapResolution.rouletteTargetIndex !== undefined
+          ? (gameState.players[trapResolution.rouletteTargetIndex] ?? null)
+          : null
+
+      const usesChoiceOverlay =
+        trapResolution.trapVariant === 'choice' ||
+        trapResolution.trapVariant === 'roulette' ||
+        trapResolution.trapVariant === 'all_players'
+      if (usesChoiceOverlay) {
+        showTrapChoiceDisplay.value = true
+      } else {
+        showTrapDisplay.value = true
+      }
       audioService.play('trap')
+      return
+    }
+
+    if (resolvedCellEffect && resolvedCellEffect.type === 'qa') {
+      const qaResolution = resolveRule({
+        source: 'qa',
+        actorIndex: gameState.currentPlayerIndex,
+        players: gameState.players,
+        effect: resolvedCellEffect,
+      })
+      pendingRuleResolution.value = qaResolution
+      currentQAQuestion.value = qaResolution.question
+      showQADisplay.value = true
+      return
+    }
+
+    if (resolvedCellEffect && resolvedCellEffect.type === 'dare') {
+      const dareResolution = resolveRule({
+        source: 'dare',
+        actorIndex: gameState.currentPlayerIndex,
+        players: gameState.players,
+        effect: resolvedCellEffect,
+      })
+      pendingRuleResolution.value = dareResolution
+      currentDareInstruction.value = dareResolution.instruction
+      showDareDisplay.value = true
       return
     }
 
@@ -634,6 +708,9 @@
       !currentPunishment.value &&
       !showTakeoffPunishmentDisplay.value &&
       !showTrapDisplay.value &&
+      !showTrapChoiceDisplay.value &&
+      !showQADisplay.value &&
+      !showDareDisplay.value &&
       !showDoublePunishmentReveal.value &&
       !showChainPunishmentRoll.value &&
       !partyInteractionBlocking.value
@@ -645,6 +722,9 @@
       Boolean(currentPunishment.value) ||
       showTakeoffPunishmentDisplay.value ||
       showTrapDisplay.value ||
+      showTrapChoiceDisplay.value ||
+      showQADisplay.value ||
+      showDareDisplay.value ||
       showBounceDisplay.value ||
       showDoublePunishmentReveal.value ||
       showChainPunishmentRoll.value ||
@@ -760,7 +840,11 @@
   const checkGameStateHealth = () => {
     const blockingOverlays: BlockingOverlayState = {
       takeoffPunishment: showTakeoffPunishmentDisplay.value,
-      trap: showTrapDisplay.value,
+      trap:
+        showTrapDisplay.value ||
+        showTrapChoiceDisplay.value ||
+        showQADisplay.value ||
+        showDareDisplay.value,
       bounce: showBounceDisplay.value,
       takeoffRelief: showTakeoffReliefDisplay.value,
       doublePunishmentReveal: showDoublePunishmentReveal.value,
@@ -1083,21 +1167,46 @@
 
   const cloneConfig = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
-  const startPartyGame = (playerConfig: { count: number; names: string[]; mode: 'party' }) => {
+  const startPartyGame = (playerConfig: {
+    count: number
+    names: string[]
+    mode: 'party'
+    scenePreset?: PartyScenePreset | 'default'
+  }) => {
     classicConfigSnapshot.value = {
       boardConfig: cloneConfig(gameState.boardConfig),
       punishmentConfig: cloneConfig(gameState.punishmentConfig),
       trapConfig: cloneConfig(trapConfig.value),
     }
     activeMode.value = 'party'
+    selectedPartyScene.value = playerConfig.scenePreset ?? 'default'
     gameState.players = GameService.createCustomPlayers(playerConfig.count, playerConfig.names)
     gameState.currentPlayerIndex = 0
     gameState.diceValue = null
     gameState.winner = null
     gameState.pendingEffect = null
     gameState.punishmentConfig = GameService.createPunishmentConfig()
-    gameState.boardConfig = GameService.createBoardConfig()
-    trapConfig.value = GameService.trapsToArray(GAME_CONFIG.DEFAULT_TRAPS)
+
+    const sceneKey = selectedPartyScene.value
+    const scene = sceneKey !== 'default' ? GAME_CONFIG.PARTY_SCENE_PRESETS[sceneKey] : undefined
+    gameState.boardConfig = {
+      ...(scene?.boardConfig ?? GAME_CONFIG.PARTY_BOARD_CONFIG),
+    } as BoardConfig
+
+    const partyTraps =
+      sceneKey === 'intimate'
+        ? GAME_CONFIG.PARTY_TRAPS.filter(trap => trap.trapVariant !== 'all_players')
+        : [...GAME_CONFIG.PARTY_TRAPS]
+    trapConfig.value = partyTraps
+
+    const warmupConstraints: PunishmentConstraints = {
+      ...getActConstraints('warmup'),
+      ...(scene?.actConstraintsOverride?.warmup ?? {}),
+    }
+    if (warmupConstraints.doublePunishmentChance !== undefined) {
+      gameState.punishmentConfig.doublePunishmentChance = warmupConstraints.doublePunishmentChance
+    }
+
     gameState.board = GameService.createBoard(
       gameState.punishmentConfig,
       gameState.boardConfig,
@@ -1219,8 +1328,18 @@
 
     // 清除所有强制结算弹层，结束本局后不残留旧流程
     showTrapDisplay.value = false
+    showTrapChoiceDisplay.value = false
     currentTrapPunishment.value = null
     currentTrapDescription.value = ''
+    currentTrapChoiceA.value = ''
+    currentTrapChoiceB.value = ''
+    currentTrapVariant.value = undefined
+    currentTrapRouletteTarget.value = null
+    showQADisplay.value = false
+    currentQAQuestion.value = ''
+    showDareDisplay.value = false
+    currentDareInstruction.value = ''
+    selectedPartyScene.value = 'default'
     showDoublePunishmentReveal.value = false
     isDoublePunishment.value = false
     pendingDoublePunishment.value = null
@@ -1718,7 +1837,9 @@
 
       // 翻倍陷阱：如果当前不是翻倍状态，检查是否触发翻倍
       if (!isDoublePunishment.value && currentPunishment.value) {
-        const chance = gameState.punishmentConfig.doublePunishmentChance ?? 0
+        const chance = isPartyGame.value
+          ? getActDoublePunishmentChance(partySession.value?.act ?? 'warmup')
+          : (gameState.punishmentConfig.doublePunishmentChance ?? 0)
         if (chance > 0 && SecureRandom.randomInt(1, 100) <= chance) {
           pendingDoublePunishment.value = { ...currentPunishment.value }
           currentPunishment.value = null
@@ -1950,14 +2071,23 @@
   }
 
   // 修改IntroPage组件的调用，使其能够接收玩家配置信息并传递给startGame方法
-  const handleIntroStart = (playerConfig: { count: number; names: string[]; mode: GameMode }) => {
+  const handleIntroStart = (playerConfig: {
+    count: number
+    names: string[]
+    mode: GameMode
+    scenePreset?: PartyScenePreset | 'default'
+  }) => {
     selectedMode.value = playerConfig.mode
     saveGameMode(playerConfig.mode)
     gameTelemetry.setMode(playerConfig.mode)
     gameTelemetry.startSetup(playerConfig.count)
 
     if (playerConfig.mode === 'party') {
-      startPartyGame({ ...playerConfig, mode: 'party' })
+      startPartyGame({
+        ...playerConfig,
+        mode: 'party',
+        scenePreset: playerConfig.scenePreset ?? 'default',
+      })
       return
     }
 
@@ -2006,22 +2136,80 @@
       }
 
       showTrapDisplay.value = false
+      showTrapChoiceDisplay.value = false
       currentTrapPunishment.value = null
       currentTrapDescription.value = ''
+      currentTrapChoiceA.value = ''
+      currentTrapChoiceB.value = ''
+      currentTrapVariant.value = undefined
+      currentTrapRouletteTarget.value = null
       pendingRuleResolution.value = null
       gameState.gameStatus = 'waiting'
 
-      // 继续游戏流程
       await continueAfterMove()
     } catch (error) {
       console.error('确认机关陷阱时发生错误:', error)
-      // 确保在发生错误时重置游戏状态
       gameState.gameStatus = 'waiting'
       showTrapDisplay.value = false
+      showTrapChoiceDisplay.value = false
       currentTrapPunishment.value = null
       currentTrapDescription.value = ''
       pendingRuleResolution.value = null
     }
+  }
+
+  const confirmTrapChoice = async (_choice: 'A' | 'B') => {
+    await confirmTrap()
+  }
+
+  const confirmQAAnswer = async () => {
+    showQADisplay.value = false
+    currentQAQuestion.value = ''
+    pendingRuleResolution.value = null
+    gameState.gameStatus = 'waiting'
+    await continueAfterMove()
+  }
+
+  const confirmQARefuse = async () => {
+    showQADisplay.value = false
+    currentQAQuestion.value = ''
+    pendingRuleResolution.value = null
+
+    const actConstraints = partySession.value
+      ? getActConstraints(partySession.value.act)
+      : undefined
+    const punishment = createCompatiblePunishmentAction(
+      gameState.punishmentConfig,
+      undefined,
+      actConstraints
+    )
+    const punishmentResolution = resolveRule({
+      source: 'board_punishment',
+      actorIndex: gameState.currentPlayerIndex,
+      players: gameState.players,
+      punishmentConfig: gameState.punishmentConfig,
+      boardAction: punishment,
+    })
+    const targetPlayer = gameState.players[punishmentResolution.targetPlayerIndex]
+    const executorPlayer =
+      punishmentResolution.executorIndex === undefined
+        ? null
+        : (gameState.players[punishmentResolution.executorIndex] ?? null)
+    pendingRuleResolution.value = punishmentResolution
+    currentPunishment.value = toMutablePunishmentAction(punishmentResolution.action)
+    currentPunishmentTarget.value = targetPlayer
+    currentPunishmentExecutor.value = executorPlayer
+    mercyRequested.value = false
+    audioService.play('punishment')
+    gameState.gameStatus = 'configuring'
+  }
+
+  const confirmDare = async () => {
+    showDareDisplay.value = false
+    currentDareInstruction.value = ''
+    pendingRuleResolution.value = null
+    gameState.gameStatus = 'waiting'
+    await continueAfterMove()
   }
 
   // 确认反弹效果
@@ -2073,7 +2261,12 @@
 
     if (completedMode === 'party') {
       await nextTick()
-      startPartyGame({ count: playerCount, names: playerNames, mode: 'party' })
+      startPartyGame({
+        count: playerCount,
+        names: playerNames,
+        mode: 'party',
+        scenePreset: selectedPartyScene.value,
+      })
       return
     }
 
@@ -2917,6 +3110,33 @@
       :show="showTrapDisplay"
       :trap-description="currentTrapDescription"
       @confirm="confirmTrap"
+    />
+
+    <TrapChoiceDisplay
+      :show="showTrapChoiceDisplay"
+      :description="currentTrapDescription"
+      :choice-a="currentTrapChoiceA"
+      :choice-b="currentTrapChoiceB"
+      :player="gameState.players[gameState.currentPlayerIndex]"
+      :roulette-target="currentTrapRouletteTarget"
+      :trap-variant="currentTrapVariant"
+      @choose="confirmTrapChoice"
+      @confirm="confirmTrap"
+    />
+
+    <QADisplay
+      :show="showQADisplay"
+      :question="currentQAQuestion"
+      :player="gameState.players[gameState.currentPlayerIndex]"
+      @answer="confirmQAAnswer"
+      @refuse="confirmQARefuse"
+    />
+
+    <DareDisplay
+      :show="showDareDisplay"
+      :instruction="currentDareInstruction"
+      :player="gameState.players[gameState.currentPlayerIndex]"
+      @confirm="confirmDare"
     />
 
     <!-- 反弹效果弹窗 -->

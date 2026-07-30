@@ -3,9 +3,11 @@
   import type { Component } from 'vue'
   import {
     Circle,
+    Flame,
     Gift,
     Link,
     LocateFixed,
+    MessageCircleQuestion,
     Moon,
     Rocket,
     RotateCcw,
@@ -52,8 +54,10 @@
 
   const iconComponents: Record<CellIconName, Component> = {
     Circle,
+    Flame,
     Gift,
     Link,
+    MessageCircleQuestion,
     Moon,
     Rocket,
     RotateCcw,
@@ -793,6 +797,32 @@
       #302a25 5px,
       #a54149 5px,
       #a54149 10px
+    );
+  }
+
+  .cell-qa {
+    --cell-accent: #3b82f6;
+    --cell-paper: #dce8f8;
+    --cell-ink: #1e3a5f;
+    --cell-pattern: repeating-linear-gradient(
+      90deg,
+      #3b6fb5 0,
+      #3b6fb5 6px,
+      #8fb4e0 6px,
+      #8fb4e0 8px
+    );
+  }
+
+  .cell-dare {
+    --cell-accent: #f59e0b;
+    --cell-paper: #f8ecd4;
+    --cell-ink: #5c3d0e;
+    --cell-pattern: repeating-linear-gradient(
+      135deg,
+      #d97706 0,
+      #d97706 5px,
+      #fbbf24 5px,
+      #fbbf24 10px
     );
   }
 

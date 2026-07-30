@@ -10,6 +10,8 @@ export type CellVisualKind =
   | 'rest'
   | 'restart'
   | 'trap'
+  | 'qa'
+  | 'dare'
   | 'finish'
 
 export type CellIconName =
@@ -23,6 +25,8 @@ export type CellIconName =
   | 'Trophy'
   | 'Undo2'
   | 'Zap'
+  | 'MessageCircleQuestion'
+  | 'Flame'
 
 export interface CellPresentationDetail {
   label: string
@@ -58,6 +62,8 @@ const CELL_META: Record<
   rest: { label: '休息格', shortLabel: '休息', iconName: 'Moon' },
   restart: { label: '回起点', shortLabel: '重置', iconName: 'RotateCcw' },
   trap: { label: '机关格', shortLabel: '机关', iconName: 'Skull' },
+  qa: { label: '问答格', shortLabel: '问答', iconName: 'MessageCircleQuestion' },
+  dare: { label: '指令格', shortLabel: '指令', iconName: 'Flame' },
   finish: { label: '终点', shortLabel: '终点', iconName: 'Trophy' },
 }
 
@@ -67,6 +73,8 @@ const getVisualKind = (cell: BoardCell, totalCells: number): CellVisualKind => {
   if (cell.type === 'punishment' || cell.effect?.type === 'punishment') return 'punishment'
   if (cell.type === 'chain_punishment' || cell.effect?.type === 'chain_punishment') return 'chain'
   if (cell.type === 'trap' || cell.effect?.type === 'trap') return 'trap'
+  if (cell.type === 'qa' || cell.effect?.type === 'qa') return 'qa'
+  if (cell.type === 'dare' || cell.effect?.type === 'dare') return 'dare'
   if (cell.type === 'restart' || cell.effect?.type === 'restart') return 'restart'
   if (cell.effect?.type === 'reverse') return 'reverse'
   if (cell.effect?.type === 'rest') return 'rest'
@@ -105,6 +113,10 @@ const getDetails = (cell: BoardCell, kind: CellVisualKind): CellPresentationDeta
       return [{ label: '效果', value: '回到起点' }]
     case 'trap':
       return [{ label: '效果', value: '触发随机机关' }]
+    case 'qa':
+      return [{ label: '效果', value: cell.effect?.description || '回答问题' }]
+    case 'dare':
+      return [{ label: '效果', value: cell.effect?.description || '执行指令' }]
     case 'start':
       return [{ label: '位置', value: '赛道起点' }]
     case 'finish':
