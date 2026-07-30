@@ -44,7 +44,9 @@
   import PartyPunishmentChoice from './components/PartyPunishmentChoice.vue'
   import PartyTieBreak from './components/PartyTieBreak.vue'
   import GameBoard from './components/GameBoard.vue'
-  import PlayerPanel from './components/PlayerPanel.vue'
+  import CellInspector from './components/CellInspector.vue'
+  import GameRoster from './components/GameRoster.vue'
+  import GameTurnDock from './components/GameTurnDock.vue'
   import BoardConfigPanel from './components/BoardConfig.vue'
   import PunishmentConfigPanel from './components/PunishmentConfig.vue'
   import TrapConfigPanel from './components/TrapConfig.vue'
@@ -150,21 +152,21 @@
       partyReaction.value?.status === 'awaiting_decision'
   )
 
-  // 移动端 PlayerPanel 折叠状态
-  const playerPanelCollapsed = ref(true)
   const windowWidth = ref(window.innerWidth)
 
   const isMobileView = computed(() => windowWidth.value <= 768)
+  const gameBoardRef = ref<InstanceType<typeof GameBoard> | null>(null)
+  const selectedCellPosition = ref<number | null>(1)
+  const cellInspectorOpen = ref(false)
+  const selectedBoardCell = computed(
+    () =>
+      gameState.board.find(cell => cell.position === selectedCellPosition.value) ??
+      gameState.board[0] ??
+      null
+  )
 
   const onWindowResize = () => {
     windowWidth.value = window.innerWidth
-    if (!isMobileView.value) {
-      playerPanelCollapsed.value = false
-    }
-  }
-
-  const togglePlayerPanel = () => {
-    playerPanelCollapsed.value = !playerPanelCollapsed.value
   }
 
   // 设置页 Tab 状态
@@ -1860,10 +1862,32 @@
     }
   }
 
-  // 处理格子点击（可选功能）
-  const handleCellClick = (cell: BoardCell) => {
-    devLog('点击格子:', cell)
-    // 可以在这里添加查看格子详情的功能
+  const handleCellSelect = (cell: BoardCell) => {
+    selectedCellPosition.value = cell.position
+    cellInspectorOpen.value = true
+  }
+
+  const selectAdjacentCell = (offset: -1 | 1) => {
+    if (!selectedBoardCell.value) return
+    const nextPosition = Math.min(
+      Math.max(selectedBoardCell.value.position + offset, 1),
+      gameState.board.length
+    )
+    selectedCellPosition.value = nextPosition
+    gameBoardRef.value?.scrollToCell(nextPosition)
+  }
+
+  const locateSelectedCell = () => {
+    if (!selectedCellPosition.value) return
+    gameBoardRef.value?.scrollToCell(selectedCellPosition.value)
+  }
+
+  const closeCellInspector = () => {
+    cellInspectorOpen.value = false
+    const selectedPosition = selectedCellPosition.value
+    if (selectedPosition) {
+      nextTick(() => gameBoardRef.value?.focusCell(selectedPosition))
+    }
   }
 
   // 生成惩罚组合
@@ -2561,6 +2585,10 @@
     :class="{
       'app--settings':
         gameState.gameStatus === 'board_settings' || gameState.gameStatus === 'settings',
+      'app--game':
+        gameState.gameStatus !== 'intro' &&
+        gameState.gameStatus !== 'board_settings' &&
+        gameState.gameStatus !== 'settings',
     }"
   >
     <!-- 开始页面 -->
@@ -2729,32 +2757,16 @@
             />
           </div>
 
-          <PlayerPanel
+          <GameRoster
             v-if="gameState.players.length > 0"
             :players="gameState.players"
             :current-player-index="gameState.currentPlayerIndex"
-            :collapsed="isMobileView && playerPanelCollapsed"
+            :total-cells="gameState.board.length"
+            :party-act-label="isPartyGame ? partyActLabel : undefined"
+            :party-round="isPartyGame ? partySession?.roundNumber : undefined"
+            :tokens-remaining="isPartyGame ? partySession?.tokensRemaining : undefined"
             class="header-players"
-            @toggle="togglePlayerPanel"
           />
-
-          <!-- Mobile player panel dropdown -->
-          <Transition name="panel-dropdown">
-            <div
-              v-if="isMobileView && !playerPanelCollapsed && gameState.players.length > 0"
-              class="mobile-panel-dropdown"
-            >
-              <div class="mobile-panel-backdrop" @click="playerPanelCollapsed = true"></div>
-              <div class="mobile-panel-content">
-                <PlayerPanel
-                  :players="gameState.players"
-                  :current-player-index="gameState.currentPlayerIndex"
-                  :collapsed="false"
-                  @toggle="togglePlayerPanel"
-                />
-              </div>
-            </div>
-          </Transition>
 
           <div class="header-actions">
             <PButton
@@ -2784,39 +2796,72 @@
       </header>
 
       <main class="game-main">
-        <section
-          v-if="isPartyGame && partySession"
-          class="party-status-strip"
-          data-testid="party-status"
-        >
-          <div>
-            <span>升温局 · {{ partyActLabel }}</span>
-            <strong>第 {{ partySession.roundNumber }} 轮</strong>
+        <div class="game-cockpit">
+          <div class="board-section">
+            <GameBoard
+              ref="gameBoardRef"
+              :board="gameState.board"
+              :players="gameState.players"
+              :current-player-index="gameState.currentPlayerIndex"
+              :selected-position="selectedCellPosition"
+              :interaction-disabled="
+                hasActiveForcedOverlay || sessionPaused || gameFinished || partyInteractionBlocking
+              "
+              @select-cell="handleCellSelect"
+            />
           </div>
-          <div class="party-token-list">
-            <span
-              v-for="(player, index) in gameState.players"
-              :key="player.id"
-              :class="{ 'party-token-current': index === gameState.currentPlayerIndex }"
-            >
-              {{ player.name }} {{ partySession.tokensRemaining[index] }} 枚
-            </span>
-          </div>
-        </section>
 
-        <div class="board-section">
-          <GameBoard
-            :board="gameState.board"
-            :players="gameState.players"
-            :current-player-index="gameState.currentPlayerIndex"
-            :last-effect="lastEffect"
-            :can-roll="canRollDice"
-            :dice-value="gameState.diceValue"
-            :turn-count="turnCount"
-            @cell-click="handleCellClick"
-            @roll="handleDiceRoll"
-          />
+          <aside v-if="!isMobileView" class="game-sidecar" aria-label="回合与格子信息">
+            <GameTurnDock
+              :players="gameState.players"
+              :current-player-index="gameState.currentPlayerIndex"
+              :total-cells="gameState.board.length"
+              :can-roll="canRollDice"
+              :dice-value="gameState.diceValue"
+              :last-effect="lastEffect"
+              :turn-count="turnCount"
+              :mobile="false"
+              @roll="handleDiceRoll"
+            />
+            <CellInspector
+              :cell="selectedBoardCell"
+              :total-cells="gameState.board.length"
+              :players="gameState.players"
+              :visible="true"
+              :mobile="false"
+              @close="cellInspectorOpen = false"
+              @previous="selectAdjacentCell(-1)"
+              @next="selectAdjacentCell(1)"
+              @locate="locateSelectedCell"
+            />
+          </aside>
         </div>
+
+        <GameTurnDock
+          v-if="isMobileView"
+          :players="gameState.players"
+          :current-player-index="gameState.currentPlayerIndex"
+          :total-cells="gameState.board.length"
+          :can-roll="canRollDice"
+          :dice-value="gameState.diceValue"
+          :last-effect="lastEffect"
+          :turn-count="turnCount"
+          :mobile="true"
+          @roll="handleDiceRoll"
+        />
+
+        <CellInspector
+          v-if="isMobileView"
+          :cell="selectedBoardCell"
+          :total-cells="gameState.board.length"
+          :players="gameState.players"
+          :visible="cellInspectorOpen"
+          :mobile="true"
+          @close="closeCellInspector"
+          @previous="selectAdjacentCell(-1)"
+          @next="selectAdjacentCell(1)"
+          @locate="locateSelectedCell"
+        />
       </main>
 
       <!-- 惩罚显示弹窗 -->
@@ -3234,15 +3279,19 @@
     width: 100%;
     display: flex;
     flex-direction: column;
-    background-color: var(--bg-primary);
+    background:
+      radial-gradient(circle at 50% -10%, rgba(76, 116, 94, 0.22), transparent 38%),
+      linear-gradient(145deg, #081914, #06130f);
   }
 
   .game-header {
-    padding: 0.5rem 1rem;
-    background: var(--bg-glass);
-    backdrop-filter: blur(var(--glass-blur));
-    border-bottom: var(--glass-border);
-    box-shadow: var(--glass-shadow);
+    position: relative;
+    z-index: 20;
+    padding: 0.55rem 1rem;
+    background: rgba(8, 24, 19, 0.92);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(216, 181, 112, 0.22);
+    box-shadow: 0 8px 28px rgba(1, 10, 8, 0.26);
     flex-shrink: 0;
   }
 
@@ -3258,7 +3307,7 @@
     margin: 0;
     font-size: 1.1rem;
     font-weight: bold;
-    color: var(--text-primary);
+    color: #fff7e7;
     display: flex;
     align-items: center;
     gap: 0.4rem;
@@ -3287,23 +3336,23 @@
   }
 
   .audio-toggle-btn {
-    background: var(--bg-glass);
-    border: var(--glass-border);
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    padding: 0.3rem;
+    background: rgba(236, 218, 180, 0.07);
+    border: 1px solid rgba(218, 181, 112, 0.2);
+    border-radius: 10px;
+    color: #cabd9f;
+    padding: 0.4rem;
     cursor: pointer;
     transition: all var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 30px;
-    min-width: 30px;
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .audio-toggle-btn:hover {
-    color: var(--text-primary);
-    background: var(--bg-glass-hover);
+    color: #fff5df;
+    background: rgba(236, 218, 180, 0.13);
   }
 
   .game-main {
@@ -3314,74 +3363,35 @@
     min-height: 0;
   }
 
-  .party-status-strip {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  .game-cockpit {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(290px, 340px);
     gap: 1rem;
-    margin: 0.75rem 1rem 0;
-    padding: 0.75rem 1rem;
-    color: #f8fafc;
-    background:
-      linear-gradient(120deg, rgba(190, 24, 93, 0.34), rgba(79, 70, 229, 0.3)),
-      rgba(15, 23, 42, 0.82);
-    border: 1px solid rgba(251, 113, 133, 0.4);
-    border-radius: 16px;
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.2);
-  }
-
-  .party-status-strip > div:first-child {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    white-space: nowrap;
-  }
-
-  .party-status-strip strong {
-    color: #fecdd3;
-  }
-
-  .party-token-list {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 0.45rem;
-  }
-
-  .party-token-list span {
-    padding: 0.3rem 0.55rem;
-    color: #cbd5e1;
-    font-size: 0.78rem;
-    background: rgba(15, 23, 42, 0.48);
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 999px;
-  }
-
-  .party-token-list .party-token-current {
-    color: #fff;
-    border-color: rgba(253, 164, 175, 0.68);
-  }
-
-  @media (max-width: 600px) {
-    .party-status-strip {
-      align-items: flex-start;
-      margin: 0.5rem 0.5rem 0;
-      padding: 0.65rem 0.75rem;
-    }
-
-    .party-token-list {
-      justify-content: flex-start;
-    }
+    padding: 1rem;
   }
 
   .board-section {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
     min-height: 0;
-    padding: 0.5rem;
     position: relative;
+    display: flex;
+  }
+
+  .board-section :deep(.game-board) {
+    flex: 1;
+  }
+
+  .game-sidecar {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    overflow-y: auto;
+  }
+
+  .game-sidecar :deep(.cell-inspector) {
+    flex: 1;
   }
 
   /* 状态样式 */
@@ -3437,74 +3447,29 @@
     }
 
     .header-content {
-      gap: 0.4rem;
-      overflow-x: auto;
-      scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
+      gap: 0.35rem;
     }
 
-    .header-content::-webkit-scrollbar {
+    .game-header h1,
+    .header-status {
       display: none;
     }
 
-    .game-header h1 {
-      font-size: 0.95rem;
+    .header-players {
+      flex: 1 1 auto;
+      min-width: 0;
     }
 
-    .header-players {
-      flex: 0 0 auto;
+    .game-cockpit {
+      display: block;
+      min-height: 0;
+      padding: 0.45rem 0.45rem 100px;
     }
 
     .board-section {
-      padding: 0.25rem;
+      height: calc(100dvh - 150px);
+      min-height: 430px;
     }
-  }
-
-  /* Mobile player panel dropdown */
-  .mobile-panel-dropdown {
-    position: fixed;
-    inset: 0;
-    z-index: 1500;
-  }
-
-  .mobile-panel-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-  }
-
-  .mobile-panel-content {
-    position: absolute;
-    top: 50px;
-    left: 0.5rem;
-    right: 0.5rem;
-    padding: 0.75rem;
-    background: var(--bg-glass);
-    backdrop-filter: blur(var(--glass-blur));
-    border: var(--glass-border);
-    border-radius: var(--radius-md, 12px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  }
-
-  .panel-dropdown-enter-active {
-    transition: opacity 0.2s ease-out;
-  }
-  .panel-dropdown-enter-active .mobile-panel-content {
-    transition: transform 0.2s ease-out;
-  }
-  .panel-dropdown-leave-active {
-    transition: opacity 0.15s ease-in;
-  }
-  .panel-dropdown-leave-active .mobile-panel-content {
-    transition: transform 0.15s ease-in;
-  }
-  .panel-dropdown-enter-from,
-  .panel-dropdown-leave-to {
-    opacity: 0;
-  }
-  .panel-dropdown-enter-from .mobile-panel-content,
-  .panel-dropdown-leave-to .mobile-panel-content {
-    transform: translateY(-10px);
   }
 
   @media (max-width: 480px) {
@@ -3518,65 +3483,15 @@
     }
   }
 
-  /* 横屏模式优化：header 变为左侧竖栏 */
+  /* 横屏模式：保持同一信息层级，只压缩垂直空间 */
   @media (orientation: landscape) and (max-height: 600px) {
-    .game-page {
-      flex-direction: row;
-    }
-
     .game-header {
-      flex-shrink: 0;
-      width: 60px;
-      padding: 0.4rem;
-      border-bottom: none;
-      border-right: var(--glass-border);
-      overflow-y: auto;
-      overflow-x: hidden;
+      padding-block: 0.3rem;
     }
 
-    .header-content {
-      flex-direction: column;
-      gap: 0.5rem;
-      max-width: none;
-      align-items: center;
-    }
-
-    .game-header h1 {
-      font-size: 0;
-      gap: 0;
-    }
-
-    .game-header h1 .pi-map {
-      font-size: 1.2rem;
-    }
-
-    .header-status {
-      flex-direction: column;
-      gap: 0.2rem;
-    }
-
-    .header-actions {
-      flex-direction: column;
-      gap: 0.3rem;
-    }
-
-    .header-actions .p-button {
-      font-size: 0;
-      padding: 0.4rem;
-      min-width: 36px;
-    }
-
-    .header-actions .p-button .p-button-icon {
-      margin: 0;
-    }
-
-    .header-players {
-      flex: 0 0 auto;
-    }
-
-    .game-main {
-      min-height: 0;
-      height: 100vh;
+    .board-section {
+      height: calc(100dvh - 132px);
+      min-height: 260px;
     }
   }
 
@@ -3851,7 +3766,7 @@
 
     .session-pause-trigger {
       right: 0.75rem;
-      bottom: 4.75rem;
+      bottom: calc(max(0.45rem, env(safe-area-inset-bottom)) + 99px);
     }
 
     .session-pause-trigger--blocked {
@@ -3877,6 +3792,11 @@
     .guide-controls {
       bottom: 1rem;
       left: 1rem;
+    }
+
+    .app--game .guide-btn,
+    .app--game .guide-controls {
+      bottom: calc(max(0.45rem, env(safe-area-inset-bottom)) + 99px);
     }
 
     .export-btn {

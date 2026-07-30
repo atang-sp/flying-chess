@@ -1,1391 +1,939 @@
 <script setup lang="ts">
-  import { computed, ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
+  import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+  import type { Component } from 'vue'
+  import {
+    Circle,
+    Gift,
+    Link,
+    LocateFixed,
+    Moon,
+    Rocket,
+    RotateCcw,
+    Skull,
+    Trophy,
+    Undo2,
+    Zap,
+  } from '@lucide/vue'
   import type { BoardCell, Player } from '../types/game'
-  import { CELL_ICON_NAMES } from '../config/gameConfig'
-  import { Zap, Gift, Undo2, Moon, RotateCcw, Skull, Rocket, Sparkles, Link } from '@lucide/vue'
-  import CoolDice from './CoolDice.vue'
-  import ScorePanel from './ScorePanel.vue'
-  import BoardParticles from './BoardParticles.vue'
+  import PlayerMeeple from './PlayerMeeple.vue'
+  import {
+    getBoardCellPresentation,
+    getSnakeGridPosition,
+    type CellIconName,
+    type CellPresentation,
+    type SnakeGridPosition,
+  } from '../utils/boardPresentation'
+  import { vibrate } from '../utils/haptics'
 
   interface Props {
     board: BoardCell[]
     players: Player[]
     currentPlayerIndex: number
-    lastEffect?: string
-    canRoll?: boolean
-    diceValue?: number | null
-    turnCount?: number
+    selectedPosition?: number | null
+    interactionDisabled?: boolean
   }
 
   interface Emits {
-    (e: 'cellClick', cell: BoardCell): void
-    (e: 'roll'): void
+    (event: 'selectCell', cell: BoardCell): void
   }
 
-  const props = defineProps<Props>()
+  interface PresentedCell {
+    cell: BoardCell
+    presentation: CellPresentation
+    grid: SnakeGridPosition
+    hasNext: boolean
+  }
+
+  const props = withDefaults(defineProps<Props>(), {
+    selectedPosition: null,
+    interactionDisabled: false,
+  })
   const emit = defineEmits<Emits>()
 
-  const iconComponents: Record<string, any> = {
-    Zap,
+  const iconComponents: Record<CellIconName, Component> = {
+    Circle,
     Gift,
-    Undo2,
+    Link,
     Moon,
+    Rocket,
     RotateCcw,
     Skull,
-    Rocket,
-    Sparkles,
-    Link,
+    Trophy,
+    Undo2,
+    Zap,
   }
 
-  const tooltipVisible = ref(false)
-  const tooltipCell = ref<BoardCell | null>(null)
-  const tooltipStyle = ref({ left: '0px', top: '0px' })
-
-  const activatedCell = ref<number | null>(null)
-  const landingCell = ref<number | null>(null)
-
   const boardRef = ref<HTMLElement | null>(null)
-  const pathRef = ref<SVGPathElement | null>(null)
   const containerWidth = ref(0)
-  const containerHeight = ref(0)
-  const pathMounted = ref(0)
+  const focusedPosition = ref(1)
+  const activatedPosition = ref<number | null>(null)
+  const landingPosition = ref<number | null>(null)
+  const cellRefs = new Map<number, HTMLButtonElement>()
   let resizeObserver: ResizeObserver | null = null
+  let activationTimer: ReturnType<typeof setTimeout> | null = null
+  let landingTimer: ReturnType<typeof setTimeout> | null = null
+
+  const columns = computed(() => {
+    if (containerWidth.value < 600) return 5
+    if (containerWidth.value < 1024) return 8
+    return 10
+  })
+
+  const currentPlayer = computed(() => props.players[props.currentPlayerIndex])
+  const playersByPosition = computed(() => {
+    const positions = new Map<number, Array<{ player: Player; index: number }>>()
+    props.players.forEach((player, index) => {
+      const occupants = positions.get(player.position) ?? []
+      occupants.push({ player, index })
+      positions.set(player.position, occupants)
+    })
+    return positions
+  })
+  const playersAtLaunch = computed(() => playersByPosition.value.get(0) ?? [])
+
+  const presentedCells = computed<PresentedCell[]>(() =>
+    props.board.map((cell, index) => ({
+      cell,
+      presentation: getBoardCellPresentation(cell, props.board.length),
+      grid: getSnakeGridPosition(cell.position, columns.value),
+      hasNext: index < props.board.length - 1,
+    }))
+  )
+
+  const gridStyle = computed(() => ({
+    gridTemplateColumns: `repeat(${columns.value}, var(--board-cell-size))`,
+  }))
+
+  const getPlayersOnCell = (position: number) => playersByPosition.value.get(position) ?? []
+
+  const getCellStyle = (grid: SnakeGridPosition) => ({
+    gridRow: grid.row,
+    gridColumn: grid.column,
+  })
+
+  const getCellClasses = (item: PresentedCell) => ({
+    [`cell-${item.presentation.kind}`]: true,
+    'cell-selected': props.selectedPosition === item.cell.position,
+    'cell-occupied': getPlayersOnCell(item.cell.position).length > 0,
+    'cell-activated': activatedPosition.value === item.cell.position,
+    'cell-landing': landingPosition.value === item.cell.position,
+    'connector-forward': item.hasNext && !item.grid.isTurn && item.grid.direction === 'forward',
+    'connector-reverse': item.hasNext && !item.grid.isTurn && item.grid.direction === 'reverse',
+    'connector-turn': item.hasNext && item.grid.isTurn,
+  })
+
+  const setCellRef = (position: number, element: unknown) => {
+    if (element instanceof HTMLButtonElement) {
+      cellRefs.set(position, element)
+    } else {
+      cellRefs.delete(position)
+    }
+  }
+
+  const scrollToCell = (position: number, behavior: ScrollBehavior = 'smooth') => {
+    const element = cellRefs.get(position)
+    if (!element) return
+    element.scrollIntoView({ block: 'center', inline: 'center', behavior })
+  }
+
+  const focusCell = (position: number) => {
+    const bounded = Math.min(Math.max(position, 1), props.board.length)
+    focusedPosition.value = bounded
+    nextTick(() => {
+      cellRefs.get(bounded)?.focus({ preventScroll: true })
+      scrollToCell(bounded)
+    })
+  }
+
+  const selectCell = (cell: BoardCell) => {
+    if (props.interactionDisabled) return
+    focusedPosition.value = cell.position
+    emit('selectCell', cell)
+  }
+
+  const handleCellKeydown = (event: KeyboardEvent, cell: BoardCell) => {
+    let nextPosition: number | null = null
+    switch (event.key) {
+      case 'Enter':
+      case ' ':
+        event.preventDefault()
+        return
+      case 'ArrowRight':
+      case 'ArrowDown':
+        nextPosition = Math.min(cell.position + 1, props.board.length)
+        break
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        nextPosition = Math.max(cell.position - 1, 1)
+        break
+      case 'Home':
+        nextPosition = 1
+        break
+      case 'End':
+        nextPosition = props.board.length
+        break
+      default:
+        return
+    }
+    event.preventDefault()
+    focusCell(nextPosition)
+  }
+
+  const handleCellKeyup = (event: KeyboardEvent, cell: BoardCell) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    selectCell(cell)
+  }
+
+  const locateCurrentPlayer = () => {
+    const position = currentPlayer.value?.position || 1
+    focusCell(position)
+  }
+
+  const triggerCellActivation = (position: number) => {
+    activatedPosition.value = position
+    vibrate(10)
+    if (activationTimer) clearTimeout(activationTimer)
+    activationTimer = setTimeout(() => {
+      activatedPosition.value = null
+    }, 1200)
+  }
+
+  const triggerLanding = (position: number) => {
+    landingPosition.value = position
+    if (landingTimer) clearTimeout(landingTimer)
+    landingTimer = setTimeout(() => {
+      landingPosition.value = null
+    }, 700)
+  }
+
+  watch(
+    () => props.players.map(player => player.position),
+    (positions, previousPositions) => {
+      if (!previousPositions) return
+      const movedIndex = positions.findIndex(
+        (position, index) => position !== previousPositions[index] && position > 0
+      )
+      if (movedIndex === -1) return
+      const position = positions[movedIndex]
+      nextTick(() => {
+        triggerLanding(position)
+        triggerCellActivation(position)
+        scrollToCell(position)
+      })
+    }
+  )
+
+  watch(
+    () => props.selectedPosition,
+    position => {
+      if (!position) return
+      focusedPosition.value = position
+      nextTick(() => scrollToCell(position))
+    }
+  )
+
+  watch(
+    () => props.board.length,
+    length => {
+      if (length === 0) return
+      focusedPosition.value = Math.min(Math.max(focusedPosition.value, 1), length)
+    }
+  )
 
   onMounted(() => {
-    if (boardRef.value) {
-      const rect = boardRef.value.getBoundingClientRect()
-      containerWidth.value = rect.width || 0
-      containerHeight.value = rect.height || 0
-    }
+    if (!boardRef.value) return
+    containerWidth.value = boardRef.value.getBoundingClientRect().width
     resizeObserver = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        if (entry.contentRect.width > 0) {
-          containerWidth.value = entry.contentRect.width
-        }
-        if (entry.contentRect.height > 0) {
-          containerHeight.value = entry.contentRect.height
-        }
-      }
+      const width = entries[0]?.contentRect.width
+      if (width) containerWidth.value = width
     })
-    if (boardRef.value) {
-      resizeObserver.observe(boardRef.value)
-    }
-    nextTick(() => {
-      pathMounted.value++
-    })
+    resizeObserver.observe(boardRef.value)
   })
 
   onUnmounted(() => {
     resizeObserver?.disconnect()
+    if (activationTimer) clearTimeout(activationTimer)
+    if (landingTimer) clearTimeout(landingTimer)
   })
 
-  const isMobile = computed(() => containerWidth.value < 600)
-
-  const svgWidth = computed(() => containerWidth.value || 800)
-  const svgHeight = computed(() => containerHeight.value || 600)
-
-  const trackPathD = computed(() => {
-    const w = svgWidth.value
-    const h = svgHeight.value
-    const mx = isMobile.value ? 36 : 56
-    const my = isMobile.value ? 36 : 48
-
-    const isPortrait = h > w
-    const rows = isPortrait ? 5 : 4
-    const rowHeight = (h - my * 2) / (rows - 1)
-
-    let d = `M ${mx} ${h - my}`
-    for (let i = 1; i < rows; i++) {
-      const y = h - my - i * rowHeight
-      const prevY = h - my - (i - 1) * rowHeight
-      const isEven = (i - 1) % 2 === 0
-      const startX = isEven ? mx : w - mx
-      const endX = isEven ? w - mx : mx
-      const cpY = (prevY + y) / 2
-      d += ` C ${startX} ${cpY}, ${endX} ${cpY}, ${endX} ${y}`
-    }
-    return d
-  })
-
-  const cellPositions = computed(() => {
-    void pathMounted.value
-    void containerWidth.value
-    if (!pathRef.value || props.board.length === 0) return []
-    const totalLen = pathRef.value.getTotalLength()
-    if (totalLen === 0) return []
-
-    const padding = totalLen * 0.01
-    const usableLen = totalLen - padding * 2
-    const count = props.board.length
-
-    return props.board.map((cell, i) => {
-      const ratio = count === 1 ? 0.5 : i / (count - 1)
-      const point = pathRef.value!.getPointAtLength(padding + ratio * usableLen)
-      return { ...cell, x: point.x, y: point.y }
-    })
-  })
-
-  const cellSize = computed(() => {
-    void pathMounted.value
-    void containerWidth.value
-    const totalCells = props.board.length || 40
-    const pathLen = pathRef.value?.getTotalLength() ?? 1000
-    const spacing = pathLen / totalCells
-    const ideal = Math.floor(spacing * 0.7)
-    return Math.max(28, Math.min(ideal, 56))
-  })
-
-  const cellIconSize = computed(() => Math.max(12, Math.round(cellSize.value * 0.4)))
-
-  const markerSize = computed(() => Math.max(16, Math.min(Math.round(cellSize.value * 0.42), 24)))
-
-  const boardCssVars = computed(() => ({
-    '--marker-size': `${markerSize.value}px`,
-  }))
-
-  const diceScale = computed(() => {
-    if (isMobile.value) return 0.8
-    const s = cellSize.value
-    if (s >= 50) return 0.85
-    if (s >= 40) return 0.7
-    return 0.6
-  })
-
-  const getCellByPosition = (position: number): BoardCell => {
-    const foundCell = props.board.find(cell => cell.position === position)
-    if (foundCell) return foundCell
-    return {
-      id: position,
-      type: 'bonus',
-      position,
-      effect: { type: 'move', value: 0, description: '安全格子' },
-    }
-  }
-
-  const getCellClass = (cell: BoardCell): string => {
-    const classes = [`cell-${cell.type}`]
-    if (props.players.some(p => p.position === cell.position)) classes.push('cell-occupied')
-    if (activatedCell.value === cell.position) classes.push('cell-activated')
-    if (landingCell.value === cell.position) classes.push('cell-landing')
-    if (cell.position === 1) classes.push('cell-start')
-    if (cell.position === props.board.length) classes.push('cell-end')
-    return classes.join(' ')
-  }
-
-  const getCellIconComponent = (cell: BoardCell): string | null => {
-    if (cell.effect?.type === 'rest') return 'Moon'
-    if (cell.effect?.type === 'reverse') return 'Undo2'
-    return CELL_ICON_NAMES[cell.type] || null
-  }
-
-  const getCellIcon = (cell: BoardCell) => {
-    const name = getCellIconComponent(cell)
-    return name ? iconComponents[name] : null
-  }
-
-  const getCellTypeName = (type: string): string => {
-    const typeNames: Record<string, string> = {
-      punishment: '惩罚格',
-      bonus: '奖励格',
-      special: '特殊格',
-      restart: '回起点',
-      trap: '陷阱格',
-      chain_punishment: '连锁惩罚',
-    }
-    return typeNames[type] || '普通格'
-  }
-
-  const getPlayersOnCell = (position: number): Player[] => {
-    return props.players.filter(p => p.position === position)
-  }
-
-  const getPlayerOffset = (playerIndex: number, totalOnCell: number): { x: number; y: number } => {
-    if (totalOnCell === 1) return { x: 0, y: 0 }
-    const angle = ((2 * Math.PI) / totalOnCell) * playerIndex - Math.PI / 2
-    const radius = Math.max(8, cellSize.value * 0.3)
-    return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius }
-  }
-
-  const handleCellClick = (cell: BoardCell) => {
-    emit('cellClick', cell)
-  }
-
-  const handleDiceRoll = () => {
-    emit('roll')
-    vibrate(15)
-  }
-
-  const vibrate = (ms: number) => {
-    try {
-      navigator?.vibrate?.(ms)
-    } catch {
-      // vibration not supported
-    }
-  }
-
-  let longPressTimer: ReturnType<typeof setTimeout> | null = null
-  const isTouchDevice = ref(false)
-
-  const handleTouchStart = (cell: BoardCell, event: TouchEvent) => {
-    isTouchDevice.value = true
-    longPressTimer = setTimeout(() => {
-      showTooltipForCell(cell, event.touches[0].clientX, event.touches[0].clientY)
-      vibrate(10)
-    }, 300)
-  }
-
-  const handleTouchEnd = () => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer)
-      longPressTimer = null
-    }
-    setTimeout(hideTooltip, 200)
-  }
-
-  const handleTouchMove = () => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer)
-      longPressTimer = null
-    }
-  }
-
-  const showTooltipForCell = (cell: BoardCell, clientX: number, clientY: number) => {
-    tooltipCell.value = cell
-    tooltipVisible.value = true
-
-    if (isMobile.value) {
-      tooltipStyle.value = { left: '0px', top: '0px' }
-      return
-    }
-
-    const tooltipWidth = 220
-    const tooltipHeight = 120
-    let left = clientX - tooltipWidth / 2
-    let top = clientY - tooltipHeight - 16
-
-    if (left < 8) left = 8
-    if (left + tooltipWidth > window.innerWidth - 8) left = window.innerWidth - tooltipWidth - 8
-    if (top < 8) top = clientY + 16
-
-    tooltipStyle.value = { left: `${left}px`, top: `${top}px` }
-  }
-
-  const showTooltip = (cell: BoardCell, event: MouseEvent | TouchEvent) => {
-    if (isTouchDevice.value) return
-    tooltipCell.value = cell
-    tooltipVisible.value = true
-
-    const target = event.target as HTMLElement
-    const rect = target.getBoundingClientRect()
-    const tooltipWidth = 220
-    const tooltipHeight = 120
-
-    let left = rect.left + rect.width / 2 - tooltipWidth / 2
-    let top = rect.top - tooltipHeight - 8
-
-    if (left < 8) left = 8
-    if (left + tooltipWidth > window.innerWidth - 8) left = window.innerWidth - tooltipWidth - 8
-    if (top < 8) top = rect.bottom + 8
-
-    tooltipStyle.value = { left: `${left}px`, top: `${top}px` }
-  }
-
-  const hideTooltip = () => {
-    tooltipVisible.value = false
-    tooltipCell.value = null
-  }
-
-  const handleBoardClick = (event: MouseEvent) => {
-    const target = event.target as HTMLElement
-    if (target.closest('.board-cell')) return
-    hideTooltip()
-  }
-
-  const triggerCellActivation = (position: number) => {
-    activatedCell.value = position
-    vibrate(10)
-    setTimeout(() => {
-      activatedCell.value = null
-    }, 1500)
-  }
-
-  const triggerLanding = (position: number) => {
-    landingCell.value = position
-    setTimeout(() => {
-      landingCell.value = null
-    }, 800)
-  }
-
-  watch(
-    () => props.players.map(p => p.position),
-    (newPositions, oldPositions) => {
-      if (!oldPositions) return
-      for (let i = 0; i < newPositions.length; i++) {
-        if (newPositions[i] !== oldPositions[i]) {
-          nextTick(() => {
-            triggerLanding(newPositions[i])
-            triggerCellActivation(newPositions[i])
-          })
-        }
-      }
-    }
-  )
-
-  const currentPlayer = computed(() => props.players[props.currentPlayerIndex])
-  const playersAtStart = computed(() => props.players.filter(p => p.position === 0))
-
-  const centerPosition = computed(() => {
-    const w = svgWidth.value
-    const h = svgHeight.value
-    return { x: w / 2, y: h / 2 }
-  })
-
-  defineExpose({ triggerCellActivation, triggerLanding })
+  defineExpose({ focusCell, scrollToCell, triggerCellActivation, triggerLanding })
 </script>
 
 <template>
-  <div ref="boardRef" class="game-board" :style="boardCssVars" @click="handleBoardClick">
-    <!-- Particle background -->
-    <BoardParticles />
-
-    <template v-if="containerWidth > 0">
-      <!-- SVG Track Layer -->
-      <svg
-        class="board-svg"
-        :viewBox="`0 0 ${svgWidth} ${svgHeight}`"
-        :width="svgWidth"
-        :height="svgHeight"
-        preserveAspectRatio="xMidYMid meet"
+  <section
+    ref="boardRef"
+    class="game-board"
+    :class="{ 'board-disabled': interactionDisabled }"
+    aria-label="飞行棋赛道"
+  >
+    <div class="board-toolbar">
+      <div class="board-title">
+        <span class="board-title-kicker">FLIGHT PATH</span>
+        <strong>{{ board.length }} 格赛道</strong>
+      </div>
+      <button
+        type="button"
+        class="locate-button"
+        :disabled="players.length === 0"
+        aria-label="定位当前玩家"
+        @click="locateCurrentPlayer"
       >
-        <defs>
-          <linearGradient id="trackGradient" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#00d2ff" stop-opacity="0.8" />
-            <stop offset="40%" stop-color="#667eea" stop-opacity="0.9" />
-            <stop offset="70%" stop-color="#a855f7" stop-opacity="0.9" />
-            <stop offset="100%" stop-color="#fbbf24" stop-opacity="0.8" />
-          </linearGradient>
-          <linearGradient id="trackGlowGradient" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#00d2ff" stop-opacity="0.3" />
-            <stop offset="50%" stop-color="#667eea" stop-opacity="0.3" />
-            <stop offset="100%" stop-color="#a855f7" stop-opacity="0.3" />
-          </linearGradient>
-          <filter id="trackGlow">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="6" />
-          </filter>
-          <filter id="trackGlowWide">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="12" />
-          </filter>
-        </defs>
+        <LocateFixed aria-hidden="true" />
+        <span>定位玩家</span>
+      </button>
+    </div>
 
-        <!-- Wide glow behind track -->
-        <path
-          :d="trackPathD"
-          fill="none"
-          stroke="url(#trackGlowGradient)"
-          stroke-width="28"
-          stroke-linecap="round"
-          filter="url(#trackGlowWide)"
-          class="track-glow-wide"
+    <div v-if="playersAtLaunch.length > 0" class="launch-bay" aria-label="待起飞玩家">
+      <span class="launch-label">
+        <Rocket :size="16" />
+        起飞区
+      </span>
+      <div class="launch-players">
+        <PlayerMeeple
+          v-for="{ player, index } in playersAtLaunch"
+          :key="player.id"
+          class="launch-token"
+          :color="player.color"
+          :number="index + 1"
+          :name="player.name"
+          size="small"
         />
-        <!-- Medium glow -->
-        <path
-          :d="trackPathD"
-          fill="none"
-          stroke="url(#trackGlowGradient)"
-          stroke-width="14"
-          stroke-linecap="round"
-          filter="url(#trackGlow)"
-          class="track-glow"
-        />
-        <!-- Main track path -->
-        <path
-          ref="pathRef"
-          :d="trackPathD"
-          fill="none"
-          stroke="url(#trackGradient)"
-          stroke-width="3"
-          stroke-linecap="round"
-          stroke-dasharray="8 4"
-          class="track-main"
-        />
-        <!-- Energy flow overlay -->
-        <path
-          :d="trackPathD"
-          fill="none"
-          stroke="url(#trackGradient)"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-dasharray="4 40"
-          class="track-energy"
-        />
-      </svg>
+      </div>
+    </div>
 
-      <!-- Cell Layer (absolutely positioned on top of SVG) -->
-      <div class="cell-layer">
-        <div
-          v-for="cell in cellPositions"
-          :key="cell.id"
+    <div class="board-scroll">
+      <div class="board-grid" :style="gridStyle" role="list">
+        <button
+          v-for="item in presentedCells"
+          :key="item.cell.id"
+          :ref="element => setCellRef(item.cell.position, element)"
+          type="button"
           class="board-cell"
-          :class="getCellClass(cell)"
-          :style="{
-            width: cellSize + 'px',
-            height: cellSize + 'px',
-            transform: `translate(${cell.x - cellSize / 2}px, ${cell.y - cellSize / 2}px)`,
-          }"
-          @click="handleCellClick(cell)"
-          @mouseenter="showTooltip(cell, $event)"
-          @mouseleave="hideTooltip"
-          @touchstart.passive="handleTouchStart(cell, $event)"
-          @touchend.passive="handleTouchEnd()"
-          @touchmove.passive="handleTouchMove()"
+          :class="getCellClasses(item)"
+          :style="getCellStyle(item.grid)"
+          :disabled="interactionDisabled"
+          :tabindex="focusedPosition === item.cell.position ? 0 : -1"
+          :aria-label="`第 ${item.cell.position} 格，${item.presentation.label}`"
+          :aria-pressed="selectedPosition === item.cell.position"
+          :data-testid="`board-cell-${item.cell.position}`"
+          :data-kind="item.presentation.kind"
+          @click="selectCell(item.cell)"
+          @focus="focusedPosition = item.cell.position"
+          @keydown="handleCellKeydown($event, item.cell)"
+          @keyup="handleCellKeyup($event, item.cell)"
         >
-          <div class="cell-aura"></div>
-          <div class="cell-ring"></div>
-          <div class="cell-inner">
-            <component :is="getCellIcon(cell)" v-if="getCellIcon(cell)" :size="cellIconSize" />
-          </div>
-          <span class="cell-number">{{ cell.position }}</span>
-          <div class="cell-players">
-            <div
-              v-for="(player, pIdx) in getPlayersOnCell(cell.position)"
-              :key="'p-' + player.id"
-              class="player-marker"
+          <span class="track-connector" aria-hidden="true"></span>
+          <span class="cell-surface">
+            <span class="cell-position">{{ item.cell.position }}</span>
+            <component
+              :is="iconComponents[item.presentation.iconName]"
+              class="cell-icon"
+              :size="20"
+              aria-hidden="true"
+            />
+            <span class="cell-label">{{ item.presentation.shortLabel }}</span>
+          </span>
+
+          <span
+            v-if="getPlayersOnCell(item.cell.position).length > 0"
+            class="cell-players"
+            aria-hidden="true"
+          >
+            <PlayerMeeple
+              v-for="({ player, index }, tokenIndex) in getPlayersOnCell(item.cell.position).slice(
+                0,
+                3
+              )"
+              :key="player.id"
+              class="player-token"
               :class="{
-                'current-player': player.id === currentPlayer?.id,
+                'current-player': index === currentPlayerIndex,
                 'player-moving': player.isMoving,
               }"
-              :style="{
-                backgroundColor: player.color,
-                transform: `translate(${getPlayerOffset(pIdx, getPlayersOnCell(cell.position).length).x}px, ${getPlayerOffset(pIdx, getPlayersOnCell(cell.position).length).y}px)`,
-              }"
-            >
-              {{ player.name.charAt(0) }}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Center Panel (Dice + Scoreboard) -->
-      <div
-        class="center-panel"
-        :style="{ left: centerPosition.x + 'px', top: centerPosition.y + 'px' }"
-      >
-        <div class="center-dice" :style="{ transform: `scale(${diceScale})` }">
-          <CoolDice
-            :can-roll="canRoll ?? false"
-            :value="diceValue ?? null"
-            @roll="handleDiceRoll"
-          />
-        </div>
-        <ScorePanel
-          v-if="!isMobile"
-          :players="players"
-          :current-player-index="currentPlayerIndex"
-          :total-cells="board.length"
-          :last-effect="lastEffect"
-          :turn-count="turnCount"
-        />
-        <div v-if="playersAtStart.length > 0" class="start-zone">
-          <Rocket :size="14" class="start-zone-icon" />
-          <div class="start-zone-players">
-            <div
-              v-for="player in playersAtStart"
-              :key="'start-' + player.id"
-              class="player-marker start-marker"
-              :class="{ 'current-player': player.id === currentPlayer?.id }"
-              :style="{ backgroundColor: player.color }"
-            >
-              {{ player.name.charAt(0) }}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Mobile bottom status bar -->
-      <div v-if="isMobile && currentPlayer" class="mobile-status-bar">
-        <span class="status-avatar" :style="{ backgroundColor: currentPlayer.color }">
-          {{ currentPlayer.name.charAt(0) }}
-        </span>
-        <span class="status-name">{{ currentPlayer.name }}</span>
-        <span class="status-pos">
-          {{ currentPlayer.position === 0 ? '起飞区' : `#${currentPlayer.position}` }}
-        </span>
-        <span v-if="turnCount" class="status-turn">R{{ turnCount }}</span>
-        <span v-if="lastEffect" class="status-effect">{{ lastEffect }}</span>
-      </div>
-
-      <!-- Desktop tooltip -->
-      <Teleport to="body">
-        <div
-          v-if="tooltipVisible && tooltipCell && !isMobile"
-          class="cell-tooltip"
-          :style="tooltipStyle"
-        >
-          <div class="tooltip-header">
-            <span class="tooltip-number">#{{ tooltipCell.position }}</span>
-            <span class="tooltip-type" :class="'type-' + tooltipCell.type">
-              {{ getCellTypeName(tooltipCell.type) }}
+              :style="{ '--token-index': tokenIndex }"
+              :color="player.color"
+              :number="index + 1"
+              :name="player.name"
+              size="small"
+            />
+            <span v-if="getPlayersOnCell(item.cell.position).length > 3" class="player-overflow">
+              +{{ getPlayersOnCell(item.cell.position).length - 3 }}
             </span>
-          </div>
-          <div class="tooltip-body">
-            <template v-if="tooltipCell.effect">
-              <div class="tooltip-desc">{{ tooltipCell.effect.description }}</div>
-              <div
-                v-if="tooltipCell.effect.type === 'punishment' && tooltipCell.effect.punishment"
-                class="tooltip-details"
-              >
-                <span>{{ tooltipCell.effect.punishment.tool.name }}</span>
-                <span>{{ tooltipCell.effect.punishment.bodyPart.name }}</span>
-                <span>{{ tooltipCell.effect.punishment.position.name }}</span>
-              </div>
-              <div v-else-if="tooltipCell.effect.type === 'move'" class="tooltip-details">
-                <span>
-                  移动 {{ tooltipCell.effect.value > 0 ? '+' : ''
-                  }}{{ tooltipCell.effect.value }} 步
-                </span>
-              </div>
-              <div v-else-if="tooltipCell.effect.type === 'rest'" class="tooltip-details">
-                <span>休息 {{ tooltipCell.effect.value }} 回合</span>
-              </div>
-              <div v-else-if="tooltipCell.effect.type === 'reverse'" class="tooltip-details">
-                <span>后退 {{ tooltipCell.effect.value }} 步</span>
-              </div>
-              <div v-else-if="tooltipCell.effect.type === 'restart'" class="tooltip-details">
-                <span>回到起点</span>
-              </div>
-              <div v-else-if="tooltipCell.effect.type === 'trap'" class="tooltip-details">
-                <span>随机惩罚</span>
-              </div>
-            </template>
-          </div>
-        </div>
-      </Teleport>
-
-      <!-- Mobile tooltip (bottom bar) -->
-      <Transition name="mobile-tooltip">
-        <div v-if="tooltipVisible && tooltipCell && isMobile" class="mobile-tooltip-bar">
-          <span class="tooltip-number">#{{ tooltipCell.position }}</span>
-          <span class="tooltip-type" :class="'type-' + tooltipCell.type">
-            {{ getCellTypeName(tooltipCell.type) }}
           </span>
-          <span v-if="tooltipCell.effect" class="tooltip-desc-inline">
-            {{ tooltipCell.effect.description }}
-          </span>
-        </div>
-      </Transition>
-    </template>
+        </button>
+      </div>
+    </div>
 
-    <!-- Full-screen effect flash -->
-    <Transition name="flash">
-      <div
-        v-if="activatedCell !== null"
-        class="effect-flash"
-        :class="'flash-' + getCellByPosition(activatedCell).type"
-      ></div>
-    </Transition>
-  </div>
+    <p class="board-hint">轻点格子查看完整内容 · 方向键可逐格浏览</p>
+  </section>
 </template>
 
 <style scoped>
   .game-board {
-    position: absolute;
-    inset: 0.5rem;
-    overflow: hidden;
-    contain: paint;
-    border-radius: 16px;
-    background:
-      radial-gradient(ellipse at 30% 20%, rgba(102, 126, 234, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at 70% 80%, rgba(168, 85, 247, 0.06) 0%, transparent 50%),
-      linear-gradient(180deg, #080818 0%, #0a0a1a 50%, #0d0820 100%);
-  }
-
-  @media (max-width: 768px) {
-    .game-board {
-      inset: 0.25rem;
-    }
-  }
-
-  /* === SVG Track === */
-  .board-svg {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .track-main {
-    opacity: 0.9;
-  }
-
-  .track-glow {
-    opacity: 0.5;
-  }
-
-  .track-glow-wide {
-    opacity: 0.3;
-  }
-
-  .track-energy {
-    opacity: 0.8;
-    animation: energyFlow 4s linear infinite;
-  }
-
-  @keyframes energyFlow {
-    from {
-      stroke-dashoffset: 0;
-    }
-    to {
-      stroke-dashoffset: -88;
-    }
-  }
-
-  /* === Cell Layer === */
-  .cell-layer {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    pointer-events: none;
-  }
-
-  .board-cell {
-    position: absolute;
-    top: 0;
-    left: 0;
-    border-radius: 50%;
-    cursor: pointer;
-    pointer-events: all;
+    --board-cell-size: clamp(48px, 12vw, 64px);
+    --board-gap: 8px;
+    position: relative;
+    min-width: 0;
+    min-height: 0;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    will-change: transform;
-    transition:
-      box-shadow 0.2s ease,
-      filter 0.2s ease;
+    flex-direction: column;
+    border: 1px solid rgba(209, 178, 119, 0.34);
+    border-radius: 24px;
+    overflow: hidden;
+    color: #f8f2e7;
+    background:
+      radial-gradient(circle at 16% 12%, rgba(255, 255, 255, 0.055), transparent 28%),
+      radial-gradient(circle at 85% 78%, rgba(197, 154, 82, 0.07), transparent 35%),
+      repeating-linear-gradient(
+        115deg,
+        rgba(255, 255, 255, 0.014) 0,
+        rgba(255, 255, 255, 0.014) 1px,
+        transparent 1px,
+        transparent 5px
+      ),
+      linear-gradient(145deg, #14372f 0%, #0d2924 52%, #0a211d 100%);
+    box-shadow:
+      0 24px 70px rgba(1, 12, 10, 0.42),
+      inset 0 0 0 6px rgba(8, 26, 23, 0.72),
+      inset 0 0 0 7px rgba(209, 178, 119, 0.15);
   }
 
-  .cell-inner {
+  .game-board::after {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    border: 1px solid rgba(244, 224, 184, 0.08);
+    border-radius: 17px;
+    pointer-events: none;
+  }
+
+  .board-disabled {
+    filter: saturate(0.72);
+  }
+
+  .board-toolbar {
     position: relative;
     z-index: 3;
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    background: rgba(12, 12, 30, 0.85);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    transition:
-      border-color 0.2s ease,
-      transform 0.2s ease;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 54px;
+    padding: 0.65rem 0.9rem 0.55rem 1rem;
+    border-bottom: 1px solid rgba(238, 216, 173, 0.12);
+    background: rgba(8, 29, 25, 0.62);
+    backdrop-filter: blur(12px);
   }
 
-  .cell-ring {
-    position: absolute;
-    inset: -3px;
-    border-radius: 50%;
-    border: 1.5px solid rgba(255, 255, 255, 0.06);
-    z-index: 2;
-    pointer-events: none;
-  }
-
-  .cell-aura {
-    position: absolute;
-    inset: -8px;
-    border-radius: 50%;
-    opacity: 0;
-    z-index: 1;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-  }
-
-  .board-cell:hover .cell-aura {
-    opacity: 1;
-  }
-
-  .board-cell:hover .cell-inner {
-    transform: scale(1.12);
-    border-color: rgba(255, 255, 255, 0.3);
-  }
-
-  .board-cell:hover {
-    z-index: 10;
-  }
-
-  .cell-number {
-    position: absolute;
-    bottom: -2px;
-    right: 2px;
-    font-size: 0.5rem;
-    font-weight: 700;
-    opacity: 0.4;
-    z-index: 4;
-    pointer-events: none;
-  }
-
-  /* === Cell Type Styles === */
-  .cell-punishment .cell-inner {
-    border-color: rgba(255, 71, 87, 0.5);
-    color: #ff4757;
-    box-shadow: inset 0 0 8px rgba(255, 71, 87, 0.15);
-  }
-  .cell-punishment .cell-aura {
-    background: radial-gradient(circle, rgba(255, 71, 87, 0.25), transparent 70%);
-  }
-  .cell-punishment .cell-ring {
-    border-color: rgba(255, 71, 87, 0.2);
-  }
-  .cell-punishment::after {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 50%;
-    background: conic-gradient(
-      from var(--aura-angle, 0deg),
-      rgba(255, 71, 87, 0.3),
-      transparent 30%,
-      rgba(255, 99, 72, 0.2),
-      transparent 60%,
-      rgba(255, 71, 87, 0.3)
-    );
-    animation: auraRotate 4s linear infinite;
-    opacity: 0.6;
-    z-index: 0;
-    pointer-events: none;
-  }
-
-  .cell-chain_punishment .cell-inner {
-    border-color: rgba(255, 165, 2, 0.5);
-    color: #ffa502;
-    box-shadow: inset 0 0 8px rgba(255, 165, 2, 0.15);
-  }
-  .cell-chain_punishment .cell-aura {
-    background: radial-gradient(circle, rgba(255, 165, 2, 0.25), transparent 70%);
-  }
-  .cell-chain_punishment .cell-ring {
-    border-color: rgba(255, 165, 2, 0.2);
-  }
-  .cell-chain_punishment::after {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 50%;
-    background: conic-gradient(
-      from var(--aura-angle, 0deg),
-      rgba(255, 165, 2, 0.3),
-      transparent 30%,
-      rgba(255, 140, 0, 0.2),
-      transparent 60%,
-      rgba(255, 165, 2, 0.3)
-    );
-    animation: auraRotate 3.5s linear infinite;
-    opacity: 0.6;
-    z-index: 0;
-    pointer-events: none;
-  }
-
-  .cell-bonus .cell-inner {
-    border-color: rgba(46, 213, 115, 0.5);
-    color: #2ed573;
-    box-shadow: inset 0 0 8px rgba(46, 213, 115, 0.15);
-  }
-  .cell-bonus .cell-aura {
-    background: radial-gradient(circle, rgba(46, 213, 115, 0.25), transparent 70%);
-  }
-  .cell-bonus .cell-ring {
-    border-color: rgba(46, 213, 115, 0.2);
-  }
-  .cell-bonus::after {
-    content: '';
-    position: absolute;
-    inset: -6px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(46, 213, 115, 0.2), transparent 70%);
-    animation: auraPulse 2.5s ease-in-out infinite;
-    z-index: 0;
-    pointer-events: none;
-  }
-
-  .cell-restart .cell-inner {
-    border-color: rgba(168, 85, 247, 0.5);
-    color: #a855f7;
-    box-shadow: inset 0 0 8px rgba(168, 85, 247, 0.15);
-  }
-  .cell-restart .cell-aura {
-    background: radial-gradient(circle, rgba(168, 85, 247, 0.25), transparent 70%);
-  }
-  .cell-restart .cell-ring {
-    border-color: rgba(168, 85, 247, 0.2);
-  }
-  .cell-restart::after {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 50%;
-    background: conic-gradient(
-      from var(--aura-angle, 0deg),
-      rgba(168, 85, 247, 0.35),
-      transparent 40%,
-      rgba(139, 92, 246, 0.2),
-      transparent 70%,
-      rgba(168, 85, 247, 0.35)
-    );
-    animation: auraRotate 5s linear infinite reverse;
-    opacity: 0.6;
-    z-index: 0;
-    pointer-events: none;
-  }
-
-  .cell-trap .cell-inner {
-    border-color: rgba(220, 38, 38, 0.5);
-    color: #dc2626;
-    box-shadow: inset 0 0 8px rgba(220, 38, 38, 0.2);
-  }
-  .cell-trap .cell-aura {
-    background: radial-gradient(circle, rgba(220, 38, 38, 0.25), transparent 70%);
-  }
-  .cell-trap .cell-ring {
-    border-color: rgba(220, 38, 38, 0.25);
-  }
-  .cell-trap::after {
-    content: '';
-    position: absolute;
-    inset: -5px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(220, 38, 38, 0.3), transparent 60%);
-    animation: dangerFlicker 1.8s steps(3) infinite;
-    z-index: 0;
-    pointer-events: none;
-  }
-
-  .cell-special .cell-inner {
-    border-color: rgba(255, 165, 2, 0.5);
-    color: #ffa502;
-  }
-  .cell-special .cell-aura {
-    background: radial-gradient(circle, rgba(255, 165, 2, 0.2), transparent 70%);
-  }
-
-  /* Start & End cells - larger, special decorations */
-  .cell-start .cell-inner {
-    border-color: rgba(0, 210, 255, 0.6);
-    color: #00d2ff;
-    box-shadow:
-      inset 0 0 12px rgba(0, 210, 255, 0.2),
-      0 0 16px rgba(0, 210, 255, 0.2);
-  }
-  .cell-start .cell-ring {
-    border-color: rgba(0, 210, 255, 0.3);
-    inset: -5px;
-  }
-  .cell-start::after {
-    content: '';
-    position: absolute;
-    inset: -8px;
-    border-radius: 50%;
-    border: 1.5px dashed rgba(0, 210, 255, 0.3);
-    animation: auraRotate 8s linear infinite;
-    z-index: 0;
-    pointer-events: none;
-  }
-
-  .cell-end .cell-inner {
-    border-color: rgba(251, 191, 36, 0.6);
-    color: #fbbf24;
-    box-shadow:
-      inset 0 0 12px rgba(251, 191, 36, 0.2),
-      0 0 16px rgba(251, 191, 36, 0.2);
-  }
-  .cell-end .cell-ring {
-    border-color: rgba(251, 191, 36, 0.3);
-    inset: -5px;
-  }
-  .cell-end::after {
-    content: '';
-    position: absolute;
-    inset: -8px;
-    border-radius: 50%;
-    border: 1.5px dashed rgba(251, 191, 36, 0.3);
-    animation: auraRotate 8s linear infinite reverse;
-    z-index: 0;
-    pointer-events: none;
-  }
-
-  .cell-occupied .cell-inner {
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
-  }
-
-  /* === Animations === */
-  @property --aura-angle {
-    syntax: '<angle>';
-    initial-value: 0deg;
-    inherits: false;
-  }
-
-  @keyframes auraRotate {
-    from {
-      --aura-angle: 0deg;
-    }
-    to {
-      --aura-angle: 360deg;
-    }
-  }
-
-  @keyframes auraPulse {
-    0%,
-    100% {
-      opacity: 0.4;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 0.8;
-      transform: scale(1.15);
-    }
-  }
-
-  @keyframes dangerFlicker {
-    0%,
-    100% {
-      opacity: 0.5;
-    }
-    33% {
-      opacity: 0.9;
-    }
-    66% {
-      opacity: 0.3;
-    }
-  }
-
-  .cell-activated .cell-inner {
-    animation: cellPulse 0.5s ease-out 3;
-  }
-
-  .cell-landing .cell-inner {
-    animation: cellLand 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-
-  @keyframes cellPulse {
-    0%,
-    100% {
-      box-shadow: 0 0 8px currentColor;
-    }
-    50% {
-      box-shadow:
-        0 0 24px currentColor,
-        0 0 48px currentColor;
-    }
-  }
-
-  @keyframes cellLand {
-    0% {
-      transform: scale(1);
-    }
-    40% {
-      transform: scale(1.25);
-    }
-    70% {
-      transform: scale(0.93);
-    }
-    100% {
-      transform: scale(1);
-    }
-  }
-
-  /* === Player Markers === */
-  .cell-players {
-    position: absolute;
-    top: -10px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-    pointer-events: none;
-  }
-
-  .player-marker {
-    width: var(--marker-size, 20px);
-    height: var(--marker-size, 20px);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 700;
-    font-size: 0.55rem;
-    border: 2px solid rgba(255, 255, 255, 0.7);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-    text-transform: uppercase;
-    position: absolute;
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-
-  .player-marker.current-player {
-    border-color: #ffd700;
-    box-shadow:
-      0 0 8px rgba(255, 215, 0, 0.6),
-      0 0 20px rgba(255, 215, 0, 0.3);
-    animation: playerPulse 2s ease-in-out infinite;
-  }
-
-  .player-marker.player-moving {
-    animation: playerBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-
-  @keyframes playerPulse {
-    0%,
-    100% {
-      box-shadow:
-        0 0 8px rgba(255, 215, 0, 0.6),
-        0 0 20px rgba(255, 215, 0, 0.3);
-    }
-    50% {
-      box-shadow:
-        0 0 14px rgba(255, 215, 0, 0.8),
-        0 0 32px rgba(255, 215, 0, 0.4);
-    }
-  }
-
-  @keyframes playerBounce {
-    0% {
-      transform: translateY(0) scale(1);
-    }
-    30% {
-      transform: translateY(-10px) scale(1.1);
-    }
-    60% {
-      transform: translateY(-3px) scale(0.95);
-    }
-    100% {
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  /* === Center Panel === */
-  .center-panel {
-    position: absolute;
-    z-index: 5;
-    transform: translate(-50%, -50%);
+  .board-title {
     display: flex;
     flex-direction: column;
+    line-height: 1.15;
+  }
+
+  .board-title-kicker {
+    color: #caa86b;
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+  }
+
+  .board-title strong {
+    margin-top: 0.18rem;
+    color: #fffaf0;
+    font-size: 0.9rem;
+    font-weight: 760;
+  }
+
+  .locate-button {
+    min-width: 48px;
+    min-height: 44px;
+    display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    pointer-events: all;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0 0.7rem;
+    border: 1px solid rgba(210, 177, 111, 0.34);
+    border-radius: 999px;
+    color: #f7ead0;
+    background: rgba(5, 24, 20, 0.74);
+    cursor: pointer;
   }
 
-  .center-dice {
-    transform-origin: center;
+  .locate-button svg {
+    width: 17px;
+    height: 17px;
   }
 
-  .start-zone {
+  .locate-button span {
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .locate-button:hover:not(:disabled) {
+    border-color: rgba(233, 194, 120, 0.78);
+    background: rgba(35, 76, 63, 0.78);
+  }
+
+  .locate-button:focus-visible {
+    outline: 3px solid #f2ce82;
+    outline-offset: 2px;
+  }
+
+  .launch-bay {
+    position: relative;
+    z-index: 2;
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.35rem 0.7rem;
-    background: rgba(102, 126, 234, 0.1);
-    border: 1px dashed rgba(102, 126, 234, 0.3);
-    border-radius: 8px;
-    backdrop-filter: blur(4px);
+    justify-content: center;
+    gap: 0.65rem;
+    min-height: 44px;
+    padding: 0.35rem 1rem;
+    border-bottom: 1px dashed rgba(233, 203, 146, 0.16);
+    background: rgba(11, 42, 35, 0.42);
   }
 
-  .start-zone-icon {
-    color: rgba(102, 126, 234, 0.7);
+  .launch-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: #dbc79f;
+    font-size: 0.7rem;
+    font-weight: 700;
   }
 
-  .start-zone-players {
+  .launch-players {
     display: flex;
     gap: 0.25rem;
   }
 
-  .start-marker {
-    position: static !important;
-    transform: none !important;
+  .launch-token {
+    width: 26px;
+    height: 26px;
   }
 
-  /* === Mobile Status Bar === */
-  .mobile-status-bar {
+  .board-scroll {
+    min-height: 0;
+    flex: 1;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-color: rgba(211, 176, 111, 0.46) transparent;
+  }
+
+  .board-grid {
+    position: relative;
+    width: max-content;
+    min-width: 100%;
+    min-height: 100%;
+    display: grid;
+    grid-auto-rows: var(--board-cell-size);
+    gap: var(--board-gap);
+    align-content: center;
+    justify-content: center;
+    padding: clamp(1.2rem, 4vw, 2.4rem);
+    isolation: isolate;
+  }
+
+  .board-cell {
+    position: relative;
+    width: var(--board-cell-size);
+    height: var(--board-cell-size);
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0;
+    border: 0;
+    border-radius: 14px;
+    color: #2d2a24;
+    background: transparent;
+    cursor: pointer;
+    overflow: visible;
+    touch-action: manipulation;
+    transition:
+      transform 160ms ease,
+      filter 160ms ease;
+  }
+
+  .board-cell:disabled {
+    cursor: default;
+  }
+
+  .cell-surface {
     position: absolute;
-    bottom: 0;
+    inset: 0;
+    z-index: 2;
+    display: grid;
+    grid-template:
+      'position icon' 1fr
+      'label label' auto / 1fr 1fr;
+    align-items: center;
+    padding: 0.35rem 0.4rem 0.32rem;
+    border: 2px solid color-mix(in srgb, var(--cell-accent) 72%, #3f382b);
+    border-radius: inherit;
+    color: var(--cell-ink, #2d2a24);
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.72), transparent 38%),
+      var(--cell-paper, #f4ead6);
+    box-shadow:
+      0 6px 0 color-mix(in srgb, var(--cell-accent) 30%, #30281e),
+      0 11px 17px rgba(0, 0, 0, 0.27),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.56);
+    overflow: hidden;
+  }
+
+  .cell-surface::after {
+    content: '';
+    position: absolute;
     left: 0;
     right: 0;
-    z-index: 20;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.75rem;
-    padding-bottom: calc(0.4rem + env(safe-area-inset-bottom));
-    background: rgba(10, 10, 26, 0.9);
-    backdrop-filter: blur(12px);
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    font-size: 0.75rem;
+    bottom: 0;
+    height: 5px;
+    background: var(--cell-pattern, var(--cell-accent));
+    opacity: 0.9;
   }
 
-  .status-avatar {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 700;
-    font-size: 0.5rem;
-    text-transform: uppercase;
-    flex-shrink: 0;
-  }
-
-  .status-name {
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .status-pos {
-    color: var(--text-secondary);
+  .cell-position {
+    grid-area: position;
+    align-self: start;
+    justify-self: start;
+    color: color-mix(in srgb, var(--cell-ink) 72%, transparent);
+    font-size: 0.58rem;
+    font-weight: 850;
     font-variant-numeric: tabular-nums;
   }
 
-  .status-turn {
-    font-size: 0.6rem;
-    color: var(--text-muted);
-    background: rgba(255, 255, 255, 0.06);
-    padding: 0.1rem 0.3rem;
-    border-radius: 4px;
+  .cell-icon {
+    grid-area: icon;
+    align-self: start;
+    justify-self: end;
+    color: var(--cell-accent);
+    filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.46));
   }
 
-  .status-effect {
-    color: var(--color-accent-light);
-    margin-left: auto;
-    font-size: 0.65rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .cell-label {
+    grid-area: label;
+    align-self: end;
+    justify-self: start;
+    color: var(--cell-ink);
+    font-size: 0.63rem;
+    font-weight: 850;
+    letter-spacing: 0.02em;
   }
 
-  /* === Tooltip === */
-  .cell-tooltip {
-    position: fixed;
-    z-index: 10000;
-    background: rgba(12, 12, 30, 0.95);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 10px;
-    padding: 0.75rem;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-    max-width: 220px;
+  .track-connector {
+    position: absolute;
+    z-index: 0;
+    display: block;
+    background: linear-gradient(90deg, #a47b3f, #d5b779, #a47b3f);
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.28);
     pointer-events: none;
-    animation: tooltipIn 0.15s ease-out;
   }
 
-  @keyframes tooltipIn {
-    from {
-      opacity: 0;
-      transform: translateY(-4px) scale(0.97);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
+  .connector-forward .track-connector,
+  .connector-reverse .track-connector {
+    top: calc(50% + 2px);
+    width: calc(var(--board-gap) + 5px);
+    height: 5px;
   }
 
-  .tooltip-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-    padding-bottom: 0.4rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  .connector-forward .track-connector {
+    left: calc(100% - 1px);
   }
 
-  .tooltip-number {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--text-primary);
+  .connector-reverse .track-connector {
+    right: calc(100% - 1px);
   }
 
-  .tooltip-type {
-    font-size: 0.65rem;
-    font-weight: 600;
-    padding: 0.15rem 0.5rem;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.06);
-  }
-  .tooltip-type.type-punishment {
-    color: #ff4757;
-  }
-  .tooltip-type.type-bonus {
-    color: #2ed573;
-  }
-  .tooltip-type.type-special {
-    color: #ffa502;
-  }
-  .tooltip-type.type-restart {
-    color: #a855f7;
-  }
-  .tooltip-type.type-trap {
-    color: #dc2626;
-  }
-  .tooltip-type.type-chain_punishment {
-    color: #ffa502;
+  .connector-turn .track-connector {
+    top: calc(100% - 1px);
+    left: calc(50% - 2px);
+    width: 5px;
+    height: calc(var(--board-gap) + 5px);
+    background: linear-gradient(180deg, #a47b3f, #d5b779, #a47b3f);
   }
 
-  .tooltip-body {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
+  .board-cell:hover:not(:disabled) {
+    z-index: 4;
+    transform: translateY(-3px);
   }
 
-  .tooltip-desc {
-    margin-bottom: 0.4rem;
-    font-weight: 500;
-    color: var(--text-primary);
+  .board-cell:hover:not(:disabled) .cell-surface {
+    filter: brightness(1.05);
   }
 
-  .tooltip-details {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.3rem;
+  .board-cell:focus-visible {
+    z-index: 6;
+    outline: 3px solid #fff8dc;
+    outline-offset: 4px;
   }
 
-  .tooltip-details span {
-    padding: 0.1rem 0.4rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
-    font-size: 0.7rem;
+  .board-cell:focus-visible .cell-surface {
+    box-shadow:
+      0 0 0 3px #173b32,
+      0 0 0 6px #f2ce82,
+      0 7px 0 color-mix(in srgb, var(--cell-accent) 30%, #30281e),
+      0 14px 20px rgba(0, 0, 0, 0.34);
   }
 
-  /* === Mobile Tooltip === */
-  .mobile-tooltip-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 10000;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
-    background: rgba(12, 12, 30, 0.95);
-    backdrop-filter: blur(12px);
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
-    font-size: 0.8rem;
-    color: var(--text-primary);
+  .cell-selected {
+    z-index: 5;
+    transform: translateY(-3px) scale(1.04);
   }
 
-  .mobile-tooltip-bar .tooltip-number {
-    font-size: 0.8rem;
-    flex-shrink: 0;
+  .cell-selected .cell-surface {
+    box-shadow:
+      0 0 0 3px #12332b,
+      0 0 0 6px #d7b66f,
+      0 8px 0 color-mix(in srgb, var(--cell-accent) 30%, #30281e),
+      0 18px 25px rgba(0, 0, 0, 0.38);
   }
 
-  .mobile-tooltip-bar .tooltip-type {
-    flex-shrink: 0;
+  .cell-normal {
+    --cell-accent: #93836a;
+    --cell-paper: #eee4cf;
+    --cell-ink: #3d382f;
+    --cell-pattern: repeating-linear-gradient(
+      90deg,
+      #8d7d65 0,
+      #8d7d65 4px,
+      #c2b393 4px,
+      #c2b393 8px
+    );
   }
 
-  .tooltip-desc-inline {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .cell-start {
+    --cell-accent: #2b7b69;
+    --cell-paper: #e5f0df;
+    --cell-ink: #183c34;
+    --cell-pattern: linear-gradient(90deg, #2b7b69 0 50%, #e9d28d 50%);
   }
 
-  .mobile-tooltip-enter-active {
-    transition: transform 0.2s ease-out;
-  }
-  .mobile-tooltip-leave-active {
-    transition: transform 0.15s ease-in;
-  }
-  .mobile-tooltip-enter-from,
-  .mobile-tooltip-leave-to {
-    transform: translateY(100%);
+  .cell-finish {
+    --cell-accent: #b88934;
+    --cell-paper: #fff0c7;
+    --cell-ink: #503b15;
+    --cell-pattern: repeating-linear-gradient(
+      135deg,
+      #2f2b23 0,
+      #2f2b23 5px,
+      #f4d274 5px,
+      #f4d274 10px
+    );
   }
 
-  /* === Effect Flash === */
-  .effect-flash {
-    position: fixed;
-    inset: 0;
+  .cell-punishment {
+    --cell-accent: #b84b52;
+    --cell-paper: #f4ded7;
+    --cell-ink: #5c2529;
+    --cell-pattern: repeating-linear-gradient(
+      135deg,
+      #a83e46 0,
+      #a83e46 5px,
+      #e8a099 5px,
+      #e8a099 10px
+    );
+  }
+
+  .cell-chain {
+    --cell-accent: #b76d32;
+    --cell-paper: #f4e1ca;
+    --cell-ink: #5b321c;
+    --cell-pattern: repeating-radial-gradient(circle, #a9602d 0 2px, #d89b5d 2px 5px);
+  }
+
+  .cell-bonus {
+    --cell-accent: #2f7e59;
+    --cell-paper: #dfeedb;
+    --cell-ink: #1e4937;
+    --cell-pattern: linear-gradient(90deg, #2f7e59, #84b46d, #2f7e59);
+  }
+
+  .cell-reverse {
+    --cell-accent: #a86430;
+    --cell-paper: #f3dfc9;
+    --cell-ink: #56351e;
+    --cell-pattern: repeating-linear-gradient(
+      -45deg,
+      #9a5929 0,
+      #9a5929 4px,
+      #d89d61 4px,
+      #d89d61 8px
+    );
+  }
+
+  .cell-rest {
+    --cell-accent: #46729b;
+    --cell-paper: #dfe8ee;
+    --cell-ink: #243e56;
+    --cell-pattern: repeating-linear-gradient(
+      90deg,
+      #416b91 0,
+      #416b91 7px,
+      #8eb0c5 7px,
+      #8eb0c5 9px
+    );
+  }
+
+  .cell-restart {
+    --cell-accent: #7855a0;
+    --cell-paper: #e8dfee;
+    --cell-ink: #432e59;
+    --cell-pattern:
+      radial-gradient(circle at 25% 50%, #6e4b94 0 3px, transparent 4px),
+      radial-gradient(circle at 75% 50%, #6e4b94 0 3px, transparent 4px), #b89bcb;
+  }
+
+  .cell-trap {
+    --cell-accent: #782f38;
+    --cell-paper: #e5d9d4;
+    --cell-ink: #431b20;
+    --cell-pattern: repeating-linear-gradient(
+      135deg,
+      #302a25 0,
+      #302a25 5px,
+      #a54149 5px,
+      #a54149 10px
+    );
+  }
+
+  .cell-start,
+  .cell-finish {
+    transform: scale(1.06);
+  }
+
+  .cell-players {
+    position: absolute;
+    z-index: 8;
+    top: -8px;
+    left: 50%;
+    width: 100%;
+    height: 28px;
+    transform: translateX(-50%);
     pointer-events: none;
-    z-index: 100;
-    opacity: 0.15;
-    animation: flashPulse 0.5s ease-out;
   }
 
-  .flash-punishment,
-  .flash-chain_punishment {
-    background: radial-gradient(circle at center, #ff4757, transparent 70%);
-  }
-  .flash-bonus {
-    background: radial-gradient(circle at center, #2ed573, transparent 70%);
-  }
-  .flash-trap {
-    background: radial-gradient(circle at center, #dc2626, transparent 70%);
-  }
-  .flash-restart {
-    background: radial-gradient(circle at center, #a855f7, transparent 70%);
-  }
-  .flash-special {
-    background: radial-gradient(circle at center, #ffa502, transparent 70%);
+  .player-token {
+    position: absolute;
+    left: calc(50% + (var(--token-index) - 1) * 15px);
+    width: 26px;
+    height: 28px;
+    transform: translateX(-50%);
   }
 
-  @keyframes flashPulse {
+  .player-token.current-player {
+    filter: drop-shadow(0 0 2px #3e2d14) drop-shadow(0 0 5px #f4cf7e)
+      drop-shadow(0 4px 4px rgb(0 0 0 / 0.52));
+  }
+
+  .player-overflow {
+    position: absolute;
+    right: -6px;
+    top: -8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 23px;
+    height: 23px;
+    padding: 0 0.25rem;
+    border: 2px solid #f2e3c2;
+    border-radius: 999px;
+    color: #fffaf0;
+    background: #29251f;
+    font-size: 0.58rem;
+    font-weight: 800;
+  }
+
+  .cell-landing .cell-surface {
+    animation: tileLand 650ms cubic-bezier(0.2, 0.9, 0.24, 1.4);
+  }
+
+  .cell-activated .cell-surface {
+    animation: tileGlow 500ms ease-out 2;
+  }
+
+  @keyframes tileLand {
     0% {
-      opacity: 0.25;
+      transform: scale(1);
+    }
+    45% {
+      transform: scale(1.17) rotate(-1.5deg);
     }
     100% {
-      opacity: 0;
+      transform: scale(1);
     }
   }
 
-  .flash-enter-active {
-    animation: flashPulse 0.5s ease-out;
-  }
-  .flash-leave-active {
-    animation: flashPulse 0.3s ease-out reverse;
-  }
-
-  /* === Mobile Cell Aura Tightening === */
-  @media (max-width: 600px) {
-    .cell-aura {
-      inset: -4px;
-    }
-    .cell-punishment::after,
-    .cell-chain_punishment::after,
-    .cell-restart::after {
-      inset: -2px;
-    }
-    .cell-bonus::after {
-      inset: -3px;
-    }
-    .cell-trap::after {
-      inset: -3px;
-    }
-    .cell-start::after,
-    .cell-end::after {
-      inset: -4px;
+  @keyframes tileGlow {
+    50% {
+      filter: brightness(1.18);
+      box-shadow:
+        0 0 0 5px rgba(255, 224, 153, 0.62),
+        0 14px 25px rgba(0, 0, 0, 0.38);
     }
   }
 
-  /* === Reduced Motion === */
+  .board-hint {
+    position: relative;
+    z-index: 2;
+    margin: 0;
+    padding: 0.45rem 0.75rem 0.55rem;
+    color: rgba(244, 231, 202, 0.62);
+    border-top: 1px solid rgba(238, 216, 173, 0.1);
+    background: rgba(7, 25, 22, 0.58);
+    font-size: 0.64rem;
+    text-align: center;
+  }
+
+  @media (max-width: 599px) {
+    .game-board {
+      border-radius: 18px;
+    }
+
+    .board-toolbar {
+      min-height: 48px;
+      padding: 0.45rem 0.65rem 0.42rem 0.75rem;
+    }
+
+    .locate-button {
+      width: 44px;
+      min-width: 44px;
+      height: 40px;
+      min-height: 40px;
+      padding: 0;
+    }
+
+    .locate-button span {
+      display: none;
+    }
+
+    .launch-bay {
+      min-height: 38px;
+      padding: 0.25rem 0.65rem;
+    }
+
+    .board-grid {
+      align-content: start;
+      min-height: max-content;
+      padding: 1.35rem 0.9rem 1.6rem;
+    }
+
+    .board-hint {
+      display: none;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .game-board {
+      --board-gap: 10px;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .board-cell,
-    .board-cell::after,
-    .player-marker,
-    .track-energy,
-    .cell-aura {
+    .cell-surface,
+    .player-token {
       transition: none !important;
       animation: none !important;
-    }
-
-    .cell-landing .cell-inner,
-    .cell-activated .cell-inner {
-      animation: none !important;
-    }
-
-    .player-marker.current-player {
-      animation: none !important;
-    }
-
-    .effect-flash {
-      display: none;
     }
   }
 </style>
