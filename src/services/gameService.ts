@@ -149,6 +149,16 @@ export class GameService {
     const trapPositions = availablePositions.slice(currentIndex, currentIndex + trapCount)
     currentIndex += trapCount
 
+    // 问答格子（升温局专属）
+    const qaCount = Math.min(boardConf.qaCells ?? 0, availableCount - currentIndex)
+    const qaPositions = availablePositions.slice(currentIndex, currentIndex + qaCount)
+    currentIndex += qaCount
+
+    // 指令格子（升温局专属）
+    const dareCount = Math.min(boardConf.dareCells ?? 0, availableCount - currentIndex)
+    const darePositions = availablePositions.slice(currentIndex, currentIndex + dareCount)
+    currentIndex += dareCount
+
     // 填充惩罚格子
     punishmentPositions.forEach(pos => {
       const punishment = createCompatiblePunishmentAction(config)
@@ -253,8 +263,11 @@ export class GameService {
 
     // 机关格子
     trapPositions.forEach(pos => {
-      // 从机关中随机选择一个
-      const randomTrap = SecureRandom.choice(traps)
+      const randomTrap = SecureRandom.choice(traps) as TrapAction & {
+        trapVariant?: string
+        choiceA?: string
+        choiceB?: string
+      }
 
       cellMap.set(pos, {
         id: pos,
@@ -264,9 +277,61 @@ export class GameService {
           type: 'trap',
           value: 0,
           description: randomTrap.description,
+          trapVariant: randomTrap.trapVariant as
+            | 'text'
+            | 'all_players'
+            | 'choice'
+            | 'roulette'
+            | undefined,
+          choiceA: randomTrap.choiceA,
+          choiceB: randomTrap.choiceB,
         },
       })
     })
+
+    // 问答格子（升温局专属）
+    if (qaPositions.length > 0) {
+      const allQuestions = [
+        ...GAME_CONFIG.PARTY_QA_QUESTIONS.warmup,
+        ...GAME_CONFIG.PARTY_QA_QUESTIONS.heating,
+        ...GAME_CONFIG.PARTY_QA_QUESTIONS.finale,
+      ]
+      qaPositions.forEach(pos => {
+        const question = SecureRandom.choice(allQuestions)
+        cellMap.set(pos, {
+          id: pos,
+          type: 'qa',
+          position: pos,
+          effect: {
+            type: 'qa',
+            value: 0,
+            description: question,
+          },
+        })
+      })
+    }
+
+    // 指令格子（升温局专属）
+    if (darePositions.length > 0) {
+      const allDares = [
+        ...GAME_CONFIG.PARTY_DARE_INSTRUCTIONS.warmup,
+        ...GAME_CONFIG.PARTY_DARE_INSTRUCTIONS.heating,
+        ...GAME_CONFIG.PARTY_DARE_INSTRUCTIONS.finale,
+      ]
+      darePositions.forEach(pos => {
+        const dare = SecureRandom.choice(allDares)
+        cellMap.set(pos, {
+          id: pos,
+          type: 'dare',
+          position: pos,
+          effect: {
+            type: 'dare',
+            value: 0,
+            description: dare,
+          },
+        })
+      })
+    }
 
     // 为剩余的空位置创建普通格子（无效果）
     for (let i = 1; i <= totalCells; i++) {
@@ -297,7 +362,6 @@ export class GameService {
     return randomBoard
   }
 
-  // 打印棋盘统计信息
   private static logBoardStats(board: BoardCell[], title: string): void {
     const punishmentCount = board.filter(c => c.type === 'punishment').length
     const chainPunishmentCount = board.filter(c => c.type === 'chain_punishment').length
@@ -308,6 +372,8 @@ export class GameService {
     const restCount = board.filter(c => c.type === 'special' && c.effect?.type === 'rest').length
     const restartCount = board.filter(c => c.type === 'restart').length
     const trapCount = board.filter(c => c.type === 'trap').length
+    const qaCount = board.filter(c => c.type === 'qa').length
+    const dareCount = board.filter(c => c.type === 'dare').length
 
     devLog(title, {
       totalCells: board.length,
@@ -318,6 +384,8 @@ export class GameService {
       restCount,
       restartCount,
       trapCount,
+      qaCount,
+      dareCount,
       totalAssigned:
         punishmentCount +
         chainPunishmentCount +
@@ -325,7 +393,9 @@ export class GameService {
         reverseCount +
         restCount +
         restartCount +
-        trapCount,
+        trapCount +
+        qaCount +
+        dareCount,
     })
 
     // 输出每个格子
@@ -422,6 +492,8 @@ export class GameService {
       config.restCells,
       config.restartCells,
       config.trapCells,
+      config.qaCells ?? 0,
+      config.dareCells ?? 0,
     ]
     const totalUsed = assignedCounts.reduce((sum, count) => sum + count, 0)
 
@@ -727,6 +799,14 @@ export class GameService {
         case 'rest':
           effect = `移动到第${newPosition}格，休息${targetCell.effect.value}回合`
           break
+
+        case 'qa':
+          effect = `❓ 问答时间！`
+          break
+
+        case 'dare':
+          effect = `🔥 执行指令！`
+          break
       }
     }
 
@@ -806,6 +886,14 @@ export class GameService {
         newPosition = player.position
         effect = cellEffect.description || '触发机关'
         break
+      case 'qa':
+        newPosition = player.position
+        effect = cellEffect.description || '问答时间'
+        break
+      case 'dare':
+        newPosition = player.position
+        effect = cellEffect.description || '执行指令'
+        break
       default:
         newPosition = player.position
         effect = '未知效果'
@@ -877,10 +965,7 @@ export class GameService {
   }
 
   // 获取格子类型
-  static getCellType(
-    position: number,
-    board: BoardCell[] = this.latestBoard
-  ): 'punishment' | 'bonus' | 'special' | 'restart' | 'trap' | 'chain_punishment' {
+  static getCellType(position: number, board: BoardCell[] = this.latestBoard): BoardCell['type'] {
     const cell = this.getBoardCellByPosition(position, board)
     if (!cell) {
       return 'bonus'

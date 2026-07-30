@@ -22,11 +22,21 @@
   import { SecureRandom } from '../utils/secureRandom'
   import { devLog } from '../utils/logger'
   import VersionDisplay from './VersionDisplay.vue'
+  import PartySceneSelector from './PartySceneSelector.vue'
   import type { GameMode } from '../config/modes'
+  import type { PartyScenePreset } from '../types/game'
   import { PARTY_MIN_PLAYERS } from '../services/partyMode'
 
   interface Emits {
-    (e: 'start', playerConfig: { count: number; names: string[]; mode: GameMode }): void
+    (
+      e: 'start',
+      playerConfig: {
+        count: number
+        names: string[]
+        mode: GameMode
+        scenePreset?: PartyScenePreset | 'default'
+      }
+    ): void
     (e: 'mode-selected', mode: GameMode): void
   }
 
@@ -37,6 +47,7 @@
   const playerCount = ref(2)
   const playerNames = ref<string[]>(['玩家1', '玩家2'])
   const selectedMode = ref<GameMode>(props.initialMode)
+  const selectedScenePreset = ref<PartyScenePreset | 'default'>('default')
   const canStart = computed(
     () => selectedMode.value === 'classic' || playerCount.value >= PARTY_MIN_PLAYERS
   )
@@ -96,12 +107,17 @@
       count: playerCount.value,
       names: playerNames.value,
       mode: selectedMode.value,
+      scenePreset: selectedMode.value === 'party' ? selectedScenePreset.value : undefined,
     })
   }
 
   const selectMode = (mode: GameMode) => {
     selectedMode.value = mode
     emit('mode-selected', mode)
+  }
+
+  const selectScenePreset = (preset: PartyScenePreset | 'default') => {
+    selectedScenePreset.value = preset
   }
 
   // 监听玩家设置更新事件
@@ -328,6 +344,12 @@
             <span class="mode-card__badge mode-card__badge--party">party_v1</span>
           </button>
         </div>
+
+        <PartySceneSelector
+          v-if="selectedMode === 'party'"
+          :selected="selectedScenePreset"
+          @select="selectScenePreset"
+        />
       </section>
 
       <!-- 玩家设置区域 -->

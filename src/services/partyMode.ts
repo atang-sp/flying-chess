@@ -1,8 +1,19 @@
-import type { PunishmentAction, PunishmentConfig } from '../types/game'
+import type { PunishmentAction, PunishmentConfig, PunishmentConstraints } from '../types/game'
+import { GAME_CONFIG } from '../config/gameConfig'
 import { createCompatiblePunishmentAction, type RuleRandomSource } from './ruleResolution'
 
 export type PartyAct = 'warmup' | 'heating' | 'finale'
-export type PartyTokenAction = 'reroll' | 'punishment_choice'
+export type PartyTokenAction = 'reroll' | 'punishment_choice' | 'transfer' | 'amplify' | 'immunity'
+
+/** Returns act-specific punishment constraints from config */
+export function getActConstraints(act: PartyAct): PunishmentConstraints {
+  return GAME_CONFIG.PARTY_ACT_CONSTRAINTS[act]
+}
+
+/** Returns act-specific double punishment chance */
+export function getActDoublePunishmentChance(act: PartyAct): number {
+  return GAME_CONFIG.PARTY_ACT_CONSTRAINTS[act].doublePunishmentChance ?? 20
+}
 export type PartyPrediction = 'low' | 'high'
 export type PartyReactionDecision = 'keep' | 'mirror'
 export type PartyDiceDecision = 'continue'
@@ -148,13 +159,14 @@ function punishmentFingerprint(action: PunishmentAction): string {
 
 export function createPartyPunishmentChoices(
   config: PunishmentConfig,
-  randomSource?: RuleRandomSource
+  randomSource?: RuleRandomSource,
+  constraints?: PunishmentConstraints
 ): readonly [PunishmentAction, PunishmentAction] {
   const choices: PunishmentAction[] = []
   const fingerprints = new Set<string>()
 
   for (let attempt = 0; attempt < 8 && choices.length < 2; attempt += 1) {
-    const candidate = createCompatiblePunishmentAction(config, randomSource)
+    const candidate = createCompatiblePunishmentAction(config, randomSource, constraints)
     const fingerprint = punishmentFingerprint(candidate)
     if (fingerprints.has(fingerprint)) continue
     fingerprints.add(fingerprint)
@@ -192,7 +204,13 @@ export function createPartySession({
     reactionUsedThisRound: false,
     diceChangedThisTurn: false,
     successfulReactionCount: 0,
-    interventionCounts: Object.freeze({ reroll: 0, punishment_choice: 0 }),
+    interventionCounts: Object.freeze({
+      reroll: 0,
+      punishment_choice: 0,
+      transfer: 0,
+      amplify: 0,
+      immunity: 0,
+    }),
     longestChain: 0,
   })
 }
@@ -342,13 +360,27 @@ export function recordPartyChain(session: PartySession, chainLength: number): Pa
 }
 
 export function createPartyHighlight(session: PartySession): PartyHighlight {
-  const { reroll, punishment_choice: punishmentChoice } = session.interventionCounts
-  const keyDecision =
-    punishmentChoice >= reroll && punishmentChoice > 0
-      ? `随机二选一使用 ${punishmentChoice} 次`
-      : reroll > 0
-        ? `重掷使用 ${reroll} 次`
-        : '本局未使用干预筹码'
+  const {
+    reroll,
+    punishment_choice: punishmentChoice,
+    transfer,
+    amplify,
+    immunity,
+  } = session.interventionCounts
+  const totalUsed = reroll + punishmentChoice + transfer + amplify + immunity
+
+  let keyDecision: string
+  if (totalUsed === 0) {
+    keyDecision = '本局未使用干预筹码'
+  } else {
+    const parts: string[] = []
+    if (reroll > 0) parts.push(`重掷 ${reroll}`)
+    if (punishmentChoice > 0) parts.push(`二选一 ${punishmentChoice}`)
+    if (transfer > 0) parts.push(`转嫁 ${transfer}`)
+    if (amplify > 0) parts.push(`加码 ${amplify}`)
+    if (immunity > 0) parts.push(`免疫 ${immunity}`)
+    keyDecision = `筹码使用: ${parts.join('、')} 次`
+  }
 
   return Object.freeze({
     act: session.act,
