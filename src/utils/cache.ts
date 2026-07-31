@@ -1,16 +1,19 @@
-import type { BoardConfig, PunishmentConfig, TrapAction } from '../types/game'
+import type { BoardConfig, PunishmentConfig, TrapAction, VictoryConfig } from '../types/game'
 import { DEFAULT_GAME_MODE, GAME_MODES, type GameMode } from '../config/modes'
+import { normalizeVictoryConfig } from '../services/victorySettlement'
 
 // 缓存键名
 export const GAME_CONFIG_STORAGE_KEY = 'ludo_game_config'
 export const PLAYER_SETTINGS_STORAGE_KEY = 'ludo_player_settings'
 export const CONFIG_BACKUP_STORAGE_KEY = 'flying-chess-config-backup'
 export const GAME_MODE_STORAGE_KEY = 'flying-chess-game-mode'
+export const VICTORY_CONFIG_STORAGE_KEY = 'flying-chess-victory-config'
 export const LOCAL_GAME_STORAGE_KEYS = [
   GAME_CONFIG_STORAGE_KEY,
   PLAYER_SETTINGS_STORAGE_KEY,
   CONFIG_BACKUP_STORAGE_KEY,
   GAME_MODE_STORAGE_KEY,
+  VICTORY_CONFIG_STORAGE_KEY,
   'hasShownGuide',
   'autoGuideEnabled',
 ] as const
@@ -108,5 +111,31 @@ export function saveGameMode(mode: GameMode, storage: GameModeStorageWriter = lo
     storage.setItem(GAME_MODE_STORAGE_KEY, mode)
   } catch (error) {
     console.warn('保存本局玩法失败:', error)
+  }
+}
+
+type VictoryConfigStorageReader = Pick<Storage, 'getItem'>
+type VictoryConfigStorageWriter = Pick<Storage, 'setItem'>
+
+export function loadVictoryConfig(
+  storage: VictoryConfigStorageReader = localStorage
+): VictoryConfig {
+  const raw = storage.getItem(VICTORY_CONFIG_STORAGE_KEY)
+  if (!raw) return normalizeVictoryConfig(undefined)
+  try {
+    return normalizeVictoryConfig(JSON.parse(raw))
+  } catch {
+    return normalizeVictoryConfig(undefined)
+  }
+}
+
+export function saveVictoryConfig(
+  config: VictoryConfig,
+  storage: VictoryConfigStorageWriter = localStorage
+): void {
+  try {
+    storage.setItem(VICTORY_CONFIG_STORAGE_KEY, JSON.stringify(normalizeVictoryConfig(config)))
+  } catch (error) {
+    console.warn('保存终局奖惩配置失败:', error)
   }
 }

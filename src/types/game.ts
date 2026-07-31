@@ -202,6 +202,15 @@ export interface GameState {
   pendingEffect: CellEffect | null
 }
 
+/** Configurable end-of-game reward and loser gradient. */
+export interface VictoryConfig {
+  actionText: string
+  baseCount: number
+  countUnit: string
+  loserGradientEnabled: boolean
+  gradientStep: number
+}
+
 export interface DiceAnimation {
   isRolling: boolean
   duration: number

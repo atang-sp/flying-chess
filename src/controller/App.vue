@@ -43,6 +43,7 @@ onMounted(() => {
       v-else-if="controller.gameEnded.value"
       :winner-name="controller.winnerName.value"
       :my-name="controller.assignedPlayer.value?.name"
+      :settlement="controller.victorySettlement.value"
     />
   </div>
 </template>

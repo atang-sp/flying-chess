@@ -8,9 +8,11 @@ import type {
   RequiredAction,
   RoomInfo,
 } from '../types/network'
-import type { GameState } from '../types/game'
+import type { GameState, VictoryConfig } from '../types/game'
 import type { PartySession } from '../services/partyMode'
+import type { PartyPunishmentIntervention } from '../services/partyPunishmentInterventions'
 import { devLog } from '../utils/logger'
+import { resolveVictorySettlement } from '../services/victorySettlement'
 
 export interface MultiDeviceHostActions {
   handleDiceRoll: () => Promise<void>
@@ -20,6 +22,9 @@ export interface MultiDeviceHostActions {
   handlePartyReroll: () => Promise<void>
   continuePartyMove: () => Promise<void>
   resolvePartyPunishmentChoice: (selectedIndex?: number) => Promise<void>
+  resolvePartyPunishmentIntervention: (
+    intervention: PartyPunishmentIntervention
+  ) => Promise<void>
   confirmPunishment: () => Promise<void>
   confirmEffect: () => Promise<void>
   handleTrapDismiss: () => void
@@ -51,6 +56,7 @@ export interface MultiDeviceHostDeps {
   gameFinished: Ref<boolean>
   isPartyGame: ComputedRef<boolean>
   sessionPaused: Ref<boolean>
+  victoryConfig: Ref<VictoryConfig>
   overlayState: () => MultiDeviceOverlayState
   actions: MultiDeviceHostActions
 }
@@ -183,6 +189,21 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
         break
       case 'skip_punishment_choice':
         deps.actions.resolvePartyPunishmentChoice()
+        break
+      case 'punishment_intervention':
+        deps.actions.resolvePartyPunishmentIntervention(
+          msg.action === 'transfer'
+            ? {
+                action: msg.action,
+                playerIndex,
+                targetPlayerIndex: msg.targetPlayerIndex ?? -1,
+              }
+            : { action: msg.action, playerIndex }
+        )
+        break
+      case 'decline_punishment_intervention':
+        clearPendingAction(playerIndex)
+        broadcastStateToAll()
         break
       case 'acknowledge':
         handleRemoteAcknowledge(playerIndex)
@@ -322,10 +343,31 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
     () => deps.gameFinished.value,
     (finished) => {
       if (finished && enabled.value && deps.gameState.winner) {
-        network?.broadcast({
-          type: 'game_ended',
-          winnerName: deps.gameState.winner.name,
-        })
+        const winnerPlayerIndex = deps.gameState.players.findIndex(
+          player => player.id === deps.gameState.winner?.id
+        )
+        const settlements = new Map(
+          resolveVictorySettlement(
+            deps.gameState.players,
+            winnerPlayerIndex,
+            deps.victoryConfig.value
+          ).map(entry => [entry.playerIndex, entry])
+        )
+        for (const [peerId, playerIndex] of peerToPlayerIndex) {
+          const settlement = settlements.get(playerIndex)
+          network?.sendTo(peerId, {
+            type: 'game_ended',
+            winnerName: deps.gameState.winner.name,
+            settlement: settlement
+              ? {
+                  actionText: deps.victoryConfig.value.actionText,
+                  count: settlement.count,
+                  countUnit: deps.victoryConfig.value.countUnit,
+                  place: settlement.place,
+                }
+              : undefined,
+          })
+        }
       }
     }
   )

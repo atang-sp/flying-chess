@@ -1,7 +1,13 @@
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue'
-  import { Zap, Check, SkipForward, HandHeart } from '@lucide/vue'
-  import type { PunishmentAction, Player, ResolvedPunishmentCount } from '../types/game'
+  import { Zap, Check, SkipForward, HandHeart, Gift, Eye } from '@lucide/vue'
+  import type {
+    PunishmentAction,
+    Player,
+    PunishmentVariant,
+    ResolvedPunishmentCount,
+  } from '../types/game'
+  import { getPunishmentVariantPresentation } from '../services/punishmentVariants'
 
   type ExternalCountSelection = Extract<
     ResolvedPunishmentCount,
@@ -15,6 +21,7 @@
     countSelection?: ExternalCountSelection | null
     countMultiplier?: number
     canRequestMercy?: boolean
+    variant?: PunishmentVariant
   }
 
   interface Emits {
@@ -28,6 +35,21 @@
     countMultiplier: 1,
   })
   const emit = defineEmits<Emits>()
+
+  const variantPresentation = computed(() =>
+    props.variant ? getPunishmentVariantPresentation(props.variant) : null
+  )
+  const variantRevealed = ref(false)
+  const detailsVisible = computed(
+    () => !variantPresentation.value?.concealsDetails || variantRevealed.value
+  )
+
+  watch(
+    () => [props.punishment, props.variant] as const,
+    () => {
+      variantRevealed.value = false
+    }
+  )
 
   const countOptions = computed(() => {
     if (!props.countSelection) return []
@@ -81,7 +103,30 @@
 
       <div class="punishment-content">
         <div class="punishment-scroll-body">
-          <div v-if="targetPlayer" class="target-info">
+          <aside
+            v-if="variantPresentation"
+            class="variant-card"
+            :class="`variant-card--${variant}`"
+            data-testid="punishment-variant"
+          >
+            <div>
+              <Gift :size="18" aria-hidden="true" />
+              <strong>{{ variantPresentation.label }}</strong>
+            </div>
+            <p>{{ variantPresentation.instruction }}</p>
+            <button
+              v-if="variantPresentation.concealsDetails && !variantRevealed"
+              type="button"
+              class="variant-reveal"
+              data-testid="punishment-variant-reveal"
+              @click="variantRevealed = true"
+            >
+              <Eye :size="17" aria-hidden="true" />
+              执行者已准备好，揭晓内容
+            </button>
+          </aside>
+
+          <div v-if="detailsVisible && targetPlayer" class="target-info">
             <span class="target-label">受罚玩家</span>
             <div class="target-player">
               <div class="target-avatar" :style="{ backgroundColor: targetPlayer.color }"></div>
@@ -90,7 +135,7 @@
           </div>
 
           <!-- 执行惩罚的玩家信息 -->
-          <div v-if="executorPlayer" class="executor-info">
+          <div v-if="detailsVisible && executorPlayer" class="executor-info">
             <div class="executor-header">
               <span class="executor-label">执行惩罚的玩家:</span>
             </div>
@@ -100,7 +145,7 @@
             </div>
           </div>
 
-          <div class="punishment-details">
+          <div v-if="detailsVisible" class="punishment-details">
             <div class="punishment-item">
               <span class="label">工具:</span>
               <span class="value tool">{{ punishment.tool.name }}</span>
@@ -124,7 +169,7 @@
             </div>
           </div>
 
-          <div class="punishment-summary">
+          <div v-if="detailsVisible" class="punishment-summary">
             <h4>执行内容:</h4>
             <p v-if="countSelection" class="summary-text">
               由{{ executorPlayer?.name || '其他玩家' }}决定本次惩罚次数
@@ -132,7 +177,7 @@
             <p v-else class="summary-text">{{ punishment.description }}</p>
           </div>
 
-          <label v-if="countSelection" class="count-selection">
+          <label v-if="detailsVisible && countSelection" class="count-selection">
             <span>惩罚次数</span>
             <select v-model.number="selectedCount" aria-label="惩罚次数">
               <option v-for="count in countOptions" :key="count" :value="count">
@@ -152,7 +197,7 @@
         <div class="punishment-actions">
           <button
             class="btn btn-success"
-            :disabled="Boolean(countSelection) && selectedCount === undefined"
+            :disabled="!detailsVisible || (Boolean(countSelection) && selectedCount === undefined)"
             @click="confirmPunishment"
           >
             <Check :size="18" />
@@ -208,6 +253,44 @@
     flex-direction: column;
     gap: 1.5rem;
     min-height: 0;
+  }
+
+  .variant-card {
+    display: grid;
+    gap: 0.65rem;
+    padding: 1rem;
+    border: 1px solid rgb(245 158 11 / 0.48);
+    border-radius: var(--radius-sm);
+    background: rgb(245 158 11 / 0.1);
+  }
+
+  .variant-card > div,
+  .variant-reveal {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  .variant-card strong {
+    color: #fde68a;
+  }
+
+  .variant-card p {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.55;
+  }
+
+  .variant-reveal {
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.65rem 0.9rem;
+    color: #1c1917;
+    font-weight: 750;
+    background: #fbbf24;
+    border: 0;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
   }
 
   .punishment-scroll-body {

@@ -325,8 +325,12 @@ export function spendPartyToken(
   session: PartySession,
   { playerIndex, action }: SpendPartyTokenInput
 ): PartySession {
-  if (session.activeTurnPlayerIndex !== playerIndex) {
-    throw new Error('只有当前玩家可以使用干预筹码')
+  if (!Number.isInteger(playerIndex) || playerIndex < 0 || playerIndex >= session.playerCount) {
+    throw new Error('干预筹码需要有效的玩家索引')
+  }
+  const activePlayerOnly = action === 'reroll' || action === 'punishment_choice'
+  if (activePlayerOnly && session.activeTurnPlayerIndex !== playerIndex) {
+    throw new Error('只有当前玩家可以使用该干预筹码')
   }
   if (session.interventionUsedThisTurn !== undefined) {
     throw new Error('每回合最多使用一枚干预筹码')

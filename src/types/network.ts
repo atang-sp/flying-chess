@@ -26,6 +26,13 @@ export interface PlayerView {
   readonly diceChangedThisTurn: boolean
 }
 
+export interface ControllerVictorySettlement {
+  readonly actionText: string
+  readonly count: number
+  readonly countUnit: string
+  readonly place: number
+}
+
 // --- Host -> Controller messages ---
 
 export type RequiredAction =
@@ -47,13 +54,31 @@ export type RequiredAction =
       readonly choiceA: string
       readonly choiceB: string
     }
+  | {
+      readonly type: 'punishment_intervention'
+      readonly targetName: string
+      readonly countLabel: string
+      readonly actions: readonly ('transfer' | 'amplify' | 'immunity')[]
+      readonly transferTargets: readonly {
+        readonly playerIndex: number
+        readonly playerName: string
+      }[]
+    }
   | { readonly type: 'acknowledge'; readonly message: string }
   | { readonly type: 'tiebreak_roll' }
 
 export type HostMessage =
-  | { readonly type: 'player_assigned'; readonly playerIndex: number; readonly player: PublicPlayerInfo }
+  | {
+      readonly type: 'player_assigned'
+      readonly playerIndex: number
+      readonly player: PublicPlayerInfo
+    }
   | { readonly type: 'state_update'; readonly view: PlayerView }
-  | { readonly type: 'game_ended'; readonly winnerName: string }
+  | {
+      readonly type: 'game_ended'
+      readonly winnerName: string
+      readonly settlement?: ControllerVictorySettlement
+    }
   | { readonly type: 'room_closed' }
   | { readonly type: 'error'; readonly message: string }
 
@@ -68,6 +93,12 @@ export type ControllerMessage =
   | { readonly type: 'continue_move' }
   | { readonly type: 'select_punishment'; readonly index: number }
   | { readonly type: 'skip_punishment_choice' }
+  | {
+      readonly type: 'punishment_intervention'
+      readonly action: 'transfer' | 'amplify' | 'immunity'
+      readonly targetPlayerIndex?: number
+    }
+  | { readonly type: 'decline_punishment_intervention' }
   | { readonly type: 'acknowledge' }
   | { readonly type: 'tiebreak_roll' }
 

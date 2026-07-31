@@ -28,6 +28,7 @@ export type PunishmentRuleInput =
       diceValue?: number
       randomSource?: RuleRandomSource
       boardAction: PunishmentAction
+      punishmentVariant?: PunishmentVariant
     }
   | {
       source: 'takeoff_failure'
@@ -37,6 +38,7 @@ export type PunishmentRuleInput =
       diceValue?: number
       randomSource?: RuleRandomSource
       punishmentAction: PunishmentAction
+      punishmentVariant?: PunishmentVariant
     }
 
 export interface CellEffectRuleInput {
@@ -421,6 +423,7 @@ export function resolveRule(input: RuleInput): ResolvedRuleResult {
     countMultiplier:
       countMultiplier !== undefined && countMultiplier > 1 ? countMultiplier : undefined,
     turnConsequence: Object.freeze({ kind: 'none' }),
+    variant: input.punishmentVariant,
   })
 
   return result.count.kind === 'fixed' && result.countMultiplier

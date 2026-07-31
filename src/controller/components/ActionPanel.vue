@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { PlayerView, RequiredAction } from '../../types/network'
 
 const props = defineProps<{
@@ -11,6 +11,18 @@ const emit = defineEmits<{
 }>()
 
 const pending = computed<RequiredAction | null>(() => props.view.pendingAction)
+const transferTargetIndex = ref<number>()
+
+watch(
+  pending,
+  action => {
+    transferTargetIndex.value =
+      action?.type === 'punishment_intervention'
+        ? action.transferTargets[0]?.playerIndex
+        : undefined
+  },
+  { immediate: true }
+)
 
 function send(payload: { type: string; [key: string]: unknown }): void {
   if (navigator.vibrate) navigator.vibrate(30)
@@ -75,6 +87,56 @@ function send(payload: { type: string; [key: string]: unknown }): void {
         </button>
         <button class="btn-ghost" @click="send({ type: 'skip_punishment_choice' })">
           跳过（不消耗筹码）
+        </button>
+      </div>
+    </div>
+
+    <!-- Punishment intervention -->
+    <div v-else-if="pending.type === 'punishment_intervention'" class="action-group">
+      <p class="action-prompt">
+        {{ pending.targetName }} 将执行 {{ pending.countLabel }}，要使用筹码吗？
+      </p>
+      <div class="action-buttons vertical">
+        <template v-if="pending.actions.includes('transfer')">
+          <select v-model.number="transferTargetIndex" aria-label="转嫁目标" class="action-select">
+            <option
+              v-for="target in pending.transferTargets"
+              :key="target.playerIndex"
+              :value="target.playerIndex"
+            >
+              转给 {{ target.playerName }}
+            </option>
+          </select>
+          <button
+            class="btn btn-secondary action-btn"
+            :disabled="transferTargetIndex === undefined"
+            @click="
+              send({
+                type: 'punishment_intervention',
+                action: 'transfer',
+                targetPlayerIndex: transferTargetIndex,
+              })
+            "
+          >
+            🔄 转嫁惩罚
+          </button>
+        </template>
+        <button
+          v-if="pending.actions.includes('immunity')"
+          class="btn btn-primary action-btn"
+          @click="send({ type: 'punishment_intervention', action: 'immunity' })"
+        >
+          🛡️ 免疫本次惩罚
+        </button>
+        <button
+          v-if="pending.actions.includes('amplify')"
+          class="btn btn-primary action-btn"
+          @click="send({ type: 'punishment_intervention', action: 'amplify' })"
+        >
+          🔥 加码为 2 倍
+        </button>
+        <button class="btn-ghost" @click="send({ type: 'decline_punishment_intervention' })">
+          不使用筹码
         </button>
       </div>
     </div>
@@ -168,5 +230,16 @@ function send(payload: { type: string; [key: string]: unknown }): void {
 
 .btn-ghost:hover {
   background: rgba(255, 255, 255, 0.04);
+}
+
+.action-select {
+  width: 100%;
+  max-width: 300px;
+  min-height: 44px;
+  padding: 0.6rem;
+  color: var(--color-text, #e8e6e3);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-md, 8px);
 }
 </style>

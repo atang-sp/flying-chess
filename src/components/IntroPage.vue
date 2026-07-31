@@ -18,13 +18,20 @@
     Flame,
     ShieldCheck,
   } from '@lucide/vue'
-  import { savePlayerSettings, loadPlayerSettings, clearAllLocalGameData } from '../utils/cache'
+  import {
+    savePlayerSettings,
+    loadPlayerSettings,
+    clearAllLocalGameData,
+    loadVictoryConfig,
+    saveVictoryConfig,
+  } from '../utils/cache'
   import { SecureRandom } from '../utils/secureRandom'
   import { devLog } from '../utils/logger'
   import VersionDisplay from './VersionDisplay.vue'
   import PartySceneSelector from './PartySceneSelector.vue'
+  import VictoryConfigPanel from './VictoryConfig.vue'
   import type { GameMode } from '../config/modes'
-  import type { PartyScenePreset } from '../types/game'
+  import type { PartyScenePreset, VictoryConfig } from '../types/game'
   import { PARTY_MIN_PLAYERS } from '../services/partyMode'
 
   interface Emits {
@@ -36,6 +43,7 @@
         mode: GameMode
         scenePreset?: PartyScenePreset | 'default'
         multiDevice?: boolean
+        victoryConfig: VictoryConfig
       }
     ): void
     (e: 'mode-selected', mode: GameMode): void
@@ -50,6 +58,7 @@
   const selectedMode = ref<GameMode>(props.initialMode)
   const selectedScenePreset = ref<PartyScenePreset | 'default'>('default')
   const multiDeviceMode = ref(false)
+  const victoryConfig = ref<VictoryConfig>(loadVictoryConfig())
   const canStart = computed(
     () => selectedMode.value === 'classic' || playerCount.value >= PARTY_MIN_PLAYERS
   )
@@ -72,6 +81,14 @@
     () => [playerCount.value, playerNames.value],
     () => {
       savePlayerSettings({ playerCount: playerCount.value, playerNames: playerNames.value })
+    },
+    { deep: true }
+  )
+
+  watch(
+    victoryConfig,
+    config => {
+      saveVictoryConfig(config)
     },
     { deep: true }
   )
@@ -111,6 +128,7 @@
       mode: selectedMode.value,
       scenePreset: selectedMode.value === 'party' ? selectedScenePreset.value : undefined,
       multiDevice: selectedMode.value === 'party' ? multiDeviceMode.value : undefined,
+      victoryConfig: { ...victoryConfig.value },
     })
   }
 
@@ -137,6 +155,7 @@
   const clearCache = () => {
     try {
       clearAllLocalGameData()
+      victoryConfig.value = loadVictoryConfig()
       showClearSuccess.value = true
       if (clearSuccessTimer !== undefined) clearTimeout(clearSuccessTimer)
       clearSuccessTimer = setTimeout(() => {
@@ -430,6 +449,12 @@
           </div>
         </div>
       </div>
+
+      <VictoryConfigPanel
+        :config="victoryConfig"
+        :player-count="playerCount"
+        @update="victoryConfig = $event"
+      />
 
       <!-- 操作区域 -->
       <div class="intro-actions">

@@ -6,6 +6,7 @@ import type {
   ControllerMessage,
   PlayerView,
   PublicPlayerInfo,
+  ControllerVictorySettlement,
 } from '../types/network'
 import { devLog } from '../utils/logger'
 
@@ -17,6 +18,7 @@ export function useMultiDeviceController() {
   const errorMessage = ref<string | null>(null)
   const gameEnded = ref(false)
   const winnerName = ref<string | null>(null)
+  const victorySettlement = ref<ControllerVictorySettlement | null>(null)
 
   let network: ControllerNetworkManager | null = null
 
@@ -38,6 +40,7 @@ export function useMultiDeviceController() {
       case 'game_ended':
         gameEnded.value = true
         winnerName.value = msg.winnerName
+        victorySettlement.value = msg.settlement ?? null
         break
       case 'room_closed':
         errorMessage.value = '房间已关闭'
@@ -54,6 +57,7 @@ export function useMultiDeviceController() {
     errorMessage.value = null
     gameEnded.value = false
     winnerName.value = null
+    victorySettlement.value = null
 
     network = new ControllerNetworkManager({
       onConnected: () => {
@@ -103,6 +107,7 @@ export function useMultiDeviceController() {
     errorMessage,
     gameEnded,
     winnerName,
+    victorySettlement,
     isConnected,
     isReady,
     connect,

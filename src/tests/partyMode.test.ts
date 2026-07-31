@@ -130,6 +130,23 @@ describe('升温局阶段导演', () => {
     )
   })
 
+  it('惩罚干预消耗决策玩家自己的筹码但不放开骰子干预权', () => {
+    let session = createPartySession({ playerCount: 3, startedAt: 0 })
+    session = beginPartyTurn(session, 0)
+
+    expect(() => spendPartyToken(session, { playerIndex: 1, action: 'reroll' })).toThrow(
+      '只有当前玩家可以使用该干预筹码'
+    )
+
+    session = spendPartyToken(session, { playerIndex: 1, action: 'amplify' })
+
+    expect(session.tokensRemaining).toEqual([2, 1, 2])
+    expect(session.interventionUsedThisTurn).toBe('amplify')
+    expect(() => spendPartyToken(session, { playerIndex: 0, action: 'immunity' })).toThrow(
+      '每回合最多使用一枚干预筹码'
+    )
+  })
+
   it('每轮轮换一次预测反应且镜像后的骰子不能再次重掷', () => {
     let session = createPartySession({ playerCount: 3, startedAt: 0 })
 
