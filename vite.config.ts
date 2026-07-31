@@ -1,3 +1,4 @@
+import { resolve } from 'path'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -80,6 +81,10 @@ export default defineConfig(async ({ command, mode }) => {
       assetsDir: 'assets',
       sourcemap: false,
       rollupOptions: {
+        input: {
+          main: resolve(__dirname, 'index.html'),
+          controller: resolve(__dirname, 'controller.html'),
+        },
         output: {
           manualChunks: {
             vendor: ['vue'],
@@ -89,7 +94,7 @@ export default defineConfig(async ({ command, mode }) => {
     },
     // 优化依赖处理
     optimizeDeps: {
-      include: ['qrcode'],
+      include: ['qrcode', 'peerjs'],
     },
   }
 })
