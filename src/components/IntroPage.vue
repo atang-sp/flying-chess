@@ -35,6 +35,7 @@
         names: string[]
         mode: GameMode
         scenePreset?: PartyScenePreset | 'default'
+        multiDevice?: boolean
       }
     ): void
     (e: 'mode-selected', mode: GameMode): void
@@ -48,6 +49,7 @@
   const playerNames = ref<string[]>(['玩家1', '玩家2'])
   const selectedMode = ref<GameMode>(props.initialMode)
   const selectedScenePreset = ref<PartyScenePreset | 'default'>('default')
+  const multiDeviceMode = ref(false)
   const canStart = computed(
     () => selectedMode.value === 'classic' || playerCount.value >= PARTY_MIN_PLAYERS
   )
@@ -108,6 +110,7 @@
       names: playerNames.value,
       mode: selectedMode.value,
       scenePreset: selectedMode.value === 'party' ? selectedScenePreset.value : undefined,
+      multiDevice: selectedMode.value === 'party' ? multiDeviceMode.value : undefined,
     })
   }
 
@@ -352,6 +355,18 @@
           :selected="selectedScenePreset"
           @select="selectScenePreset"
         />
+
+        <div v-if="selectedMode === 'party'" class="multi-device-toggle">
+          <button
+            class="mode-card"
+            :class="{ 'mode-card--active': multiDeviceMode }"
+            @click="multiDeviceMode = !multiDeviceMode"
+          >
+            <span class="mode-card__icon">📱</span>
+            <span class="mode-card__title">多设备模式</span>
+            <span class="mode-card__desc">每人用自己的手机操作</span>
+          </button>
+        </div>
       </section>
 
       <!-- 玩家设置区域 -->
@@ -1824,5 +1839,20 @@
       padding: 0.6rem 1.2rem;
       font-size: 0.85rem;
     }
+  }
+
+  .multi-device-toggle {
+    margin-top: 1rem;
+  }
+
+  .multi-device-toggle .mode-card {
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+  }
+
+  .multi-device-toggle .mode-card__desc {
+    font-size: 0.8rem;
+    opacity: 0.6;
   }
 </style>

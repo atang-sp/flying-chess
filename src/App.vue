@@ -88,6 +88,7 @@
   import { usePunishmentConfigNormalizer } from './composables/usePunishmentConfigNormalizer'
   import { useImportFeedbackDialog } from './composables/useImportFeedbackDialog'
   import { usePartyMode } from './composables/usePartyMode'
+  import { useMultiDeviceHost } from './composables/useMultiDeviceHost'
   import { type GameMode } from './config/modes'
   import {
     createPartyPunishmentChoices,
@@ -1318,6 +1319,7 @@
     pendingPartyLanding.value = null
     partyTieCandidates.value = []
     activeMode.value = null
+    multiDevice.stopHost()
 
     // 清除惩罚组合确认状态
     punishmentCombinations.value = []
@@ -1452,11 +1454,30 @@
       partyMode.session.value?.reaction?.status === 'awaiting_roll'
     ) {
       const resolvedSession = partyMode.resolveRoll(gameState.diceValue)
-      if (resolvedSession.reaction?.status === 'awaiting_decision') return
+      if (resolvedSession.reaction?.status === 'awaiting_decision') {
+        const reactorIdx = resolvedSession.reaction.reactorPlayerIndex
+        if (multiDevice.isRemotePlayer(reactorIdx)) {
+          multiDevice.requestAction(reactorIdx, {
+            type: 'reaction_decision',
+            rolledValue: resolvedSession.reaction.rolledValue!,
+            timeoutSeconds: 5,
+          })
+        }
+        return
+      }
       gameState.diceValue = resolvedSession.reaction?.finalDiceValue ?? gameState.diceValue
     }
 
     if (isPartyGame.value && !isReroll) {
+      const currentIdx = gameState.currentPlayerIndex
+      if (multiDevice.isRemotePlayer(currentIdx)) {
+        multiDevice.requestAction(currentIdx, {
+          type: 'dice_decision',
+          diceValue: gameState.diceValue ?? 1,
+          canReroll: canCurrentPlayerReroll.value,
+          timeoutSeconds: 5,
+        })
+      }
       partyDiceDecisionVisible.value = true
       return
     }
@@ -1502,7 +1523,15 @@
 
     if (isPartyGame.value) {
       const partyTurn = partyMode.beginTurn(currentPlayerIndex)
-      if (partyTurn.reaction?.status === 'awaiting_prediction') return
+      if (partyTurn.reaction?.status === 'awaiting_prediction') {
+        if (multiDevice.isRemotePlayer(partyTurn.reaction.reactorPlayerIndex)) {
+          multiDevice.requestAction(partyTurn.reaction.reactorPlayerIndex, {
+            type: 'predict',
+            timeoutSeconds: 5,
+          })
+        }
+        return
+      }
     }
 
     await performDiceRoll()
@@ -2071,11 +2100,12 @@
   }
 
   // 修改IntroPage组件的调用，使其能够接收玩家配置信息并传递给startGame方法
-  const handleIntroStart = (playerConfig: {
+  const handleIntroStart = async (playerConfig: {
     count: number
     names: string[]
     mode: GameMode
     scenePreset?: PartyScenePreset | 'default'
+    multiDevice?: boolean
   }) => {
     selectedMode.value = playerConfig.mode
     saveGameMode(playerConfig.mode)
@@ -2088,6 +2118,13 @@
         mode: 'party',
         scenePreset: playerConfig.scenePreset ?? 'default',
       })
+      if (playerConfig.multiDevice) {
+        try {
+          await multiDevice.startHost()
+        } catch (e) {
+          devLog('多设备模式启动失败:', e)
+        }
+      }
       return
     }
 
@@ -2281,6 +2318,58 @@
     gameState.gameStatus = 'waiting'
     await continueAfterMove()
   }
+
+  // --- 多设备同步（手柄模式） ---
+  const multiDevice = useMultiDeviceHost({
+    gameState,
+    partySession: partySession,
+    lastEffect,
+    gameStarted,
+    gameFinished,
+    isPartyGame,
+    sessionPaused,
+    overlayState: () => ({
+      currentPunishment: Boolean(currentPunishment.value),
+      showTakeoffPunishment: showTakeoffPunishmentDisplay.value,
+      showTrap: showTrapDisplay.value,
+      showTrapChoice: showTrapChoiceDisplay.value,
+      showQA: showQADisplay.value,
+      showDare: showDareDisplay.value,
+      showBounce: showBounceDisplay.value,
+      showEffect: gameState.gameStatus === 'showing_effect',
+      showTakeoffRelief: showTakeoffReliefDisplay.value,
+    }),
+    actions: {
+      handleDiceRoll,
+      performDiceRoll,
+      handlePartyReactionPrediction,
+      handlePartyReactionDecision,
+      handlePartyReroll,
+      continuePartyMove,
+      resolvePartyPunishmentChoice,
+      confirmPunishment,
+      confirmEffect,
+      handleTrapDismiss: () => confirmTrap(),
+      handleTrapChoiceDismiss: () => confirmTrap(),
+      handleQADismiss: () => {
+        showQADisplay.value = false
+        currentQAQuestion.value = ''
+        pendingRuleResolution.value = null
+        continueAfterMove()
+      },
+      handleDareDismiss: () => {
+        showDareDisplay.value = false
+        currentDareInstruction.value = ''
+        pendingRuleResolution.value = null
+        continueAfterMove()
+      },
+      handleBounceConfirm: () => confirmBounce(),
+      handleTakeoffPunishmentDismiss: handleTakeoffPunishmentDisplay,
+      handleTakeoffReliefDismiss: () => confirmTakeoffRelief(),
+    },
+  })
+
+  const multiDeviceEnabled = computed(() => multiDevice.enabled.value)
 
   // 用户指引
   const startGuide = () => {
@@ -2957,11 +3046,18 @@
             :total-cells="gameState.board.length"
             :party-act-label="isPartyGame ? partyActLabel : undefined"
             :party-round="isPartyGame ? partySession?.roundNumber : undefined"
-            :tokens-remaining="isPartyGame ? partySession?.tokensRemaining : undefined"
+            :tokens-remaining="isPartyGame && !multiDeviceEnabled ? partySession?.tokensRemaining : undefined"
             class="header-players"
           />
 
           <div class="header-actions">
+            <span
+              v-if="multiDeviceEnabled"
+              class="multi-device-badge"
+              :title="`多设备模式 - ${multiDevice.getConnectedPlayerCount()}/${gameState.players.length} 已连接`"
+            >
+              📱 {{ multiDevice.getConnectedPlayerCount() }}/{{ gameState.players.length }}
+            </span>
             <PButton
               v-if="!gameStarted"
               label="开始游戏"
@@ -3157,6 +3253,7 @@
     <ChainPunishmentRoll :visible="showChainPunishmentRoll" @result="handleChainRollResult" />
 
     <PartyReactionOverlay
+      v-if="!multiDeviceEnabled || !multiDevice.isRemotePlayer(partyReaction?.reactorPlayerIndex ?? -1)"
       :reaction="partyReaction"
       :players="gameState.players"
       :paused="sessionPaused"
@@ -3165,6 +3262,7 @@
     />
 
     <PartyDiceDecision
+      v-if="!multiDeviceEnabled || !multiDevice.isRemotePlayer(gameState.currentPlayerIndex)"
       :visible="partyDiceDecisionVisible"
       :player-name="gameState.players[gameState.currentPlayerIndex]?.name ?? '当前玩家'"
       :dice-value="gameState.diceValue ?? 1"
@@ -3176,6 +3274,7 @@
     />
 
     <PartyPunishmentChoice
+      v-if="!multiDeviceEnabled || !multiDevice.isRemotePlayer(gameState.currentPlayerIndex)"
       :visible="partyPunishmentChoices.length === 2"
       :choices="partyPunishmentChoices"
       :tokens-remaining="currentPartyTokens"
@@ -3207,6 +3306,33 @@
       :failed-count="failedTakeoffCountForMessage"
       @confirm="confirmTakeoffRelief"
     />
+
+    <!-- 多设备连接面板 -->
+    <div
+      v-if="multiDeviceEnabled && multiDevice.roomInfo.value && !multiDevice.allPlayersConnected.value"
+      class="multi-device-lobby"
+    >
+      <div class="multi-device-lobby-card">
+        <h2>等待玩家连接</h2>
+        <p class="room-code-label">房间码</p>
+        <p class="room-code">{{ multiDevice.roomInfo.value.roomId }}</p>
+        <p class="room-url">{{ multiDevice.roomInfo.value.gameUrl }}</p>
+        <div class="connection-list">
+          <div
+            v-for="player in gameState.players"
+            :key="player.id"
+            class="connection-item"
+            :class="{ connected: multiDevice.connectedPlayers.value.some(c => c.playerIndex === player.id - 1 && c.status === 'connected') }"
+          >
+            <span class="player-dot" :style="{ background: player.color }" />
+            <span>{{ player.name }}</span>
+            <span class="connection-status-icon">
+              {{ multiDevice.connectedPlayers.value.some(c => c.playerIndex === player.id - 1 && c.status === 'connected') ? '✓' : '...' }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <button
       v-if="canPauseSession && !sessionPaused"
@@ -4039,5 +4165,102 @@
       min-width: 180px;
       padding: 0.75rem;
     }
+  }
+
+  /* --- Multi-device lobby --- */
+  .multi-device-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(225, 194, 127, 0.15);
+    color: var(--color-accent, #e1c27f);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .multi-device-lobby {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    padding: 1rem;
+  }
+
+  .multi-device-lobby-card {
+    background: var(--color-surface, #1a1a2e);
+    border-radius: var(--radius-lg, 12px);
+    padding: 2rem;
+    text-align: center;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  .multi-device-lobby-card h2 {
+    margin: 0 0 1.5rem;
+    font-size: 1.3rem;
+  }
+
+  .room-code-label {
+    font-size: 0.85rem;
+    color: var(--color-text-muted, #8a8780);
+    margin-bottom: 0.25rem;
+  }
+
+  .room-code {
+    font-size: 2.5rem;
+    font-weight: 800;
+    letter-spacing: 0.3em;
+    color: var(--color-accent, #e1c27f);
+    margin-bottom: 0.5rem;
+  }
+
+  .room-url {
+    font-size: 0.7rem;
+    color: var(--color-text-muted, #8a8780);
+    word-break: break-all;
+    margin-bottom: 1.5rem;
+  }
+
+  .connection-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .connection-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    transition: all 0.3s;
+  }
+
+  .connection-item.connected {
+    background: rgba(52, 211, 153, 0.1);
+  }
+
+  .connection-item .player-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .connection-status-icon {
+    margin-left: auto;
+    font-size: 0.9rem;
+  }
+
+  .connection-item.connected .connection-status-icon {
+    color: #34d399;
   }
 </style>
