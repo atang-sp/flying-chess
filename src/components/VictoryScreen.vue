@@ -5,10 +5,7 @@
   import type { GameMode } from '../config/modes'
   import type { PartyHighlight } from '../services/partyMode'
   import type { Player, VictoryConfig } from '../types/game'
-  import {
-    DEFAULT_VICTORY_CONFIG,
-    resolveVictorySettlement,
-  } from '../services/victorySettlement'
+  import { DEFAULT_VICTORY_CONFIG, resolveVictorySettlement } from '../services/victorySettlement'
   import PlayerMeeple from './PlayerMeeple.vue'
 
   interface Props {

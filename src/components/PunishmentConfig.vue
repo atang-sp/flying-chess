@@ -61,7 +61,7 @@
     errorMessage.value = validation.errorMessage || '配置验证失败'
     requiredSensitivity.value = validation.requiredSensitivity
     showErrorModal.value = true
-    emit('validation-failed', validation.errorMessage!, validation.requiredSensitivity)
+    emit('validation-failed', errorMessage.value, validation.requiredSensitivity)
   }
 
   // --- Ratio auto-distribution ---
@@ -352,7 +352,7 @@
     validateAndEmit(originalConfig)
   }
 
-  const isBodyPartCompatible = (position: PunishmentPosition, bodyPartName: string): boolean => {
+  const isBodyPartCompatible = (position: RatioItem, bodyPartName: string): boolean => {
     if (!position.compatibleBodyParts || position.compatibleBodyParts.length === 0) {
       return true
     }
@@ -447,17 +447,17 @@
             <span class="detail-stat-label">强度</span>
             <div class="detail-stat-controls">
               <button
-                :disabled="item.intensity <= 1"
+                :disabled="(item.intensity ?? 1) <= 1"
                 class="btn-stat"
-                @click="updateToolIntensity(item.name, item.intensity - 1)"
+                @click="updateToolIntensity(item.name, (item.intensity ?? 1) - 1)"
               >
                 <Minus :size="14" />
               </button>
               <span class="detail-stat-value">{{ item.intensity }}/10</span>
               <button
-                :disabled="item.intensity >= 10"
+                :disabled="(item.intensity ?? 1) >= 10"
                 class="btn-stat"
-                @click="updateToolIntensity(item.name, item.intensity + 1)"
+                @click="updateToolIntensity(item.name, (item.intensity ?? 1) + 1)"
               >
                 <Plus :size="14" />
               </button>
@@ -505,17 +505,17 @@
             <span class="detail-stat-label">耐受度</span>
             <div class="detail-stat-controls">
               <button
-                :disabled="item.sensitivity <= 1"
+                :disabled="(item.sensitivity ?? 1) <= 1"
                 class="btn-stat"
-                @click="updateBodyPartSensitivity(item.name, item.sensitivity - 1)"
+                @click="updateBodyPartSensitivity(item.name, (item.sensitivity ?? 1) - 1)"
               >
                 <Minus :size="14" />
               </button>
               <span class="detail-stat-value">{{ item.sensitivity }}/10</span>
               <button
-                :disabled="item.sensitivity >= 10"
+                :disabled="(item.sensitivity ?? 1) >= 10"
                 class="btn-stat"
-                @click="updateBodyPartSensitivity(item.name, item.sensitivity + 1)"
+                @click="updateBodyPartSensitivity(item.name, (item.sensitivity ?? 1) + 1)"
               >
                 <Plus :size="14" />
               </button>
@@ -566,11 +566,11 @@
                 v-for="bp in Object.values(localConfig.bodyParts)"
                 :key="bp.name"
                 class="chip-label"
-                :class="{ active: isBodyPartCompatible(item as PunishmentPosition, bp.name) }"
+                :class="{ active: isBodyPartCompatible(item, bp.name) }"
               >
                 <input
                   type="checkbox"
-                  :checked="isBodyPartCompatible(item as PunishmentPosition, bp.name)"
+                  :checked="isBodyPartCompatible(item, bp.name)"
                   @change="toggleCompatibleBodyPart(item.name, bp.name)"
                 />
                 {{ bp.name }}

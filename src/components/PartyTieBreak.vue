@@ -45,7 +45,9 @@
 
   watch(
     () => props.visible,
-    (visible) => { if (visible) resolved.value = false }
+    visible => {
+      if (visible) resolved.value = false
+    }
   )
 
   const roll = () => {
@@ -79,7 +81,13 @@
         </div>
       </div>
 
-      <button type="button" class="tie-roll-button" :disabled="resolved" data-testid="party-tie-roll" @click="roll">
+      <button
+        type="button"
+        class="tie-roll-button"
+        :disabled="resolved"
+        data-testid="party-tie-roll"
+        @click="roll"
+      >
         <Dices :size="20" />
         掷骰
       </button>

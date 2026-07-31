@@ -19,16 +19,6 @@ function getCurrentGitTag(): string | null {
   }
 }
 
-// 获取最近的 Git tag
-function getLatestGitTag(): string | null {
-  try {
-    const tag = execSync('git describe --tags --abbrev=0 2>/dev/null', { encoding: 'utf8' }).trim()
-    return tag
-  } catch (error) {
-    return null
-  }
-}
-
 export function versionPlugin(options: VersionPluginOptions = {}): Plugin {
   let version = options.version || 'dev'
   const buildTime = new Date().toISOString()
@@ -46,24 +36,18 @@ export function versionPlugin(options: VersionPluginOptions = {}): Plugin {
 
       // 尝试获取 Git tag
       const currentTag = getCurrentGitTag()
-      const latestTag = getLatestGitTag()
-
       if (currentTag) {
         // 如果当前提交有对应的 tag，使用该 tag
         version = currentTag.startsWith('v') ? currentTag.substring(1) : currentTag
         console.log(`📦 使用当前 Git tag: ${currentTag} -> ${version}`)
-      } else if (latestTag) {
-        // 如果没有当前 tag，但有最近的 tag，使用最近的 tag + dev 后缀
-        const baseVersion = latestTag.startsWith('v') ? latestTag.substring(1) : latestTag
-        version = `${baseVersion}-dev`
-        console.log(`📦 使用最近 Git tag: ${latestTag} -> ${version}`)
       } else {
-        // 如果没有 tag，尝试从 package.json 读取
+        // 未打 tag 的提交属于下一版本开发线，应以 package.json 为准。
+        // 最近的历史 tag 代表旧版本，不能用于当前页面或遥测。
         try {
           const pkgPath = resolve(process.cwd(), 'package.json')
           const pkgContent = readFileSync(pkgPath, 'utf-8')
           const pkg = JSON.parse(pkgContent)
-          version = pkg.version || 'dev'
+          version = pkg.version ? `${pkg.version}-dev` : 'dev'
           console.log(`📦 使用 package.json 版本: ${version}`)
         } catch (e) {
           version = 'dev'

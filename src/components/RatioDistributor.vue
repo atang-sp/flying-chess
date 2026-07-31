@@ -5,7 +5,9 @@
   export interface RatioItem {
     name: string
     ratio: number
-    [key: string]: any
+    intensity?: number
+    sensitivity?: number
+    compatibleBodyParts?: string[]
   }
 
   interface Props {

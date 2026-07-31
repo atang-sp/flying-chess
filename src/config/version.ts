@@ -11,6 +11,6 @@ export function getVersionInfo() {
   return {
     version: VERSION,
     buildTime: BUILD_TIME,
-    isDev: VERSION === 'dev' || VERSION === '__VERSION__',
+    isDev: VERSION === 'dev' || VERSION === '__VERSION__' || VERSION.endsWith('-dev'),
   }
 }

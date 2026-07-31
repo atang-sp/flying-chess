@@ -20,9 +20,9 @@
     "format:check": "prettier --check .",
     "type-check": "vue-tsc --noEmit",
     "prepare": "husky",
-    "validate-config": "node scripts/validate-config.js",
+    "validate-config": "npm run validate-demo && npm run validate-example",
     "validate-demo": "node scripts/validate-config.js configs/exported-config-demo.json",
-    "validate-example": "node scripts/validate-config.js examples/config-with-schema.json",
+    "validate-example": "node scripts/validate-config.js configs/config-with-schema.json",
     "test": "vitest run",
     "test:e2e": "playwright test tests/e2e"
   },
@@ -47,6 +47,9 @@
     "qrcode": "^1.5.4",
     "three": "^0.178.0",
     "vue": "^3.5.13"
+  },
+  "overrides": {
+    "brace-expansion": "5.0.8"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",

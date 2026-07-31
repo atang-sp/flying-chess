@@ -2,7 +2,6 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import './assets/main.css'
 import 'driver.js/dist/driver.css'
-import { devLog } from './utils/logger'
 
 // PrimeVue imports
 import PrimeVue from 'primevue/config'
@@ -50,17 +49,3 @@ app.component('Divider', Divider)
 app.directive('tooltip', Tooltip)
 
 app.mount('#app')
-
-// Register PWA Service Worker
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/flying-chess/sw.js')
-      .then(registration => {
-        devLog('SW registered: ', registration)
-      })
-      .catch(registrationError => {
-        devLog('SW registration failed: ', registrationError)
-      })
-  })
-}

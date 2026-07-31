@@ -1,248 +1,247 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>二维码导入测试</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .test-section {
-            margin: 20px 0;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-        }
-        .result {
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 4px;
-            white-space: pre-wrap;
-        }
-        .success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        .info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-        .file-input {
-            margin: 10px 0;
-        }
-        button {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin: 5px;
-        }
-        button:hover {
-            background: #0056b3;
-        }
-        button:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-        }
-        #qr-preview {
-            text-align: center;
-            margin: 20px 0;
-        }
-        #qr-preview img {
-            max-width: 300px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-        }
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .test-section {
+        margin: 20px 0;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      .result {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+        white-space: pre-wrap;
+      }
+      .success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .info {
+        background: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+      }
+      .file-input {
+        margin: 10px 0;
+      }
+      button {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      button:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+      }
+      #qr-preview {
+        text-align: center;
+        margin: 20px 0;
+      }
+      #qr-preview img {
+        max-width: 300px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>二维码导入功能测试</h1>
-    
+
     <div class="test-section">
-        <h2>1. 生成测试二维码</h2>
-        <p>首先生成一个包含配置数据的二维码用于测试：</p>
-        <button onclick="generateTestQR()">生成测试二维码</button>
-        <div id="qr-preview"></div>
-        <div id="generate-result" class="result"></div>
+      <h2>1. 生成测试二维码</h2>
+      <p>首先生成一个包含配置数据的二维码用于测试：</p>
+      <button onclick="generateTestQR()">生成测试二维码</button>
+      <div id="qr-preview"></div>
+      <div id="generate-result" class="result"></div>
     </div>
 
     <div class="test-section">
-        <h2>2. 测试二维码解析</h2>
-        <p>选择上面生成的二维码图片或您自己的二维码图片进行测试：</p>
-        <input type="file" id="qr-file" accept="image/*" class="file-input">
-        <button onclick="testQRParsing()">解析二维码</button>
-        <div id="parsing-result" class="result"></div>
+      <h2>2. 测试二维码解析</h2>
+      <p>选择上面生成的二维码图片或您自己的二维码图片进行测试：</p>
+      <input type="file" id="qr-file" accept="image/*" class="file-input" />
+      <button onclick="testQRParsing()">解析二维码</button>
+      <div id="parsing-result" class="result"></div>
     </div>
 
     <div class="test-section">
-        <h2>3. 完整导入测试</h2>
-        <p>测试完整的二维码导入流程：</p>
-        <input type="file" id="import-file" accept="image/*" class="file-input">
-        <button onclick="testFullImport()">完整导入测试</button>
-        <div id="import-result" class="result"></div>
+      <h2>3. 完整导入测试</h2>
+      <p>测试完整的二维码导入流程：</p>
+      <input type="file" id="import-file" accept="image/*" class="file-input" />
+      <button onclick="testFullImport()">完整导入测试</button>
+      <div id="import-result" class="result"></div>
     </div>
 
     <script type="module">
-        // 导入必要的模块
-        import QrScanner from '/flying-chess/node_modules/qr-scanner/qr-scanner.min.js';
-        
-        // 配置 worker 路径
-        QrScanner.WORKER_PATH = '/flying-chess/node_modules/qr-scanner/qr-scanner-worker.min.js';
-        
-        // 暴露到全局作用域
-        window.QrScanner = QrScanner;
-        
-        // 生成测试二维码
-        window.generateTestQR = async function() {
-            const resultDiv = document.getElementById('generate-result');
-            const previewDiv = document.getElementById('qr-preview');
-            
-            try {
-                resultDiv.className = 'result info';
-                resultDiv.textContent = '正在生成测试二维码...';
-                
-                // 创建测试配置数据
-                const testConfig = {
-                    version: "1.0.0",
-                    exportedAt: Date.now(),
-                    data: {
-                        playerSettings: {
-                            name: "测试玩家",
-                            avatar: "👤",
-                            sensitivity: 5
-                        },
-                        punishmentConfig: {
-                            enabled: true,
-                            intensity: 3,
-                            duration: 10
-                        }
-                    }
-                };
+      // 导入必要的模块
+      import QrScanner from '/flying-chess/node_modules/qr-scanner/qr-scanner.min.js'
 
-                // 动态导入 qrcode 库
-                const QRCode = await import('/flying-chess/node_modules/qrcode/lib/browser.js');
-                
-                // 生成二维码
-                const qrDataURL = await QRCode.default.toDataURL(JSON.stringify(testConfig), {
-                    width: 300,
-                    margin: 2,
-                    errorCorrectionLevel: 'M'
-                });
-                
-                // 显示二维码
-                previewDiv.innerHTML = `
+      // 配置 worker 路径
+      QrScanner.WORKER_PATH = '/flying-chess/node_modules/qr-scanner/qr-scanner-worker.min.js'
+
+      // 暴露到全局作用域
+      window.QrScanner = QrScanner
+
+      // 生成测试二维码
+      window.generateTestQR = async function () {
+        const resultDiv = document.getElementById('generate-result')
+        const previewDiv = document.getElementById('qr-preview')
+
+        try {
+          resultDiv.className = 'result info'
+          resultDiv.textContent = '正在生成测试二维码...'
+
+          // 创建测试配置数据
+          const testConfig = {
+            version: '1.0.0',
+            exportedAt: Date.now(),
+            data: {
+              playerSettings: {
+                name: '测试玩家',
+                avatar: '👤',
+                sensitivity: 5,
+              },
+              punishmentConfig: {
+                enabled: true,
+                intensity: 3,
+                duration: 10,
+              },
+            },
+          }
+
+          // 动态导入 qrcode 库
+          const QRCode = await import('/flying-chess/node_modules/qrcode/lib/browser.js')
+
+          // 生成二维码
+          const qrDataURL = await QRCode.default.toDataURL(JSON.stringify(testConfig), {
+            width: 300,
+            margin: 2,
+            errorCorrectionLevel: 'M',
+          })
+
+          // 显示二维码
+          previewDiv.innerHTML = `
                     <h4>生成的测试二维码：</h4>
                     <img src="${qrDataURL}" alt="测试二维码" id="test-qr-image">
                     <p>右键保存图片，然后在下面的测试中使用</p>
-                `;
-                
-                resultDiv.className = 'result success';
-                resultDiv.textContent = '✅ 测试二维码生成成功！\n配置数据：\n' + JSON.stringify(testConfig, null, 2);
-                
-            } catch (error) {
-                resultDiv.className = 'result error';
-                resultDiv.textContent = `❌ 二维码生成失败: ${error.message}`;
-                console.error('生成二维码失败:', error);
-            }
-        };
+                `
 
-        // 测试二维码解析
-        window.testQRParsing = async function() {
-            const fileInput = document.getElementById('qr-file');
-            const resultDiv = document.getElementById('parsing-result');
-            
-            if (!fileInput.files || fileInput.files.length === 0) {
-                resultDiv.className = 'result error';
-                resultDiv.textContent = '❌ 请先选择一个图片文件';
-                return;
-            }
+          resultDiv.className = 'result success'
+          resultDiv.textContent =
+            '✅ 测试二维码生成成功！\n配置数据：\n' + JSON.stringify(testConfig, null, 2)
+        } catch (error) {
+          resultDiv.className = 'result error'
+          resultDiv.textContent = `❌ 二维码生成失败: ${error.message}`
+          console.error('生成二维码失败:', error)
+        }
+      }
 
-            const file = fileInput.files[0];
-            
-            try {
-                resultDiv.className = 'result info';
-                resultDiv.textContent = '🔄 正在解析二维码...';
-                
-                console.log('开始解析文件:', file.name, file.type, file.size);
+      // 测试二维码解析
+      window.testQRParsing = async function () {
+        const fileInput = document.getElementById('qr-file')
+        const resultDiv = document.getElementById('parsing-result')
 
-                // 简单调用
-                const result = await QrScanner.scanImage(file);
+        if (!fileInput.files || fileInput.files.length === 0) {
+          resultDiv.className = 'result error'
+          resultDiv.textContent = '❌ 请先选择一个图片文件'
+          return
+        }
 
-                console.log('解析结果:', result);
-                
-                // 尝试解析为JSON
-                let parsedData;
-                try {
-                    parsedData = JSON.parse(result);
-                    resultDiv.className = 'result success';
-                    resultDiv.textContent = `✅ 二维码解析成功！\n原始数据长度: ${result.length}\n解析后的JSON数据:\n${JSON.stringify(parsedData, null, 2)}`;
-                } catch (jsonError) {
-                    resultDiv.className = 'result success';
-                    resultDiv.textContent = `✅ 二维码解析成功！\n内容: ${result}\n注意: 内容不是有效的JSON格式`;
-                }
-                
-            } catch (error) {
-                resultDiv.className = 'result error';
-                resultDiv.textContent = `❌ 二维码解析失败: ${error.message}`;
-                console.error('解析失败:', error);
-            }
-        };
+        const file = fileInput.files[0]
 
-        // 测试完整导入
-        window.testFullImport = async function() {
-            const fileInput = document.getElementById('import-file');
-            const resultDiv = document.getElementById('import-result');
-            
-            if (!fileInput.files || fileInput.files.length === 0) {
-                resultDiv.className = 'result error';
-                resultDiv.textContent = '❌ 请先选择一个图片文件';
-                return;
-            }
+        try {
+          resultDiv.className = 'result info'
+          resultDiv.textContent = '🔄 正在解析二维码...'
 
-            const file = fileInput.files[0];
-            
-            try {
-                resultDiv.className = 'result info';
-                resultDiv.textContent = '🔄 正在执行完整导入测试...';
-                
-                // 模拟完整的导入流程
-                console.log('开始完整导入测试，文件信息:', {
-                    name: file.name,
-                    type: file.type,
-                    size: file.size
-                });
+          console.log('开始解析文件:', file.name, file.type, file.size)
 
-                // 第一步：解析二维码
-                console.log('步骤1: 解析二维码');
-                const qrData = await QrScanner.scanImage(file);
-                console.log('二维码解析成功，数据长度:', qrData.length);
+          // 简单调用
+          const result = await QrScanner.scanImage(file)
 
-                // 第二步：解析JSON
-                console.log('步骤2: 解析JSON数据');
-                const configData = JSON.parse(qrData);
-                console.log('JSON解析成功，数据结构:', Object.keys(configData));
+          console.log('解析结果:', result)
 
-                // 第三步：验证数据格式（简化版）
-                console.log('步骤3: 验证数据格式');
-                if (!configData.version || !configData.data) {
-                    throw new Error('配置数据格式不正确，缺少必要字段');
-                }
+          // 尝试解析为JSON
+          let parsedData
+          try {
+            parsedData = JSON.parse(result)
+            resultDiv.className = 'result success'
+            resultDiv.textContent = `✅ 二维码解析成功！\n原始数据长度: ${result.length}\n解析后的JSON数据:\n${JSON.stringify(parsedData, null, 2)}`
+          } catch (jsonError) {
+            resultDiv.className = 'result success'
+            resultDiv.textContent = `✅ 二维码解析成功！\n内容: ${result}\n注意: 内容不是有效的JSON格式`
+          }
+        } catch (error) {
+          resultDiv.className = 'result error'
+          resultDiv.textContent = `❌ 二维码解析失败: ${error.message}`
+          console.error('解析失败:', error)
+        }
+      }
 
-                resultDiv.className = 'result success';
-                resultDiv.textContent = `✅ 完整导入测试成功！
+      // 测试完整导入
+      window.testFullImport = async function () {
+        const fileInput = document.getElementById('import-file')
+        const resultDiv = document.getElementById('import-result')
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+          resultDiv.className = 'result error'
+          resultDiv.textContent = '❌ 请先选择一个图片文件'
+          return
+        }
+
+        const file = fileInput.files[0]
+
+        try {
+          resultDiv.className = 'result info'
+          resultDiv.textContent = '🔄 正在执行完整导入测试...'
+
+          // 模拟完整的导入流程
+          console.log('开始完整导入测试，文件信息:', {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+          })
+
+          // 第一步：解析二维码
+          console.log('步骤1: 解析二维码')
+          const qrData = await QrScanner.scanImage(file)
+          console.log('二维码解析成功，数据长度:', qrData.length)
+
+          // 第二步：解析JSON
+          console.log('步骤2: 解析JSON数据')
+          const configData = JSON.parse(qrData)
+          console.log('JSON解析成功，数据结构:', Object.keys(configData))
+
+          // 第三步：验证数据格式（简化版）
+          console.log('步骤3: 验证数据格式')
+          if (!configData.version || !configData.data) {
+            throw new Error('配置数据格式不正确，缺少必要字段')
+          }
+
+          resultDiv.className = 'result success'
+          resultDiv.textContent = `✅ 完整导入测试成功！
 步骤1: 二维码解析 ✓
 步骤2: JSON解析 ✓  
 步骤3: 数据验证 ✓
@@ -250,14 +249,13 @@
 配置数据详情:
 版本: ${configData.version}
 导出时间: ${new Date(configData.exportedAt).toLocaleString()}
-数据内容: ${JSON.stringify(configData.data, null, 2)}`;
-                
-            } catch (error) {
-                resultDiv.className = 'result error';
-                resultDiv.textContent = `❌ 完整导入测试失败: ${error.message}`;
-                console.error('完整导入测试失败:', error);
-            }
-        };
+数据内容: ${JSON.stringify(configData.data, null, 2)}`
+        } catch (error) {
+          resultDiv.className = 'result error'
+          resultDiv.textContent = `❌ 完整导入测试失败: ${error.message}`
+          console.error('完整导入测试失败:', error)
+        }
+      }
     </script>
-</body>
+  </body>
 </html>
