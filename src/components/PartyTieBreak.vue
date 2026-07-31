@@ -41,13 +41,24 @@
     { immediate: true, deep: true }
   )
 
+  const resolved = ref(false)
+
+  watch(
+    () => props.visible,
+    (visible) => { if (visible) resolved.value = false }
+  )
+
   const roll = () => {
+    if (resolved.value) return
     const currentState = state.value
     const playerIndex = currentPlayerIndex.value
     if (!currentState || playerIndex === undefined) return
     const result = rollPartyTieBreak(currentState, playerIndex, SecureRandom.randomInt(1, 6))
     state.value = result.state
-    if (result.winnerPlayerIndex !== undefined) emit('winner', result.winnerPlayerIndex)
+    if (result.winnerPlayerIndex !== undefined) {
+      resolved.value = true
+      emit('winner', result.winnerPlayerIndex)
+    }
   }
 </script>
 
@@ -68,7 +79,7 @@
         </div>
       </div>
 
-      <button type="button" class="tie-roll-button" data-testid="party-tie-roll" @click="roll">
+      <button type="button" class="tie-roll-button" :disabled="resolved" data-testid="party-tie-roll" @click="roll">
         <Dices :size="20" />
         掷骰
       </button>

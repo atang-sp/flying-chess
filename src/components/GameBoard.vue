@@ -190,7 +190,7 @@
   }
 
   const locateCurrentPlayer = () => {
-    const position = currentPlayer.value?.position || 1
+    const position = currentPlayer.value?.position ?? 1
     focusCell(position)
   }
 
@@ -231,7 +231,7 @@
   watch(
     () => props.selectedPosition,
     position => {
-      if (!position) return
+      if (position == null) return
       focusedPosition.value = position
       nextTick(() => scrollToCell(position))
     }

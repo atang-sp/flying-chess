@@ -13,8 +13,16 @@
     (e: 'refuse'): void
   }
 
-  defineProps<Props>()
+  import { ref, watch } from 'vue'
+
+  const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
+
+  const submitted = ref(false)
+  watch(() => props.show, (visible) => { if (visible) submitted.value = false })
+
+  const answer = () => { if (submitted.value) return; submitted.value = true; emit('answer') }
+  const refuse = () => { if (submitted.value) return; submitted.value = true; emit('refuse') }
 </script>
 
 <template>
@@ -38,11 +46,11 @@
       </div>
 
       <div class="qa-actions">
-        <button class="btn qa-answer-btn" @click="emit('answer')">
+        <button class="btn qa-answer-btn" :disabled="submitted" @click="answer">
           <Check :size="18" />
           <span>已回答</span>
         </button>
-        <button class="btn qa-refuse-btn" @click="emit('refuse')">
+        <button class="btn qa-refuse-btn" :disabled="submitted" @click="refuse">
           <Zap :size="18" />
           <span>拒绝回答（接受惩罚）</span>
         </button>

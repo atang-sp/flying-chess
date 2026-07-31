@@ -22,6 +22,7 @@
 
   const secondsRemaining = ref(PARTY_DECISION_TIMEOUT_SECONDS)
   let timer: number | undefined
+  let submitted = false
 
   const clearTimer = () => {
     if (timer !== undefined) {
@@ -32,11 +33,14 @@
 
   const startTimer = (resetCountdown: boolean) => {
     clearTimer()
+    submitted = false
     if (resetCountdown) secondsRemaining.value = PARTY_DECISION_TIMEOUT_SECONDS
     timer = window.setInterval(() => {
       secondsRemaining.value -= 1
       if (secondsRemaining.value <= 0) {
         clearTimer()
+        if (submitted) return
+        submitted = true
         emit(PARTY_DEFAULT_DICE_DECISION)
       }
     }, 1000)
@@ -56,6 +60,8 @@
   onBeforeUnmount(clearTimer)
 
   const choose = (event: 'reroll' | 'continue') => {
+    if (submitted) return
+    submitted = true
     clearTimer()
     if (event === 'reroll') emit('reroll')
     else emit('continue')

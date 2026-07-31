@@ -12,8 +12,15 @@
     (e: 'confirm'): void
   }
 
-  defineProps<Props>()
+  import { ref, watch } from 'vue'
+
+  const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
+
+  const submitted = ref(false)
+  watch(() => props.show, (visible) => { if (visible) submitted.value = false })
+
+  const confirm = () => { if (submitted.value) return; submitted.value = true; emit('confirm') }
 </script>
 
 <template>
@@ -37,7 +44,7 @@
       </div>
 
       <div class="dare-actions">
-        <button class="btn dare-confirm-btn" @click="emit('confirm')">
+        <button class="btn dare-confirm-btn" :disabled="submitted" @click="confirm">
           <Check :size="18" />
           <span>已完成</span>
         </button>

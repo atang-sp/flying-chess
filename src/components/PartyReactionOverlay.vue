@@ -22,7 +22,8 @@
   }>()
 
   const secondsRemaining = ref(PARTY_DECISION_TIMEOUT_SECONDS)
-  let decisionTimer: number | undefined
+  let activeTimer: number | undefined
+  let submitted = false
 
   const reactorName = computed(
     () => props.players[props.reaction?.reactorPlayerIndex ?? -1]?.name ?? '反应者'
@@ -31,21 +32,39 @@
     () => props.players[props.reaction?.targetPlayerIndex ?? -1]?.name ?? '当前玩家'
   )
 
-  const clearDecisionTimer = () => {
-    if (decisionTimer !== undefined) {
-      window.clearInterval(decisionTimer)
-      decisionTimer = undefined
+  const clearActiveTimer = () => {
+    if (activeTimer !== undefined) {
+      window.clearInterval(activeTimer)
+      activeTimer = undefined
     }
   }
 
-  const startDecisionTimer = (resetCountdown: boolean) => {
-    clearDecisionTimer()
+  const startTimer = (resetCountdown: boolean) => {
+    clearActiveTimer()
+    submitted = false
     if (resetCountdown) secondsRemaining.value = PARTY_DECISION_TIMEOUT_SECONDS
-    decisionTimer = window.setInterval(() => {
+    activeTimer = window.setInterval(() => {
       secondsRemaining.value -= 1
       if (secondsRemaining.value <= 0) {
-        clearDecisionTimer()
+        clearActiveTimer()
+        if (submitted) return
+        submitted = true
         emit('decide', PARTY_DEFAULT_REACTION_DECISION)
+      }
+    }, 1000)
+  }
+
+  const startPredictionTimer = (resetCountdown: boolean) => {
+    clearActiveTimer()
+    submitted = false
+    if (resetCountdown) secondsRemaining.value = PARTY_DECISION_TIMEOUT_SECONDS
+    activeTimer = window.setInterval(() => {
+      secondsRemaining.value -= 1
+      if (secondsRemaining.value <= 0) {
+        clearActiveTimer()
+        if (submitted) return
+        submitted = true
+        emit('predict', 'low')
       }
     }, 1000)
   }
@@ -53,19 +72,34 @@
   watch(
     () => [props.reaction?.status, props.paused] as const,
     ([status, paused], previous) => {
-      if (status === 'awaiting_decision' && !paused) {
-        startDecisionTimer(previous?.[0] !== 'awaiting_decision')
+      if (paused) {
+        clearActiveTimer()
+        return
+      }
+      if (status === 'awaiting_prediction') {
+        startPredictionTimer(previous?.[0] !== 'awaiting_prediction')
+      } else if (status === 'awaiting_decision') {
+        startTimer(previous?.[0] !== 'awaiting_decision')
       } else {
-        clearDecisionTimer()
+        clearActiveTimer()
       }
     },
     { immediate: true }
   )
 
-  onBeforeUnmount(clearDecisionTimer)
+  onBeforeUnmount(clearActiveTimer)
+
+  const predict = (prediction: PartyPrediction) => {
+    if (submitted) return
+    submitted = true
+    clearActiveTimer()
+    emit('predict', prediction)
+  }
 
   const decide = (decision: PartyReactionDecision) => {
-    clearDecisionTimer()
+    if (submitted) return
+    submitted = true
+    clearActiveTimer()
     emit('decide', decision)
   }
 </script>
@@ -87,13 +121,16 @@
 
       <template v-if="reaction.status === 'awaiting_prediction'">
         <h2>{{ reactorName }}，预测 {{ targetName }} 的骰子范围</h2>
-        <p>猜中后，你可以保留点数，或把它改成 7 − 当前点数。</p>
+        <p class="party-countdown">
+          <Timer :size="16" />
+          {{ secondsRemaining }} 秒后自动预测 1–3
+        </p>
         <div class="party-reaction-actions">
           <button
             type="button"
             class="party-action party-action--low"
             data-testid="predict-low"
-            @click="emit('predict', 'low')"
+            @click="predict('low')"
           >
             预测 1–3
           </button>
@@ -101,7 +138,7 @@
             type="button"
             class="party-action party-action--high"
             data-testid="predict-high"
-            @click="emit('predict', 'high')"
+            @click="predict('high')"
           >
             预测 4–6
           </button>
@@ -119,6 +156,7 @@
             type="button"
             class="party-action party-action--keep"
             data-testid="reaction-keep"
+            :disabled="submitted"
             @click="decide('keep')"
           >
             保留 {{ reaction.rolledValue }}
@@ -127,6 +165,7 @@
             type="button"
             class="party-action party-action--mirror"
             data-testid="reaction-mirror"
+            :disabled="submitted"
             @click="decide('mirror')"
           >
             <RefreshCw :size="17" />

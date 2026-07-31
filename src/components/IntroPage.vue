@@ -126,27 +126,25 @@
     loadAndApplyPlayerSettings()
   }
 
+  // 显示清空成功提示
+  const showClearSuccess = ref(false)
+  let clearSuccessTimer: ReturnType<typeof setTimeout> | undefined
+
   // 清空缓存功能
   const clearCache = () => {
     try {
       clearAllLocalGameData()
-
-      // 显示成功提示
       showClearSuccess.value = true
-
-      // 3秒后隐藏提示
-      setTimeout(() => {
+      if (clearSuccessTimer !== undefined) clearTimeout(clearSuccessTimer)
+      clearSuccessTimer = setTimeout(() => {
         showClearSuccess.value = false
+        clearSuccessTimer = undefined
       }, 3000)
-
       devLog('本地游戏数据已清空')
     } catch (error) {
       console.error('清空缓存时出错:', error)
     }
   }
-
-  // 显示清空成功提示
-  const showClearSuccess = ref(false)
 
   // 粒子系统
   const particles = ref<
@@ -167,6 +165,10 @@
   onUnmounted(() => {
     if (animationId.value) {
       cancelAnimationFrame(animationId.value)
+    }
+    if (clearSuccessTimer !== undefined) {
+      clearTimeout(clearSuccessTimer)
+      clearSuccessTimer = undefined
     }
 
     // 移除事件监听器
