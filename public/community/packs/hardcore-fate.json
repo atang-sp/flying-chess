@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "hardcore-fate",
+  "title": "重口命运包",
+  "description": "更频繁的倍率、绑定和记忆挑战。",
+  "tags": ["重口局", "高强度", "老友"],
+  "rating": 4.7,
+  "eventDeck": [
+    {
+      "id": "hardcore-double",
+      "title": "全员翻倍",
+      "description": "接下来 3 回合，所有惩罚翻倍。",
+      "tags": ["倍率", "高强度"],
+      "trigger": { "kind": "every_n_turns", "interval": 2 },
+      "effect": { "kind": "punishment_multiplier", "multiplier": 2, "durationTurns": 3 }
+    },
+    {
+      "id": "hardcore-bind",
+      "title": "共难绑定",
+      "description": "选择两名玩家，在 4 回合内共同承担惩罚。",
+      "tags": ["关系", "绑定"],
+      "trigger": { "kind": "every_n_turns", "interval": 3 },
+      "effect": { "kind": "bind_players", "durationTurns": 4 }
+    },
+    {
+      "id": "hardcore-memory",
+      "title": "记错加倍",
+      "description": "连续两次惩罚后开始记忆挑战。",
+      "tags": ["记忆", "加倍"],
+      "trigger": { "kind": "consecutive_punishments", "count": 2 },
+      "effect": { "kind": "mini_game", "game": "memory" }
+    }
+  ]
+}

@@ -9,6 +9,7 @@ import type {
   PunishmentPosition,
   BoardConfig,
   TrapAction,
+  TrapVariant,
 } from '../types/game'
 import { GAME_CONFIG } from '../config/gameConfig'
 import { SecureRandom } from '../utils/secureRandom'
@@ -16,6 +17,11 @@ import { devLog } from '../utils/logger'
 import { createCompatiblePunishmentAction } from './ruleResolution'
 
 type BoardEffectCountField = Exclude<keyof BoardConfig, 'totalCells'>
+
+export interface PartyBoardContentPools {
+  readonly qaQuestions?: readonly string[]
+  readonly dareInstructions?: readonly string[]
+}
 
 export class GameService {
   private static latestBoard: BoardCell[] = []
@@ -33,7 +39,8 @@ export class GameService {
   static createBoard(
     punishmentConfig?: PunishmentConfig,
     boardConfig?: BoardConfig,
-    customTraps?: TrapAction[]
+    customTraps?: TrapAction[],
+    contentPools?: PartyBoardContentPools
   ): BoardCell[] {
     // 1. 读取配置
     const config = punishmentConfig || this.createPunishmentConfig()
@@ -45,7 +52,7 @@ export class GameService {
     }
 
     // 始终使用随机分配逻辑，确保所有格子都严格按照棋盘配置来生成
-    const board = this.createBoardRandom(config, boardConf, traps)
+    const board = this.createBoardRandom(config, boardConf, traps, contentPools)
     this.latestBoard = board
     return board
   }
@@ -54,7 +61,8 @@ export class GameService {
   private static createBoardRandom(
     config: PunishmentConfig,
     boardConf: BoardConfig,
-    traps: TrapAction[]
+    traps: TrapAction[],
+    contentPools?: PartyBoardContentPools
   ): BoardCell[] {
     const totalCells = boardConf.totalCells
 
@@ -277,12 +285,7 @@ export class GameService {
           type: 'trap',
           value: 0,
           description: randomTrap.description,
-          trapVariant: randomTrap.trapVariant as
-            | 'text'
-            | 'all_players'
-            | 'choice'
-            | 'roulette'
-            | undefined,
+          trapVariant: randomTrap.trapVariant as TrapVariant | undefined,
           choiceA: randomTrap.choiceA,
           choiceB: randomTrap.choiceB,
         },
@@ -291,13 +294,13 @@ export class GameService {
 
     // 问答格子（升温局专属）
     if (qaPositions.length > 0) {
-      const allQuestions = [
+      const allQuestions = contentPools?.qaQuestions ?? [
         ...GAME_CONFIG.PARTY_QA_QUESTIONS.warmup,
         ...GAME_CONFIG.PARTY_QA_QUESTIONS.heating,
         ...GAME_CONFIG.PARTY_QA_QUESTIONS.finale,
       ]
       qaPositions.forEach(pos => {
-        const question = SecureRandom.choice(allQuestions)
+        const question = SecureRandom.choice([...allQuestions])
         cellMap.set(pos, {
           id: pos,
           type: 'qa',
@@ -313,13 +316,13 @@ export class GameService {
 
     // 指令格子（升温局专属）
     if (darePositions.length > 0) {
-      const allDares = [
+      const allDares = contentPools?.dareInstructions ?? [
         ...GAME_CONFIG.PARTY_DARE_INSTRUCTIONS.warmup,
         ...GAME_CONFIG.PARTY_DARE_INSTRUCTIONS.heating,
         ...GAME_CONFIG.PARTY_DARE_INSTRUCTIONS.finale,
       ]
       darePositions.forEach(pos => {
-        const dare = SecureRandom.choice(allDares)
+        const dare = SecureRandom.choice([...allDares])
         cellMap.set(pos, {
           id: pos,
           type: 'dare',

@@ -1,6 +1,21 @@
 import type { BoardConfig, PunishmentConfig, TrapAction, VictoryConfig } from '../types/game'
 import { DEFAULT_GAME_MODE, GAME_MODES, type GameMode } from '../config/modes'
 import { normalizeVictoryConfig } from '../services/victorySettlement'
+import {
+  DEFAULT_PARTY_EVENT_DECK,
+  validatePartyEventDeck,
+  type PartyEventCard,
+} from '../services/partyEvents'
+import {
+  createLocalProgress,
+  validateLocalProgress,
+  type LocalProgress,
+} from '../services/localProgress'
+import {
+  DEFAULT_PARTY_STUDIO_CONFIG,
+  validatePartyStudioConfig,
+  type PartyStudioConfig,
+} from '../services/partyStudio'
 
 // 缓存键名
 export const GAME_CONFIG_STORAGE_KEY = 'ludo_game_config'
@@ -8,12 +23,18 @@ export const PLAYER_SETTINGS_STORAGE_KEY = 'ludo_player_settings'
 export const CONFIG_BACKUP_STORAGE_KEY = 'flying-chess-config-backup'
 export const GAME_MODE_STORAGE_KEY = 'flying-chess-game-mode'
 export const VICTORY_CONFIG_STORAGE_KEY = 'flying-chess-victory-config'
+export const PARTY_EVENT_DECK_STORAGE_KEY = 'flying-chess-party-event-deck'
+export const LOCAL_PROGRESS_STORAGE_KEY = 'flying-chess-local-progress-v1'
+export const PARTY_STUDIO_STORAGE_KEY = 'flying-chess-party-studio-v1'
 export const LOCAL_GAME_STORAGE_KEYS = [
   GAME_CONFIG_STORAGE_KEY,
   PLAYER_SETTINGS_STORAGE_KEY,
   CONFIG_BACKUP_STORAGE_KEY,
   GAME_MODE_STORAGE_KEY,
   VICTORY_CONFIG_STORAGE_KEY,
+  PARTY_EVENT_DECK_STORAGE_KEY,
+  LOCAL_PROGRESS_STORAGE_KEY,
+  PARTY_STUDIO_STORAGE_KEY,
   'hasShownGuide',
   'autoGuideEnabled',
 ] as const
@@ -137,5 +158,99 @@ export function saveVictoryConfig(
     storage.setItem(VICTORY_CONFIG_STORAGE_KEY, JSON.stringify(normalizeVictoryConfig(config)))
   } catch (error) {
     console.warn('保存终局奖惩配置失败:', error)
+  }
+}
+
+type PartyEventDeckStorageReader = Pick<Storage, 'getItem'>
+type PartyEventDeckStorageWriter = Pick<Storage, 'setItem'>
+
+export function loadPartyEventDeck(
+  storage: PartyEventDeckStorageReader = localStorage
+): readonly PartyEventCard[] {
+  const raw = storage.getItem(PARTY_EVENT_DECK_STORAGE_KEY)
+  if (!raw) return DEFAULT_PARTY_EVENT_DECK
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return validatePartyEventDeck(parsed).ok
+      ? (parsed as readonly PartyEventCard[])
+      : DEFAULT_PARTY_EVENT_DECK
+  } catch {
+    return DEFAULT_PARTY_EVENT_DECK
+  }
+}
+
+export function savePartyEventDeck(
+  deck: readonly PartyEventCard[],
+  storage: PartyEventDeckStorageWriter = localStorage
+): boolean {
+  if (!validatePartyEventDeck(deck).ok) return false
+  try {
+    storage.setItem(PARTY_EVENT_DECK_STORAGE_KEY, JSON.stringify(deck))
+    return true
+  } catch (error) {
+    console.warn('保存升温局事件卡包失败:', error)
+    return false
+  }
+}
+
+type LocalProgressStorageReader = Pick<Storage, 'getItem'>
+type LocalProgressStorageWriter = Pick<Storage, 'setItem'>
+
+export function loadLocalProgress(
+  storage: LocalProgressStorageReader = localStorage
+): LocalProgress {
+  const raw = storage.getItem(LOCAL_PROGRESS_STORAGE_KEY)
+  if (!raw) return createLocalProgress()
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return validateLocalProgress(parsed) ? parsed : createLocalProgress()
+  } catch {
+    return createLocalProgress()
+  }
+}
+
+export function saveLocalProgress(
+  progress: LocalProgress,
+  storage: LocalProgressStorageWriter = localStorage
+): boolean {
+  if (!validateLocalProgress(progress)) return false
+  try {
+    storage.setItem(LOCAL_PROGRESS_STORAGE_KEY, JSON.stringify(progress))
+    return true
+  } catch (error) {
+    console.warn('保存本地成就进度失败:', error)
+    return false
+  }
+}
+
+type PartyStudioStorageReader = Pick<Storage, 'getItem'>
+type PartyStudioStorageWriter = Pick<Storage, 'setItem'>
+
+export function loadPartyStudioConfig(
+  storage: PartyStudioStorageReader = localStorage
+): PartyStudioConfig {
+  const raw = storage.getItem(PARTY_STUDIO_STORAGE_KEY)
+  if (!raw) return structuredClone(DEFAULT_PARTY_STUDIO_CONFIG)
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return validatePartyStudioConfig(parsed).ok
+      ? (parsed as PartyStudioConfig)
+      : structuredClone(DEFAULT_PARTY_STUDIO_CONFIG)
+  } catch {
+    return structuredClone(DEFAULT_PARTY_STUDIO_CONFIG)
+  }
+}
+
+export function savePartyStudioConfig(
+  config: PartyStudioConfig,
+  storage: PartyStudioStorageWriter = localStorage
+): boolean {
+  if (!validatePartyStudioConfig(config).ok) return false
+  try {
+    storage.setItem(PARTY_STUDIO_STORAGE_KEY, JSON.stringify(config))
+    return true
+  } catch (error) {
+    console.warn('保存 Party Studio 场景失败:', error)
+    return false
   }
 }

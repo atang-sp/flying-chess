@@ -466,6 +466,188 @@ test('custom victory settlement persists and renders a loser gradient', async ({
   await expect(settlement).toContainText('3 轮')
 })
 
+test('party event deck triggers a real vote after its configured turn boundary', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'flying-chess-party-event-deck',
+      JSON.stringify([
+        {
+          id: 'e2e-turn-vote',
+          title: '端到端命运投票',
+          description: '每回合结束后触发一次投票。',
+          tags: ['测试', '投票'],
+          trigger: { kind: 'every_n_turns', interval: 1 },
+          effect: { kind: 'vote', prompt: '是否继续？', options: ['继续', '加码'] },
+        },
+      ])
+    )
+  })
+  await startPartyGame(page)
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        players: Array<{ position: number; hasTakenOff?: boolean }>
+        board: Array<{ position: number; type: string; effect?: Record<string, unknown> }>
+      }
+    }
+    debugWindow.gameState.players[0].position = 1
+    debugWindow.gameState.players[0].hasTakenOff = true
+    for (const cell of debugWindow.gameState.board) {
+      if (cell.position < 2 || cell.position > 7) continue
+      cell.type = 'bonus'
+      cell.effect = undefined
+    }
+  })
+
+  await page.getByRole('button', { name: '投掷骰子' }).click({ force: true })
+  await page.getByTestId('predict-low').click()
+  await expect
+    .poll(
+      async () =>
+        (await page.getByTestId('reaction-keep').isVisible()) ||
+        (await page.getByTestId('party-dice-decision').isVisible())
+    )
+    .toBe(true)
+  if (await page.getByTestId('reaction-keep').isVisible()) {
+    await page.getByTestId('reaction-keep').click()
+  }
+  await page.getByTestId('party-continue').click()
+
+  const eventCard = page.getByTestId('party-event-card')
+  await expect(eventCard).toContainText('端到端命运投票')
+  await eventCard.getByRole('button', { name: '继续' }).click()
+  await expect(eventCard).toBeHidden()
+})
+
+test('mini-game trap runs reaction interaction and grants the winner one immunity', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await startPartyGame(page)
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        players: Array<{ position: number; hasTakenOff?: boolean }>
+        board: Array<{ position: number; type: string; effect?: Record<string, unknown> }>
+      }
+    }
+    debugWindow.gameState.players[0].position = 1
+    debugWindow.gameState.players[0].hasTakenOff = true
+    for (const cell of debugWindow.gameState.board) {
+      if (cell.position < 2 || cell.position > 7) continue
+      cell.type = 'trap'
+      cell.effect = {
+        type: 'trap',
+        value: 0,
+        description: '端到端反应测试',
+        trapVariant: 'mini_game_reaction',
+      }
+    }
+  })
+
+  await page.getByRole('button', { name: '投掷骰子' }).click({ force: true })
+  await page.getByTestId('predict-low').click()
+  await expect
+    .poll(
+      async () =>
+        (await page.getByTestId('reaction-keep').isVisible()) ||
+        (await page.getByTestId('party-dice-decision').isVisible())
+    )
+    .toBe(true)
+  if (await page.getByTestId('reaction-keep').isVisible()) {
+    await page.getByTestId('reaction-keep').click()
+  }
+  await page.getByTestId('party-continue').click()
+
+  const miniGame = page.getByTestId('party-mini-game')
+  await expect(miniGame).toContainText('反应速度测试')
+  await miniGame.getByRole('button', { name: '全员准备好了' }).click()
+  const playerOneButton = miniGame.getByRole('button', { name: '玩家1 抢按' })
+  await expect(playerOneButton).toBeEnabled({ timeout: 3000 })
+  await playerOneButton.click()
+  await expect(miniGame).toBeHidden()
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const debugWindow = window as typeof window & {
+          gameState: { players: Array<{ pendingMiniGameImmunity?: boolean }> }
+        }
+        return debugWindow.gameState.players[0].pendingMiniGameImmunity
+      })
+    )
+    .toBe(true)
+})
+
+test('community catalog one-click load and Party Studio custom theme stay opt-in', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  await expect(page.getByRole('heading', { name: '终局奖惩' })).toBeHidden()
+  await page.getByTestId('mode-party').click()
+
+  await page.getByText('社区配置市场').click()
+  await expect(page.getByText('破冰加量包', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '一键加载' }).first().click()
+  await expect(page.getByText(/已加载“破冰加量包”/)).toBeVisible()
+  await page.getByText('事件卡 / 命运轮盘').click()
+  await expect(page.getByText('第一印象', { exact: true })).toBeVisible()
+
+  await page.getByText('Party Studio 场景编辑器').click()
+  await page.getByLabel('本局使用自定义场景').check()
+  await page.getByLabel('主题强调色').fill('#ff0000')
+  await page.getByTestId('start-game').click()
+  await expect(page.locator('.app')).toHaveClass(/app--party-studio/)
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const debugWindow = window as typeof window & {
+          partyMode: { session: { value: { directorConfig?: { actCount: number } } | null } }
+        }
+        return debugWindow.partyMode.session.value?.directorConfig?.actCount
+      })
+    )
+    .toBe(3)
+})
+
+test('local progress panel renders achievements and shame wall without network identity', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'flying-chess-local-progress-v1',
+      JSON.stringify({
+        version: 1,
+        totals: {
+          completedGames: 2,
+          punishmentCount: 42,
+          mercyRequests: 1,
+          longestChain: 3,
+          variantCompletions: { blindbox: 1 },
+        },
+        players: {
+          小红: { playerName: '小红', punishmentCount: 42, mercyRequests: 1 },
+        },
+      })
+    )
+  })
+  await page.goto('/flying-chess/')
+  await page.getByText('进度、成就与本地耻辱墙').click()
+  const panel = page.locator('.progress-panel')
+  await expect(panel).toContainText('42')
+  await expect(panel).toContainText('累计耐受')
+  await expect(panel).toContainText('小红')
+  await expect(panel).toContainText('这些记录仅保存在当前设备')
+})
+
 test('party victory renders a local-only non-sensitive highlight card', async ({
   page,
 }, testInfo) => {

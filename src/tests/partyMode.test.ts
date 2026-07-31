@@ -98,6 +98,30 @@ describe('升温局阶段导演', () => {
     })
   })
 
+  it('自定义两幕导演按配置门控直接从暖场进入终局并使用自定义结束时长', () => {
+    const minute = 60_000
+    let session = createPartySession({
+      playerCount: 2,
+      startedAt: 0,
+      directorConfig: {
+        actCount: 2,
+        heatingRound: 1,
+        finaleRound: 2,
+        heatingAfterMinutes: 2,
+        finaleAfterMinutes: 4,
+        endAfterMinutes: 5,
+      },
+    })
+
+    session = completePartyTurn(session, { playerIndex: 0, now: 3 * minute })
+    session = completePartyTurn(session, { playerIndex: 1, now: 3 * minute })
+    expect(session.act).toBe('finale')
+
+    session = completePartyTurn(session, { playerIndex: 0, now: 6 * minute })
+    session = completePartyTurn(session, { playerIndex: 1, now: 6 * minute })
+    expect(session.shouldEnd).toBe(true)
+  })
+
   it('每名玩家持有两枚通用筹码且每回合最多使用一枚', () => {
     let session = createPartySession({ playerCount: 2, startedAt: 0 })
 

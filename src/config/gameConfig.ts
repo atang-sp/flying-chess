@@ -281,8 +281,18 @@ export const GAME_CONFIG = {
     },
     {
       name: '全员猜拳',
-      description: '所有人和踩到机关的人猜拳，输的人被踩到机关的人用手掌打屁股 5 下',
-      trapVariant: 'all_players' as const,
+      description: '所有人参加反应速度测试，最快者获得一次免罚',
+      trapVariant: 'mini_game_reaction' as const,
+    },
+    {
+      name: '记忆翻牌',
+      description: '记住三张图案的顺序；失败者下一次惩罚加倍',
+      trapVariant: 'mini_game_memory' as const,
+    },
+    {
+      name: '快速问答',
+      description: '在倒计时内完成题目；超时者下一次惩罚加倍',
+      trapVariant: 'mini_game_quiz' as const,
     },
     {
       name: '二选一',

@@ -179,7 +179,8 @@ export const createCompatiblePunishmentAction = (
 /** Pick a random punishment variant for party mode based on act and probability */
 export const pickPunishmentVariant = (
   act: 'warmup' | 'heating' | 'finale',
-  randomSource: RuleRandomSource = secureRandomSource
+  randomSource: RuleRandomSource = secureRandomSource,
+  allowedVariants?: readonly PunishmentVariant[]
 ): PunishmentVariant | undefined => {
   const variantChances: Record<string, Partial<Record<PunishmentVariant, number>>> = {
     warmup: {},
@@ -190,7 +191,8 @@ export const pickPunishmentVariant = (
   const roll = randomSource.randomInt(1, 100)
   let cumulative = 0
   for (const [variant, chance] of Object.entries(chances)) {
-    cumulative += chance!
+    if (allowedVariants && !allowedVariants.includes(variant as PunishmentVariant)) continue
+    cumulative += chance ?? 0
     if (roll <= cumulative) return variant as PunishmentVariant
   }
   return undefined

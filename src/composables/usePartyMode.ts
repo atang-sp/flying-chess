@@ -14,6 +14,7 @@ import {
   type PartyPrediction,
   type PartyReactionDecision,
   type PartySession,
+  type PartyDirectorConfig,
   type PartyTokenAction,
 } from '../services/partyMode'
 
@@ -34,8 +35,8 @@ export function usePartyMode(now: () => number = () => performance.now()) {
     session,
     isActive: computed(() => session.value !== null),
     highlight: computed(() => (session.value ? createPartyHighlight(session.value) : null)),
-    start(playerCount: number): PartySession {
-      return replace(createPartySession({ playerCount, startedAt: now() }))
+    start(playerCount: number, directorConfig?: PartyDirectorConfig): PartySession {
+      return replace(createPartySession({ playerCount, startedAt: now(), directorConfig }))
     },
     clear(): void {
       session.value = null

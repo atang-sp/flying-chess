@@ -11,6 +11,10 @@ export interface Player {
   pendingMercyMultiplier?: number
   /** 尚未消费的跳过回合数 */
   pendingSkippedTurns?: number
+  /** 小游戏胜利获得的一次性免罚。 */
+  pendingMiniGameImmunity?: boolean
+  /** 小游戏失败附加到下一次惩罚的一次性倍率。 */
+  pendingMiniGameMultiplier?: number
 }
 
 export interface PunishmentTool {
@@ -245,7 +249,14 @@ export interface DareInstruction {
 }
 
 /** Structured trap type discriminator */
-export type TrapVariant = 'text' | 'all_players' | 'choice' | 'roulette'
+export type TrapVariant =
+  | 'text'
+  | 'all_players'
+  | 'choice'
+  | 'roulette'
+  | 'mini_game_reaction'
+  | 'mini_game_memory'
+  | 'mini_game_quiz'
 
 /** Extended trap with structured type */
 export interface StructuredTrapAction extends TrapAction {
