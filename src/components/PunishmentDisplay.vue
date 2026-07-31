@@ -1,10 +1,11 @@
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue'
-  import { Zap, Check, SkipForward, HandHeart, Gift, Eye } from '@lucide/vue'
+  import { Zap, Check, SkipForward, HandHeart, Gift, Eye, Timer } from '@lucide/vue'
   import type {
     PunishmentAction,
     Player,
     PunishmentVariant,
+    PunishmentVariantPhase,
     ResolvedPunishmentCount,
   } from '../types/game'
   import { getPunishmentVariantPresentation } from '../services/punishmentVariants'
@@ -22,12 +23,19 @@
     countMultiplier?: number
     canRequestMercy?: boolean
     variant?: PunishmentVariant
+    variantPhase?: PunishmentVariantPhase
   }
 
   interface Emits {
     (e: 'confirm', selectedCount?: number): void
     (e: 'skip'): void
     (e: 'request-mercy'): void
+    (
+      e: 'variant-action',
+      action:
+        | { type: 'conditional'; conditionMet: boolean; condition: string }
+        | { type: 'defer'; selectedCount?: number }
+    ): void
   }
 
   const props = withDefaults(defineProps<Props>(), {
@@ -39,6 +47,19 @@
   const variantPresentation = computed(() =>
     props.variant ? getPunishmentVariantPresentation(props.variant) : null
   )
+  const conditionalCondition = ref('')
+  const isConditionalDecision = computed(
+    () => props.variant === 'conditional' && props.variantPhase === undefined
+  )
+  const isDeferredDecision = computed(
+    () => props.variant === 'deferred' && props.variantPhase === undefined
+  )
+  const variantPhaseInstruction = computed(() => {
+    if (props.variantPhase === 'conditional_resolved') return '条件已经判定，请按调整后的次数执行。'
+    if (props.variantPhase === 'deferred_execution') return '已到约定回合，请先完成这条延迟惩罚。'
+    if (props.variantPhase === 'mutual_return') return '现在交换角色，用相同内容完成第二次执行。'
+    return variantPresentation.value?.instruction ?? ''
+  })
   const variantRevealed = ref(false)
   const detailsVisible = computed(
     () => !variantPresentation.value?.concealsDetails || variantRevealed.value
@@ -48,6 +69,7 @@
     () => [props.punishment, props.variant] as const,
     () => {
       variantRevealed.value = false
+      conditionalCondition.value = ''
     }
   )
 
@@ -88,6 +110,19 @@
   const requestMercy = () => {
     emit('request-mercy')
   }
+
+  const resolveCondition = (conditionMet: boolean) => {
+    const condition = conditionalCondition.value.trim()
+    if (!condition) return
+    emit('variant-action', { type: 'conditional', conditionMet, condition })
+  }
+
+  const deferPunishment = () => {
+    emit('variant-action', {
+      type: 'defer',
+      selectedCount: props.countSelection ? selectedCount.value : undefined,
+    })
+  }
 </script>
 
 <template>
@@ -113,7 +148,7 @@
               <Gift :size="18" aria-hidden="true" />
               <strong>{{ variantPresentation.label }}</strong>
             </div>
-            <p>{{ variantPresentation.instruction }}</p>
+            <p>{{ variantPhaseInstruction }}</p>
             <button
               v-if="variantPresentation.concealsDetails && !variantRevealed"
               type="button"
@@ -125,6 +160,40 @@
               执行者已准备好，揭晓内容
             </button>
           </aside>
+
+          <div
+            v-if="isConditionalDecision"
+            class="variant-decision"
+            data-testid="conditional-variant-decision"
+          >
+            <label>
+              <span>其他玩家提出的当场条件</span>
+              <input
+                v-model="conditionalCondition"
+                type="text"
+                maxlength="80"
+                placeholder="例如：连续猜中一次硬币正反"
+              />
+            </label>
+            <div>
+              <button
+                type="button"
+                class="variant-outcome variant-outcome--success"
+                :disabled="!conditionalCondition.trim()"
+                @click="resolveCondition(true)"
+              >
+                条件完成，次数减半
+              </button>
+              <button
+                type="button"
+                class="variant-outcome"
+                :disabled="!conditionalCondition.trim()"
+                @click="resolveCondition(false)"
+              >
+                条件未完成，照常执行
+              </button>
+            </div>
+          </div>
 
           <div v-if="detailsVisible && targetPlayer" class="target-info">
             <span class="target-label">受罚玩家</span>
@@ -188,7 +257,7 @@
               可选范围 {{ countSelection.minimum }}–{{ countSelection.maximum }}，按
               {{ countSelection.step }} 递增
             </small>
-            <small v-if="countMultiplier > 1" class="multiplier-preview">
+            <small v-if="countMultiplier !== 1" class="multiplier-preview">
               本次倍率 ×{{ countMultiplier }}，最终执行 {{ finalizedCountPreview }} 下
             </small>
           </label>
@@ -196,12 +265,24 @@
 
         <div class="punishment-actions">
           <button
+            v-if="!isConditionalDecision && !isDeferredDecision"
             class="btn btn-success"
             :disabled="!detailsVisible || (Boolean(countSelection) && selectedCount === undefined)"
             @click="confirmPunishment"
           >
             <Check :size="18" />
-            确认执行
+            {{ variantPhase === 'mutual_return' ? '确认第二次执行' : '确认执行' }}
+          </button>
+          <button
+            v-if="isDeferredDecision"
+            type="button"
+            class="btn btn-success"
+            :disabled="Boolean(countSelection) && selectedCount === undefined"
+            data-testid="defer-punishment"
+            @click="deferPunishment"
+          >
+            <Timer :size="18" />
+            记下内容，下回合执行
           </button>
           <button v-if="canRequestMercy" class="btn btn-mercy" @click="requestMercy">
             <HandHeart :size="18" />
@@ -269,6 +350,56 @@
     display: flex;
     align-items: center;
     gap: 0.45rem;
+  }
+
+  .variant-decision {
+    display: grid;
+    gap: 0.7rem;
+    padding: 0.9rem;
+    border: 1px solid rgb(34 197 94 / 0.3);
+    border-radius: var(--radius-sm);
+    background: rgb(34 197 94 / 0.08);
+  }
+
+  .variant-decision label,
+  .variant-decision label > span {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .variant-decision input {
+    min-height: 44px;
+    padding: 0.65rem 0.75rem;
+    color: var(--text-primary);
+    background: rgb(15 23 42 / 0.88);
+    border: 1px solid rgb(148 163 184 / 0.35);
+    border-radius: 10px;
+    font: inherit;
+  }
+
+  .variant-decision > div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
+
+  .variant-outcome {
+    min-height: 44px;
+    padding: 0.6rem;
+    color: #f8fafc;
+    background: rgb(71 85 105 / 0.8);
+    border: 1px solid rgb(148 163 184 / 0.3);
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  .variant-outcome--success {
+    background: rgb(22 101 52 / 0.75);
+  }
+
+  .variant-outcome:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
   }
 
   .variant-card strong {

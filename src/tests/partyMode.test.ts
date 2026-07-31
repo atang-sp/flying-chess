@@ -147,6 +147,14 @@ describe('升温局阶段导演', () => {
     )
   })
 
+  it('没有进行中的回合时不能提前消费干预筹码', () => {
+    const session = createPartySession({ playerCount: 2, startedAt: 0 })
+
+    expect(() => spendPartyToken(session, { playerIndex: 1, action: 'amplify' })).toThrow(
+      '当前没有进行中的升温局回合'
+    )
+  })
+
   it('每轮轮换一次预测反应且镜像后的骰子不能再次重掷', () => {
     let session = createPartySession({ playerCount: 3, startedAt: 0 })
 

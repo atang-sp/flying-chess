@@ -7,6 +7,8 @@
     punishment: PunishmentAction | null
     diceValue: number
     executorName: string
+    targetName?: string
+    triggeringPlayerName?: string
     canRequestMercy?: boolean
   }
 
@@ -41,7 +43,10 @@
 
       <div class="punishment-content">
         <div class="punishment-description">
-          掷到{{ diceValue }}点，未能起飞！需要被惩罚{{ punishment?.strikes ?? diceValue }}下。
+          {{ triggeringPlayerName || '当前玩家' }}掷到{{ diceValue }}点，未能起飞！本次由
+          {{ targetName || triggeringPlayerName || '当前玩家' }}接受惩罚{{
+            punishment?.strikes ?? diceValue
+          }}下。
         </div>
 
         <div v-if="punishment" class="punishment-details">

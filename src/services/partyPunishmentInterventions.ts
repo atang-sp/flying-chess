@@ -28,6 +28,14 @@ export interface PartyPunishmentInterventionOption {
   readonly transferTargetPlayerIndices: readonly number[]
 }
 
+/** Keep private token actions off the shared host screen for phone-controlled players. */
+export function projectSharedScreenInterventionOptions(
+  options: readonly PartyPunishmentInterventionOption[],
+  isRemotePlayer: (playerIndex: number) => boolean
+): readonly PartyPunishmentInterventionOption[] {
+  return Object.freeze(options.filter(option => !isRemotePlayer(option.playerIndex)))
+}
+
 export function getPartyPunishmentInterventionOptions(
   resolution: ResolvedPunishmentResult,
   players: readonly Player[],

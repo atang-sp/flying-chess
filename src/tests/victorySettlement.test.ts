@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveVictorySettlement } from '../services/victorySettlement'
+import { normalizeVictoryConfig, resolveVictorySettlement } from '../services/victorySettlement'
 import type { Player, VictoryConfig } from '../types/game'
 
 const players: Player[] = [
@@ -36,5 +36,14 @@ describe('终局奖惩结算', () => {
       { playerIndex: 2, place: 2, count: 5 },
       { playerIndex: 3, place: 3, count: 5 },
     ])
+  })
+
+  it('启用梯度时把零步长修正为至少一，确保最后一档更重', () => {
+    const normalized = normalizeVictoryConfig({ ...config, gradientStep: 0 })
+
+    expect(normalized.gradientStep).toBe(1)
+    expect(resolveVictorySettlement(players, 0, normalized).at(-1)?.count).toBeGreaterThan(
+      normalized.baseCount
+    )
   })
 })

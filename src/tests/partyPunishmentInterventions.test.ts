@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   applyPartyPunishmentIntervention,
   getPartyPunishmentInterventionOptions,
+  projectSharedScreenInterventionOptions,
 } from '../services/partyPunishmentInterventions'
 import { finalizePunishmentCount, resolveRule } from '../services/ruleResolution'
 import type { Player, PunishmentAction, PunishmentConfig } from '../types/game'
@@ -179,5 +180,22 @@ describe('升温局惩罚筹码干预', () => {
         players.length
       )
     ).toThrow('转嫁目标必须是存在的其他玩家')
+  })
+
+  it('共享主屏只投影本机玩家的干预，远端玩家动作保持私密', () => {
+    const options = getPartyPunishmentInterventionOptions(
+      createResolution(),
+      players,
+      [1, 1, 1],
+      false
+    )
+
+    expect(projectSharedScreenInterventionOptions(options, index => index !== 1)).toEqual([
+      {
+        playerIndex: 1,
+        actions: ['amplify'],
+        transferTargetPlayerIndices: [],
+      },
+    ])
   })
 })

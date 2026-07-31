@@ -1,4 +1,5 @@
-import type { PunishmentVariant } from '../types/game'
+import type { PunishmentVariant, ResolvedPunishmentResult } from '../types/game'
+import { scaleResolvedPunishmentCount } from './ruleResolution'
 
 export interface PunishmentVariantPresentation {
   readonly label: string
@@ -35,4 +36,55 @@ export function getPunishmentVariantPresentation(
   variant: PunishmentVariant
 ): PunishmentVariantPresentation {
   return PRESENTATIONS[variant]
+}
+
+export function resolveConditionalPunishment(
+  resolution: ResolvedPunishmentResult,
+  conditionMet: boolean
+): ResolvedPunishmentResult {
+  if (resolution.variant !== 'conditional' || resolution.variantPhase !== undefined) {
+    throw new Error('只有尚未判定的条件惩罚可以结算条件')
+  }
+
+  const resolved = conditionMet
+    ? resolution.count.kind === 'fixed'
+      ? scaleResolvedPunishmentCount(resolution, 0.5)
+      : Object.freeze({
+          ...resolution,
+          countMultiplier: (resolution.countMultiplier ?? 1) * 0.5,
+        })
+    : resolution
+
+  return Object.freeze({ ...resolved, variantPhase: 'conditional_resolved' })
+}
+
+export function createDeferredPunishment(
+  resolution: ResolvedPunishmentResult
+): ResolvedPunishmentResult {
+  if (resolution.variant !== 'deferred' || resolution.variantPhase !== undefined) {
+    throw new Error('只有首次出现的延迟惩罚可以进入待执行队列')
+  }
+  if (resolution.count.kind !== 'fixed') {
+    throw new Error('延迟前必须先确定惩罚次数')
+  }
+
+  return Object.freeze({ ...resolution, variantPhase: 'deferred_execution' })
+}
+
+export function createMutualPunishmentReturn(
+  resolution: ResolvedPunishmentResult
+): ResolvedPunishmentResult {
+  if (resolution.variant !== 'mutual' || resolution.variantPhase !== undefined) {
+    throw new Error('只有双向惩罚首次执行后可以交换角色')
+  }
+  if (resolution.executorIndex === undefined) {
+    throw new Error('双向惩罚需要另一名玩家作为执行者')
+  }
+
+  return Object.freeze({
+    ...resolution,
+    targetPlayerIndex: resolution.executorIndex,
+    executorIndex: resolution.targetPlayerIndex,
+    variantPhase: 'mutual_return',
+  })
 }

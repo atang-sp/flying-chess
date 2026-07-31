@@ -26,9 +26,11 @@ export function normalizeVictoryConfig(value: unknown): VictoryConfig {
         ? candidate.loserGradientEnabled
         : DEFAULT_VICTORY_CONFIG.loserGradientEnabled,
     gradientStep:
-      Number.isInteger(candidate.gradientStep) && (candidate.gradientStep ?? -1) >= 0
-        ? Math.min(candidate.gradientStep ?? 0, 999)
-        : DEFAULT_VICTORY_CONFIG.gradientStep,
+      Number.isInteger(candidate.gradientStep) && (candidate.gradientStep ?? 0) > 0
+        ? Math.min(candidate.gradientStep ?? 1, 999)
+        : candidate.loserGradientEnabled && candidate.gradientStep === 0
+          ? 1
+          : DEFAULT_VICTORY_CONFIG.gradientStep,
   }
 }
 
@@ -54,9 +56,9 @@ export function resolveVictorySettlement(
     !Number.isInteger(config.baseCount) ||
     config.baseCount < 0 ||
     !Number.isInteger(config.gradientStep) ||
-    config.gradientStep < 0
+    config.gradientStep <= 0
   ) {
-    throw new Error('终局奖惩次数必须是非负整数')
+    throw new Error('终局基础次数必须为非负整数，梯度步长必须为正整数')
   }
 
   const loserPositions = [

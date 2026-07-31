@@ -328,6 +328,9 @@ export function spendPartyToken(
   if (!Number.isInteger(playerIndex) || playerIndex < 0 || playerIndex >= session.playerCount) {
     throw new Error('干预筹码需要有效的玩家索引')
   }
+  if (session.activeTurnPlayerIndex === undefined) {
+    throw new Error('当前没有进行中的升温局回合')
+  }
   const activePlayerOnly = action === 'reroll' || action === 'punishment_choice'
   if (activePlayerOnly && session.activeTurnPlayerIndex !== playerIndex) {
     throw new Error('只有当前玩家可以使用该干预筹码')

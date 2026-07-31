@@ -12,6 +12,11 @@
     resolveRule,
     scaleResolvedPunishmentCount,
   } from './services/ruleResolution'
+  import {
+    createDeferredPunishment,
+    createMutualPunishmentReturn,
+    resolveConditionalPunishment,
+  } from './services/punishmentVariants'
   import { GAME_CONFIG } from './config/gameConfig'
   import {
     ArrowLeft,
@@ -107,6 +112,7 @@
   import {
     applyPartyPunishmentIntervention,
     getPartyPunishmentInterventionOptions,
+    projectSharedScreenInterventionOptions,
     type PartyPunishmentIntervention as PartyPunishmentInterventionDecision,
     type PartyPunishmentInterventionOption,
   } from './services/partyPunishmentInterventions'
@@ -160,6 +166,8 @@
   const partyPunishmentChoices = ref<readonly PunishmentAction[]>([])
   const partyPunishmentInterventionResolution = ref<ResolvedPunishmentResult | null>(null)
   const partyPunishmentInterventionOptions = ref<readonly PartyPunishmentInterventionOption[]>([])
+  const deferredPartyPunishments = ref<ResolvedPunishmentResult[]>([])
+  const displayedPunishmentResumesTurn = ref(false)
   const partyTieCandidates = ref<readonly number[]>([])
   const classicConfigSnapshot = ref<{
     boardConfig: BoardConfig
@@ -248,6 +256,8 @@
   const currentTakeoffPunishment = ref<PunishmentAction | null>(null)
   const currentTakeoffDiceValue = ref(1)
   const currentTakeoffExecutorIndex = ref(0)
+  const currentTakeoffTarget = ref<Player | null>(null)
+  const currentTakeoffTriggeringPlayer = ref<Player | null>(null)
 
   // 执行惩罚的玩家状态
   const currentPunishmentExecutor = ref<Player | null>(null)
@@ -342,11 +352,16 @@
     const resolution = pendingRuleResolution.value
     return resolution?.kind === 'punishment' ? resolution.variant : undefined
   })
+  const currentPunishmentVariantPhase = computed(() => {
+    const resolution = pendingRuleResolution.value
+    return resolution?.kind === 'punishment' ? resolution.variantPhase : undefined
+  })
   const canRequestBoardMercy = computed(
     () =>
       !isDoublePunishment.value &&
       !mercyRequested.value &&
-      currentPunishmentCountSelection.value === null
+      currentPunishmentCountSelection.value === null &&
+      currentPunishmentVariant.value === undefined
   )
   const canRequestTakeoffMercy = computed(() => !mercyRequested.value)
 
@@ -377,6 +392,8 @@
       currentTakeoffPunishment.value = displayAction
       currentTakeoffDiceValue.value = diceValue ?? gameState.diceValue ?? 1
       currentTakeoffExecutorIndex.value = punishmentResolution.executorIndex ?? -1
+      currentTakeoffTarget.value = targetPlayer
+      currentTakeoffTriggeringPlayer.value = triggeringPlayer
       mercyRequested.value = false
       showTakeoffPunishmentDisplay.value = true
       audioService.play('punishment')
@@ -390,6 +407,49 @@
     mercyRequested.value = false
     audioService.play('punishment')
     gameState.gameStatus = 'configuring'
+  }
+
+  const offerPartyPunishmentInterventionOrPresent = (
+    punishmentResolution: ResolvedPunishmentResult,
+    triggeringPlayer: Player,
+    diceValue?: number
+  ) => {
+    const partySessionSnapshot = partySession.value
+    if (isPartyGame.value && partySessionSnapshot) {
+      const interventionOptions = getPartyPunishmentInterventionOptions(
+        punishmentResolution,
+        gameState.players,
+        partySessionSnapshot.tokensRemaining,
+        partySessionSnapshot.interventionUsedThisTurn !== undefined
+      )
+      if (interventionOptions.length > 0) {
+        pendingRuleResolution.value = punishmentResolution
+        partyPunishmentInterventionResolution.value = punishmentResolution
+        partyPunishmentInterventionOptions.value = interventionOptions
+        gameState.gameStatus = 'configuring'
+        const targetPlayer = gameState.players[punishmentResolution.targetPlayerIndex]
+        const countLabel =
+          punishmentResolution.count.kind === 'fixed'
+            ? `${punishmentResolution.count.value} 下`
+            : '次数待选'
+        interventionOptions.forEach(option => {
+          if (!multiDevice.isRemotePlayer(option.playerIndex)) return
+          multiDevice.requestAction(option.playerIndex, {
+            type: 'punishment_intervention',
+            targetName: targetPlayer?.name ?? '当前玩家',
+            countLabel,
+            actions: option.actions,
+            transferTargets: option.transferTargetPlayerIndices.map(targetPlayerIndex => ({
+              playerIndex: targetPlayerIndex,
+              playerName: gameState.players[targetPlayerIndex]?.name ?? '玩家',
+            })),
+          })
+        })
+        return
+      }
+    }
+
+    presentResolvedPunishment(punishmentResolution, triggeringPlayer, diceValue)
   }
 
   const handleMercyRequest = (source: 'board' | 'takeoff') => {
@@ -580,40 +640,7 @@
         targetPlayer.pendingMercyMultiplier = undefined
       }
 
-      if (currentPlayer.hasTakenOff && isPartyGame.value && partySessionSnapshot) {
-        const interventionOptions = getPartyPunishmentInterventionOptions(
-          punishmentResolution,
-          gameState.players,
-          partySessionSnapshot.tokensRemaining,
-          partySessionSnapshot.interventionUsedThisTurn !== undefined
-        )
-        if (interventionOptions.length > 0) {
-          pendingRuleResolution.value = punishmentResolution
-          partyPunishmentInterventionResolution.value = punishmentResolution
-          partyPunishmentInterventionOptions.value = interventionOptions
-          gameState.gameStatus = 'configuring'
-          const countLabel =
-            punishmentResolution.count.kind === 'fixed'
-              ? `${punishmentResolution.count.value} 下`
-              : '次数待选'
-          interventionOptions.forEach(option => {
-            if (!multiDevice.isRemotePlayer(option.playerIndex)) return
-            multiDevice.requestAction(option.playerIndex, {
-              type: 'punishment_intervention',
-              targetName: targetPlayer.name,
-              countLabel,
-              actions: option.actions,
-              transferTargets: option.transferTargetPlayerIndices.map(targetPlayerIndex => ({
-                playerIndex: targetPlayerIndex,
-                playerName: gameState.players[targetPlayerIndex]?.name ?? '玩家',
-              })),
-            })
-          })
-          return
-        }
-      }
-
-      presentResolvedPunishment(punishmentResolution, currentPlayer, diceValue)
+      offerPartyPunishmentInterventionOrPresent(punishmentResolution, currentPlayer, diceValue)
       return
     }
 
@@ -775,6 +802,7 @@
     partyPunishmentInterventionOptions.value.forEach(option => {
       multiDevice.clearPendingAction(option.playerIndex)
     })
+    multiDevice.broadcastStateToAll()
     partyPunishmentInterventionResolution.value = null
     partyPunishmentInterventionOptions.value = []
 
@@ -822,6 +850,51 @@
         gameState.diceValue ?? undefined
       )
     }
+  }
+
+  const handlePunishmentVariantAction = async (
+    action:
+      | { type: 'conditional'; conditionMet: boolean; condition: string }
+      | { type: 'defer'; selectedCount?: number }
+  ) => {
+    const currentResolution = pendingRuleResolution.value
+    if (currentResolution?.kind !== 'punishment') return
+
+    if (action.type === 'conditional') {
+      const resolved = resolveConditionalPunishment(currentResolution, action.conditionMet)
+      pendingRuleResolution.value = resolved
+      currentPunishment.value = toMutablePunishmentAction(resolved.action)
+      lastEffect.value = action.conditionMet
+        ? `条件“${action.condition}”已完成，本次惩罚减半`
+        : `条件“${action.condition}”未完成，本次惩罚照常执行`
+      return
+    }
+
+    let fixedResolution = currentResolution
+    if (fixedResolution.count.kind === 'awaiting_external_count') {
+      if (action.selectedCount === undefined) return
+      fixedResolution = finalizePunishmentCount(fixedResolution, action.selectedCount)
+    }
+    const deferredResolution = createDeferredPunishment(fixedResolution)
+    deferredPartyPunishments.value.push(deferredResolution)
+    const targetName = gameState.players[deferredResolution.targetPlayerIndex]?.name ?? '受罚玩家'
+    lastEffect.value = `${targetName} 的惩罚已延迟到其下一个回合开始前`
+    await skipPunishment()
+  }
+
+  const presentNextDeferredPunishment = (): boolean => {
+    const queueIndex = deferredPartyPunishments.value.findIndex(
+      resolution => resolution.targetPlayerIndex === gameState.currentPlayerIndex
+    )
+    if (queueIndex < 0) return false
+
+    const [resolution] = deferredPartyPunishments.value.splice(queueIndex, 1)
+    if (!resolution) return false
+    displayedPunishmentResumesTurn.value = true
+    const triggeringPlayer = gameState.players[resolution.actorIndex]
+    presentResolvedPunishment(resolution, triggeringPlayer, gameState.diceValue ?? undefined)
+    lastEffect.value = `${gameState.players[resolution.targetPlayerIndex]?.name ?? '当前玩家'} 的延迟惩罚现在执行`
+    return true
   }
 
   // 计算属性
@@ -934,6 +1007,8 @@
     pendingRuleResolution.value = null
     partyPunishmentInterventionResolution.value = null
     partyPunishmentInterventionOptions.value = []
+    deferredPartyPunishments.value = []
+    displayedPunishmentResumesTurn.value = false
     showTakeoffPunishmentDisplay.value = false
     currentTakeoffPunishment.value = null
     effectFromPosition.value = undefined
@@ -1250,6 +1325,8 @@
     partyPunishmentInterventionResolution.value = null
     partyPunishmentInterventionOptions.value = []
     pendingPartyLanding.value = null
+    deferredPartyPunishments.value = []
+    displayedPunishmentResumesTurn.value = false
     partyTieCandidates.value = []
     turnCount.value = 0
     lastEffect.value = ''
@@ -1448,6 +1525,8 @@
     partyPunishmentInterventionResolution.value = null
     partyPunishmentInterventionOptions.value = []
     pendingPartyLanding.value = null
+    deferredPartyPunishments.value = []
+    displayedPunishmentResumesTurn.value = false
     partyTieCandidates.value = []
     activeMode.value = null
     multiDevice.stopHost()
@@ -1641,6 +1720,8 @@
   // 处理骰子滚动
   const handleDiceRoll = async () => {
     if (!canRollDice.value) return
+
+    if (isPartyGame.value && presentNextDeferredPunishment()) return
 
     const currentPlayerIndex = gameState.currentPlayerIndex
     const currentPlayer = gameState.players[currentPlayerIndex]
@@ -1975,7 +2056,7 @@
   // 确认惩罚
   const confirmPunishment = async (selectedCount?: number) => {
     try {
-      const punishmentResolution = pendingRuleResolution.value
+      let punishmentResolution = pendingRuleResolution.value
       if (
         punishmentResolution?.kind === 'punishment' &&
         punishmentResolution.count.kind === 'awaiting_external_count'
@@ -1986,6 +2067,23 @@
         const finalizedResolution = finalizePunishmentCount(punishmentResolution, selectedCount)
         currentPunishment.value = toMutablePunishmentAction(finalizedResolution.action)
         pendingRuleResolution.value = finalizedResolution
+        punishmentResolution = finalizedResolution
+      }
+
+      if (
+        punishmentResolution?.kind === 'punishment' &&
+        punishmentResolution.variant === 'mutual' &&
+        punishmentResolution.variantPhase === undefined
+      ) {
+        const returnedResolution = createMutualPunishmentReturn(punishmentResolution)
+        mercyRequested.value = true
+        lastEffect.value = '双向惩罚第一次已完成，现在交换角色执行第二次'
+        presentResolvedPunishment(
+          returnedResolution,
+          gameState.players[returnedResolution.actorIndex],
+          gameState.diceValue ?? undefined
+        )
+        return
       }
 
       // 连锁惩罚：确认后进入连锁掷骰阶段
@@ -1996,7 +2094,12 @@
       }
 
       // 翻倍陷阱：如果当前不是翻倍状态，检查是否触发翻倍
-      if (!isDoublePunishment.value && currentPunishment.value) {
+      if (
+        !isDoublePunishment.value &&
+        currentPunishment.value &&
+        punishmentResolution?.kind === 'punishment' &&
+        punishmentResolution.variant !== 'mutual'
+      ) {
         const chance = isPartyGame.value
           ? getActDoublePunishmentChance(partySession.value?.act ?? 'warmup')
           : (gameState.punishmentConfig.doublePunishmentChance ?? 0)
@@ -2015,6 +2118,12 @@
       currentPunishmentTarget.value = null
       pendingRuleResolution.value = null
       gameState.gameStatus = 'waiting'
+
+      if (displayedPunishmentResumesTurn.value) {
+        displayedPunishmentResumesTurn.value = false
+        presentNextDeferredPunishment()
+        return
+      }
 
       // 继续游戏流程
       await continueAfterPunishment()
@@ -2052,20 +2161,20 @@
         punishmentConfig: gameState.punishmentConfig,
         diceValue: gameState.diceValue ?? undefined,
         boardAction: newPunishment,
+        punishmentVariant:
+          isPartyGame.value && partySession.value
+            ? pickPunishmentVariant(partySession.value.act)
+            : undefined,
       })
       const targetPlayer = gameState.players[chainResolution.targetPlayerIndex]
-      pendingRuleResolution.value = chainResolution
-      currentPunishmentTarget.value = targetPlayer
-      currentPunishmentExecutor.value =
-        chainResolution.executorIndex === undefined
-          ? null
-          : (gameState.players[chainResolution.executorIndex] ?? null)
-      currentPunishment.value = toMutablePunishmentAction(chainResolution.action)
       if (chainResolution.countMultiplier) {
         targetPlayer.pendingMercyMultiplier = undefined
       }
-      mercyRequested.value = false
-      gameState.gameStatus = 'configuring'
+      offerPartyPunishmentInterventionOrPresent(
+        chainResolution,
+        gameState.players[chainResolution.actorIndex],
+        gameState.diceValue ?? undefined
+      )
     } else {
       isChainPunishment.value = false
       currentPunishment.value = null
@@ -2094,6 +2203,12 @@
       currentPunishmentTarget.value = null
       pendingRuleResolution.value = null
       gameState.gameStatus = 'waiting'
+
+      if (displayedPunishmentResumesTurn.value) {
+        displayedPunishmentResumesTurn.value = false
+        presentNextDeferredPunishment()
+        return
+      }
 
       // 继续游戏流程
       await continueAfterPunishment()
@@ -2205,6 +2320,8 @@
   const confirmTakeoffPunishment = async () => {
     showTakeoffPunishmentDisplay.value = false
     currentTakeoffPunishment.value = null
+    currentTakeoffTarget.value = null
+    currentTakeoffTriggeringPlayer.value = null
     pendingRuleResolution.value = null
     gameState.gameStatus = 'waiting'
 
@@ -2359,19 +2476,20 @@
       players: gameState.players,
       punishmentConfig: gameState.punishmentConfig,
       boardAction: punishment,
+      punishmentVariant:
+        isPartyGame.value && partySession.value
+          ? pickPunishmentVariant(partySession.value.act)
+          : undefined,
     })
     const targetPlayer = gameState.players[punishmentResolution.targetPlayerIndex]
-    const executorPlayer =
-      punishmentResolution.executorIndex === undefined
-        ? null
-        : (gameState.players[punishmentResolution.executorIndex] ?? null)
-    pendingRuleResolution.value = punishmentResolution
-    currentPunishment.value = toMutablePunishmentAction(punishmentResolution.action)
-    currentPunishmentTarget.value = targetPlayer
-    currentPunishmentExecutor.value = executorPlayer
-    mercyRequested.value = false
-    audioService.play('punishment')
-    gameState.gameStatus = 'configuring'
+    if (punishmentResolution.countMultiplier) {
+      targetPlayer.pendingMercyMultiplier = undefined
+    }
+    offerPartyPunishmentInterventionOrPresent(
+      punishmentResolution,
+      gameState.players[punishmentResolution.actorIndex],
+      gameState.diceValue ?? undefined
+    )
   }
 
   const confirmDare = async () => {
@@ -2455,7 +2573,7 @@
   // --- 多设备同步（手柄模式） ---
   const multiDevice = useMultiDeviceHost({
     gameState,
-    partySession: partySession,
+    partySession,
     lastEffect,
     gameStarted,
     gameFinished,
@@ -2506,6 +2624,14 @@
   })
 
   const multiDeviceEnabled = computed(() => multiDevice.enabled.value)
+  const sharedScreenPunishmentInterventionOptions = computed(() =>
+    multiDeviceEnabled.value
+      ? projectSharedScreenInterventionOptions(
+          partyPunishmentInterventionOptions.value,
+          multiDevice.isRemotePlayer
+        )
+      : partyPunishmentInterventionOptions.value
+  )
 
   // 用户指引
   const startGuide = () => {
@@ -3182,7 +3308,9 @@
             :total-cells="gameState.board.length"
             :party-act-label="isPartyGame ? partyActLabel : undefined"
             :party-round="isPartyGame ? partySession?.roundNumber : undefined"
-            :tokens-remaining="isPartyGame && !multiDeviceEnabled ? partySession?.tokensRemaining : undefined"
+            :tokens-remaining="
+              isPartyGame && !multiDeviceEnabled ? partySession?.tokensRemaining : undefined
+            "
             class="header-players"
           />
 
@@ -3297,10 +3425,12 @@
         :count-selection="currentPunishmentCountSelection"
         :count-multiplier="currentPunishmentCountMultiplier"
         :variant="currentPunishmentVariant"
+        :variant-phase="currentPunishmentVariantPhase"
         :can-request-mercy="canRequestBoardMercy"
         @confirm="confirmPunishment"
         @skip="skipPunishment"
         @request-mercy="handleMercyRequest('board')"
+        @variant-action="handlePunishmentVariantAction"
       />
 
       <!-- 求饶决策弹窗 -->
@@ -3333,6 +3463,8 @@
           ? gameState.players[currentTakeoffExecutorIndex]?.name || ''
           : ''
       "
+      :target-name="currentTakeoffTarget?.name ?? ''"
+      :triggering-player-name="currentTakeoffTriggeringPlayer?.name ?? ''"
       :can-request-mercy="canRequestTakeoffMercy"
       @confirm="confirmTakeoffPunishment"
       @request-mercy="handleMercyRequest('takeoff')"
@@ -3390,7 +3522,9 @@
     <ChainPunishmentRoll :visible="showChainPunishmentRoll" @result="handleChainRollResult" />
 
     <PartyReactionOverlay
-      v-if="!multiDeviceEnabled || !multiDevice.isRemotePlayer(partyReaction?.reactorPlayerIndex ?? -1)"
+      v-if="
+        !multiDeviceEnabled || !multiDevice.isRemotePlayer(partyReaction?.reactorPlayerIndex ?? -1)
+      "
       :reaction="partyReaction"
       :players="gameState.players"
       :paused="sessionPaused"
@@ -3424,7 +3558,7 @@
       :visible="partyPunishmentInterventionResolution !== null"
       :resolution="partyPunishmentInterventionResolution"
       :players="gameState.players"
-      :options="partyPunishmentInterventionOptions"
+      :options="sharedScreenPunishmentInterventionOptions"
       :tokens-remaining="partySession?.tokensRemaining ?? []"
       :paused="sessionPaused"
       @apply="resolvePartyPunishmentIntervention"
@@ -3445,7 +3579,7 @@
       :all-players="gameState.players"
       :mode="activeMode"
       :party-highlight="partyHighlight"
-      :victory-config="victoryConfig"
+      :victory-config="activeMode === 'party' ? victoryConfig : undefined"
       @play-again="handleVictoryPlayAgain"
     />
 
@@ -3458,7 +3592,9 @@
 
     <!-- 多设备连接面板 -->
     <div
-      v-if="multiDeviceEnabled && multiDevice.roomInfo.value && !multiDevice.allPlayersConnected.value"
+      v-if="
+        multiDeviceEnabled && multiDevice.roomInfo.value && !multiDevice.allPlayersConnected.value
+      "
       class="multi-device-lobby"
     >
       <div class="multi-device-lobby-card">
@@ -3471,12 +3607,22 @@
             v-for="player in gameState.players"
             :key="player.id"
             class="connection-item"
-            :class="{ connected: multiDevice.connectedPlayers.value.some(c => c.playerIndex === player.id - 1 && c.status === 'connected') }"
+            :class="{
+              connected: multiDevice.connectedPlayers.value.some(
+                c => c.playerIndex === player.id - 1 && c.status === 'connected'
+              ),
+            }"
           >
             <span class="player-dot" :style="{ background: player.color }" />
             <span>{{ player.name }}</span>
             <span class="connection-status-icon">
-              {{ multiDevice.connectedPlayers.value.some(c => c.playerIndex === player.id - 1 && c.status === 'connected') ? '✓' : '...' }}
+              {{
+                multiDevice.connectedPlayers.value.some(
+                  c => c.playerIndex === player.id - 1 && c.status === 'connected'
+                )
+                  ? '✓'
+                  : '...'
+              }}
             </span>
           </div>
         </div>

@@ -105,6 +105,7 @@ export interface ResolvedPunishmentResult {
   readonly countMultiplier?: number
   readonly turnConsequence: TurnConsequence
   readonly variant?: PunishmentVariant
+  readonly variantPhase?: PunishmentVariantPhase
 }
 
 export interface ResolvedTrapResult {
@@ -255,6 +256,9 @@ export interface StructuredTrapAction extends TrapAction {
 
 /** Punishment variant for party mode */
 export type PunishmentVariant = 'blindbox' | 'conditional' | 'deferred' | 'mutual'
+
+/** Runtime phase for punishment variants that span more than one decision or turn. */
+export type PunishmentVariantPhase = 'conditional_resolved' | 'deferred_execution' | 'mutual_return'
 
 /** Resolved QA result */
 export interface ResolvedQAResult {

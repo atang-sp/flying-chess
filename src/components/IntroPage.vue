@@ -365,7 +365,7 @@
               <strong>升温局</strong>
               <span>实验玩法 · 约 20 分钟 · 三幕、筹码与同场反应</span>
             </span>
-            <span class="mode-card__badge mode-card__badge--party">party_v1</span>
+            <span class="mode-card__badge mode-card__badge--party">party_v2</span>
           </button>
         </div>
 
@@ -451,6 +451,7 @@
       </div>
 
       <VictoryConfigPanel
+        v-if="selectedMode === 'party'"
         :config="victoryConfig"
         :player-count="playerCount"
         @update="victoryConfig = $event"

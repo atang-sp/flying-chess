@@ -99,16 +99,16 @@ test('selects and starts party mode with anonymous mode telemetry', async ({ pag
   const events = await getTelemetryEvents(page)
   expect(events[1].data).toMatchObject({
     mode_id: 'party',
-    ruleset_version: 'party_v1',
+    ruleset_version: 'party_v2',
   })
   expect(events[2].data).toMatchObject({
     mode_id: 'party',
     previous_mode_id: 'classic',
-    ruleset_version: 'party_v1',
+    ruleset_version: 'party_v2',
   })
   expect(events[4].data).toMatchObject({
     mode_id: 'party',
-    ruleset_version: 'party_v1',
+    ruleset_version: 'party_v2',
     player_count_bucket: '2',
   })
   for (const event of events) {
@@ -426,6 +426,7 @@ test('custom victory settlement persists and renders a loser gradient', async ({
   test.skip(testInfo.project.name !== 'desktop-chrome')
 
   await page.goto('/flying-chess/')
+  await page.getByTestId('mode-party').click()
   await expect(page.getByRole('heading', { name: '终局奖惩' })).toBeVisible()
   await page.getByLabel('奖惩动作').fill('完成指定挑战')
   await page.getByLabel('基础次数').fill('2')
@@ -433,14 +434,11 @@ test('custom victory settlement persists and renders a loser gradient', async ({
   await page.getByLabel('启用败者惩罚梯度').check()
   await page.getByLabel('每落后一档增加').fill('1')
   await page.locator('.count-btn.plus').click()
-  await page.getByTestId('mode-party').click()
   await page.getByTestId('start-game').click()
 
   await expect
     .poll(() =>
-      page.evaluate(() =>
-        JSON.parse(localStorage.getItem('flying-chess-victory-config') ?? '{}')
-      )
+      page.evaluate(() => JSON.parse(localStorage.getItem('flying-chess-victory-config') ?? '{}'))
     )
     .toMatchObject({
       actionText: '完成指定挑战',

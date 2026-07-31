@@ -109,6 +109,9 @@
       </header>
 
       <div class="player-options">
+        <p v-if="options.length === 0" class="private-options-note">
+          可用筹码与操作已发送到各自手机；主屏不会显示私密选择。
+        </p>
         <article v-for="option in options" :key="option.playerIndex" class="player-option">
           <div class="player-heading">
             <span
@@ -234,6 +237,16 @@
     display: grid;
     gap: 0.75rem;
     margin-top: 1.2rem;
+  }
+
+  .private-options-note {
+    margin: 0;
+    padding: 1rem;
+    color: #cbd5e1;
+    text-align: center;
+    background: rgb(30 41 59 / 0.72);
+    border: 1px dashed rgb(148 163 184 / 0.28);
+    border-radius: 14px;
   }
 
   .player-option {

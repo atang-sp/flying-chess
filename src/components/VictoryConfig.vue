@@ -36,7 +36,7 @@
           type="text"
           maxlength="80"
           placeholder="例如：用手掌打屁股"
-          @input="update({ actionText: ($event.target as HTMLInputElement).value })"
+          @change="update({ actionText: ($event.target as HTMLInputElement).value })"
         />
       </label>
 
@@ -48,7 +48,7 @@
           min="0"
           max="999"
           inputmode="numeric"
-          @input="update({ baseCount: Number(($event.target as HTMLInputElement).value) })"
+          @change="update({ baseCount: Number(($event.target as HTMLInputElement).value) })"
         />
       </label>
 
@@ -59,7 +59,7 @@
           type="text"
           maxlength="8"
           placeholder="下"
-          @input="update({ countUnit: ($event.target as HTMLInputElement).value })"
+          @change="update({ countUnit: ($event.target as HTMLInputElement).value })"
         />
       </label>
     </div>
@@ -85,10 +85,10 @@
         <input
           :value="config.gradientStep"
           type="number"
-          min="0"
+          min="1"
           max="999"
           inputmode="numeric"
-          @input="update({ gradientStep: Number(($event.target as HTMLInputElement).value) })"
+          @change="update({ gradientStep: Number(($event.target as HTMLInputElement).value) })"
         />
         <span>{{ config.countUnit }}</span>
       </div>
