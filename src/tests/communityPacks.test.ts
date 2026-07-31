@@ -40,6 +40,27 @@ describe('静态社区配置包', () => {
     )
   })
 
+  it('在无 content-length 时流式取消超过 500KB 的响应', async () => {
+    let cancelled = false
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(260_000))
+        controller.enqueue(new Uint8Array(260_000))
+        controller.enqueue(new Uint8Array(10))
+        controller.close()
+      },
+      cancel() {
+        cancelled = true
+      },
+    })
+    const fetcher = vi.fn(async () => new Response(stream, { status: 200 }))
+
+    await expect(
+      loadRemoteCommunityPack('https://example.com/too-large.json', fetcher)
+    ).rejects.toThrow('远程配置超过 500KB 上限')
+    expect(cancelled).toBe(true)
+  })
+
   it('目录索引只接受合法条目并保留远程包地址', async () => {
     const catalog = [{ ...pack, packUrl: '/community/packs/icebreaker-plus.json' }]
     const fetcher = vi.fn(async () => new Response(JSON.stringify(catalog), { status: 200 }))

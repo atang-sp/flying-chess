@@ -266,10 +266,14 @@ export interface StructuredTrapAction extends TrapAction {
 }
 
 /** Punishment variant for party mode */
-export type PunishmentVariant = 'blindbox' | 'conditional' | 'deferred' | 'mutual'
+export type PunishmentVariant = 'blindbox' | 'conditional' | 'deferred' | 'mutual' | 'encore'
 
 /** Runtime phase for punishment variants that span more than one decision or turn. */
-export type PunishmentVariantPhase = 'conditional_resolved' | 'deferred_execution' | 'mutual_return'
+export type PunishmentVariantPhase =
+  | 'conditional_resolved'
+  | 'deferred_execution'
+  | 'mutual_return'
+  | 'encore_return'
 
 /** Resolved QA result */
 export interface ResolvedQAResult {

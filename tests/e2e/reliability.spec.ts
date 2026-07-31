@@ -119,7 +119,51 @@ test('selects and starts party mode with anonymous mode telemetry', async ({ pag
   }
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('flying-chess-game-mode')))
-    .toBe('party')
+    .toBe(JSON.stringify({ mode: 'party', rulesetVersion: 'party_v2' }))
+})
+
+test('native WebRTC pairs two phone controllers without cloud signalling', async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+  test.setTimeout(60_000)
+
+  await page.goto('/flying-chess/')
+  await page.getByTestId('mode-party').click()
+  await page.getByRole('button', { name: /多设备模式/ }).click()
+  await page.getByTestId('start-game').click()
+
+  const lobby = page.locator('.multi-device-lobby')
+  await expect(lobby).toBeVisible()
+  await expect(lobby).toContainText('不使用默认云端信令或外部中继')
+  const controllers: Page[] = []
+
+  for (let index = 0; index < 2; index += 1) {
+    const offerField = page.getByTestId('lan-pairing-offer')
+    await expect.poll(() => offerField.inputValue()).not.toBe('')
+    const offer = await offerField.inputValue()
+
+    const controllerPage = await context.newPage()
+    controllers.push(controllerPage)
+    await controllerPage.goto('/flying-chess/controller.html')
+    await controllerPage.getByTestId('lan-pairing-offer-input').fill(offer)
+    await controllerPage.getByRole('button', { name: '生成配对应答' }).click()
+    const answerField = controllerPage.getByTestId('lan-pairing-answer')
+    await expect.poll(() => answerField.inputValue()).not.toBe('')
+
+    await page.getByTestId('lan-pairing-answer-input').fill(await answerField.inputValue())
+    await page.getByTestId('lan-pairing-submit').click()
+    if (index === 0) {
+      await expect.poll(() => page.locator('.connection-item.connected').count()).toBe(1)
+    }
+  }
+
+  await expect(lobby).toBeHidden()
+  for (const controllerPage of controllers) {
+    await expect(controllerPage.locator('.controller-main')).toBeVisible()
+    await expect(controllerPage.getByTitle('干预筹码')).toBeVisible()
+  }
 })
 
 test('party mode preserves the classic custom configuration while running and after reset', async ({
@@ -519,7 +563,12 @@ test('party event deck triggers a real vote after its configured turn boundary',
 
   const eventCard = page.getByTestId('party-event-card')
   await expect(eventCard).toContainText('端到端命运投票')
-  await eventCard.getByRole('button', { name: '继续' }).click()
+  for (const playerName of ['玩家1', '玩家2']) {
+    await expect(eventCard).toContainText(`${playerName} 请投票`)
+    await eventCard.getByRole('button', { name: '继续' }).click()
+  }
+  await expect(page.getByText('继续 2 票')).toBeVisible()
+  await eventCard.getByRole('button', { name: '确认投票结果' }).click()
   await expect(eventCard).toBeHidden()
 })
 

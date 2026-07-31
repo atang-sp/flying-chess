@@ -5,6 +5,8 @@ import {
   applyPartyEventPunishmentRules,
   createPartyEventState,
   processPartyEventSignal,
+  resolvePartyRockPaperScissors,
+  tallyPartyVotes,
   validatePartyEventDeck,
 } from '../services/partyEvents'
 import { resolveRule } from '../services/ruleResolution'
@@ -101,6 +103,21 @@ describe('升温局事件卡状态机', () => {
     expect(state.activeBinding).toMatchObject({ playerIndices: [0, 2] })
   })
 
+  it('逐人计票并结算全员猜拳赢家', () => {
+    expect(tallyPartyVotes(['继续', '加码'], [0, 1, 1])).toEqual({
+      counts: [1, 2],
+      winningOptionIndices: [1],
+    })
+    expect(resolvePartyRockPaperScissors(['rock', 'scissors', 'rock'])).toEqual({
+      winnerPlayerIndices: [0, 2],
+      winningChoice: 'rock',
+    })
+    expect(resolvePartyRockPaperScissors(['rock', 'paper', 'scissors'])).toEqual({
+      winnerPlayerIndices: [0, 1, 2],
+      winningChoice: null,
+    })
+  })
+
   it('拒绝未知效果、重复 id 和越界触发参数的导入卡包', () => {
     expect(validatePartyEventDeck(DEFAULT_PARTY_EVENT_DECK)).toEqual({ ok: true })
     expect(validatePartyEventDeck([{ ...DEFAULT_PARTY_EVENT_DECK[0], id: '' }])).toMatchObject({
@@ -117,5 +134,13 @@ describe('升温局事件卡状态机', () => {
         },
       ])
     ).toMatchObject({ ok: false })
+    expect(
+      validatePartyEventDeck([
+        {
+          ...DEFAULT_PARTY_EVENT_DECK[0],
+          effect: { kind: 'rock_paper_scissors' },
+        },
+      ])
+    ).toEqual({ ok: true })
   })
 })

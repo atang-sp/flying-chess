@@ -32,7 +32,7 @@ describe('本地游戏数据清理', () => {
     expect([...values.keys()]).toEqual([])
   })
 
-  it('老用户默认经典局并记住最后一次合法玩法选择', () => {
+  it('老用户默认经典局并按规则集版本记住最后一次合法玩法选择', () => {
     const values = new Map<string, string>()
     const storage = {
       getItem(key: string) {
@@ -46,8 +46,20 @@ describe('本地游戏数据清理', () => {
     expect(loadGameMode(storage)).toBe('classic')
 
     saveGameMode('party', storage)
-    expect(values.get(GAME_MODE_STORAGE_KEY)).toBe('party')
+    expect(JSON.parse(values.get(GAME_MODE_STORAGE_KEY) ?? '')).toEqual({
+      mode: 'party',
+      rulesetVersion: 'party_v2',
+    })
     expect(loadGameMode(storage)).toBe('party')
+
+    values.set(GAME_MODE_STORAGE_KEY, 'party')
+    expect(loadGameMode(storage)).toBe('classic')
+
+    values.set(GAME_MODE_STORAGE_KEY, JSON.stringify({ mode: 'party', rulesetVersion: 'party_v1' }))
+    expect(loadGameMode(storage)).toBe('classic')
+
+    values.set(GAME_MODE_STORAGE_KEY, 'classic')
+    expect(loadGameMode(storage)).toBe('classic')
 
     values.set(GAME_MODE_STORAGE_KEY, 'unknown')
     expect(loadGameMode(storage)).toBe('classic')

@@ -1,25 +1,23 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import type { ConnectionStatus } from '../../types/network'
+  import { ref } from 'vue'
+  import type { ConnectionStatus } from '../../types/network'
 
-defineProps<{
-  status: ConnectionStatus
-  error: string | null
-  roomId: string
-}>()
+  defineProps<{
+    status: ConnectionStatus
+    error: string | null
+    pairingAnswer: string
+  }>()
 
-const emit = defineEmits<{
-  connect: [roomId: string]
-}>()
+  const emit = defineEmits<{
+    connect: [pairingOffer: string]
+  }>()
 
-const inputRoomId = ref('')
+  const pairingOffer = ref('')
 
-function handleConnect(): void {
-  const id = inputRoomId.value.trim().toUpperCase()
-  if (id.length >= 4) {
-    emit('connect', id)
+  function handleConnect(): void {
+    const offer = pairingOffer.value.trim()
+    if (offer) emit('connect', offer)
   }
-}
 </script>
 
 <template>
@@ -31,19 +29,22 @@ function handleConnect(): void {
       </div>
 
       <template v-if="status === 'disconnected'">
-        <p class="hint">输入房间码加入游戏</p>
+        <p class="hint">同一 WiFi 下，将主屏的“局域网配对邀请”粘贴到这里。</p>
         <form class="room-form" @submit.prevent="handleConnect">
-          <input
-            v-model="inputRoomId"
-            type="text"
-            class="room-input"
-            placeholder="房间码"
-            maxlength="8"
+          <textarea
+            v-model="pairingOffer"
+            class="pairing-textarea"
+            placeholder="粘贴主屏配对邀请 JSON"
             autocomplete="off"
             autofocus
+            data-testid="lan-pairing-offer-input"
           />
-          <button type="submit" class="btn btn-primary connect-btn" :disabled="inputRoomId.trim().length < 4">
-            加入
+          <button
+            type="submit"
+            class="btn btn-primary connect-btn"
+            :disabled="!pairingOffer.trim()"
+          >
+            生成配对应答
           </button>
         </form>
         <p v-if="error" class="error-text">{{ error }}</p>
@@ -51,8 +52,19 @@ function handleConnect(): void {
 
       <template v-else-if="status === 'connecting'">
         <div class="connecting-indicator">
-          <div class="spinner" />
-          <p>正在连接到房间 {{ roomId }}...</p>
+          <template v-if="pairingAnswer">
+            <p>把下面的配对应答复制回主屏；数据连接将直接在局域网内建立。</p>
+            <textarea
+              class="pairing-textarea"
+              :value="pairingAnswer"
+              readonly
+              data-testid="lan-pairing-answer"
+            />
+          </template>
+          <template v-else>
+            <div class="spinner" />
+            <p>正在收集本机局域网连接信息...</p>
+          </template>
         </div>
       </template>
 
@@ -74,101 +86,106 @@ function handleConnect(): void {
 </template>
 
 <style scoped>
-.connection-screen {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-}
+  .connection-screen {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+  }
 
-.connection-card {
-  width: 100%;
-  max-width: 360px;
-  text-align: center;
-}
+  .connection-card {
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+  }
 
-.logo-area {
-  margin-bottom: 2rem;
-}
+  .logo-area {
+    margin-bottom: 2rem;
+  }
 
-.logo-icon {
-  font-size: 3rem;
-  display: block;
-  margin-bottom: 0.5rem;
-}
+  .logo-icon {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
 
-.logo-area h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0;
-  color: var(--color-heading, #f0ece4);
-}
+  .logo-area h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--color-heading, #f0ece4);
+  }
 
-.hint {
-  color: var(--color-text-muted, #8a8780);
-  margin-bottom: 1.5rem;
-  font-size: 0.95rem;
-}
+  .hint {
+    color: var(--color-text-muted, #8a8780);
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+  }
 
-.room-form {
-  display: flex;
-  gap: 0.75rem;
-}
+  .room-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
 
-.room-input {
-  flex: 1;
-  padding: 0.75rem 1rem;
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  text-align: center;
-  text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--radius-md, 8px);
-  color: var(--color-text, #e8e6e3);
-  outline: none;
-  transition: border-color 0.2s;
-}
+  .pairing-textarea {
+    width: 100%;
+    min-height: 132px;
+    box-sizing: border-box;
+    padding: 0.75rem 1rem;
+    font:
+      0.75rem/1.35 ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      monospace;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-md, 8px);
+    color: var(--color-text, #e8e6e3);
+    outline: none;
+    transition: border-color 0.2s;
+  }
 
-.room-input:focus {
-  border-color: var(--color-accent, #e1c27f);
-}
+  .pairing-textarea:focus {
+    border-color: var(--color-accent, #e1c27f);
+  }
 
-.connect-btn {
-  flex-shrink: 0;
-  padding: 0.75rem 1.25rem;
-}
+  .connect-btn {
+    flex-shrink: 0;
+    padding: 0.75rem 1.25rem;
+  }
 
-.error-text {
-  color: #ef4444;
-  margin-top: 1rem;
-  font-size: 0.9rem;
-}
+  .error-text {
+    color: #ef4444;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+  }
 
-.connecting-indicator {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
+  .connecting-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
 
-.connecting-indicator p {
-  color: var(--color-text-muted, #8a8780);
-  font-size: 0.95rem;
-}
+  .connecting-indicator p {
+    color: var(--color-text-muted, #8a8780);
+    font-size: 0.95rem;
+  }
 
-.spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid rgba(255, 255, 255, 0.1);
-  border-top-color: var(--color-accent, #e1c27f);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: var(--color-accent, #e1c27f);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 </style>

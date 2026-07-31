@@ -33,6 +33,8 @@ describe('本地跨局进度与成就', () => {
   it('按明确阈值解锁成就、小游戏机关和进阶变体', () => {
     let progress = createLocalProgress()
     progress = recordLocalProgress(progress, { kind: 'game_completed' })
+    expect(getUnlockedPartyContent(progress).punishmentVariants).not.toContain('encore')
+    progress = recordLocalProgress(progress, { kind: 'game_completed' })
     progress = recordLocalProgress(progress, { kind: 'chain_recorded', length: 3 })
     for (let index = 0; index < 3; index += 1) {
       progress = recordLocalProgress(progress, {
@@ -52,6 +54,7 @@ describe('本地跨局进度与成就', () => {
       punishmentVariants: expect.arrayContaining(['deferred', 'mutual']),
       miniGameTraps: expect.arrayContaining(['mini_game_memory', 'mini_game_quiz']),
     })
+    expect(getUnlockedPartyContent(progress).punishmentVariants).toContain('encore')
   })
 
   it('拒绝损坏或未来版本的本地进度缓存', () => {

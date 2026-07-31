@@ -14,6 +14,7 @@
   } from './services/ruleResolution'
   import {
     createDeferredPunishment,
+    createEncorePunishmentReturn,
     createMutualPunishmentReturn,
     resolveConditionalPunishment,
   } from './services/punishmentVariants'
@@ -1830,6 +1831,8 @@
   const resolveCurrentPartyEvent = (result: {
     selectedPlayerIndices?: readonly number[]
     voteChoice?: string
+    voteCounts?: readonly number[]
+    rpsWinnerPlayerIndices?: readonly number[]
   }) => {
     const card = currentPartyEvent.value
     if (!card) return
@@ -1838,9 +1841,20 @@
       card,
       result.selectedPlayerIndices
     )
-    lastEffect.value = result.voteChoice
-      ? `事件“${card.title}”投票选择：${result.voteChoice}`
-      : `事件“${card.title}”已激活`
+    if (result.voteChoice && card.effect.kind === 'vote') {
+      const tally = card.effect.options
+        .map((option, index) => `${option} ${result.voteCounts?.[index] ?? 0} 票`)
+        .join('，')
+      lastEffect.value = `事件“${card.title}”投票结果：${result.voteChoice}（${tally}）`
+    } else if (result.rpsWinnerPlayerIndices) {
+      const winners = result.rpsWinnerPlayerIndices
+        .map(index => gameState.players[index]?.name)
+        .filter(Boolean)
+        .join('、')
+      lastEffect.value = `事件“${card.title}”猜拳结果：${winners || '全员'}获胜`
+    } else {
+      lastEffect.value = `事件“${card.title}”已激活`
+    }
     currentPartyEvent.value = null
     gameState.gameStatus = 'waiting'
     openNextPartyEvent()
@@ -2369,6 +2383,22 @@
         return
       }
 
+      if (
+        punishmentResolution?.kind === 'punishment' &&
+        punishmentResolution.variant === 'encore' &&
+        punishmentResolution.variantPhase === undefined
+      ) {
+        const returnedResolution = createEncorePunishmentReturn(punishmentResolution)
+        mercyRequested.value = true
+        lastEffect.value = '返场惩罚第一次已完成，现在由同一玩家执行减半后的第二次'
+        presentResolvedPunishment(
+          returnedResolution,
+          gameState.players[returnedResolution.actorIndex],
+          gameState.diceValue ?? undefined
+        )
+        return
+      }
+
       if (presentNextBoundPunishment()) return
       if (displayedBoundPunishment.value) displayedBoundPunishment.value = false
 
@@ -2384,7 +2414,8 @@
         !isDoublePunishment.value &&
         currentPunishment.value &&
         punishmentResolution?.kind === 'punishment' &&
-        punishmentResolution.variant !== 'mutual'
+        punishmentResolution.variant !== 'mutual' &&
+        punishmentResolution.variant !== 'encore'
       ) {
         const chance = isPartyGame.value
           ? getActDoublePunishmentChance(partySession.value?.act ?? 'warmup')
@@ -2925,6 +2956,12 @@
       handleTakeoffReliefDismiss: () => confirmTakeoffRelief(),
     },
   })
+  const lanPairingAnswerInput = ref('')
+  const submitLanPairingAnswer = async () => {
+    const answer = lanPairingAnswerInput.value.trim()
+    if (!answer) return
+    if (await multiDevice.acceptPairingAnswer(answer)) lanPairingAnswerInput.value = ''
+  }
 
   const multiDeviceEnabled = computed(() => multiDevice.enabled.value)
   const sharedScreenPunishmentInterventionOptions = computed(() =>
@@ -3922,6 +3959,38 @@
         <p class="room-code-label">房间码</p>
         <p class="room-code">{{ multiDevice.roomInfo.value.roomId }}</p>
         <p class="room-url">{{ multiDevice.roomInfo.value.gameUrl }}</p>
+        <div class="lan-pairing-panel">
+          <p>1. 手机打开上方手柄地址；2. 将邀请粘贴到手机；3. 把手机生成的应答粘贴回来。</p>
+          <small>原生 WebRTC 局域网直连：不使用默认云端信令或外部中继。</small>
+          <label>
+            <span>局域网配对邀请</span>
+            <textarea
+              :value="multiDevice.pairingOffer.value"
+              readonly
+              placeholder="正在收集局域网连接信息..."
+              data-testid="lan-pairing-offer"
+            />
+          </label>
+          <label>
+            <span>手机配对应答</span>
+            <textarea
+              v-model="lanPairingAnswerInput"
+              placeholder="粘贴手机生成的配对应答 JSON"
+              data-testid="lan-pairing-answer-input"
+            />
+          </label>
+          <button
+            type="button"
+            :disabled="!lanPairingAnswerInput.trim()"
+            data-testid="lan-pairing-submit"
+            @click="submitLanPairingAnswer"
+          >
+            建立局域网直连
+          </button>
+          <p v-if="multiDevice.pairingError.value" class="lan-pairing-error">
+            {{ multiDevice.pairingError.value }}
+          </p>
+        </div>
         <div class="connection-list">
           <div
             v-for="player in gameState.players"
@@ -4826,7 +4895,7 @@
     border-radius: var(--radius-lg, 12px);
     padding: 2rem;
     text-align: center;
-    max-width: 400px;
+    max-width: 680px;
     width: 100%;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   }
@@ -4855,6 +4924,55 @@
     color: var(--color-text-muted, #8a8780);
     word-break: break-all;
     margin-bottom: 1.5rem;
+  }
+
+  .lan-pairing-panel {
+    display: grid;
+    gap: 0.65rem;
+    margin-bottom: 1.25rem;
+    padding: 0.9rem;
+    text-align: left;
+    background: rgb(255 255 255 / 0.04);
+    border: 1px solid rgb(225 194 127 / 0.22);
+    border-radius: 10px;
+  }
+
+  .lan-pairing-panel p,
+  .lan-pairing-panel small {
+    margin: 0;
+  }
+
+  .lan-pairing-panel small {
+    color: var(--color-text-muted, #8a8780);
+  }
+
+  .lan-pairing-panel label {
+    display: grid;
+    gap: 0.3rem;
+    font-size: 0.78rem;
+  }
+
+  .lan-pairing-panel textarea {
+    min-height: 76px;
+    padding: 0.55rem;
+    color: var(--color-text, #e8e6e3);
+    font:
+      0.7rem/1.3 ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      monospace;
+    background: rgb(0 0 0 / 0.24);
+    border: 1px solid rgb(255 255 255 / 0.14);
+    border-radius: 7px;
+    resize: vertical;
+  }
+
+  .lan-pairing-panel button {
+    min-height: 42px;
+  }
+
+  .lan-pairing-error {
+    color: #fca5a5;
   }
 
   .connection-list {

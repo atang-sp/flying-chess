@@ -30,6 +30,11 @@ const PRESENTATIONS: Readonly<Record<PunishmentVariant, PunishmentVariantPresent
       instruction: '执行者先按本次内容惩罚目标玩家，随后两人交换角色，用相同内容再执行一次。',
       concealsDetails: false,
     }),
+    encore: Object.freeze({
+      label: '返场惩罚',
+      instruction: '完成本次内容后，同一名受罚玩家立即以一半次数返场执行第二次。',
+      concealsDetails: false,
+    }),
   })
 
 export function getPunishmentVariantPresentation(
@@ -86,5 +91,20 @@ export function createMutualPunishmentReturn(
     targetPlayerIndex: resolution.executorIndex,
     executorIndex: resolution.targetPlayerIndex,
     variantPhase: 'mutual_return',
+  })
+}
+
+export function createEncorePunishmentReturn(
+  resolution: ResolvedPunishmentResult
+): ResolvedPunishmentResult {
+  if (resolution.variant !== 'encore' || resolution.variantPhase !== undefined) {
+    throw new Error('只有返场惩罚首次执行后可以进入第二次')
+  }
+  if (resolution.count.kind !== 'fixed') {
+    throw new Error('返场前必须先确定惩罚次数')
+  }
+  return Object.freeze({
+    ...scaleResolvedPunishmentCount(resolution, 0.5),
+    variantPhase: 'encore_return',
   })
 }

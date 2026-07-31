@@ -1,5 +1,10 @@
 import type { BoardConfig, PunishmentConfig, TrapAction, VictoryConfig } from '../types/game'
-import { DEFAULT_GAME_MODE, GAME_MODES, type GameMode } from '../config/modes'
+import {
+  DEFAULT_GAME_MODE,
+  GAME_MODES,
+  RULESET_VERSION_BY_MODE,
+  type GameMode,
+} from '../config/modes'
 import { normalizeVictoryConfig } from '../services/victorySettlement'
 import {
   DEFAULT_PARTY_EVENT_DECK,
@@ -123,13 +128,30 @@ type GameModeStorageReader = Pick<Storage, 'getItem'>
 type GameModeStorageWriter = Pick<Storage, 'setItem'>
 
 export function loadGameMode(storage: GameModeStorageReader = localStorage): GameMode {
-  const storedMode = storage.getItem(GAME_MODE_STORAGE_KEY)
-  return GAME_MODES.includes(storedMode as GameMode) ? (storedMode as GameMode) : DEFAULT_GAME_MODE
+  const raw = storage.getItem(GAME_MODE_STORAGE_KEY)
+  if (!raw) return DEFAULT_GAME_MODE
+
+  // classic_v1 从未改变，旧的纯字符串缓存可安全保留；旧 party 缓存没有
+  // 规则集版本，必须回退并让玩家重新显式选择，避免静默升级到 party_v2。
+  if (raw === 'classic') return 'classic'
+  try {
+    const stored: unknown = JSON.parse(raw)
+    if (!stored || typeof stored !== 'object') return DEFAULT_GAME_MODE
+    const candidate = stored as Record<string, unknown>
+    if (!GAME_MODES.includes(candidate.mode as GameMode)) return DEFAULT_GAME_MODE
+    const mode = candidate.mode as GameMode
+    return candidate.rulesetVersion === RULESET_VERSION_BY_MODE[mode] ? mode : DEFAULT_GAME_MODE
+  } catch {
+    return DEFAULT_GAME_MODE
+  }
 }
 
 export function saveGameMode(mode: GameMode, storage: GameModeStorageWriter = localStorage): void {
   try {
-    storage.setItem(GAME_MODE_STORAGE_KEY, mode)
+    storage.setItem(
+      GAME_MODE_STORAGE_KEY,
+      JSON.stringify({ mode, rulesetVersion: RULESET_VERSION_BY_MODE[mode] })
+    )
   } catch (error) {
     console.warn('保存本局玩法失败:', error)
   }

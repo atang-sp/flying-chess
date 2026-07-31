@@ -71,8 +71,8 @@
       <section>
         <h3>已解锁内容</h3>
         <p>
-          惩罚变体 {{ unlocked.punishmentVariants.length }}/4 · 小游戏机关
-          {{ unlocked.miniGameTraps.length }}/3
+          惩罚变体 {{ unlocked.punishmentVariants.length }}/5（核心 4 种常驻，返场需解锁） ·
+          小游戏机关 {{ unlocked.miniGameTraps.length }}/3
         </p>
       </section>
 

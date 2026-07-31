@@ -122,9 +122,35 @@ const fetchJsonWithLimit = async (
     if (!response.ok) throw new Error(`远程配置请求失败（HTTP ${response.status}）`)
     const declaredLength = Number(response.headers.get('content-length') ?? 0)
     if (declaredLength > MAX_REMOTE_PACK_BYTES) throw new Error('远程配置超过 500KB 上限')
-    const text = await response.text()
-    if (new TextEncoder().encode(text).length > MAX_REMOTE_PACK_BYTES) {
-      throw new Error('远程配置超过 500KB 上限')
+
+    if (!response.body) {
+      const text = await response.text()
+      if (new TextEncoder().encode(text).length > MAX_REMOTE_PACK_BYTES) {
+        throw new Error('远程配置超过 500KB 上限')
+      }
+      return JSON.parse(text) as unknown
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let receivedBytes = 0
+    let text = ''
+    let streamComplete = false
+    try {
+      while (!streamComplete) {
+        const { done, value } = await reader.read()
+        streamComplete = done
+        if (done) continue
+        receivedBytes += value.byteLength
+        if (receivedBytes > MAX_REMOTE_PACK_BYTES) {
+          await reader.cancel('远程配置超过大小上限')
+          throw new Error('远程配置超过 500KB 上限')
+        }
+        text += decoder.decode(value, { stream: true })
+      }
+      text += decoder.decode()
+    } finally {
+      reader.releaseLock()
     }
     return JSON.parse(text) as unknown
   } finally {

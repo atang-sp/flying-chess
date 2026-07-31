@@ -58,6 +58,8 @@
     if (props.variantPhase === 'conditional_resolved') return '条件已经判定，请按调整后的次数执行。'
     if (props.variantPhase === 'deferred_execution') return '已到约定回合，请先完成这条延迟惩罚。'
     if (props.variantPhase === 'mutual_return') return '现在交换角色，用相同内容完成第二次执行。'
+    if (props.variantPhase === 'encore_return')
+      return '返场阶段：同一名玩家完成减半后的第二次执行。'
     return variantPresentation.value?.instruction ?? ''
   })
   const variantRevealed = ref(false)

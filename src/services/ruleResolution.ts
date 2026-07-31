@@ -185,7 +185,7 @@ export const pickPunishmentVariant = (
   const variantChances: Record<string, Partial<Record<PunishmentVariant, number>>> = {
     warmup: {},
     heating: { blindbox: 15, conditional: 10 },
-    finale: { blindbox: 15, conditional: 10, deferred: 10, mutual: 10 },
+    finale: { blindbox: 15, conditional: 10, deferred: 10, mutual: 10, encore: 5 },
   }
   const chances = variantChances[act]
   const roll = randomSource.randomInt(1, 100)

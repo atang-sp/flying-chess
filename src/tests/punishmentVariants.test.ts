@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createDeferredPunishment,
+  createEncorePunishmentReturn,
   createMutualPunishmentReturn,
   getPunishmentVariantPresentation,
   resolveConditionalPunishment,
@@ -32,7 +33,7 @@ const action: PunishmentAction = {
   description: '用手掌打手心10下，姿势：站立',
 }
 
-function resolution(variant: 'conditional' | 'deferred' | 'mutual') {
+function resolution(variant: 'conditional' | 'deferred' | 'mutual' | 'encore') {
   return resolveRule({
     source: 'board_punishment',
     actorIndex: 0,
@@ -54,6 +55,7 @@ describe('升温局惩罚变体', () => {
     ['conditional', '条件惩罚', false],
     ['deferred', '延迟惩罚', false],
     ['mutual', '双向惩罚', false],
+    ['encore', '返场惩罚', false],
   ] as const)('为 %s 提供稳定的名称和现场执行契约', (variant, label, concealsDetails) => {
     const presentation = getPunishmentVariantPresentation(variant)
 
@@ -95,6 +97,16 @@ describe('升温局惩罚变体', () => {
       executorIndex: 0,
       variant: 'mutual',
       variantPhase: 'mutual_return',
+    })
+  })
+
+  it('进度解锁的返场惩罚让同一目标再执行半数', () => {
+    expect(createEncorePunishmentReturn(resolution('encore'))).toMatchObject({
+      targetPlayerIndex: 0,
+      variant: 'encore',
+      variantPhase: 'encore_return',
+      count: { kind: 'fixed', value: 5 },
+      action: { strikes: 5 },
     })
   })
 })

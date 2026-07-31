@@ -7,11 +7,13 @@ export type PartyEventTrigger =
   | Readonly<{ kind: 'dice_value'; value: number }>
 
 export type PartyMiniGameKind = 'reaction' | 'memory' | 'quick_quiz'
+export type PartyRockPaperScissorsChoice = 'rock' | 'paper' | 'scissors'
 
 export type PartyEventEffect =
   | Readonly<{ kind: 'punishment_multiplier'; multiplier: number; durationTurns: number }>
   | Readonly<{ kind: 'mini_game'; game: PartyMiniGameKind }>
   | Readonly<{ kind: 'vote'; prompt: string; options: readonly string[] }>
+  | Readonly<{ kind: 'rock_paper_scissors' }>
   | Readonly<{ kind: 'bind_players'; durationTurns: number }>
 
 export interface PartyEventCard {
@@ -102,7 +104,67 @@ export const DEFAULT_PARTY_EVENT_DECK: readonly PartyEventCard[] = Object.freeze
     trigger: Object.freeze({ kind: 'every_n_turns', interval: 4 }),
     effect: Object.freeze({ kind: 'bind_players', durationTurns: 3 }),
   }),
+  Object.freeze({
+    id: 'all-player-rps',
+    title: '全员猜拳',
+    description: '所有玩家依次秘密出拳，最后统一揭晓赢家。',
+    tags: Object.freeze(['猜拳', '全员']),
+    trigger: Object.freeze({ kind: 'every_n_turns', interval: 5 }),
+    effect: Object.freeze({ kind: 'rock_paper_scissors' }),
+  }),
 ])
+
+export function tallyPartyVotes(
+  options: readonly string[],
+  votes: readonly number[]
+): { readonly counts: readonly number[]; readonly winningOptionIndices: readonly number[] } {
+  if (
+    options.length < 2 ||
+    votes.some(vote => !Number.isInteger(vote) || vote < 0 || vote >= options.length)
+  ) {
+    throw new Error('投票内容或选项无效')
+  }
+  const counts = options.map((_, optionIndex) => votes.filter(vote => vote === optionIndex).length)
+  const maximum = Math.max(...counts)
+  return Object.freeze({
+    counts: Object.freeze(counts),
+    winningOptionIndices: Object.freeze(
+      counts.flatMap((count, optionIndex) => (count === maximum ? [optionIndex] : []))
+    ),
+  })
+}
+
+export function resolvePartyRockPaperScissors(choices: readonly PartyRockPaperScissorsChoice[]): {
+  readonly winnerPlayerIndices: readonly number[]
+  readonly winningChoice: PartyRockPaperScissorsChoice | null
+} {
+  if (
+    choices.length < 2 ||
+    choices.some(choice => !['rock', 'paper', 'scissors'].includes(choice))
+  ) {
+    throw new Error('猜拳至少需要两名玩家的合法选择')
+  }
+  const unique = new Set(choices)
+  if (unique.size !== 2) {
+    return Object.freeze({
+      winnerPlayerIndices: Object.freeze(choices.map((_, index) => index)),
+      winningChoice: null,
+    })
+  }
+  const beats: Readonly<Record<PartyRockPaperScissorsChoice, PartyRockPaperScissorsChoice>> = {
+    rock: 'scissors',
+    paper: 'rock',
+    scissors: 'paper',
+  }
+  const [first, second] = [...unique] as PartyRockPaperScissorsChoice[]
+  const winningChoice = beats[first] === second ? first : second
+  return Object.freeze({
+    winnerPlayerIndices: Object.freeze(
+      choices.flatMap((choice, index) => (choice === winningChoice ? [index] : []))
+    ),
+    winningChoice,
+  })
+}
 
 const freezeState = (state: PartyEventState): PartyEventState =>
   Object.freeze({
@@ -345,6 +407,8 @@ export function validatePartyEventDeck(value: unknown): PartyEventDeckValidation
       ) {
         return { ok: false, error: `事件卡 ${id} 的投票选项无效` }
       }
+    } else if (effect.kind === 'rock_paper_scissors') {
+      // No configurable fields; the UI collects one private choice per player.
     } else if (effect.kind === 'bind_players') {
       if (!positiveInteger(effect.durationTurns, 20)) {
         return { ok: false, error: `事件卡 ${id} 的绑定时长无效` }
