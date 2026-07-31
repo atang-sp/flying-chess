@@ -98,6 +98,10 @@ async function parseQRCodeFromImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      reject(new Error('当前浏览器无法创建二维码解析画布'))
+      return
+    }
     const img = new Image()
     const objectUrl = URL.createObjectURL(file)
 
@@ -105,10 +109,10 @@ async function parseQRCodeFromImage(file: File): Promise<string> {
       try {
         canvas.width = img.width
         canvas.height = img.height
-        ctx!.drawImage(img, 0, 0)
+        ctx.drawImage(img, 0, 0)
 
         // 获取图像数据
-        const imageData = ctx!.getImageData(0, 0, canvas.width, canvas.height)
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
 
         // 使用 jsQR 解析二维码
         const code = jsQR(imageData.data, imageData.width, imageData.height)

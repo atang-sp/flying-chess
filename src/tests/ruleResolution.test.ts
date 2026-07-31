@@ -129,6 +129,27 @@ describe('规则结果解析', () => {
     })
   })
 
+  it('仅在调用方选中时把升温局惩罚变体写入规则结果', () => {
+    const classicResult = resolveRule({
+      source: 'board_punishment',
+      actorIndex: 0,
+      players,
+      punishmentConfig: compatibilityConfig,
+      boardAction,
+    })
+    const partyResult = resolveRule({
+      source: 'board_punishment',
+      actorIndex: 0,
+      players,
+      punishmentConfig: compatibilityConfig,
+      boardAction,
+      punishmentVariant: 'blindbox',
+    })
+
+    expect(classicResult.variant).toBeUndefined()
+    expect(partyResult.variant).toBe('blindbox')
+  })
+
   it('只生成工具强度和姿势都兼容的惩罚动作', () => {
     const action = createCompatiblePunishmentAction(compatibilityConfig, {
       weightedChoice: entries => entries[0],

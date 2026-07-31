@@ -8,9 +8,11 @@ import type {
   RequiredAction,
   RoomInfo,
 } from '../types/network'
-import type { GameState } from '../types/game'
+import type { GameState, VictoryConfig } from '../types/game'
 import type { PartySession } from '../services/partyMode'
+import type { PartyPunishmentIntervention } from '../services/partyPunishmentInterventions'
 import { devLog } from '../utils/logger'
+import { resolveVictorySettlement } from '../services/victorySettlement'
 
 export interface MultiDeviceHostActions {
   handleDiceRoll: () => Promise<void>
@@ -20,6 +22,7 @@ export interface MultiDeviceHostActions {
   handlePartyReroll: () => Promise<void>
   continuePartyMove: () => Promise<void>
   resolvePartyPunishmentChoice: (selectedIndex?: number) => Promise<void>
+  resolvePartyPunishmentIntervention: (intervention: PartyPunishmentIntervention) => Promise<void>
   confirmPunishment: () => Promise<void>
   confirmEffect: () => Promise<void>
   handleTrapDismiss: () => void
@@ -51,6 +54,7 @@ export interface MultiDeviceHostDeps {
   gameFinished: Ref<boolean>
   isPartyGame: ComputedRef<boolean>
   sessionPaused: Ref<boolean>
+  victoryConfig: Ref<VictoryConfig>
   overlayState: () => MultiDeviceOverlayState
   actions: MultiDeviceHostActions
 }
@@ -60,6 +64,8 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
   const hostStatus = ref<ConnectionStatus>('disconnected')
   const roomInfo = ref<RoomInfo | null>(null)
   const connectedPlayers = ref<ConnectedPlayer[]>([])
+  const pairingOffer = ref('')
+  const pairingError = ref<string | null>(null)
 
   const peerToPlayerIndex = new Map<string, number>()
   const playerToPeer = new Map<number, string>()
@@ -67,12 +73,13 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
 
   let network: HostNetworkManager | null = null
   let broadcastTimer: ReturnType<typeof setInterval> | null = null
+  let pairingOfferGeneration: Promise<void> | null = null
 
   const isActive = computed(() => enabled.value && hostStatus.value === 'connected')
   const allPlayersConnected = computed(() => {
     if (!enabled.value) return false
     const needed = deps.gameState.players.length
-    return connectedPlayers.value.filter((p) => p.status === 'connected').length >= needed
+    return connectedPlayers.value.filter(p => p.status === 'connected').length >= needed
   })
 
   function isRemotePlayer(playerIndex: number): boolean {
@@ -80,7 +87,7 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
   }
 
   function getConnectedPlayerCount(): number {
-    return connectedPlayers.value.filter((p) => p.status === 'connected').length
+    return connectedPlayers.value.filter(p => p.status === 'connected').length
   }
 
   function sendPlayerAssignment(peerId: string, playerIndex: number): void {
@@ -184,6 +191,21 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
       case 'skip_punishment_choice':
         deps.actions.resolvePartyPunishmentChoice()
         break
+      case 'punishment_intervention':
+        deps.actions.resolvePartyPunishmentIntervention(
+          msg.action === 'transfer'
+            ? {
+                action: msg.action,
+                playerIndex,
+                targetPlayerIndex: msg.targetPlayerIndex ?? -1,
+              }
+            : { action: msg.action, playerIndex }
+        )
+        break
+      case 'decline_punishment_intervention':
+        clearPendingAction(playerIndex)
+        broadcastStateToAll()
+        break
       case 'acknowledge':
         handleRemoteAcknowledge(playerIndex)
         break
@@ -246,27 +268,60 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
     pendingActions.value.delete(playerIndex)
   }
 
+  async function createPairingOffer(): Promise<void> {
+    if (!network || pairingOfferGeneration) return pairingOfferGeneration ?? Promise.resolve()
+    pairingError.value = null
+    pairingOfferGeneration = network
+      .createPairingOffer()
+      .then(offer => {
+        pairingOffer.value = offer
+      })
+      .catch(error => {
+        pairingError.value = error instanceof Error ? error.message : '无法生成局域网配对邀请'
+      })
+      .finally(() => {
+        pairingOfferGeneration = null
+      })
+    return pairingOfferGeneration
+  }
+
+  async function acceptPairingAnswer(answer: string): Promise<boolean> {
+    if (!network) return false
+    pairingError.value = null
+    try {
+      await network.acceptPairingAnswer(answer)
+      pairingOffer.value = ''
+      return true
+    } catch (error) {
+      pairingError.value = error instanceof Error ? error.message : '无法接受局域网配对应答'
+      return false
+    }
+  }
+
   async function startHost(): Promise<RoomInfo> {
     enabled.value = true
 
     network = new HostNetworkManager({
-      onPlayerConnected: (peerId) => {
+      onPlayerConnected: peerId => {
         devLog('[MultiDeviceHost] Player connected:', peerId)
         updateConnectedPlayers()
+        if (network && network.connectedPeerIds.length < deps.gameState.players.length) {
+          void createPairingOffer()
+        }
       },
-      onPlayerDisconnected: (peerId) => {
+      onPlayerDisconnected: peerId => {
         devLog('[MultiDeviceHost] Player disconnected:', peerId)
         updateConnectedPlayers()
       },
       onPlayerMessage: handlePlayerMessage,
     })
 
-    network.onStatusChange((status) => {
+    network.onStatusChange(status => {
       hostStatus.value = status
     })
 
     const roomId = await network.open()
-    const gameUrl = `${window.location.origin}${window.location.pathname.replace(/index\.html$/, '')}controller.html?room=${roomId}`
+    const gameUrl = `${window.location.origin}${window.location.pathname.replace(/index\.html$/, '')}controller.html`
 
     roomInfo.value = {
       roomId,
@@ -274,6 +329,7 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
       gameUrl,
     }
 
+    await createPairingOffer()
     startBroadcastLoop()
     return roomInfo.value
   }
@@ -298,6 +354,8 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
     enabled.value = false
     hostStatus.value = 'disconnected'
     roomInfo.value = null
+    pairingOffer.value = ''
+    pairingError.value = null
     connectedPlayers.value = []
     peerToPlayerIndex.clear()
     playerToPeer.clear()
@@ -309,7 +367,7 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
       deps.gameState.gameStatus,
       deps.gameState.currentPlayerIndex,
       deps.gameState.diceValue,
-      deps.gameState.players.map((p) => p.position),
+      deps.gameState.players.map(p => p.position),
       deps.partySession.value?.reaction?.status,
     ],
     () => {
@@ -320,12 +378,33 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
 
   watch(
     () => deps.gameFinished.value,
-    (finished) => {
+    finished => {
       if (finished && enabled.value && deps.gameState.winner) {
-        network?.broadcast({
-          type: 'game_ended',
-          winnerName: deps.gameState.winner.name,
-        })
+        const winnerPlayerIndex = deps.gameState.players.findIndex(
+          player => player.id === deps.gameState.winner?.id
+        )
+        const settlements = new Map(
+          resolveVictorySettlement(
+            deps.gameState.players,
+            winnerPlayerIndex,
+            deps.victoryConfig.value
+          ).map(entry => [entry.playerIndex, entry])
+        )
+        for (const [peerId, playerIndex] of peerToPlayerIndex) {
+          const settlement = settlements.get(playerIndex)
+          network?.sendTo(peerId, {
+            type: 'game_ended',
+            winnerName: deps.gameState.winner.name,
+            settlement: settlement
+              ? {
+                  actionText: deps.victoryConfig.value.actionText,
+                  count: settlement.count,
+                  countUnit: deps.victoryConfig.value.countUnit,
+                  place: settlement.place,
+                }
+              : undefined,
+          })
+        }
       }
     }
   )
@@ -347,12 +426,16 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
     hostStatus,
     roomInfo,
     connectedPlayers,
+    pairingOffer,
+    pairingError,
     allPlayersConnected,
     isRemotePlayer,
     getConnectedPlayerCount,
     requestAction,
     clearPendingAction,
     broadcastStateToAll,
+    createPairingOffer,
+    acceptPairingAnswer,
     startHost,
     stopHost,
   }

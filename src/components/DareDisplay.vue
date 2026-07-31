@@ -18,9 +18,18 @@
   const emit = defineEmits<Emits>()
 
   const submitted = ref(false)
-  watch(() => props.show, (visible) => { if (visible) submitted.value = false })
+  watch(
+    () => props.show,
+    visible => {
+      if (visible) submitted.value = false
+    }
+  )
 
-  const confirm = () => { if (submitted.value) return; submitted.value = true; emit('confirm') }
+  const confirm = () => {
+    if (submitted.value) return
+    submitted.value = true
+    emit('confirm')
+  }
 </script>
 
 <template>

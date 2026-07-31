@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { VERSION } from '../config/version'
 import {
   createGameTelemetry,
   createUmamiAdapter,
@@ -21,7 +22,7 @@ describe('gameTelemetry', () => {
       {
         name: 'app_open',
         data: {
-          app_version: '1.8.0',
+          app_version: VERSION,
           mode_id: 'classic',
           ruleset_version: 'classic_v1',
           device_type: 'mobile',
@@ -44,7 +45,7 @@ describe('gameTelemetry', () => {
       {
         name: 'mode_selected',
         data: {
-          app_version: '1.8.0',
+          app_version: VERSION,
           mode_id: 'classic',
           ruleset_version: 'classic_v1',
           device_type: 'desktop',
@@ -53,7 +54,7 @@ describe('gameTelemetry', () => {
       {
         name: 'mode_switched',
         data: {
-          app_version: '1.8.0',
+          app_version: VERSION,
           mode_id: 'classic',
           ruleset_version: 'classic_v1',
           device_type: 'desktop',
@@ -83,7 +84,7 @@ describe('gameTelemetry', () => {
       {
         name: 'setup_started',
         data: {
-          app_version: '1.8.0',
+          app_version: VERSION,
           mode_id: 'classic',
           ruleset_version: 'classic_v1',
           device_type: 'desktop',
@@ -134,7 +135,7 @@ describe('gameTelemetry', () => {
       expect(adapter.events[1]).toEqual({
         name: 'game_completed',
         data: {
-          app_version: '1.8.0',
+          app_version: VERSION,
           mode_id: 'classic',
           ruleset_version: 'classic_v1',
           device_type: 'desktop',
@@ -189,7 +190,7 @@ describe('gameTelemetry', () => {
     expect(adapter.events[2]).toEqual({
       name: 'play_again',
       data: {
-        app_version: '1.8.0',
+        app_version: VERSION,
         mode_id: 'classic',
         ruleset_version: 'classic_v1',
         device_type: 'mobile',

@@ -5,9 +5,11 @@ docs/
 *.bundle.js
 coverage/
 .nyc_output/
+.serena/
+.playwright-cli/
 *.log
 .DS_Store
 Thumbs.db
 package-lock.json
 yarn.lock
-pnpm-lock.yaml 
+pnpm-lock.yaml

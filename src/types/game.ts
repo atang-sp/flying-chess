@@ -11,6 +11,10 @@ export interface Player {
   pendingMercyMultiplier?: number
   /** 尚未消费的跳过回合数 */
   pendingSkippedTurns?: number
+  /** 小游戏胜利获得的一次性免罚。 */
+  pendingMiniGameImmunity?: boolean
+  /** 小游戏失败附加到下一次惩罚的一次性倍率。 */
+  pendingMiniGameMultiplier?: number
 }
 
 export interface PunishmentTool {
@@ -105,6 +109,7 @@ export interface ResolvedPunishmentResult {
   readonly countMultiplier?: number
   readonly turnConsequence: TurnConsequence
   readonly variant?: PunishmentVariant
+  readonly variantPhase?: PunishmentVariantPhase
 }
 
 export interface ResolvedTrapResult {
@@ -202,6 +207,15 @@ export interface GameState {
   pendingEffect: CellEffect | null
 }
 
+/** Configurable end-of-game reward and loser gradient. */
+export interface VictoryConfig {
+  actionText: string
+  baseCount: number
+  countUnit: string
+  loserGradientEnabled: boolean
+  gradientStep: number
+}
+
 export interface DiceAnimation {
   isRolling: boolean
   duration: number
@@ -235,7 +249,14 @@ export interface DareInstruction {
 }
 
 /** Structured trap type discriminator */
-export type TrapVariant = 'text' | 'all_players' | 'choice' | 'roulette'
+export type TrapVariant =
+  | 'text'
+  | 'all_players'
+  | 'choice'
+  | 'roulette'
+  | 'mini_game_reaction'
+  | 'mini_game_memory'
+  | 'mini_game_quiz'
 
 /** Extended trap with structured type */
 export interface StructuredTrapAction extends TrapAction {
@@ -245,7 +266,14 @@ export interface StructuredTrapAction extends TrapAction {
 }
 
 /** Punishment variant for party mode */
-export type PunishmentVariant = 'blindbox' | 'conditional' | 'deferred' | 'mutual'
+export type PunishmentVariant = 'blindbox' | 'conditional' | 'deferred' | 'mutual' | 'encore'
+
+/** Runtime phase for punishment variants that span more than one decision or turn. */
+export type PunishmentVariantPhase =
+  | 'conditional_resolved'
+  | 'deferred_execution'
+  | 'mutual_return'
+  | 'encore_return'
 
 /** Resolved QA result */
 export interface ResolvedQAResult {

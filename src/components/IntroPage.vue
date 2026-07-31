@@ -18,14 +18,33 @@
     Flame,
     ShieldCheck,
   } from '@lucide/vue'
-  import { savePlayerSettings, loadPlayerSettings, clearAllLocalGameData } from '../utils/cache'
+  import {
+    savePlayerSettings,
+    loadPlayerSettings,
+    clearAllLocalGameData,
+    loadVictoryConfig,
+    loadPartyEventDeck,
+    savePartyEventDeck,
+    loadLocalProgress,
+    loadPartyStudioConfig,
+    savePartyStudioConfig,
+    saveVictoryConfig,
+  } from '../utils/cache'
   import { SecureRandom } from '../utils/secureRandom'
   import { devLog } from '../utils/logger'
   import VersionDisplay from './VersionDisplay.vue'
   import PartySceneSelector from './PartySceneSelector.vue'
+  import VictoryConfigPanel from './VictoryConfig.vue'
+  import PartyEventDeckEditor from './PartyEventDeckEditor.vue'
+  import CommunityPackBrowser from './CommunityPackBrowser.vue'
+  import ProgressAchievements from './ProgressAchievements.vue'
+  import PartyStudioEditor from './PartyStudioEditor.vue'
   import type { GameMode } from '../config/modes'
-  import type { PartyScenePreset } from '../types/game'
+  import type { PartyScenePreset, VictoryConfig } from '../types/game'
   import { PARTY_MIN_PLAYERS } from '../services/partyMode'
+  import type { PartyEventCard } from '../services/partyEvents'
+  import type { CommunityPack } from '../services/communityPacks'
+  import { validatePartyStudioConfig, type PartyStudioConfig } from '../services/partyStudio'
 
   interface Emits {
     (
@@ -36,6 +55,9 @@
         mode: GameMode
         scenePreset?: PartyScenePreset | 'default'
         multiDevice?: boolean
+        victoryConfig: VictoryConfig
+        eventDeck: readonly PartyEventCard[]
+        studioConfig: PartyStudioConfig
       }
     ): void
     (e: 'mode-selected', mode: GameMode): void
@@ -50,8 +72,15 @@
   const selectedMode = ref<GameMode>(props.initialMode)
   const selectedScenePreset = ref<PartyScenePreset | 'default'>('default')
   const multiDeviceMode = ref(false)
+  const victoryConfig = ref<VictoryConfig>(loadVictoryConfig())
+  const eventDeck = ref<readonly PartyEventCard[]>(loadPartyEventDeck())
+  const localProgress = loadLocalProgress()
+  const studioConfig = ref<PartyStudioConfig>(loadPartyStudioConfig())
   const canStart = computed(
-    () => selectedMode.value === 'classic' || playerCount.value >= PARTY_MIN_PLAYERS
+    () =>
+      selectedMode.value === 'classic' ||
+      (playerCount.value >= PARTY_MIN_PLAYERS &&
+        (!studioConfig.value.enabled || validatePartyStudioConfig(studioConfig.value).ok))
   )
 
   // 加载玩家设置的函数
@@ -72,6 +101,17 @@
     () => [playerCount.value, playerNames.value],
     () => {
       savePlayerSettings({ playerCount: playerCount.value, playerNames: playerNames.value })
+    },
+    { deep: true }
+  )
+
+  watch(eventDeck, deck => savePartyEventDeck(deck), { deep: true })
+  watch(studioConfig, config => savePartyStudioConfig(config), { deep: true })
+
+  watch(
+    victoryConfig,
+    config => {
+      saveVictoryConfig(config)
     },
     { deep: true }
   )
@@ -111,6 +151,9 @@
       mode: selectedMode.value,
       scenePreset: selectedMode.value === 'party' ? selectedScenePreset.value : undefined,
       multiDevice: selectedMode.value === 'party' ? multiDeviceMode.value : undefined,
+      victoryConfig: { ...victoryConfig.value },
+      eventDeck: eventDeck.value,
+      studioConfig: studioConfig.value,
     })
   }
 
@@ -121,6 +164,12 @@
 
   const selectScenePreset = (preset: PartyScenePreset | 'default') => {
     selectedScenePreset.value = preset
+  }
+
+  const applyCommunityPack = (pack: CommunityPack) => {
+    if (pack.eventDeck) eventDeck.value = pack.eventDeck
+    if (pack.victoryConfig) victoryConfig.value = { ...pack.victoryConfig }
+    if (pack.studioConfig) studioConfig.value = structuredClone(pack.studioConfig)
   }
 
   // 监听玩家设置更新事件
@@ -137,6 +186,9 @@
   const clearCache = () => {
     try {
       clearAllLocalGameData()
+      victoryConfig.value = loadVictoryConfig()
+      eventDeck.value = loadPartyEventDeck()
+      studioConfig.value = loadPartyStudioConfig()
       showClearSuccess.value = true
       if (clearSuccessTimer !== undefined) clearTimeout(clearSuccessTimer)
       clearSuccessTimer = setTimeout(() => {
@@ -346,7 +398,7 @@
               <strong>升温局</strong>
               <span>实验玩法 · 约 20 分钟 · 三幕、筹码与同场反应</span>
             </span>
-            <span class="mode-card__badge mode-card__badge--party">party_v1</span>
+            <span class="mode-card__badge mode-card__badge--party">party_v2</span>
           </button>
         </div>
 
@@ -430,6 +482,29 @@
           </div>
         </div>
       </div>
+
+      <VictoryConfigPanel
+        v-if="selectedMode === 'party'"
+        :config="victoryConfig"
+        :player-count="playerCount"
+        @update="victoryConfig = $event"
+      />
+
+      <PartyEventDeckEditor
+        v-if="selectedMode === 'party'"
+        :deck="eventDeck"
+        @update="eventDeck = $event"
+      />
+
+      <CommunityPackBrowser v-if="selectedMode === 'party'" @apply="applyCommunityPack" />
+
+      <PartyStudioEditor
+        v-if="selectedMode === 'party'"
+        :config="studioConfig"
+        @update="studioConfig = $event"
+      />
+
+      <ProgressAchievements :progress="localProgress" />
 
       <!-- 操作区域 -->
       <div class="intro-actions">

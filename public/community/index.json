@@ -1,0 +1,29 @@
+[
+  {
+    "schemaVersion": 1,
+    "id": "icebreaker-plus",
+    "title": "破冰加量包",
+    "description": "适合新朋友的轻量投票、问答和反应事件。",
+    "tags": ["破冰局", "轻度", "多人"],
+    "rating": 4.8,
+    "packUrl": "/flying-chess/community/packs/icebreaker-plus.json"
+  },
+  {
+    "schemaVersion": 1,
+    "id": "couple-finale",
+    "title": "情侣终局包",
+    "description": "为两人升温局准备的柔和终局梯度。",
+    "tags": ["情侣局", "终局", "轻度"],
+    "rating": 4.6,
+    "packUrl": "/flying-chess/community/packs/couple-finale.json"
+  },
+  {
+    "schemaVersion": 1,
+    "id": "hardcore-fate",
+    "title": "重口命运包",
+    "description": "更频繁的倍率、绑定和记忆挑战。",
+    "tags": ["重口局", "高强度", "老友"],
+    "rating": 4.7,
+    "packUrl": "/flying-chess/community/packs/hardcore-fate.json"
+  }
+]

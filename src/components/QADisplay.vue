@@ -19,10 +19,23 @@
   const emit = defineEmits<Emits>()
 
   const submitted = ref(false)
-  watch(() => props.show, (visible) => { if (visible) submitted.value = false })
+  watch(
+    () => props.show,
+    visible => {
+      if (visible) submitted.value = false
+    }
+  )
 
-  const answer = () => { if (submitted.value) return; submitted.value = true; emit('answer') }
-  const refuse = () => { if (submitted.value) return; submitted.value = true; emit('refuse') }
+  const answer = () => {
+    if (submitted.value) return
+    submitted.value = true
+    emit('answer')
+  }
+  const refuse = () => {
+    if (submitted.value) return
+    submitted.value = true
+    emit('refuse')
+  }
 </script>
 
 <template>

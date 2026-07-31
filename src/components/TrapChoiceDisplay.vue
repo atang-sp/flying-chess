@@ -23,10 +23,23 @@
   const emit = defineEmits<Emits>()
 
   const submitted = ref(false)
-  watch(() => props.show, (visible) => { if (visible) submitted.value = false })
+  watch(
+    () => props.show,
+    visible => {
+      if (visible) submitted.value = false
+    }
+  )
 
-  const choose = (choice: 'A' | 'B') => { if (submitted.value) return; submitted.value = true; emit('choose', choice) }
-  const confirmTrap = () => { if (submitted.value) return; submitted.value = true; emit('confirm') }
+  const choose = (choice: 'A' | 'B') => {
+    if (submitted.value) return
+    submitted.value = true
+    emit('choose', choice)
+  }
+  const confirmTrap = () => {
+    if (submitted.value) return
+    submitted.value = true
+    emit('confirm')
+  }
 </script>
 
 <template>
@@ -75,7 +88,9 @@
         </div>
 
         <div v-else class="trap-confirm-section">
-          <button class="btn trap-confirm-btn" :disabled="submitted" @click="confirmTrap">确认执行</button>
+          <button class="btn trap-confirm-btn" :disabled="submitted" @click="confirmTrap">
+            确认执行
+          </button>
         </div>
       </div>
     </div>

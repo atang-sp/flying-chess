@@ -124,7 +124,7 @@ describe('起飞逻辑测试', () => {
   })
 
   it('应该在maxTakeoffFailures为undefined时不触发强制起飞', () => {
-    punishmentConfig.maxTakeoffFailures = undefined as any
+    delete (punishmentConfig as Partial<PunishmentConfig>).maxTakeoffFailures
 
     // 即使失败很多次也不应该强制起飞
     for (let i = 0; i < 10; i++) {

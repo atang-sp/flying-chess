@@ -61,6 +61,144 @@ async function startPartyGame(page: Page) {
   await expect(page.locator('.game-board')).toBeVisible()
 }
 
+type PartyPunishmentVariant = 'blindbox' | 'conditional' | 'deferred' | 'mutual' | 'encore'
+
+async function showInjectedPartyPunishment(page: Page, variant: PartyPunishmentVariant) {
+  await startPartyGame(page)
+  await page.evaluate(selectedVariant => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        gameStatus: string
+        currentPlayerIndex: number
+        players: Array<{
+          name: string
+          color: string
+          hasTakenOff?: boolean
+        }>
+      }
+      currentPunishment: { value: Record<string, unknown> | null }
+      currentPunishmentExecutor: { value: unknown }
+      currentPunishmentTarget: { value: unknown }
+      pendingRuleResolution: { value: Record<string, unknown> | null }
+    }
+    const action = {
+      tool: { name: '手掌', intensity: 1, ratio: 100 },
+      bodyPart: { name: '手心', sensitivity: 2, ratio: 100 },
+      position: { name: '站立', ratio: 100, compatibleBodyParts: ['手心'] },
+      strikes: 10,
+      description: '用手掌打手心10下，姿势：站立',
+    }
+    const [target, executor] = debugWindow.gameState.players
+    if (!target || !executor) throw new Error('party punishment test requires two players')
+    target.hasTakenOff = true
+    debugWindow.gameState.currentPlayerIndex = 0
+    debugWindow.gameState.gameStatus = 'configuring'
+    debugWindow.pendingRuleResolution.value = {
+      kind: 'punishment',
+      source: 'board_punishment',
+      actorIndex: 0,
+      targetPlayerIndex: 0,
+      executorIndex: 1,
+      action,
+      count: { kind: 'fixed', value: 10 },
+      turnConsequence: { kind: 'none' },
+      variant: selectedVariant,
+    }
+    debugWindow.currentPunishment.value = action
+    debugWindow.currentPunishmentTarget.value = target
+    debugWindow.currentPunishmentExecutor.value = executor
+  }, variant)
+
+  await expect(page.getByTestId('punishment-variant')).toBeVisible()
+}
+
+async function reachPartyPunishmentIntervention(page: Page) {
+  await startPartyGame(page)
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        players: Array<{ position: number; hasTakenOff?: boolean }>
+        board: Array<{
+          position: number
+          type: string
+          effect?: Record<string, unknown>
+        }>
+      }
+    }
+    debugWindow.gameState.players[0].position = 1
+    debugWindow.gameState.players[0].hasTakenOff = true
+    for (const cell of debugWindow.gameState.board) {
+      if (cell.position < 2 || cell.position > 7) continue
+      cell.type = 'punishment'
+      cell.effect = {
+        type: 'punishment',
+        value: 0,
+        description: '测试静态惩罚',
+        punishment: {
+          tool: { name: '手掌', intensity: 1, ratio: 100 },
+          bodyPart: { name: '手心', sensitivity: 2, ratio: 100 },
+          position: {
+            name: '站立',
+            ratio: 100,
+            compatibleBodyParts: ['手心'],
+          },
+          strikes: 5,
+          description: '测试静态惩罚',
+        },
+      }
+    }
+  })
+
+  await page.getByRole('button', { name: '投掷骰子' }).click({ force: true })
+  await page.getByTestId('predict-low').click()
+  await expect
+    .poll(
+      async () =>
+        (await page.getByTestId('reaction-keep').isVisible()) ||
+        (await page.getByTestId('party-dice-decision').isVisible())
+    )
+    .toBe(true)
+  if (await page.getByTestId('reaction-keep').isVisible()) {
+    await page.getByTestId('reaction-keep').click()
+  }
+  await page.getByTestId('party-continue').click()
+  await expect(page.getByTestId('party-punishment-choice')).toBeVisible()
+  await page.getByTestId('party-choice-skip').click()
+  await expect(page.getByTestId('party-intervention')).toBeVisible()
+}
+
+async function completePartyTurnOnBonusCell(page: Page) {
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        players: Array<{ position: number; hasTakenOff?: boolean }>
+        board: Array<{ position: number; type: string; effect?: Record<string, unknown> }>
+      }
+    }
+    debugWindow.gameState.players[0].position = 1
+    debugWindow.gameState.players[0].hasTakenOff = true
+    for (const cell of debugWindow.gameState.board) {
+      if (cell.position < 2 || cell.position > 7) continue
+      cell.type = 'bonus'
+      cell.effect = undefined
+    }
+  })
+
+  await page.getByRole('button', { name: '投掷骰子' }).click({ force: true })
+  await page.getByTestId('predict-low').click()
+  await expect
+    .poll(
+      async () =>
+        (await page.getByTestId('reaction-keep').isVisible()) ||
+        (await page.getByTestId('party-dice-decision').isVisible())
+    )
+    .toBe(true)
+  if (await page.getByTestId('reaction-keep').isVisible()) {
+    await page.getByTestId('reaction-keep').click()
+  }
+  await page.getByTestId('party-continue').click()
+}
+
 async function getTelemetryEvents(page: Page): Promise<BrowserTelemetryEvent[]> {
   return page.evaluate(() => {
     return (
@@ -87,6 +225,26 @@ async function completeGameForTelemetry(page: Page) {
   })
 }
 
+test('development startup does not register a missing production service worker', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  const serviceWorkerErrors: string[] = []
+  page.on('console', message => {
+    const text = message.text()
+    if (text.includes('SW registration failed') || text.includes('unsupported MIME type')) {
+      serviceWorkerErrors.push(text)
+    }
+  })
+
+  await page.goto('/flying-chess/')
+  await page.waitForLoadState('networkidle')
+
+  expect(serviceWorkerErrors).toEqual([])
+  await expect(page.locator('.version-text')).toHaveText('v1.11.0')
+})
+
 test('selects and starts party mode with anonymous mode telemetry', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chrome')
 
@@ -99,16 +257,16 @@ test('selects and starts party mode with anonymous mode telemetry', async ({ pag
   const events = await getTelemetryEvents(page)
   expect(events[1].data).toMatchObject({
     mode_id: 'party',
-    ruleset_version: 'party_v1',
+    ruleset_version: 'party_v2',
   })
   expect(events[2].data).toMatchObject({
     mode_id: 'party',
     previous_mode_id: 'classic',
-    ruleset_version: 'party_v1',
+    ruleset_version: 'party_v2',
   })
   expect(events[4].data).toMatchObject({
     mode_id: 'party',
-    ruleset_version: 'party_v1',
+    ruleset_version: 'party_v2',
     player_count_bucket: '2',
   })
   for (const event of events) {
@@ -119,7 +277,51 @@ test('selects and starts party mode with anonymous mode telemetry', async ({ pag
   }
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('flying-chess-game-mode')))
-    .toBe('party')
+    .toBe(JSON.stringify({ mode: 'party', rulesetVersion: 'party_v2' }))
+})
+
+test('native WebRTC pairs two phone controllers without cloud signalling', async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+  test.setTimeout(60_000)
+
+  await page.goto('/flying-chess/')
+  await page.getByTestId('mode-party').click()
+  await page.getByRole('button', { name: /多设备模式/ }).click()
+  await page.getByTestId('start-game').click()
+
+  const lobby = page.locator('.multi-device-lobby')
+  await expect(lobby).toBeVisible()
+  await expect(lobby).toContainText('不使用默认云端信令或外部中继')
+  const controllers: Page[] = []
+
+  for (let index = 0; index < 2; index += 1) {
+    const offerField = page.getByTestId('lan-pairing-offer')
+    await expect.poll(() => offerField.inputValue()).not.toBe('')
+    const offer = await offerField.inputValue()
+
+    const controllerPage = await context.newPage()
+    controllers.push(controllerPage)
+    await controllerPage.goto('/flying-chess/controller.html')
+    await controllerPage.getByTestId('lan-pairing-offer-input').fill(offer)
+    await controllerPage.getByRole('button', { name: '生成配对应答' }).click()
+    const answerField = controllerPage.getByTestId('lan-pairing-answer')
+    await expect.poll(() => answerField.inputValue()).not.toBe('')
+
+    await page.getByTestId('lan-pairing-answer-input').fill(await answerField.inputValue())
+    await page.getByTestId('lan-pairing-submit').click()
+    if (index === 0) {
+      await expect.poll(() => page.locator('.connection-item.connected').count()).toBe(1)
+    }
+  }
+
+  await expect(lobby).toBeHidden()
+  for (const controllerPage of controllers) {
+    await expect(controllerPage.locator('.controller-main')).toBeVisible()
+    await expect(controllerPage.getByTitle('干预筹码')).toBeVisible()
+  }
 })
 
 test('party mode preserves the classic custom configuration while running and after reset', async ({
@@ -289,6 +491,634 @@ test('party punishment choice spends one token before existing punishment resolu
 
   await expect(page.getByTestId('party-status')).toContainText('玩家1 1 枚')
   await expect(page.locator('.punishment-display')).toBeVisible()
+})
+
+test('party punishment intervention transfers the resolved punishment and spends the target token', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await startPartyGame(page)
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        players: Array<{ position: number; hasTakenOff?: boolean }>
+        board: Array<{
+          position: number
+          type: string
+          effect?: Record<string, unknown>
+        }>
+      }
+    }
+    debugWindow.gameState.players[0].position = 1
+    debugWindow.gameState.players[0].hasTakenOff = true
+    for (const cell of debugWindow.gameState.board) {
+      if (cell.position < 2 || cell.position > 7) continue
+      cell.type = 'punishment'
+      cell.effect = {
+        type: 'punishment',
+        value: 0,
+        description: '测试静态惩罚',
+        punishment: {
+          tool: { name: '手掌', intensity: 1, ratio: 100 },
+          bodyPart: { name: '手心', sensitivity: 2, ratio: 100 },
+          position: {
+            name: '站立',
+            ratio: 100,
+            compatibleBodyParts: ['手心'],
+          },
+          strikes: 5,
+          description: '测试静态惩罚',
+        },
+      }
+    }
+  })
+
+  await page.getByRole('button', { name: '投掷骰子' }).click({ force: true })
+  await page.getByTestId('predict-low').click()
+  await expect
+    .poll(
+      async () =>
+        (await page.getByTestId('reaction-keep').isVisible()) ||
+        (await page.getByTestId('party-dice-decision').isVisible())
+    )
+    .toBe(true)
+  if (await page.getByTestId('reaction-keep').isVisible()) {
+    await page.getByTestId('reaction-keep').click()
+  }
+  await page.getByTestId('party-continue').click()
+  await page.getByTestId('party-choice-skip').click()
+
+  await expect(page.getByTestId('party-intervention')).toBeVisible()
+  await page.getByRole('button', { name: '转嫁', exact: true }).click()
+
+  const punishment = page.locator('.punishment-display')
+  await expect(punishment).toBeVisible()
+  await expect(punishment).toContainText('受罚玩家')
+  await expect(punishment).toContainText('玩家2')
+  await expect(page.getByTestId('party-status')).toContainText('玩家1 1 枚')
+})
+
+test('party punishment intervention lets the target consume immunity', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await reachPartyPunishmentIntervention(page)
+  await page.getByRole('button', { name: '免疫本次惩罚' }).click()
+
+  await expect(page.getByTestId('party-intervention')).toBeHidden()
+  await expect(page.locator('.punishment-display')).toBeHidden()
+  await expect(page.getByTestId('party-status')).toContainText('玩家1 1 枚')
+})
+
+test('party punishment intervention lets another player amplify the count', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await reachPartyPunishmentIntervention(page)
+  const originalCount = await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      pendingRuleResolution: {
+        value: { count?: { kind?: string; value?: number } } | null
+      }
+    }
+    const count = debugWindow.pendingRuleResolution.value?.count
+    if (count?.kind !== 'fixed' || count.value === undefined) {
+      throw new Error('expected a fixed punishment count before amplification')
+    }
+    return count.value
+  })
+  await page.getByRole('button', { name: '加码为 2 倍' }).click()
+
+  const punishment = page.locator('.punishment-display')
+  await expect(punishment).toBeVisible()
+  await expect(punishment.locator('.strikes')).toHaveText(`${originalCount * 2} 下`)
+  await expect(page.getByTestId('party-status')).toContainText('玩家2 1 枚')
+})
+
+test('party blindbox variant conceals punishment details until the explicit reveal', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await startPartyGame(page)
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        players: Array<{ position: number; hasTakenOff?: boolean }>
+        board: Array<{ position: number; type: string; effect?: Record<string, unknown> }>
+      }
+      partyMode: { session: { value: Record<string, unknown> | null } }
+    }
+    const session = debugWindow.partyMode.session.value
+    if (!session) throw new Error('party session missing')
+    debugWindow.partyMode.session.value = { ...session, act: 'finale' }
+    debugWindow.gameState.players[0].position = 1
+    debugWindow.gameState.players[0].hasTakenOff = true
+    for (const cell of debugWindow.gameState.board) {
+      if (cell.position < 2 || cell.position > 7) continue
+      cell.type = 'punishment'
+      cell.effect = {
+        type: 'punishment',
+        value: 0,
+        description: '测试盲盒惩罚',
+        punishment: {
+          tool: { name: '手掌', intensity: 1, ratio: 100 },
+          bodyPart: { name: '手心', sensitivity: 2, ratio: 100 },
+          position: { name: '站立', ratio: 100, compatibleBodyParts: ['手心'] },
+          strikes: 5,
+          description: '测试盲盒惩罚',
+        },
+      }
+    }
+    Object.defineProperty(window.crypto, 'getRandomValues', {
+      configurable: true,
+      value: (values: Uint32Array) => {
+        values.fill(0)
+        return values
+      },
+    })
+  })
+
+  await page.getByRole('button', { name: '投掷骰子' }).click({ force: true })
+  await page.getByTestId('predict-low').click()
+  await page.getByTestId('reaction-keep').click()
+  await page.getByTestId('party-continue').click()
+  if (await page.getByTestId('party-punishment-choice').isVisible()) {
+    await page.getByTestId('party-choice-skip').click()
+  }
+  await page.getByTestId('party-intervention-skip').click()
+
+  const punishment = page.locator('.punishment-display')
+  await expect(page.getByTestId('punishment-variant')).toContainText('盲盒惩罚')
+  await expect(punishment.getByText('工具:')).toBeHidden()
+  await expect(punishment.getByRole('button', { name: '确认执行' })).toBeDisabled()
+
+  await page.getByTestId('punishment-variant-reveal').click()
+  await expect(punishment.getByText('工具:')).toBeVisible()
+  await expect(punishment.getByRole('button', { name: '确认执行' })).toBeEnabled()
+})
+
+test('party conditional punishment resolves its condition through the live overlay', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await showInjectedPartyPunishment(page, 'conditional')
+
+  const punishment = page.locator('.punishment-display')
+  await expect(page.getByTestId('punishment-variant')).toContainText('条件惩罚')
+  await punishment.getByPlaceholder('例如：连续猜中一次硬币正反').fill('完成测试条件')
+  await punishment.getByRole('button', { name: '条件完成，次数减半' }).click()
+
+  await expect(page.getByTestId('conditional-variant-decision')).toBeHidden()
+  await expect(page.getByTestId('punishment-variant')).toContainText('条件已经判定')
+  await expect(punishment.locator('.strikes')).toHaveText('5 下')
+})
+
+test('party deferred punishment returns before the target player rolls again', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await showInjectedPartyPunishment(page, 'deferred')
+  await page.getByTestId('defer-punishment').click()
+  await expect(page.locator('.punishment-display')).toBeHidden()
+
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: { currentPlayerIndex: number; gameStatus: string }
+    }
+    debugWindow.gameState.currentPlayerIndex = 0
+    debugWindow.gameState.gameStatus = 'waiting'
+  })
+  await page.getByRole('button', { name: '投掷骰子' }).click({ force: true })
+
+  await expect(page.getByTestId('punishment-variant')).toContainText('延迟惩罚')
+  await expect(page.getByTestId('punishment-variant')).toContainText('已到约定回合')
+  await expect(page.getByTestId('defer-punishment')).toBeHidden()
+  await expect(
+    page.locator('.punishment-display').getByRole('button', { name: '确认执行' })
+  ).toBeEnabled()
+})
+
+test('party mutual and encore punishments complete their required second phases', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await showInjectedPartyPunishment(page, 'mutual')
+  const punishment = page.locator('.punishment-display')
+  await punishment.getByRole('button', { name: '确认执行' }).click()
+  await expect(page.getByTestId('punishment-variant')).toContainText('交换角色')
+  await expect(punishment).toContainText('玩家2')
+  await punishment.getByRole('button', { name: '确认第二次执行' }).click()
+  await expect(punishment).toBeHidden()
+
+  await showInjectedPartyPunishment(page, 'encore')
+  await punishment.getByRole('button', { name: '确认执行' }).click()
+  await expect(page.getByTestId('punishment-variant')).toContainText('返场阶段')
+  await expect(punishment.locator('.strikes')).toHaveText('5 下')
+  await punishment.getByRole('button', { name: '确认执行' }).click()
+  await expect(punishment).toBeHidden()
+})
+
+test('custom victory settlement persists and renders a loser gradient', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  await page.getByTestId('mode-party').click()
+  await expect(page.getByRole('heading', { name: '终局奖惩' })).toBeVisible()
+  await page.getByLabel('奖惩动作').fill('完成指定挑战')
+  await page.getByLabel('基础次数').fill('2')
+  await page.getByLabel('单位').fill('轮')
+  await page.getByLabel('启用败者惩罚梯度').check()
+  await page.getByLabel('每落后一档增加').fill('1')
+  await page.locator('.count-btn.plus').click()
+  await page.getByTestId('start-game').click()
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => JSON.parse(localStorage.getItem('flying-chess-victory-config') ?? '{}'))
+    )
+    .toMatchObject({
+      actionText: '完成指定挑战',
+      baseCount: 2,
+      countUnit: '轮',
+      loserGradientEnabled: true,
+      gradientStep: 1,
+    })
+
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: { players: Array<{ position: number }> }
+      finishGameWithPlayer: (playerIndex: number) => void
+    }
+    debugWindow.gameState.players[0].position = 40
+    debugWindow.gameState.players[1].position = 20
+    debugWindow.gameState.players[2].position = 5
+    debugWindow.finishGameWithPlayer(0)
+  })
+
+  const settlement = page.getByTestId('victory-scorecard')
+  await expect(settlement).toContainText('玩家2 · 第 2 名')
+  await expect(settlement).toContainText('2 轮')
+  await expect(settlement).toContainText('玩家3 · 第 3 名')
+  await expect(settlement).toContainText('3 轮')
+})
+
+test('party event deck triggers a real vote after its configured turn boundary', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'flying-chess-party-event-deck',
+      JSON.stringify([
+        {
+          id: 'e2e-turn-vote',
+          title: '端到端命运投票',
+          description: '每回合结束后触发一次投票。',
+          tags: ['测试', '投票'],
+          trigger: { kind: 'every_n_turns', interval: 1 },
+          effect: { kind: 'vote', prompt: '是否继续？', options: ['继续', '加码'] },
+        },
+      ])
+    )
+  })
+  await startPartyGame(page)
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        players: Array<{ position: number; hasTakenOff?: boolean }>
+        board: Array<{ position: number; type: string; effect?: Record<string, unknown> }>
+      }
+    }
+    debugWindow.gameState.players[0].position = 1
+    debugWindow.gameState.players[0].hasTakenOff = true
+    for (const cell of debugWindow.gameState.board) {
+      if (cell.position < 2 || cell.position > 7) continue
+      cell.type = 'bonus'
+      cell.effect = undefined
+    }
+  })
+
+  await page.getByRole('button', { name: '投掷骰子' }).click({ force: true })
+  await page.getByTestId('predict-low').click()
+  await expect
+    .poll(
+      async () =>
+        (await page.getByTestId('reaction-keep').isVisible()) ||
+        (await page.getByTestId('party-dice-decision').isVisible())
+    )
+    .toBe(true)
+  if (await page.getByTestId('reaction-keep').isVisible()) {
+    await page.getByTestId('reaction-keep').click()
+  }
+  await page.getByTestId('party-continue').click()
+
+  const eventCard = page.getByTestId('party-event-card')
+  await expect(eventCard).toContainText('端到端命运投票')
+  for (const playerName of ['玩家1', '玩家2']) {
+    await expect(eventCard).toContainText(`${playerName} 请投票`)
+    await eventCard.getByRole('button', { name: '继续' }).click()
+  }
+  await expect(page.getByText('继续 2 票')).toBeVisible()
+  await eventCard.getByRole('button', { name: '确认投票结果' }).click()
+  await expect(eventCard).toBeHidden()
+})
+
+test('party event deck runs secret rock-paper-scissors and resolves its winner', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'flying-chess-party-event-deck',
+      JSON.stringify([
+        {
+          id: 'e2e-turn-rps',
+          title: '端到端全员猜拳',
+          description: '每回合结束后触发一次猜拳。',
+          tags: ['测试', '猜拳'],
+          trigger: { kind: 'every_n_turns', interval: 1 },
+          effect: { kind: 'rock_paper_scissors' },
+        },
+      ])
+    )
+  })
+  await startPartyGame(page)
+  await completePartyTurnOnBonusCell(page)
+
+  const eventCard = page.getByTestId('party-event-card')
+  await expect(eventCard).toContainText('端到端全员猜拳')
+  await expect(eventCard).toContainText('玩家1 请出拳')
+  await eventCard.getByRole('button', { name: '石头' }).click()
+  await expect(eventCard).toContainText('玩家2 请出拳')
+  await eventCard.getByRole('button', { name: '剪刀' }).click()
+  await expect(eventCard).toContainText('石头获胜：玩家1')
+  await eventCard.getByRole('button', { name: '确认猜拳结果' }).click()
+  await expect(eventCard).toBeHidden()
+})
+
+test('party event deck binds two selected players through the live overlay', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'flying-chess-party-event-deck',
+      JSON.stringify([
+        {
+          id: 'e2e-turn-binding',
+          title: '端到端命运绑定',
+          description: '每回合结束后选择两名绑定玩家。',
+          tags: ['测试', '绑定'],
+          trigger: { kind: 'every_n_turns', interval: 1 },
+          effect: { kind: 'bind_players', durationTurns: 3 },
+        },
+      ])
+    )
+  })
+  await startPartyGame(page)
+  await completePartyTurnOnBonusCell(page)
+
+  const eventCard = page.getByTestId('party-event-card')
+  await expect(eventCard).toContainText('端到端命运绑定')
+  await expect(eventCard.getByRole('button', { name: '确认绑定' })).toBeEnabled()
+  await eventCard.getByRole('button', { name: '确认绑定' }).click()
+  await expect(eventCard).toBeHidden()
+})
+
+test('party memory mini-game completes a revealed sequence without applying a penalty', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'flying-chess-party-event-deck',
+      JSON.stringify([
+        {
+          id: 'e2e-turn-memory',
+          title: '端到端记忆翻牌',
+          description: '每回合结束后触发记忆挑战。',
+          tags: ['测试', '记忆'],
+          trigger: { kind: 'every_n_turns', interval: 1 },
+          effect: { kind: 'mini_game', game: 'memory' },
+        },
+      ])
+    )
+  })
+  await startPartyGame(page)
+  await completePartyTurnOnBonusCell(page)
+  const eventCard = page.getByTestId('party-event-card')
+  await expect(eventCard).toBeVisible()
+  const actorIndex = await page.evaluate(() => {
+    return (window as typeof window & { gameState: { currentPlayerIndex: number } }).gameState
+      .currentPlayerIndex
+  })
+  await eventCard.getByRole('button', { name: '开始小游戏' }).click()
+
+  const miniGame = page.getByTestId('party-mini-game')
+  await expect(miniGame).toContainText('记忆翻牌')
+  const sequence = await miniGame.locator('.memory-sequence span').allTextContents()
+  expect(sequence).toHaveLength(3)
+  await expect(miniGame.locator('.memory-options')).toBeVisible({ timeout: 3000 })
+  for (const symbol of sequence) {
+    await miniGame.getByRole('button', { name: symbol, exact: true }).click()
+  }
+
+  await expect(miniGame).toBeHidden()
+  await expect
+    .poll(() =>
+      page.evaluate(index => {
+        const debugWindow = window as typeof window & {
+          gameState: { players: Array<{ pendingMiniGameMultiplier?: number }> }
+        }
+        return debugWindow.gameState.players[index].pendingMiniGameMultiplier
+      }, actorIndex)
+    )
+    .toBeUndefined()
+})
+
+test('party quick quiz failure applies the next-punishment multiplier', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'flying-chess-party-event-deck',
+      JSON.stringify([
+        {
+          id: 'e2e-turn-quiz',
+          title: '端到端快速问答',
+          description: '每回合结束后触发快速问答。',
+          tags: ['测试', '问答'],
+          trigger: { kind: 'every_n_turns', interval: 1 },
+          effect: { kind: 'mini_game', game: 'quick_quiz' },
+        },
+      ])
+    )
+  })
+  await startPartyGame(page)
+  await completePartyTurnOnBonusCell(page)
+  const eventCard = page.getByTestId('party-event-card')
+  await expect(eventCard).toBeVisible()
+  const actorIndex = await page.evaluate(() => {
+    return (window as typeof window & { gameState: { currentPlayerIndex: number } }).gameState
+      .currentPlayerIndex
+  })
+  await eventCard.getByRole('button', { name: '开始小游戏' }).click()
+
+  const miniGame = page.getByTestId('party-mini-game')
+  await expect(miniGame).toContainText('快速问答')
+  await miniGame.getByRole('button', { name: '放弃 / 判定失败' }).click()
+
+  await expect(miniGame).toBeHidden()
+  await expect
+    .poll(() =>
+      page.evaluate(index => {
+        const debugWindow = window as typeof window & {
+          gameState: { players: Array<{ pendingMiniGameMultiplier?: number }> }
+        }
+        return debugWindow.gameState.players[index].pendingMiniGameMultiplier
+      }, actorIndex)
+    )
+    .toBe(2)
+})
+
+test('mini-game trap runs reaction interaction and grants the winner one immunity', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await startPartyGame(page)
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        players: Array<{ position: number; hasTakenOff?: boolean }>
+        board: Array<{ position: number; type: string; effect?: Record<string, unknown> }>
+      }
+    }
+    debugWindow.gameState.players[0].position = 1
+    debugWindow.gameState.players[0].hasTakenOff = true
+    for (const cell of debugWindow.gameState.board) {
+      if (cell.position < 2 || cell.position > 7) continue
+      cell.type = 'trap'
+      cell.effect = {
+        type: 'trap',
+        value: 0,
+        description: '端到端反应测试',
+        trapVariant: 'mini_game_reaction',
+      }
+    }
+  })
+
+  await page.getByRole('button', { name: '投掷骰子' }).click({ force: true })
+  await page.getByTestId('predict-low').click()
+  await expect
+    .poll(
+      async () =>
+        (await page.getByTestId('reaction-keep').isVisible()) ||
+        (await page.getByTestId('party-dice-decision').isVisible())
+    )
+    .toBe(true)
+  if (await page.getByTestId('reaction-keep').isVisible()) {
+    await page.getByTestId('reaction-keep').click()
+  }
+  await page.getByTestId('party-continue').click()
+
+  const miniGame = page.getByTestId('party-mini-game')
+  await expect(miniGame).toContainText('反应速度测试')
+  await miniGame.getByRole('button', { name: '全员准备好了' }).click()
+  const playerOneButton = miniGame.getByRole('button', { name: '玩家1 抢按' })
+  await expect(playerOneButton).toBeEnabled({ timeout: 3000 })
+  await playerOneButton.click()
+  await expect(miniGame).toBeHidden()
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const debugWindow = window as typeof window & {
+          gameState: { players: Array<{ pendingMiniGameImmunity?: boolean }> }
+        }
+        return debugWindow.gameState.players[0].pendingMiniGameImmunity
+      })
+    )
+    .toBe(true)
+})
+
+test('community catalog one-click load and Party Studio custom theme stay opt-in', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  await expect(page.getByRole('heading', { name: '终局奖惩' })).toBeHidden()
+  await page.getByTestId('mode-party').click()
+
+  await page.getByText('社区配置市场').click()
+  await expect(page.getByText('破冰加量包', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '一键加载' }).first().click()
+  await expect(page.getByText(/已加载“破冰加量包”/)).toBeVisible()
+  await page.getByText('事件卡 / 命运轮盘').click()
+  await expect(page.getByText('第一印象', { exact: true })).toBeVisible()
+
+  await page.getByText('Party Studio 场景编辑器').click()
+  await page.getByLabel('本局使用自定义场景').check()
+  await page.getByLabel('主题强调色').fill('#ff0000')
+  await page.getByTestId('start-game').click()
+  await expect(page.locator('.app')).toHaveClass(/app--party-studio/)
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const debugWindow = window as typeof window & {
+          partyMode: { session: { value: { directorConfig?: { actCount: number } } | null } }
+        }
+        return debugWindow.partyMode.session.value?.directorConfig?.actCount
+      })
+    )
+    .toBe(3)
+})
+
+test('local progress panel renders achievements and shame wall without network identity', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'flying-chess-local-progress-v1',
+      JSON.stringify({
+        version: 1,
+        totals: {
+          completedGames: 2,
+          punishmentCount: 42,
+          mercyRequests: 1,
+          longestChain: 3,
+          variantCompletions: { blindbox: 1 },
+        },
+        players: {
+          小红: { playerName: '小红', punishmentCount: 42, mercyRequests: 1 },
+        },
+      })
+    )
+  })
+  await page.goto('/flying-chess/')
+  await page.getByText('进度、成就与本地耻辱墙').click()
+  const panel = page.locator('.progress-panel')
+  await expect(panel).toContainText('42')
+  await expect(panel).toContainText('累计耐受')
+  await expect(panel).toContainText('小红')
+  await expect(panel).toContainText('这些记录仅保存在当前设备')
 })
 
 test('party victory renders a local-only non-sensitive highlight card', async ({

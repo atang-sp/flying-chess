@@ -1,4 +1,5 @@
 import { DEFAULT_GAME_MODE, RULESET_VERSION_BY_MODE, type GameMode } from '../config/modes'
+import { VERSION } from '../config/version'
 
 export type GameEndOutcome = 'completed' | 'user_ended' | 'config_import'
 
@@ -66,7 +67,6 @@ interface UmamiAdapterOptions {
   readonly getTracker?: () => UmamiTracker | undefined
 }
 
-const APP_VERSION = '1.8.0'
 const MAX_BUFFERED_EVENTS = 20
 const COMMON_FIELDS = ['app_version', 'mode_id', 'ruleset_version', 'device_type'] as const
 const EVENT_FIELDS: Record<TelemetryEventName, readonly string[]> = {
@@ -240,7 +240,7 @@ export function createGameTelemetry({
   const getDeviceType = (): DeviceType => (getViewportWidth() <= 768 ? 'mobile' : 'desktop')
 
   const commonData = (): Record<string, unknown> => ({
-    app_version: APP_VERSION,
+    app_version: VERSION,
     mode_id: currentMode,
     ruleset_version: RULESET_VERSION_BY_MODE[currentMode],
     device_type: getDeviceType(),

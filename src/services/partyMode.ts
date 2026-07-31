@@ -58,7 +58,26 @@ export interface PartySession {
   readonly successfulReactionCount: number
   readonly interventionCounts: Readonly<Record<PartyTokenAction, number>>
   readonly longestChain: number
+  readonly directorConfig: PartyDirectorConfig
 }
+
+export interface PartyDirectorConfig {
+  readonly actCount: 1 | 2 | 3
+  readonly heatingRound: number
+  readonly finaleRound: number
+  readonly heatingAfterMinutes: number
+  readonly finaleAfterMinutes: number
+  readonly endAfterMinutes: number
+}
+
+export const DEFAULT_PARTY_DIRECTOR_CONFIG: Readonly<PartyDirectorConfig> = Object.freeze({
+  actCount: 3,
+  heatingRound: 2,
+  finaleRound: 5,
+  heatingAfterMinutes: 6,
+  finaleAfterMinutes: 14,
+  endAfterMinutes: 20,
+})
 
 export interface PartyHighlight {
   readonly act: PartyAct
@@ -82,6 +101,7 @@ export interface PartyTieBreakRollResult {
 interface CreatePartySessionInput {
   readonly playerCount: number
   readonly startedAt: number
+  readonly directorConfig?: PartyDirectorConfig
 }
 
 interface CompletePartyTurnInput {
@@ -111,10 +131,6 @@ interface PartyPunishmentChoiceEligibilityInput {
   readonly action: PunishmentAction
 }
 
-const HEATING_TIME_MS = 6 * 60_000
-const FINALE_TIME_MS = 14 * 60_000
-const PARTY_TIME_LIMIT_MS = 20 * 60_000
-
 function nextEligibleReactionTarget(
   preferredPlayerIndex: number,
   playerCount: number,
@@ -137,9 +153,48 @@ function nextEligibleReactionTarget(
   return preferredPlayerIndex
 }
 
-function actForRoundBoundary(completedRounds: number, activeElapsedMs: number): PartyAct {
-  if (completedRounds >= 5 || activeElapsedMs >= FINALE_TIME_MS) return 'finale'
-  if (completedRounds >= 2 || activeElapsedMs >= HEATING_TIME_MS) return 'heating'
+export function validatePartyDirectorConfig(config: PartyDirectorConfig): boolean {
+  return (
+    Number.isInteger(config.actCount) &&
+    config.actCount >= 1 &&
+    config.actCount <= 3 &&
+    Number.isInteger(config.heatingRound) &&
+    config.heatingRound >= 1 &&
+    Number.isInteger(config.finaleRound) &&
+    config.finaleRound > config.heatingRound &&
+    Number.isFinite(config.heatingAfterMinutes) &&
+    config.heatingAfterMinutes > 0 &&
+    Number.isFinite(config.finaleAfterMinutes) &&
+    config.finaleAfterMinutes > config.heatingAfterMinutes &&
+    Number.isFinite(config.endAfterMinutes) &&
+    config.endAfterMinutes > config.finaleAfterMinutes
+  )
+}
+
+function actForRoundBoundary(
+  completedRounds: number,
+  activeElapsedMs: number,
+  config: PartyDirectorConfig
+): PartyAct {
+  if (config.actCount === 1) return 'warmup'
+  if (config.actCount === 2) {
+    return completedRounds >= config.heatingRound ||
+      activeElapsedMs >= config.heatingAfterMinutes * 60_000
+      ? 'finale'
+      : 'warmup'
+  }
+  if (
+    completedRounds >= config.finaleRound ||
+    activeElapsedMs >= config.finaleAfterMinutes * 60_000
+  ) {
+    return 'finale'
+  }
+  if (
+    completedRounds >= config.heatingRound ||
+    activeElapsedMs >= config.heatingAfterMinutes * 60_000
+  ) {
+    return 'heating'
+  }
   return 'warmup'
 }
 
@@ -183,9 +238,13 @@ export function createPartyPunishmentChoices(
 export function createPartySession({
   playerCount,
   startedAt,
+  directorConfig = DEFAULT_PARTY_DIRECTOR_CONFIG,
 }: CreatePartySessionInput): PartySession {
   if (!Number.isInteger(playerCount) || playerCount < PARTY_MIN_PLAYERS) {
     throw new Error('升温局至少需要两名玩家')
+  }
+  if (!validatePartyDirectorConfig(directorConfig)) {
+    throw new Error('升温局导演时间门控配置无效')
   }
 
   return Object.freeze({
@@ -212,6 +271,7 @@ export function createPartySession({
       immunity: 0,
     }),
     longestChain: 0,
+    directorConfig: Object.freeze({ ...directorConfig }),
   })
 }
 
@@ -325,8 +385,15 @@ export function spendPartyToken(
   session: PartySession,
   { playerIndex, action }: SpendPartyTokenInput
 ): PartySession {
-  if (session.activeTurnPlayerIndex !== playerIndex) {
-    throw new Error('只有当前玩家可以使用干预筹码')
+  if (!Number.isInteger(playerIndex) || playerIndex < 0 || playerIndex >= session.playerCount) {
+    throw new Error('干预筹码需要有效的玩家索引')
+  }
+  if (session.activeTurnPlayerIndex === undefined) {
+    throw new Error('当前没有进行中的升温局回合')
+  }
+  const activePlayerOnly = action === 'reroll' || action === 'punishment_choice'
+  if (activePlayerOnly && session.activeTurnPlayerIndex !== playerIndex) {
+    throw new Error('只有当前玩家可以使用该干预筹码')
   }
   if (session.interventionUsedThisTurn !== undefined) {
     throw new Error('每回合最多使用一枚干预筹码')
@@ -494,7 +561,8 @@ export function completePartyTurn(
   )
   const reachedRoundBoundary = completedTurns % session.playerCount === 0
   const preferredReactionTarget = completedRounds % session.playerCount
-  const timeLimitPending = session.timeLimitPending || activeElapsedMs >= PARTY_TIME_LIMIT_MS
+  const timeLimitPending =
+    session.timeLimitPending || activeElapsedMs >= session.directorConfig.endAfterMinutes * 60_000
 
   return Object.freeze({
     ...session,
@@ -505,7 +573,9 @@ export function completePartyTurn(
     completedTurns,
     completedRounds,
     roundNumber: completedRounds + 1,
-    act: reachedRoundBoundary ? actForRoundBoundary(completedRounds, activeElapsedMs) : session.act,
+    act: reachedRoundBoundary
+      ? actForRoundBoundary(completedRounds, activeElapsedMs, session.directorConfig)
+      : session.act,
     activeElapsedMs,
     timeLimitPending,
     shouldEnd: session.shouldEnd || (reachedRoundBoundary && timeLimitPending),

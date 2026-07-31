@@ -6,6 +6,7 @@ import type {
   ControllerMessage,
   PlayerView,
   PublicPlayerInfo,
+  ControllerVictorySettlement,
 } from '../types/network'
 import { devLog } from '../utils/logger'
 
@@ -17,6 +18,8 @@ export function useMultiDeviceController() {
   const errorMessage = ref<string | null>(null)
   const gameEnded = ref(false)
   const winnerName = ref<string | null>(null)
+  const victorySettlement = ref<ControllerVictorySettlement | null>(null)
+  const pairingAnswer = ref('')
 
   let network: ControllerNetworkManager | null = null
 
@@ -38,6 +41,7 @@ export function useMultiDeviceController() {
       case 'game_ended':
         gameEnded.value = true
         winnerName.value = msg.winnerName
+        victorySettlement.value = msg.settlement ?? null
         break
       case 'room_closed':
         errorMessage.value = '房间已关闭'
@@ -50,10 +54,12 @@ export function useMultiDeviceController() {
     }
   }
 
-  async function connect(roomId: string): Promise<void> {
+  async function connect(pairingOffer: string): Promise<void> {
     errorMessage.value = null
     gameEnded.value = false
     winnerName.value = null
+    victorySettlement.value = null
+    pairingAnswer.value = ''
 
     network = new ControllerNetworkManager({
       onConnected: () => {
@@ -66,14 +72,14 @@ export function useMultiDeviceController() {
       onMessage: handleMessage,
     })
 
-    network.onStatusChange((s) => {
+    network.onStatusChange(s => {
       status.value = s
     })
 
     try {
-      await network.connect(roomId)
-    } catch {
-      errorMessage.value = '无法连接到房间，请检查房间码是否正确'
+      pairingAnswer.value = await network.connect(pairingOffer)
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : '无法创建局域网配对应答'
       status.value = 'disconnected'
     }
   }
@@ -89,6 +95,7 @@ export function useMultiDeviceController() {
     playerView.value = null
     assignedPlayerIndex.value = null
     assignedPlayer.value = null
+    pairingAnswer.value = ''
   }
 
   onUnmounted(() => {
@@ -103,6 +110,8 @@ export function useMultiDeviceController() {
     errorMessage,
     gameEnded,
     winnerName,
+    victorySettlement,
+    pairingAnswer,
     isConnected,
     isReady,
     connect,

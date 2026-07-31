@@ -18,6 +18,7 @@ coverage
 /cypress/screenshots/
 /playwright-report/
 /test-results/
+/.playwright-cli/
 
 # Editor directories and files
 .vscode/*

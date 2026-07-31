@@ -94,7 +94,7 @@ export default defineConfig(async ({ command, mode }) => {
     },
     // 优化依赖处理
     optimizeDeps: {
-      include: ['qrcode', 'peerjs'],
+      include: ['qrcode'],
     },
   }
 })

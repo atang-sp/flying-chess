@@ -4,7 +4,8 @@
   import finishFlagUrl from '../assets/kenney/flag_triangle.svg?url'
   import type { GameMode } from '../config/modes'
   import type { PartyHighlight } from '../services/partyMode'
-  import type { Player } from '../types/game'
+  import type { Player, VictoryConfig } from '../types/game'
+  import { DEFAULT_VICTORY_CONFIG, resolveVictorySettlement } from '../services/victorySettlement'
   import PlayerMeeple from './PlayerMeeple.vue'
 
   interface Props {
@@ -13,6 +14,7 @@
     allPlayers: Player[]
     mode?: GameMode | null
     partyHighlight?: PartyHighlight | null
+    victoryConfig?: VictoryConfig
   }
 
   interface Emits {
@@ -25,8 +27,11 @@
   const winnerIndex = computed(() =>
     props.winner ? props.allPlayers.findIndex(player => player.id === props.winner?.id) : -1
   )
-  const otherPlayers = computed(() =>
-    props.winner ? props.allPlayers.filter(player => player.id !== props.winner?.id) : []
+  const resolvedVictoryConfig = computed(() => props.victoryConfig ?? DEFAULT_VICTORY_CONFIG)
+  const settlement = computed(() =>
+    winnerIndex.value >= 0
+      ? resolveVictorySettlement(props.allPlayers, winnerIndex.value, resolvedVictoryConfig.value)
+      : []
   )
 </script>
 
@@ -69,18 +74,24 @@
         <section class="reward-section">
           <p class="section-kicker">胜利奖励</p>
           <p>恭喜 {{ winner.name }} 获得胜利！</p>
-          <p class="reward-action">作为奖励，{{ winner.name }} 可以用手对所有其他玩家打屁股5下：</p>
+          <p class="reward-action">
+            作为奖励，{{ winner.name }} 对其他玩家{{ resolvedVictoryConfig.actionText }}：
+          </p>
 
           <div class="players-grid" aria-label="其他玩家列表">
-            <article v-for="player in otherPlayers" :key="player.id" class="player-item">
+            <article v-for="entry in settlement" :key="entry.playerIndex" class="player-item">
               <PlayerMeeple
-                :color="player.color"
-                :number="allPlayers.findIndex(item => item.id === player.id) + 1"
-                :name="player.name"
+                :color="allPlayers[entry.playerIndex].color"
+                :number="entry.playerIndex + 1"
+                :name="allPlayers[entry.playerIndex].name"
                 size="small"
               />
-              <span class="player-name">{{ player.name }}</span>
-              <span class="punishment-count">5 下</span>
+              <span class="player-name">
+                {{ allPlayers[entry.playerIndex].name }} · 第 {{ entry.place }} 名
+              </span>
+              <span class="punishment-count">
+                {{ entry.count }} {{ resolvedVictoryConfig.countUnit }}
+              </span>
             </article>
           </div>
         </section>

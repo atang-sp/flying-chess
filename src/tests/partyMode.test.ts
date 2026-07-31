@@ -98,6 +98,30 @@ describe('升温局阶段导演', () => {
     })
   })
 
+  it('自定义两幕导演按配置门控直接从暖场进入终局并使用自定义结束时长', () => {
+    const minute = 60_000
+    let session = createPartySession({
+      playerCount: 2,
+      startedAt: 0,
+      directorConfig: {
+        actCount: 2,
+        heatingRound: 1,
+        finaleRound: 2,
+        heatingAfterMinutes: 2,
+        finaleAfterMinutes: 4,
+        endAfterMinutes: 5,
+      },
+    })
+
+    session = completePartyTurn(session, { playerIndex: 0, now: 3 * minute })
+    session = completePartyTurn(session, { playerIndex: 1, now: 3 * minute })
+    expect(session.act).toBe('finale')
+
+    session = completePartyTurn(session, { playerIndex: 0, now: 6 * minute })
+    session = completePartyTurn(session, { playerIndex: 1, now: 6 * minute })
+    expect(session.shouldEnd).toBe(true)
+  })
+
   it('每名玩家持有两枚通用筹码且每回合最多使用一枚', () => {
     let session = createPartySession({ playerCount: 2, startedAt: 0 })
 
@@ -127,6 +151,31 @@ describe('升温局阶段导演', () => {
 
     expect(() => spendPartyToken(session, { playerIndex: 0, action: 'reroll' })).toThrow(
       '干预筹码已经用完'
+    )
+  })
+
+  it('惩罚干预消耗决策玩家自己的筹码但不放开骰子干预权', () => {
+    let session = createPartySession({ playerCount: 3, startedAt: 0 })
+    session = beginPartyTurn(session, 0)
+
+    expect(() => spendPartyToken(session, { playerIndex: 1, action: 'reroll' })).toThrow(
+      '只有当前玩家可以使用该干预筹码'
+    )
+
+    session = spendPartyToken(session, { playerIndex: 1, action: 'amplify' })
+
+    expect(session.tokensRemaining).toEqual([2, 1, 2])
+    expect(session.interventionUsedThisTurn).toBe('amplify')
+    expect(() => spendPartyToken(session, { playerIndex: 0, action: 'immunity' })).toThrow(
+      '每回合最多使用一枚干预筹码'
+    )
+  })
+
+  it('没有进行中的回合时不能提前消费干预筹码', () => {
+    const session = createPartySession({ playerCount: 2, startedAt: 0 })
+
+    expect(() => spendPartyToken(session, { playerIndex: 1, action: 'amplify' })).toThrow(
+      '当前没有进行中的升温局回合'
     )
   })
 
