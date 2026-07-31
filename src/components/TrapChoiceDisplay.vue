@@ -17,8 +17,16 @@
     (e: 'confirm'): void
   }
 
-  defineProps<Props>()
+  import { ref, watch } from 'vue'
+
+  const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
+
+  const submitted = ref(false)
+  watch(() => props.show, (visible) => { if (visible) submitted.value = false })
+
+  const choose = (choice: 'A' | 'B') => { if (submitted.value) return; submitted.value = true; emit('choose', choice) }
+  const confirmTrap = () => { if (submitted.value) return; submitted.value = true; emit('confirm') }
 </script>
 
 <template>
@@ -55,19 +63,19 @@
         </div>
 
         <div v-if="choiceA && choiceB" class="choice-options">
-          <button class="choice-btn choice-a" @click="emit('choose', 'A')">
+          <button class="choice-btn choice-a" :disabled="submitted" @click="choose('A')">
             <span class="choice-label">A</span>
             <span class="choice-text">{{ choiceA }}</span>
           </button>
           <span class="choice-or">或</span>
-          <button class="choice-btn choice-b" @click="emit('choose', 'B')">
+          <button class="choice-btn choice-b" :disabled="submitted" @click="choose('B')">
             <span class="choice-label">B</span>
             <span class="choice-text">{{ choiceB }}</span>
           </button>
         </div>
 
         <div v-else class="trap-confirm-section">
-          <button class="btn trap-confirm-btn" @click="emit('confirm')">确认执行</button>
+          <button class="btn trap-confirm-btn" :disabled="submitted" @click="confirmTrap">确认执行</button>
         </div>
       </div>
     </div>

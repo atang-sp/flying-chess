@@ -45,7 +45,7 @@
 
   // 根据当前值确定显示的面
   const getCurrentFaceClass = () => {
-    if (!props.value) return 'show-face-1'
+    if (props.value == null) return 'show-face-1'
     return `show-face-${props.value}`
   }
 </script>

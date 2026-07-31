@@ -230,7 +230,7 @@
   // 起飞惩罚显示状态
   const showTakeoffPunishmentDisplay = ref(false)
   const currentTakeoffPunishment = ref<PunishmentAction | null>(null)
-  const currentTakeoffDiceValue = ref(0)
+  const currentTakeoffDiceValue = ref(1)
   const currentTakeoffExecutorIndex = ref(0)
 
   // 执行惩罚的玩家状态
@@ -531,7 +531,7 @@
       // 当玩家尚未起飞(仍停留在起点)且出现惩罚时，视为未起飞惩罚
       if (!currentPlayer.hasTakenOff) {
         currentTakeoffPunishment.value = displayAction
-        currentTakeoffDiceValue.value = diceValue ?? gameState.diceValue ?? 0
+        currentTakeoffDiceValue.value = diceValue ?? gameState.diceValue ?? 1
         currentTakeoffExecutorIndex.value = punishmentResolution.executorIndex ?? -1
         mercyRequested.value = false
         showTakeoffPunishmentDisplay.value = true
@@ -613,7 +613,7 @@
         effect: resolvedCellEffect,
       })
       bounceFromPosition.value = fromPosition
-      bounceTargetPosition.value = fromPosition + (diceValue ?? gameState.diceValue ?? 0)
+      bounceTargetPosition.value = fromPosition + (diceValue ?? gameState.diceValue ?? 1)
       bounceFinalPosition.value = newPosition
       bounceOverflowSteps.value = resolvedCellEffect.value
       showBounceDisplay.value = true
@@ -1513,7 +1513,7 @@
     try {
       const currentPlayer = gameState.players[gameState.currentPlayerIndex]
       const diceValue = gameState.diceValue
-      if (!diceValue) {
+      if (diceValue == null) {
         // 如果没有骰子值，重置状态并返回
         gameState.gameStatus = 'waiting'
         return
@@ -3167,7 +3167,7 @@
     <PartyDiceDecision
       :visible="partyDiceDecisionVisible"
       :player-name="gameState.players[gameState.currentPlayerIndex]?.name ?? '当前玩家'"
-      :dice-value="gameState.diceValue ?? 0"
+      :dice-value="gameState.diceValue ?? 1"
       :tokens-remaining="currentPartyTokens"
       :can-reroll="canCurrentPlayerReroll"
       :paused="sessionPaused"
