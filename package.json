@@ -1,7 +1,10 @@
 {
   "name": "ludo-vue-demo",
-  "version": "1.11.0",
+  "version": "1.11.1",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
