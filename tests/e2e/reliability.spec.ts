@@ -242,7 +242,7 @@ test('development startup does not register a missing production service worker'
   await page.waitForLoadState('networkidle')
 
   expect(serviceWorkerErrors).toEqual([])
-  await expect(page.locator('.version-text')).toHaveText('v1.11.1')
+  await expect(page.locator('.version-text')).toHaveText('v1.11.2')
 })
 
 test('selects and starts party mode with anonymous mode telemetry', async ({ page }, testInfo) => {
