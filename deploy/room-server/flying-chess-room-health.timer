@@ -1,0 +1,12 @@
+[Unit]
+Description=Monitor Flying Chess room service once per minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=5s
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+

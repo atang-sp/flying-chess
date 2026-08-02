@@ -1,0 +1,12 @@
+node_modules
+dist
+apps/room-server/dist
+.git
+.github
+.playwright-cli
+playwright-report
+test-results
+output
+docs
+*.log
+

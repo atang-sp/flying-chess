@@ -67,7 +67,7 @@
 
 - 记录完成局数、实际确认的惩罚次数、求饶次数、最长连锁和各惩罚变体完成次数。
 - 进度解锁记忆/问答小游戏机关和额外返场惩罚；四种 `party_v2` 核心惩罚变体始终可用。
-- 玩家昵称只用于当前设备的耻辱墙，不进入匿名遥测；首页“清除本地游戏数据”会一并删除。
+- 本地玩法的玩家昵称只用于当前设备的耻辱墙；联机升温局昵称会在本房间内广播，并只在房间服务器内存中保留至房间结束（最长 2 小时）。两者都不进入匿名遥测；首页“清除本地游戏数据”会删除当前设备的本地昵称数据。
 
 ### Party Studio
 
@@ -127,7 +127,7 @@
 
 ### 环境要求
 
-- Node.js 18+
+- Node.js 20+
 - npm 或 yarn
 
 ### 安装步骤
@@ -178,6 +178,12 @@ npm install primevue primeicons
 ## 🚀 部署
 
 - **GitHub Pages**：支持自动/手动部署，详见 `deploy.sh` 和 `.github/workflows/deploy.yml`
+- **联机升温局**：从首页显式进入；3–8 名玩家通过各自手机连接
+  `wss://rooms.atang-sp.run.place`。公共棋盘由服务器权威同步，预测、惩罚选择、投票、
+  猜拳和小游戏答案按玩家投影。刷新或短暂断网会自动恢复原席位，主持人只能在 90 秒保护期后、
+  新回合安全节点移除离场玩家。
+- **房间服务**：构建、128 MiB 容量限制、Discourse Nginx/WSS 反代、监控和回滚步骤见
+  `deploy/room-server/README.md`。房间只在内存中保存，最长 2 小时；服务重启会结束房间。
 - **Umami Cloud**：生产网站名为 `flying-chess-production`，域名为
   `atang-sp.github.io`；Replays、Heatmaps、Performance 与公开 Share URL 必须保持关闭。
 - **Vercel/Netlify**：直接连接仓库，构建命令 `npm run build`，输出目录 `dist`

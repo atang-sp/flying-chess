@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import packageJson from '../../package.json' with { type: 'json' }
 
 interface BrowserTelemetryEvent {
   name: string
@@ -242,7 +243,7 @@ test('development startup does not register a missing production service worker'
   await page.waitForLoadState('networkidle')
 
   expect(serviceWorkerErrors).toEqual([])
-  await expect(page.locator('.version-text')).toHaveText('v1.11.2')
+  await expect(page.locator('.version-text')).toHaveText(`v${packageJson.version}`)
 })
 
 test('selects and starts party mode with anonymous mode telemetry', async ({ page }, testInfo) => {

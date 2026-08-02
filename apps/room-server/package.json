@@ -1,0 +1,21 @@
+{
+  "name": "@flying-chess/room-server",
+  "version": "1.12.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/cli.ts",
+    "start": "node dist/server.mjs",
+    "build": "esbuild src/cli.ts --bundle --platform=node --format=esm --target=node20 --external:ws --outfile=dist/server.mjs",
+    "type-check": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@flying-chess/game-core": "1.12.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.25.8",
+    "tsx": "^4.20.3"
+  }
+}

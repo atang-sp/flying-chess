@@ -1,0 +1,1003 @@
+<script setup lang="ts">
+  import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+  import QRCode from 'qrcode'
+  import type {
+    OnlineClientMessage,
+    OnlineRoomSettings,
+    OnlineRoomView,
+    OnlineServerMessage,
+  } from '@flying-chess/game-core'
+  import { OnlineRoomClient, type OnlineConnectionStatus } from './roomClient'
+
+  const COLORS = [
+    '#ff6b6b',
+    '#4ecdc4',
+    '#45b7d1',
+    '#96ceb4',
+    '#feca57',
+    '#ff9ff3',
+    '#54a0ff',
+    '#5f27cd',
+  ] as const
+  const serverUrl = import.meta.env.VITE_ROOM_SERVER_URL ?? 'wss://rooms.atang-sp.run.place'
+  const SESSION_STORAGE_KEY = 'flying-chess-online-session-v1'
+  const localGameUrl = import.meta.env.BASE_URL
+  const query = new URLSearchParams(window.location.search)
+  const nickname = ref('')
+  const color = ref<(typeof COLORS)[number]>('#ff6b6b')
+  const roomCodeInput = ref((query.get('room') ?? '').toUpperCase())
+  const status = ref<OnlineConnectionStatus>('connecting')
+  const errorMessage = ref('')
+  const session = ref<Extract<OnlineServerMessage, { type: 'session' }> | null>(null)
+  const room = ref<OnlineRoomView | null>(null)
+  const settingsDraft = ref<OnlineRoomSettings>({
+    scenePreset: 'default',
+    boardPreset: 'party_default',
+  })
+  const qrCodeUrl = ref('')
+  const memoryAnswer = ref<string[]>([])
+  const currentTime = ref(Date.now())
+  let requestSequence = 0
+  let clockTimer: number | undefined
+
+  interface StoredSession {
+    readonly roomCode: string
+    readonly playerId: string
+    readonly resumeToken: string
+  }
+
+  function loadStoredSession(): StoredSession | null {
+    try {
+      const value = JSON.parse(sessionStorage.getItem(SESSION_STORAGE_KEY) ?? 'null') as unknown
+      if (!value || typeof value !== 'object') return null
+      const candidate = value as Record<string, unknown>
+      return typeof candidate.roomCode === 'string' &&
+        typeof candidate.playerId === 'string' &&
+        typeof candidate.resumeToken === 'string'
+        ? {
+            roomCode: candidate.roomCode,
+            playerId: candidate.playerId,
+            resumeToken: candidate.resumeToken,
+          }
+        : null
+    } catch {
+      return null
+    }
+  }
+
+  let storedSession = loadStoredSession()
+
+  const client = new OnlineRoomClient(serverUrl, {
+    onStatus: nextStatus => {
+      status.value = nextStatus
+      if (nextStatus === 'connected' && storedSession) {
+        client.send({
+          type: 'resume_room',
+          requestId: requestId('resume'),
+          ...storedSession,
+        })
+      }
+    },
+    onMessage: handleMessage,
+  })
+
+  const isHost = computed(
+    () => !!session.value && room.value?.hostPlayerId === session.value.playerId
+  )
+  const canStart = computed(
+    () =>
+      isHost.value &&
+      room.value?.status === 'lobby' &&
+      (room.value?.players.length ?? 0) >= 3 &&
+      room.value?.confirmedPlayerIds.length === room.value?.players.length
+  )
+  const isConfirmed = computed(
+    () =>
+      !!session.value && (room.value?.confirmedPlayerIds.includes(session.value.playerId) ?? false)
+  )
+  const game = computed(() => room.value?.game ?? null)
+  const currentPlayer = computed(() =>
+    game.value?.players.find(player => player.id === game.value?.currentPlayerId)
+  )
+  const canPredict = computed(
+    () => game.value?.allowedCommands.includes('submit_prediction') ?? false
+  )
+  const canRoll = computed(() => game.value?.allowedCommands.includes('roll_dice') ?? false)
+  const canReact = computed(() => game.value?.allowedCommands.includes('decide_reaction') ?? false)
+  const canReroll = computed(() => game.value?.allowedCommands.includes('reroll') ?? false)
+  const canMove = computed(() => game.value?.allowedCommands.includes('move') ?? false)
+  const pendingAction = computed(() => game.value?.pendingAction ?? null)
+  const allowedCommands = computed(() => game.value?.allowedCommands ?? [])
+  const deadlineSeconds = computed(() =>
+    game.value?.deadlineAt == null
+      ? null
+      : Math.max(0, Math.ceil((game.value.deadlineAt - currentTime.value) / 1_000))
+  )
+  const isCoreOperation = computed(() =>
+    ['awaiting_roll', 'awaiting_move', 'awaiting_tiebreak', 'awaiting_chain_roll'].includes(
+      game.value?.phase ?? ''
+    )
+  )
+
+  function offlineSeconds(disconnectedAt: number | undefined): number {
+    return disconnectedAt === undefined
+      ? 0
+      : Math.max(0, Math.floor((currentTime.value - disconnectedAt) / 1_000))
+  }
+
+  function punishmentCountOptions(
+    minimum: number | undefined,
+    maximum: number | undefined,
+    step: number | undefined
+  ): number[] {
+    if (minimum === undefined || maximum === undefined) return []
+    const safeStep = Math.max(1, step ?? 1)
+    const values: number[] = []
+    for (let value = minimum; value <= maximum; value += safeStep) values.push(value)
+    return values
+  }
+
+  function handleMessage(message: OnlineServerMessage): void {
+    if (message.type === 'session') {
+      session.value = message
+      roomCodeInput.value = message.roomCode
+      storedSession = {
+        roomCode: message.roomCode,
+        playerId: message.playerId,
+        resumeToken: message.resumeToken,
+      }
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(storedSession))
+      return
+    }
+    if (message.type === 'room_state') {
+      room.value = message.room
+      errorMessage.value = ''
+      return
+    }
+    if (message.code === 'INVALID_RESUME_TOKEN' || message.code === 'ROOM_NOT_FOUND') {
+      storedSession = null
+      session.value = null
+      room.value = null
+      sessionStorage.removeItem(SESSION_STORAGE_KEY)
+    }
+    errorMessage.value = message.message
+  }
+
+  function requestId(prefix: string): string {
+    requestSequence += 1
+    return `${prefix}-${Date.now()}-${requestSequence}`
+  }
+
+  function send(message: OnlineClientMessage): void {
+    errorMessage.value = ''
+    try {
+      client.send(message)
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : '操作发送失败'
+    }
+  }
+
+  function createRoom(): void {
+    send({
+      type: 'create_room',
+      requestId: requestId('create'),
+      nickname: nickname.value,
+      color: color.value,
+    })
+  }
+
+  function joinRoom(): void {
+    send({
+      type: 'join_room',
+      requestId: requestId('join'),
+      roomCode: roomCodeInput.value.trim().toUpperCase(),
+      nickname: nickname.value,
+      color: color.value,
+    })
+  }
+
+  function sendGameCommand(type: 'start_game' | 'roll_dice' | 'reroll' | 'move'): void {
+    send({ type, requestId: requestId(type) })
+  }
+
+  function chooseMemorySymbol(symbol: string): void {
+    if (pendingAction.value?.kind !== 'event_mini_game') return
+    const sequenceLength = pendingAction.value.sequence?.length ?? 0
+    memoryAnswer.value = [...memoryAnswer.value, symbol]
+    if (memoryAnswer.value.length < sequenceLength) return
+    send({
+      type: 'mini_game_memory_answer',
+      requestId: requestId('memory'),
+      sequence: memoryAnswer.value,
+    })
+  }
+
+  function playerNickname(playerId: string | null | undefined): string {
+    if (!playerId) return ''
+    return game.value?.players.find(player => player.id === playerId)?.nickname ?? ''
+  }
+
+  watch(
+    () => session.value?.roomCode,
+    async code => {
+      if (!code) return
+      const invitationUrl = new URL(
+        `${import.meta.env.BASE_URL}online.html`,
+        window.location.origin
+      )
+      invitationUrl.searchParams.set('room', code)
+      qrCodeUrl.value = await QRCode.toDataURL(invitationUrl.toString(), {
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: 240,
+      })
+    }
+  )
+
+  watch(
+    () => room.value?.settings,
+    settings => {
+      if (settings) settingsDraft.value = { ...settings }
+    },
+    { deep: true }
+  )
+
+  watch(
+    () => pendingAction.value?.kind,
+    kind => {
+      if (kind !== 'event_mini_game') memoryAnswer.value = []
+    }
+  )
+
+  onMounted(async () => {
+    clockTimer = window.setInterval(() => {
+      currentTime.value = Date.now()
+    }, 250)
+    try {
+      await client.connect()
+    } catch (error) {
+      status.value = 'disconnected'
+      errorMessage.value = error instanceof Error ? error.message : '无法连接房间服务'
+    }
+  })
+
+  onUnmounted(() => {
+    if (clockTimer !== undefined) window.clearInterval(clockTimer)
+    client.close()
+  })
+</script>
+
+<template>
+  <main class="online-shell">
+    <header class="online-header">
+      <a :href="localGameUrl" class="back-link">← 返回本地玩法</a>
+      <p class="eyebrow">应用 v1.12 · 规则集 party_v2 · 联机升温局</p>
+      <h1>每人一部手机，同步完成一局</h1>
+      <p>服务器只在内存中保留房间；服务重启后房间结束。</p>
+      <span class="connection-pill" :data-status="status">
+        {{
+          status === 'connected'
+            ? '房间服务已连接'
+            : status === 'connecting'
+              ? '正在连接'
+              : '连接已断开'
+        }}
+      </span>
+    </header>
+
+    <p v-if="errorMessage" class="error-banner" role="alert">{{ errorMessage }}</p>
+
+    <section v-if="!session" class="online-card join-card">
+      <h2>创建或加入房间</h2>
+      <label>
+        昵称
+        <input
+          v-model="nickname"
+          data-testid="nickname"
+          maxlength="20"
+          autocomplete="nickname"
+          placeholder="你在本局显示的名字"
+        />
+      </label>
+      <label>
+        颜色
+        <select v-model="color" data-testid="color">
+          <option v-for="option in COLORS" :key="option" :value="option">{{ option }}</option>
+        </select>
+      </label>
+      <button
+        class="btn btn-primary"
+        data-testid="create-room"
+        :disabled="status !== 'connected' || !nickname.trim()"
+        @click="createRoom"
+      >
+        创建房间
+      </button>
+      <div class="join-divider"><span>或输入 6 位房间码</span></div>
+      <label>
+        房间码
+        <input
+          v-model="roomCodeInput"
+          maxlength="6"
+          autocapitalize="characters"
+          placeholder="ABC234"
+        />
+      </label>
+      <button
+        class="btn btn-secondary"
+        data-testid="join-room"
+        :disabled="status !== 'connected' || !nickname.trim() || roomCodeInput.length !== 6"
+        @click="joinRoom"
+      >
+        加入房间
+      </button>
+    </section>
+
+    <template v-else-if="room">
+      <section v-if="room.status === 'lobby'" class="online-grid">
+        <div class="online-card invite-card">
+          <p class="eyebrow">房间码</p>
+          <strong class="room-code" data-testid="room-code">{{ session.roomCode }}</strong>
+          <img v-if="qrCodeUrl" :src="qrCodeUrl" alt="加入本房间的二维码" class="room-qr" />
+          <p>让其他玩家扫码或打开联机入口后输入房间码。</p>
+        </div>
+
+        <div class="online-card roster-card">
+          <div class="card-title-row">
+            <h2>已加入 {{ room.players.length }}/8</h2>
+            <span v-if="isHost" class="host-badge">你是主持人</span>
+          </div>
+          <ul class="player-list">
+            <li v-for="player in room.players" :key="player.id" data-testid="room-player">
+              <span class="player-dot" :style="{ background: player.color }"></span>
+              <span>{{ player.nickname }}</span>
+              <button
+                v-if="isHost && player.id !== session.playerId"
+                class="text-button"
+                :data-testid="`transfer-host-${player.id}`"
+                @click="
+                  send({
+                    type: 'transfer_host',
+                    requestId: requestId('transfer'),
+                    playerId: player.id,
+                  })
+                "
+              >
+                转交主持
+              </button>
+              <button
+                v-if="isHost && player.removable"
+                class="text-button"
+                @click="
+                  send({
+                    type: 'remove_player',
+                    requestId: requestId('remove'),
+                    playerId: player.id,
+                  })
+                "
+              >
+                移除
+              </button>
+              <span v-else class="connection-label">
+                {{
+                  room.confirmedPlayerIds.includes(player.id)
+                    ? '已确认'
+                    : player.connected
+                      ? '待确认'
+                      : '离线'
+                }}
+              </span>
+            </li>
+          </ul>
+          <div class="settings-panel">
+            <h3>本局设置</h3>
+            <template v-if="isHost">
+              <label>
+                场景
+                <select v-model="settingsDraft.scenePreset">
+                  <option value="default">默认升温局</option>
+                  <option value="icebreaker">初见破冰</option>
+                  <option value="hardcore">老友加码</option>
+                  <option value="couple">双人终局风格</option>
+                </select>
+              </label>
+              <label>
+                棋盘
+                <select v-model="settingsDraft.boardPreset">
+                  <option value="party_default">升温局默认棋盘</option>
+                  <option value="icebreaker">破冰棋盘</option>
+                  <option value="hardcore">加码棋盘</option>
+                  <option value="couple_finale">终局棋盘</option>
+                </select>
+              </label>
+              <button
+                class="btn btn-secondary"
+                data-testid="save-settings"
+                @click="
+                  send({
+                    type: 'update_settings',
+                    requestId: requestId('settings'),
+                    settings: settingsDraft,
+                  })
+                "
+              >
+                保存设置（会清空确认）
+              </button>
+            </template>
+            <dl v-else class="settings-summary">
+              <div>
+                <dt>场景</dt>
+                <dd>{{ room.settings.scenePreset }}</dd>
+              </div>
+              <div>
+                <dt>棋盘</dt>
+                <dd>{{ room.settings.boardPreset }}</dd>
+              </div>
+            </dl>
+          </div>
+          <button
+            v-if="!isConfirmed"
+            class="btn btn-secondary"
+            data-testid="confirm-settings"
+            @click="send({ type: 'confirm_settings', requestId: requestId('confirm') })"
+          >
+            我已查看并确认设置
+          </button>
+          <p v-else class="confirmed-note">✓ 你已确认；设置变化后需重新确认。</p>
+          <button
+            v-if="isHost"
+            class="btn btn-primary"
+            data-testid="start-online-game"
+            :disabled="!canStart"
+            @click="sendGameCommand('start_game')"
+          >
+            全员到齐，开始游戏
+          </button>
+          <p v-if="isHost && room.players.length < 3" class="hint">至少 3 人才能开始。</p>
+          <p v-else-if="isHost && !canStart" class="hint">等待所有玩家确认设置。</p>
+          <p v-else-if="!isHost" class="hint">等待主持人开始。</p>
+        </div>
+      </section>
+
+      <section v-else-if="game" class="game-layout">
+        <div class="online-card game-status-card">
+          <p class="eyebrow">第 {{ game.revision }} 次状态更新</p>
+          <h2>{{ currentPlayer?.nickname }} 的回合</h2>
+          <p>
+            第 {{ game.roundNumber }} 轮 · {{ game.currentAct }} · 你的筹码
+            {{ game.myTokensRemaining }}
+          </p>
+          <p v-if="deadlineSeconds !== null" class="deadline-note">
+            本操作剩余 {{ deadlineSeconds }} 秒
+          </p>
+          <p v-if="game.paused" class="confirmed-note">游戏已暂停，倒计时已冻结。</p>
+          <p v-if="room.skipRequestedPlayerIds.length" class="hint">
+            {{ room.skipRequestedPlayerIds.length }} 人请求跳过当前核心操作，等待主持人决定。
+          </p>
+          <div class="decision-grid session-controls">
+            <button
+              v-if="game.paused"
+              class="btn btn-secondary"
+              @click="send({ type: 'resume_game', requestId: requestId('resume-game') })"
+            >
+              恢复游戏
+            </button>
+            <button
+              v-else
+              class="btn btn-secondary"
+              @click="send({ type: 'pause_game', requestId: requestId('pause') })"
+            >
+              暂停游戏
+            </button>
+            <button
+              v-if="!game.paused"
+              class="text-button"
+              @click="send({ type: 'skip_action', requestId: requestId('skip') })"
+            >
+              {{ isCoreOperation && !isHost ? '请求主持人跳过' : '跳过当前操作' }}
+            </button>
+          </div>
+          <ul
+            v-if="room.players.some(player => !player.connected)"
+            class="player-list compact-list"
+          >
+            <li
+              v-for="player in room.players.filter(candidate => !candidate.connected)"
+              :key="player.id"
+            >
+              <span>{{ player.nickname }} 离线 {{ offlineSeconds(player.disconnectedAt) }} 秒</span>
+              <button
+                v-if="isHost && player.removable"
+                class="text-button"
+                @click="
+                  send({
+                    type: 'remove_player',
+                    requestId: requestId('remove'),
+                    playerId: player.id,
+                  })
+                "
+              >
+                移除离场玩家
+              </button>
+              <small v-else>保留原席位（90 秒保护）</small>
+            </li>
+          </ul>
+          <div class="dice-face" data-testid="dice-value">{{ game.diceValue ?? '—' }}</div>
+          <div v-if="canPredict" class="decision-grid">
+            <button
+              class="btn btn-secondary"
+              data-testid="predict-low"
+              @click="
+                send({
+                  type: 'submit_prediction',
+                  requestId: requestId('predict'),
+                  prediction: 'low',
+                })
+              "
+            >
+              预测 1–3
+            </button>
+            <button
+              class="btn btn-secondary"
+              data-testid="predict-high"
+              @click="
+                send({
+                  type: 'submit_prediction',
+                  requestId: requestId('predict'),
+                  prediction: 'high',
+                })
+              "
+            >
+              预测 4–6
+            </button>
+          </div>
+          <button
+            v-if="canRoll"
+            class="btn btn-primary"
+            data-testid="roll-dice"
+            @click="sendGameCommand('roll_dice')"
+          >
+            投掷骰子
+          </button>
+          <div v-if="canReact" class="decision-grid">
+            <button
+              class="btn btn-secondary"
+              data-testid="reaction-keep"
+              @click="
+                send({
+                  type: 'decide_reaction',
+                  requestId: requestId('reaction'),
+                  decision: 'keep',
+                })
+              "
+            >
+              保留点数
+            </button>
+            <button
+              class="btn btn-secondary"
+              data-testid="reaction-mirror"
+              @click="
+                send({
+                  type: 'decide_reaction',
+                  requestId: requestId('reaction'),
+                  decision: 'mirror',
+                })
+              "
+            >
+              镜像点数
+            </button>
+          </div>
+          <button
+            v-if="canReroll"
+            class="btn btn-secondary"
+            data-testid="reroll"
+            @click="sendGameCommand('reroll')"
+          >
+            使用筹码重掷
+          </button>
+          <button
+            v-if="canMove"
+            class="btn btn-primary"
+            data-testid="move"
+            @click="sendGameCommand('move')"
+          >
+            按骰点移动
+          </button>
+          <p v-if="!canPredict && !canRoll && !canReact && !canReroll && !canMove">
+            请在自己的手机上操作，当前状态会自动同步。
+          </p>
+
+          <div v-if="pendingAction?.kind === 'punishment_choice'" class="decision-panel">
+            <h3>选择本次惩罚</h3>
+            <button
+              v-for="(choice, index) in pendingAction.choices ?? []"
+              :key="index"
+              class="btn btn-secondary"
+              @click="
+                send({
+                  type: 'choose_punishment',
+                  requestId: requestId('punishment'),
+                  selectedIndex: index as 0 | 1,
+                })
+              "
+            >
+              {{ choice.description }}
+            </button>
+            <button
+              v-if="allowedCommands.includes('choose_punishment')"
+              class="text-button"
+              @click="
+                send({
+                  type: 'choose_punishment',
+                  requestId: requestId('punishment'),
+                  selectedIndex: null,
+                })
+              "
+            >
+              不使用筹码，按原结果继续
+            </button>
+          </div>
+
+          <div v-else-if="pendingAction?.kind === 'punishment_intervention'" class="decision-panel">
+            <h3>惩罚干预</h3>
+            <button
+              v-for="action in (pendingAction.actions ?? []).filter(item => item !== 'transfer')"
+              :key="action"
+              class="btn btn-secondary"
+              @click="send({ type: 'intervene', requestId: requestId('intervene'), action })"
+            >
+              {{ action === 'amplify' ? '加码 ×2' : '免疫本次惩罚' }}
+            </button>
+            <button
+              v-for="targetPlayerId in pendingAction.transferTargetPlayerIds ?? []"
+              :key="targetPlayerId"
+              class="btn btn-secondary"
+              @click="
+                send({
+                  type: 'intervene',
+                  requestId: requestId('intervene'),
+                  action: 'transfer',
+                  targetPlayerId,
+                })
+              "
+            >
+              转嫁给 {{ game.players.find(player => player.id === targetPlayerId)?.nickname }}
+            </button>
+            <button
+              v-if="allowedCommands.includes('decline_intervention')"
+              class="text-button"
+              @click="send({ type: 'decline_intervention', requestId: requestId('decline') })"
+            >
+              不干预
+            </button>
+          </div>
+
+          <div v-else-if="pendingAction?.kind === 'punishment_count'" class="decision-panel">
+            <h3>选择本次惩罚次数</h3>
+            <div v-if="allowedCommands.includes('choose_punishment_count')" class="decision-grid">
+              <button
+                v-for="count in punishmentCountOptions(
+                  pendingAction.minimum,
+                  pendingAction.maximum,
+                  pendingAction.step
+                )"
+                :key="count"
+                class="btn btn-secondary"
+                @click="
+                  send({ type: 'choose_punishment_count', requestId: requestId('count'), count })
+                "
+              >
+                {{ count }} 下
+              </button>
+            </div>
+            <p v-else>相关玩家正在私密选择次数。</p>
+          </div>
+
+          <div v-else-if="pendingAction?.kind === 'punishment_variant'" class="decision-panel">
+            <h3>惩罚变体 · {{ pendingAction.variant ?? '私密处理中' }}</h3>
+            <p v-if="pendingAction.description">{{ pendingAction.description }}</p>
+            <div v-if="allowedCommands.includes('resolve_condition')" class="decision-grid">
+              <button
+                class="btn btn-primary"
+                @click="
+                  send({
+                    type: 'resolve_condition',
+                    requestId: requestId('condition'),
+                    conditionMet: true,
+                  })
+                "
+              >
+                条件完成，次数减半
+              </button>
+              <button
+                class="btn btn-secondary"
+                @click="
+                  send({
+                    type: 'resolve_condition',
+                    requestId: requestId('condition'),
+                    conditionMet: false,
+                  })
+                "
+              >
+                条件未完成，照常执行
+              </button>
+            </div>
+            <div v-else-if="allowedCommands.includes('defer_punishment')" class="decision-grid">
+              <button
+                class="btn btn-primary"
+                @click="
+                  send({ type: 'defer_punishment', requestId: requestId('defer'), defer: true })
+                "
+              >
+                延迟到下回合前
+              </button>
+              <button
+                class="btn btn-secondary"
+                @click="
+                  send({ type: 'defer_punishment', requestId: requestId('defer'), defer: false })
+                "
+              >
+                现在执行
+              </button>
+            </div>
+          </div>
+
+          <div v-else-if="pendingAction?.kind === 'acknowledgement'" class="decision-panel">
+            <h3>规则结果</h3>
+            <p v-if="pendingAction.description">{{ pendingAction.description }}</p>
+            <button
+              v-if="allowedCommands.includes('acknowledge')"
+              class="btn btn-primary"
+              @click="send({ type: 'acknowledge', requestId: requestId('acknowledge') })"
+            >
+              已完成，继续
+            </button>
+            <button
+              v-if="allowedCommands.includes('request_mercy')"
+              class="btn btn-secondary"
+              @click="send({ type: 'request_mercy', requestId: requestId('mercy') })"
+            >
+              请求减半，下一次惩罚加码
+            </button>
+          </div>
+
+          <div v-else-if="pendingAction?.kind === 'mercy_decision'" class="decision-panel">
+            <h3>求饶请求</h3>
+            <p v-if="pendingAction.description">{{ pendingAction.description }}</p>
+            <div v-if="allowedCommands.includes('decide_mercy')" class="decision-grid">
+              <button
+                class="btn btn-primary"
+                @click="
+                  send({
+                    type: 'decide_mercy',
+                    requestId: requestId('mercy-decision'),
+                    accepted: true,
+                  })
+                "
+              >
+                接受：本次减半
+              </button>
+              <button
+                class="btn btn-secondary"
+                @click="
+                  send({
+                    type: 'decide_mercy',
+                    requestId: requestId('mercy-decision'),
+                    accepted: false,
+                  })
+                "
+              >
+                拒绝：照常执行
+              </button>
+            </div>
+            <p v-else>等待执行者私密决定。</p>
+          </div>
+
+          <div v-else-if="pendingAction?.kind === 'chain_roll'" class="decision-panel">
+            <h3>连锁惩罚 · 第 {{ pendingAction.chainCount }} 次</h3>
+            <p>服务器掷骰：奇数继续，偶数结束，最多连续 5 次。</p>
+            <button
+              v-if="allowedCommands.includes('chain_roll')"
+              class="btn btn-primary"
+              @click="send({ type: 'chain_roll', requestId: requestId('chain') })"
+            >
+              投掷连锁骰子
+            </button>
+          </div>
+
+          <div v-else-if="pendingAction?.kind === 'content'" class="decision-panel">
+            <h3>{{ pendingAction.contentType }}</h3>
+            <p>{{ pendingAction.description }}</p>
+            <div v-if="allowedCommands.includes('resolve_content')" class="decision-grid">
+              <button
+                class="btn btn-primary"
+                @click="
+                  send({ type: 'resolve_content', requestId: requestId('content'), accepted: true })
+                "
+              >
+                已完成，继续
+              </button>
+              <button
+                v-if="pendingAction.canRefuse"
+                class="btn btn-secondary"
+                @click="
+                  send({
+                    type: 'resolve_content',
+                    requestId: requestId('content'),
+                    accepted: false,
+                  })
+                "
+              >
+                拒绝并接受惩罚
+              </button>
+            </div>
+          </div>
+
+          <div v-else-if="pendingAction?.kind === 'event_vote'" class="decision-panel">
+            <h3>{{ pendingAction.title }}</h3>
+            <p>
+              {{ pendingAction.prompt }} · 已提交 {{ pendingAction.submittedCount }}/{{
+                game.players.length
+              }}
+            </p>
+            <button
+              v-for="(option, optionIndex) in pendingAction.options"
+              :key="option"
+              class="btn btn-secondary"
+              :disabled="pendingAction.hasSubmitted"
+              @click="send({ type: 'vote', requestId: requestId('vote'), optionIndex })"
+            >
+              {{ option }}
+            </button>
+          </div>
+
+          <div v-else-if="pendingAction?.kind === 'event_rps'" class="decision-panel">
+            <h3>{{ pendingAction.title }}</h3>
+            <p>已提交 {{ pendingAction.submittedCount }}/{{ game.players.length }}</p>
+            <button
+              v-for="choice in ['rock', 'paper', 'scissors'] as const"
+              :key="choice"
+              class="btn btn-secondary"
+              :disabled="pendingAction.hasSubmitted"
+              @click="send({ type: 'rps', requestId: requestId('rps'), choice })"
+            >
+              {{ choice === 'rock' ? '石头' : choice === 'paper' ? '布' : '剪刀' }}
+            </button>
+          </div>
+
+          <div v-else-if="pendingAction?.kind === 'event_result'" class="decision-panel">
+            <h3>{{ pendingAction.title }} · 统一揭晓</h3>
+            <p>{{ pendingAction.summary }}</p>
+            <button
+              v-if="allowedCommands.includes('acknowledge_event_result')"
+              class="btn btn-primary"
+              @click="
+                send({ type: 'acknowledge_event_result', requestId: requestId('event-result') })
+              "
+            >
+              已查看，继续
+            </button>
+          </div>
+
+          <div v-else-if="pendingAction?.kind === 'event_activation'" class="decision-panel">
+            <h3>{{ pendingAction.title }}</h3>
+            <p>{{ pendingAction.description }}</p>
+            <button
+              v-if="allowedCommands.includes('resolve_event')"
+              class="btn btn-primary"
+              @click="
+                send({
+                  type: 'resolve_event',
+                  requestId: requestId('event'),
+                  selectedPlayerIds: game.players.slice(0, 2).map(player => player.id),
+                })
+              "
+            >
+              激活事件
+            </button>
+          </div>
+
+          <div v-else-if="pendingAction?.kind === 'event_mini_game'" class="decision-panel">
+            <h3>{{ pendingAction.title }}</h3>
+            <template v-if="pendingAction.game === 'reaction'">
+              <p>等待服务器信号后抢按。</p>
+              <button
+                v-if="allowedCommands.includes('mini_game_press')"
+                class="btn btn-primary"
+                @click="send({ type: 'mini_game_press', requestId: requestId('reaction-game') })"
+              >
+                抢按
+              </button>
+            </template>
+            <template v-else-if="pendingAction.game === 'memory' && pendingAction.sequence">
+              <p class="memory-sequence">{{ pendingAction.sequence.join(' ') }}</p>
+              <div class="decision-grid">
+                <button
+                  v-for="symbol in pendingAction.options ?? []"
+                  :key="symbol"
+                  class="btn btn-secondary"
+                  @click="chooseMemorySymbol(symbol)"
+                >
+                  {{ symbol }}
+                </button>
+              </div>
+              <small>已选 {{ memoryAnswer.length }}/{{ pendingAction.sequence.length }}</small>
+            </template>
+            <template v-else-if="pendingAction.game === 'quick_quiz'">
+              <p>在截止时间前说出三个棋盘格子类型。</p>
+              <button
+                class="btn btn-primary"
+                @click="
+                  send({
+                    type: 'mini_game_quiz_result',
+                    requestId: requestId('quiz'),
+                    completed: true,
+                  })
+                "
+              >
+                已完成
+              </button>
+              <button
+                class="text-button"
+                @click="
+                  send({
+                    type: 'mini_game_quiz_result',
+                    requestId: requestId('quiz'),
+                    completed: false,
+                  })
+                "
+              >
+                放弃
+              </button>
+            </template>
+          </div>
+
+          <div v-else-if="pendingAction?.kind === 'tiebreak'" class="decision-panel">
+            <h3>并列决胜 · 第 {{ pendingAction.roundNumber }} 轮</h3>
+            <button
+              v-if="allowedCommands.includes('tiebreak_roll')"
+              class="btn btn-primary"
+              @click="send({ type: 'tiebreak_roll', requestId: requestId('tiebreak') })"
+            >
+              投掷决胜骰子
+            </button>
+          </div>
+
+          <div v-if="game.status === 'finished'" class="decision-panel">
+            <h3>{{ playerNickname(game.winnerPlayerId) }} 获胜</h3>
+            <p v-for="entry in game.victorySettlement" :key="entry.playerId">
+              {{ playerNickname(entry.playerId) }}：第 {{ entry.place }} 名，{{ entry.count }} 次
+            </p>
+          </div>
+        </div>
+
+        <div class="online-card board-card">
+          <h2>公共棋盘</h2>
+          <div class="online-board" aria-label="40 格公共棋盘">
+            <div v-for="position in game.boardSize" :key="position" class="board-cell">
+              <span>{{ position }}</span>
+              <i
+                v-for="player in game.players.filter(candidate => candidate.position === position)"
+                :key="player.id"
+                class="board-piece"
+                :style="{ background: player.color }"
+                :title="player.nickname"
+              ></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="online-card positions-card">
+          <h2>玩家位置</h2>
+          <ul class="player-list">
+            <li v-for="player in game.players" :key="player.id">
+              <span class="player-dot" :style="{ background: player.color }"></span>
+              <span>{{ player.nickname }}</span>
+              <strong data-testid="player-position">第 {{ player.position }} 格</strong>
+            </li>
+          </ul>
+        </div>
+      </section>
+    </template>
+  </main>
+</template>

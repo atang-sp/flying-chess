@@ -1,0 +1,8 @@
+[Unit]
+Description=Check Flying Chess room service health without logging room data
+After=flying-chess-room.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/curl --fail --silent --show-error --max-time 5 http://172.17.0.1:8787/ready
+
