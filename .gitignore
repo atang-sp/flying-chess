@@ -19,6 +19,7 @@ coverage
 /playwright-report/
 /test-results/
 /.playwright-cli/
+/.acceptance-evidence/
 
 # Editor directories and files
 .vscode/*

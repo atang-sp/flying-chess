@@ -1,6 +1,6 @@
 {
   "name": "ludo-vue-demo",
-  "version": "1.12.2",
+  "version": "1.12.3",
   "private": true,
   "workspaces": [
     "packages/*",
@@ -35,6 +35,7 @@
     "dev:room-server": "npm run dev --workspace @flying-chess/room-server",
     "build:room-server": "npm run build --workspace @flying-chess/room-server",
     "test:room-server-load": "npm run build:room-server && node scripts/room-server-load-test.mjs",
+    "verify:online-acceptance": "node scripts/online-acceptance-evidence.mjs",
     "test:e2e": "playwright test tests/e2e"
   },
   "lint-staged": {
