@@ -250,6 +250,12 @@ interface PendingEventMiniGame {
   readonly options?: readonly string[]
 }
 
+interface PendingEventResult {
+  readonly kind: 'event_result'
+  readonly title: string
+  readonly summary: string
+}
+
 interface PendingTieBreak {
   readonly kind: 'tiebreak'
   readonly state: PartyTieBreakState
@@ -268,6 +274,7 @@ type OnlinePendingAction =
   | PendingEventActivation
   | PendingEventRps
   | PendingEventMiniGame
+  | PendingEventResult
   | PendingTieBreak
 
 export interface OnlineVictorySettlementEntry {
@@ -336,6 +343,7 @@ export type OnlineGameCommand =
   | Readonly<{ type: 'resolve_content'; accepted: boolean }>
   | Readonly<{ type: 'vote'; optionIndex: number }>
   | Readonly<{ type: 'resolve_event'; selectedPlayerIds?: readonly string[] }>
+  | Readonly<{ type: 'acknowledge_event_result' }>
   | Readonly<{ type: 'rps'; choice: PartyRockPaperScissorsChoice }>
   | Readonly<{ type: 'mini_game_press' }>
   | Readonly<{ type: 'mini_game_memory_answer'; sequence: readonly string[] }>
@@ -426,6 +434,7 @@ export interface OnlineGameView {
         sequence?: readonly string[]
         options?: readonly string[]
       }>
+    | Readonly<{ kind: 'event_result'; title: string; summary: string }>
     | Readonly<{
         kind: 'tiebreak'
         candidatePlayerIds: readonly string[]
@@ -524,6 +533,7 @@ export type OnlineClientMessage =
       requestId: string
       selectedPlayerIds?: readonly string[]
     }>
+  | Readonly<{ type: 'acknowledge_event_result'; requestId: string }>
   | Readonly<{
       type: 'rps'
       requestId: string
@@ -1169,16 +1179,23 @@ function applyOnlineGameCommandInternal(
         pendingAction: { ...pending, votes },
       }
     }
-    tallyPartyVotes(
+    const result = tallyPartyVotes(
       pending.card.effect.options,
       state.players.map((_, index) => votes[index] ?? -1)
     )
-    return resumeAfterEvent({
-      ...state,
-      revision: state.revision + 1,
-      eventState: activatePartyEvent(state.eventState, pending.card),
-      pendingAction: null,
-    })
+    const winners = result.winningOptionIndices.map(
+      optionIndex => pending.card.effect.options[optionIndex] ?? ''
+    )
+    return showEventResult(
+      {
+        ...state,
+        revision: state.revision + 1,
+        eventState: activatePartyEvent(state.eventState, pending.card),
+        pendingAction: null,
+      },
+      pending.card.title,
+      `投票结果：${winners.join('、')}`
+    )
   }
 
   if (command.type === 'resolve_event') {
@@ -1225,13 +1242,35 @@ function applyOnlineGameCommandInternal(
         pendingAction: { ...pending, choices },
       }
     }
-    resolvePartyRockPaperScissors(state.players.map((_, index) => choices[index] ?? 'rock'))
-    return resumeAfterEvent({
-      ...state,
-      revision: state.revision + 1,
-      eventState: activatePartyEvent(state.eventState, pending.card),
-      pendingAction: null,
-    })
+    const revealedChoices = state.players.map((_, index) => choices[index] ?? 'rock')
+    const result = resolvePartyRockPaperScissors(revealedChoices)
+    const choiceLabels = { rock: '石头', paper: '布', scissors: '剪刀' } as const
+    const choicesSummary = state.players
+      .map(
+        (player, index) => `${player.nickname}：${choiceLabels[revealedChoices[index] ?? 'rock']}`
+      )
+      .join('；')
+    const winnerNames = result.winnerPlayerIndices
+      .map(index => state.players[index]?.nickname ?? '')
+      .filter(Boolean)
+    return showEventResult(
+      {
+        ...state,
+        revision: state.revision + 1,
+        eventState: activatePartyEvent(state.eventState, pending.card),
+        pendingAction: null,
+      },
+      pending.card.title,
+      `${choicesSummary}。赢家：${winnerNames.join('、')}`
+    )
+  }
+
+  if (command.type === 'acknowledge_event_result') {
+    if (state.phase !== 'awaiting_event' || state.pendingAction?.kind !== 'event_result') {
+      throw new GameCommandError('INVALID_PHASE', '当前没有等待确认的事件结果')
+    }
+    requireCurrentPlayer(state, actorId)
+    return resumeAfterEvent({ ...state, revision: state.revision + 1, pendingAction: null })
   }
 
   if (
@@ -1500,6 +1539,12 @@ export function projectOnlineGameView(state: OnlineGameState, viewerId: string):
   } else if (state.phase === 'awaiting_event' && state.pendingAction?.kind === 'event_rps') {
     if (state.pendingAction.choices[viewerIndex] === undefined) allowedCommands = ['rps']
   } else if (
+    state.phase === 'awaiting_event' &&
+    state.pendingAction?.kind === 'event_result' &&
+    isTurn
+  ) {
+    allowedCommands = ['acknowledge_event_result']
+  } else if (
     state.phase === 'awaiting_mini_game' &&
     state.pendingAction?.kind === 'event_mini_game'
   ) {
@@ -1648,6 +1693,32 @@ export function removeOnlinePlayerAtSafeNode(
     remapIndex(state.partySession.reactionTargetPlayerIndex) ?? currentIndex
   const binding = state.eventState.activeBinding
   const remappedBinding = binding ? binding.playerIndices.map(remapIndex) : undefined
+  const deferredPunishments = state.deferredPunishments.flatMap(resolution => {
+    const targetPlayerIndex = remapIndex(resolution.targetPlayerIndex)
+    if (targetPlayerIndex === undefined) return []
+    const actorPlayerIndex = remapIndex(resolution.actorIndex) ?? currentIndex
+    const executorPlayerIndex =
+      resolution.executorIndex === undefined ? undefined : remapIndex(resolution.executorIndex)
+    const count =
+      resolution.count.kind === 'awaiting_external_count'
+        ? {
+            ...resolution.count,
+            eligibleChooserIndices: resolution.count.eligibleChooserIndices.flatMap(index => {
+              const remapped = remapIndex(index)
+              return remapped === undefined ? [] : [remapped]
+            }),
+          }
+        : resolution.count
+    return [
+      {
+        ...resolution,
+        actorIndex: actorPlayerIndex,
+        targetPlayerIndex,
+        executorIndex: executorPlayerIndex,
+        count,
+      },
+    ]
+  })
   return {
     ...state,
     revision: state.revision + 1,
@@ -1655,6 +1726,7 @@ export function removeOnlinePlayerAtSafeNode(
     currentPlayerId: currentPlayer.id,
     phase: 'awaiting_roll',
     deadlineAt: null,
+    deferredPunishments,
     partySession: {
       ...state.partySession,
       playerCount: players.length,
@@ -1703,6 +1775,7 @@ function timeoutDecisionPlayerId(state: OnlineGameState): string | undefined {
   if (pending?.kind === 'mercy_decision') {
     return state.players[pending.decisionPlayerIndex]?.id
   }
+  if (pending?.kind === 'event_result') return state.currentPlayerId
   if (pending?.kind === 'event_mini_game') return state.players[pending.actorIndex]?.id
   return undefined
 }
@@ -1836,6 +1909,9 @@ function skipOnlineGameAction(
   if (pending?.kind === 'event_activation') {
     return resumeAfterEvent({ ...state, revision: state.revision + 1, pendingAction: null })
   }
+  if (pending?.kind === 'event_result') {
+    return resumeAfterEvent({ ...state, revision: state.revision + 1, pendingAction: null })
+  }
   if (pending?.kind === 'event_mini_game') {
     return finishEventMiniGame(state, pending, [], [pending.actorIndex])
   }
@@ -1887,15 +1963,17 @@ function onlineDeadlineKey(state: OnlineGameState): string | null {
   }
   if (
     pending?.kind === 'punishment_choice' ||
-    pending?.kind === 'punishment_intervention' ||
     pending?.kind === 'punishment_count' ||
     pending?.kind === 'punishment_variant' ||
     pending?.kind === 'acknowledgement' ||
     pending?.kind === 'content' ||
-    pending?.kind === 'mercy_decision'
+    pending?.kind === 'mercy_decision' ||
+    pending?.kind === 'event_activation' ||
+    pending?.kind === 'event_result'
   ) {
-    return pending.kind
+    return `${pending.kind}:${state.revision}`
   }
+  if (pending?.kind === 'punishment_intervention') return pending.kind
   if (
     pending?.kind === 'event_vote' ||
     pending?.kind === 'event_rps' ||
@@ -2502,6 +2580,9 @@ function projectPendingAction(
       hasSubmitted: pending.choices[viewerIndex] !== undefined,
     }
   }
+  if (pending.kind === 'event_result') {
+    return { kind: pending.kind, title: pending.title, summary: pending.summary }
+  }
   if (pending.kind === 'event_mini_game') {
     return {
       kind: pending.kind,
@@ -2597,6 +2678,14 @@ function resumeAfterEvent(state: OnlineGameState): OnlineGameState {
   }
 }
 
+function showEventResult(state: OnlineGameState, title: string, summary: string): OnlineGameState {
+  return {
+    ...state,
+    phase: 'awaiting_event',
+    pendingAction: { kind: 'event_result', title, summary },
+  }
+}
+
 function startEventMiniGame(
   state: OnlineGameState,
   card: PartyEventCard & {
@@ -2662,13 +2751,28 @@ function finishEventMiniGame(
     }
     return player
   })
-  return resumeAfterEvent({
-    ...state,
-    revision: state.revision + 1,
-    players,
-    eventState: activatePartyEvent(state.eventState, pending.card),
-    pendingAction: null,
-  })
+  const winnerNames = winnerPlayerIndices
+    .map(index => state.players[index]?.nickname ?? '')
+    .filter(Boolean)
+  const loserNames = loserPlayerIndices
+    .map(index => state.players[index]?.nickname ?? '')
+    .filter(Boolean)
+  const summary = winnerNames.length
+    ? `完成：${winnerNames.join('、')}`
+    : loserNames.length
+      ? `未完成：${loserNames.join('、')}`
+      : '本次挑战已跳过'
+  return showEventResult(
+    {
+      ...state,
+      revision: state.revision + 1,
+      players,
+      eventState: activatePartyEvent(state.eventState, pending.card),
+      pendingAction: null,
+    },
+    pending.card.title,
+    summary
+  )
 }
 
 function finishOnlineGame(state: OnlineGameState, winnerPlayerIndex: number): OnlineGameState {

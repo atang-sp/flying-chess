@@ -41,13 +41,13 @@ interface RoomPlayer {
 
 interface Room {
   readonly code: string
+  readonly createdAt: number
   hostPlayerId: string
   readonly players: RoomPlayer[]
   settings: OnlineRoomSettings
   readonly confirmedPlayerIds: Set<string>
   readonly skipRequestedPlayerIds: Set<string>
   game: OnlineGameState | null
-  lastActiveAt: number
 }
 
 interface ConnectionSession {
@@ -131,9 +131,9 @@ export async function createRoomServer(
 
   const cleanupTimer = setInterval(
     () => {
-      const expiresBefore = now() - roomTtlMs
+      const timestamp = now()
       for (const [code, room] of rooms) {
-        if (room.lastActiveAt >= expiresBefore) continue
+        if (timestamp - room.createdAt < roomTtlMs) continue
         for (const player of room.players) {
           send(player.socket, { type: 'error', code: 'ROOM_EXPIRED', message: '房间已过期' })
           player.socket?.close(1001, 'room expired')
@@ -148,12 +148,15 @@ export async function createRoomServer(
   const gameTimer = setInterval(() => {
     const timestamp = now()
     for (const room of rooms.values()) {
-      if (!room.game) continue
-      const next = applyOnlineGameTimeout(room.game, timestamp, gameDependencies)
-      if (next === room.game) continue
-      room.game = next
-      room.lastActiveAt = timestamp
-      broadcastRoom(room)
+      let changed = transferExpiredHost(room, timestamp)
+      if (room.game) {
+        const next = applyOnlineGameTimeout(room.game, timestamp, gameDependencies)
+        if (next !== room.game) {
+          room.game = next
+          changed = true
+        }
+      }
+      if (changed) broadcastRoom(room)
     }
   }, 100)
   gameTimer.unref()
@@ -194,7 +197,6 @@ export async function createRoomServer(
       if (!session || session.player.socket !== socket) return
       session.player.socket = null
       session.player.disconnectedAt = now()
-      session.room.lastActiveAt = now()
       broadcastRoom(session.room)
     })
   })
@@ -209,13 +211,13 @@ export async function createRoomServer(
       const player = createPlayer(message.nickname, message.color, socket, message.requestId)
       const room: Room = {
         code,
+        createdAt: now(),
         hostPlayerId: player.id,
         players: [player],
         settings: { ...DEFAULT_ONLINE_ROOM_SETTINGS },
         confirmedPlayerIds: new Set(),
         skipRequestedPlayerIds: new Set(),
         game: null,
-        lastActiveAt: now(),
       }
       rooms.set(code, room)
       sessions.set(socket, { room, player })
@@ -242,7 +244,6 @@ export async function createRoomServer(
       }
       room.players.push(player)
       room.confirmedPlayerIds.clear()
-      room.lastActiveAt = now()
       sessions.set(socket, { room, player })
       sendSession(socket, room, player, message.requestId)
       broadcastRoom(room)
@@ -266,7 +267,6 @@ export async function createRoomServer(
       player.socket = socket
       player.disconnectedAt = null
       player.resumeToken = randomBytes(24).toString('base64url')
-      room.lastActiveAt = now()
       sessions.set(socket, { room, player })
       sendSession(socket, room, player, message.requestId)
       broadcastRoom(room)
@@ -276,7 +276,6 @@ export async function createRoomServer(
     const session = sessions.get(socket)
     if (!session) throw new ProtocolError('NOT_IN_ROOM', '请先创建或加入房间', message.requestId)
     const { room, player } = session
-    room.lastActiveAt = now()
 
     if (message.type === 'transfer_host') {
       if (room.hostPlayerId !== player.id) {
@@ -428,6 +427,24 @@ export async function createRoomServer(
     room.game = applyOnlineGameCommand(room.game, player.id, command, gameDependencies)
     room.skipRequestedPlayerIds.clear()
     broadcastRoom(room)
+  }
+
+  function transferExpiredHost(room: Room, timestamp: number): boolean {
+    const hostPlayer = room.players.find(player => player.id === room.hostPlayerId)
+    if (
+      !hostPlayer ||
+      hostPlayer.disconnectedAt === null ||
+      timestamp - hostPlayer.disconnectedAt < reconnectGraceMs
+    ) {
+      return false
+    }
+    const successor = room.players.find(
+      player => player.id !== hostPlayer.id && player.socket?.readyState === WebSocket.OPEN
+    )
+    if (!successor) return false
+    room.hostPlayerId = successor.id
+    room.skipRequestedPlayerIds.clear()
+    return true
   }
 
   function broadcastRoom(room: Room): void {
@@ -728,7 +745,8 @@ function parseClientMessage(raw: string): ClientMessage {
     message.type === 'resume_game' ||
     message.type === 'skip_action' ||
     message.type === 'chain_roll' ||
-    message.type === 'request_mercy'
+    message.type === 'request_mercy' ||
+    message.type === 'acknowledge_event_result'
   ) {
     return { type: message.type, requestId }
   }

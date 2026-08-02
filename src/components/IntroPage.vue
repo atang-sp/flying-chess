@@ -432,7 +432,7 @@
             <strong>联机升温局</strong>
             <span>3–8 人扫码加入，由房间服务器同步局面</span>
           </span>
-          <span class="mode-card__badge mode-card__badge--party">v1.12</span>
+          <span class="mode-card__badge mode-card__badge--party">应用 v1.12 · party_v2</span>
         </a>
       </section>
 

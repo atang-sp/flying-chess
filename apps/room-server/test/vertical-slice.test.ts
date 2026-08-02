@@ -337,7 +337,7 @@ describe('联网升温局服务器权威纵向切片', () => {
     ).resolves.toMatchObject({ type: 'room_state' })
   })
 
-  it('八名玩家可在 60 秒门槛内加入，第九名被容量门禁拒绝', async () => {
+  it('八名玩家可在 60 秒门槛内加入并全员确认，第九名被容量门禁拒绝', async () => {
     server = await createRoomServer({ port: 0 })
     const serverUrl = server.wsUrl
     const palette = [
@@ -385,6 +385,15 @@ describe('联网升温局服务器权威纵向切片', () => {
     await expect(
       host.next(message => message.type === 'room_state' && message.room.players.length === 8)
     ).resolves.toMatchObject({ type: 'room_state' })
+
+    for (const [index, client] of roomClients.slice(0, 8).entries()) {
+      client.send({ type: 'confirm_settings', requestId: `capacity-confirm-${index}` })
+    }
+    await expect(
+      host.next(
+        message => message.type === 'room_state' && message.room.confirmedPlayerIds.length === 8
+      )
+    ).resolves.toMatchObject({ type: 'room_state' })
     expect(performance.now() - startedAt).toBeLessThan(60_000)
 
     const ninth = guests[7]
@@ -399,6 +408,65 @@ describe('联网升温局服务器权威纵向切片', () => {
     await expect(
       ninth.next(message => message.type === 'error' && message.requestId === 'capacity-join-9')
     ).resolves.toMatchObject({ type: 'error', code: 'ROOM_FULL' })
+  })
+
+  it('房间寿命从创建时硬性计算，活跃消息不能把两小时上限续期', async () => {
+    let now = 1_000
+    server = await createRoomServer({ port: 0, now: () => now, roomTtlMs: 40 })
+    const host = await TestClient.connect(server.wsUrl)
+    clients.push(host)
+    host.send({
+      type: 'create_room',
+      requestId: 'ttl-create',
+      nickname: '主持人',
+      color: '#ff6b6b',
+    })
+    await host.next(message => message.type === 'session')
+
+    now += 30
+    host.send({ type: 'confirm_settings', requestId: 'ttl-activity' })
+    await host.next(
+      message => message.type === 'room_state' && message.room.confirmedPlayerIds.length === 1
+    )
+    now += 11
+
+    await expect(
+      host.next(message => message.type === 'error' && message.code === 'ROOM_EXPIRED')
+    ).resolves.toMatchObject({ type: 'error', code: 'ROOM_EXPIRED' })
+  })
+
+  it('主持人断线超过保护期后自动把管理角色交给在线玩家', async () => {
+    let now = 1_000
+    server = await createRoomServer({ port: 0, now: () => now, reconnectGraceMs: 90_000 })
+    const host = await TestClient.connect(server.wsUrl)
+    const successor = await TestClient.connect(server.wsUrl)
+    clients.push(host, successor)
+    host.send({
+      type: 'create_room',
+      requestId: 'failover-create',
+      nickname: '主持人',
+      color: '#ff6b6b',
+    })
+    const created = await host.next(message => message.type === 'session')
+    if (created.type !== 'session') throw new Error('expected session')
+    successor.send({
+      type: 'join_room',
+      requestId: 'failover-join',
+      roomCode: created.roomCode,
+      nickname: '接任玩家',
+      color: '#4ecdc4',
+    })
+    const joined = await successor.next(message => message.type === 'session')
+    if (joined.type !== 'session') throw new Error('expected session')
+
+    await host.disconnect()
+    now += 90_000
+
+    await expect(
+      successor.next(
+        message => message.type === 'room_state' && message.room.hostPlayerId === joined.playerId
+      )
+    ).resolves.toMatchObject({ type: 'room_state' })
   })
 
   it('断线后凭一次性恢复凭证回到原席位，并在 90 秒保护期后允许主持人移除', async () => {

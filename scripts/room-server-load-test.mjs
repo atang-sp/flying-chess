@@ -68,11 +68,12 @@ function waitForMessage(socket, predicate) {
   })
 }
 
-async function sendAndWait(socket, message, predicate) {
-  const waiting = waitForMessage(socket, predicate)
+async function sendAndWaitForAll(socket, message, observers, statePredicate, responsePredicate) {
+  const stateWaits = observers.map(observer => waitForMessage(observer, statePredicate))
+  const responseWait = responsePredicate ? waitForMessage(socket, responsePredicate) : null
   const started = performance.now()
   socket.send(JSON.stringify(message))
-  const response = await waiting
+  const [response] = await Promise.all([responseWait, Promise.all(stateWaits)])
   return { response, latencyMs: performance.now() - started }
 }
 
@@ -93,7 +94,7 @@ try {
 
   for (let roomIndex = 0; roomIndex < roomCount; roomIndex += 1) {
     const host = await connectClient()
-    const created = await sendAndWait(
+    const created = await sendAndWaitForAll(
       host,
       {
         type: 'create_room',
@@ -101,16 +102,23 @@ try {
         nickname: `P${roomIndex}-0`,
         color: colors[0],
       },
+      [host],
+      message => message.type === 'room_state' && message.room.players.length === 1,
       message => message.type === 'session'
     )
     latencies.push(created.latencyMs)
-    rooms.push({ code: created.response.roomCode, clients: [host] })
+    rooms.push({
+      code: created.response.roomCode,
+      clients: [host],
+      playerIds: [created.response.playerId],
+    })
   }
 
   for (const [roomIndex, room] of rooms.entries()) {
     for (let playerIndex = 1; playerIndex < playersPerRoom; playerIndex += 1) {
       const client = await connectClient()
-      const joined = await sendAndWait(
+      const observers = [...room.clients, client]
+      const joined = await sendAndWaitForAll(
         client,
         {
           type: 'join_room',
@@ -119,21 +127,25 @@ try {
           nickname: `P${roomIndex}-${playerIndex}`,
           color: colors[playerIndex],
         },
+        observers,
+        message => message.type === 'room_state' && message.room.players.length === playerIndex + 1,
         message => message.type === 'session'
       )
       latencies.push(joined.latencyMs)
       room.clients.push(client)
+      room.playerIds.push(joined.response.playerId)
     }
   }
 
   for (const [roomIndex, room] of rooms.entries()) {
     for (const [playerIndex, client] of room.clients.entries()) {
-      const confirmed = await sendAndWait(
+      const playerId = room.playerIds[playerIndex]
+      const confirmed = await sendAndWaitForAll(
         client,
         { type: 'confirm_settings', requestId: `confirm-${roomIndex}-${playerIndex}` },
+        room.clients,
         message =>
-          message.type === 'room_state' &&
-          message.room.confirmedPlayerIds.includes(message.room.players[playerIndex]?.id)
+          message.type === 'room_state' && message.room.confirmedPlayerIds.includes(playerId)
       )
       latencies.push(confirmed.latencyMs)
     }

@@ -271,7 +271,7 @@
   <main class="online-shell">
     <header class="online-header">
       <a :href="localGameUrl" class="back-link">← 返回本地玩法</a>
-      <p class="eyebrow">v1.12 联机升温局</p>
+      <p class="eyebrow">应用 v1.12 · 规则集 party_v2 · 联机升温局</p>
       <h1>每人一部手机，同步完成一局</h1>
       <p>服务器只在内存中保留房间；服务重启后房间结束。</p>
       <span class="connection-pill" :data-status="status">
@@ -862,6 +862,20 @@
               @click="send({ type: 'rps', requestId: requestId('rps'), choice })"
             >
               {{ choice === 'rock' ? '石头' : choice === 'paper' ? '布' : '剪刀' }}
+            </button>
+          </div>
+
+          <div v-else-if="pendingAction?.kind === 'event_result'" class="decision-panel">
+            <h3>{{ pendingAction.title }} · 统一揭晓</h3>
+            <p>{{ pendingAction.summary }}</p>
+            <button
+              v-if="allowedCommands.includes('acknowledge_event_result')"
+              class="btn btn-primary"
+              @click="
+                send({ type: 'acknowledge_event_result', requestId: requestId('event-result') })
+              "
+            >
+              已查看，继续
             </button>
           </div>
 

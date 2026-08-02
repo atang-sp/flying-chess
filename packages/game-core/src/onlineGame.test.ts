@@ -172,6 +172,8 @@ describe('联网升温局权威规则内核', () => {
     game = applyOnlineGameCommand(game, 'p2', { type: 'vote', optionIndex: 1 })
     game = applyOnlineGameCommand(game, 'p3', { type: 'vote', optionIndex: 1 })
     expect(game.currentPlayerId).toBe('p2')
+    expect(game.pendingAction).toMatchObject({ kind: 'event_result', summary: '投票结果：加码' })
+    game = applyOnlineGameCommand(game, 'p2', { type: 'acknowledge_event_result' })
     expect(game.phase).toBe('awaiting_roll')
     expect(game.pendingAction).toBeNull()
   })
@@ -216,6 +218,11 @@ describe('联网升温局权威规则内核', () => {
 
     game = applyOnlineGameCommand(game, 'p2', { type: 'rps', choice: 'paper' })
     game = applyOnlineGameCommand(game, 'p3', { type: 'rps', choice: 'scissors' })
+    expect(projectOnlineGameView(game, 'p1').pendingAction).toMatchObject({
+      kind: 'event_result',
+      summary: expect.stringContaining('玩家三：剪刀'),
+    })
+    game = applyOnlineGameCommand(game, 'p2', { type: 'acknowledge_event_result' })
     expect(game.phase).toBe('awaiting_roll')
     expect(game.pendingAction).toBeNull()
   })
@@ -277,6 +284,7 @@ describe('联网升温局权威规则内核', () => {
       sequence: (memory.sequence ?? []).map(() => wrongSymbol),
     })
     expect(game.players[1]?.pendingMiniGameMultiplier).toBe(2)
+    game = applyOnlineGameCommand(game, 'p2', { type: 'acknowledge_event_result' })
     expect(game.phase).toBe('awaiting_roll')
   })
 
@@ -330,6 +338,7 @@ describe('联网升温局权威规则内核', () => {
       { rollDice: () => 1, now: () => 800 }
     )
     expect(game.players[2]?.pendingMiniGameImmunity).toBe(true)
+    game = applyOnlineGameCommand(game, 'p2', { type: 'acknowledge_event_result' })
     expect(game.phase).toBe('awaiting_roll')
   })
 
@@ -374,6 +383,7 @@ describe('联网升温局权威规则内核', () => {
       { rollDice: () => 1, now: () => 8_101 }
     )
     expect(game.players[1]?.pendingMiniGameMultiplier).toBe(2)
+    game = applyOnlineGameCommand(game, 'p2', { type: 'acknowledge_event_result' })
     expect(game.phase).toBe('awaiting_roll')
   })
 
@@ -535,7 +545,12 @@ describe('联网升温局权威规则内核', () => {
     game = applyOnlineGameCommand(game, 'p2', { type: 'submit_prediction', prediction: 'high' })
     game = applyOnlineGameCommand(game, 'p1', { type: 'roll_dice' }, { rollDice: () => 6 })
     game = applyOnlineGameCommand(game, 'p2', { type: 'decide_reaction', decision: 'keep' })
-    game = applyOnlineGameCommand(game, 'p1', { type: 'move' })
+    game = applyOnlineGameCommand(
+      game,
+      'p1',
+      { type: 'move' },
+      { rollDice: () => 1, now: () => 1_000 }
+    )
     expect(game.players[0]?.pendingMiniGameMultiplier).toBeUndefined()
     expect(game.pendingAction?.kind).toBe('acknowledgement')
     if (game.pendingAction?.kind !== 'acknowledgement') throw new Error('expected punishment')
@@ -546,9 +561,16 @@ describe('联网升温局权威规则内核', () => {
         : 0
     expect(firstCount).toBeGreaterThanOrEqual(30)
     expect(firstCount % 6).toBe(0)
+    expect(game.deadlineAt).toBe(21_000)
 
-    game = applyOnlineGameCommand(game, 'p1', { type: 'acknowledge' })
+    game = applyOnlineGameCommand(
+      game,
+      'p1',
+      { type: 'acknowledge' },
+      { rollDice: () => 1, now: () => 5_000 }
+    )
     expect(game.pendingAction).toMatchObject({ kind: 'acknowledgement', playerIndex: 1 })
+    expect(game.deadlineAt).toBe(25_000)
     expect(projectOnlineGameView(game, 'p3').pendingAction).toEqual({ kind: 'acknowledgement' })
     game = applyOnlineGameCommand(game, 'p2', { type: 'acknowledge' })
     expect(game.currentPlayerId).toBe('p2')
