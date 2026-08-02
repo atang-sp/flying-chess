@@ -8,12 +8,21 @@ export default defineConfig({
     channel: 'chrome',
     trace: 'retain-on-failure',
   },
-  webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 4175',
-    url: 'http://127.0.0.1:4175/flying-chess/',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command:
+        'VITE_ROOM_SERVER_URL=ws://127.0.0.1:8787 npm run dev -- --host 127.0.0.1 --port 4175',
+      url: 'http://127.0.0.1:4175/flying-chess/',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      command: 'NODE_ENV=test ROOM_SERVER_TEST_DICE=6 npm run dev:room-server',
+      url: 'http://127.0.0.1:8787/health',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+  ],
   projects: [
     {
       name: 'desktop-chrome',

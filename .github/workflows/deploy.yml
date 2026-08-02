@@ -64,6 +64,7 @@ jobs:
       - name: Build
         env:
           VITE_APP_VERSION: ${{ steps.version.outputs.version }}
+          VITE_ROOM_SERVER_URL: wss://rooms.atang-sp.run.place
           VITE_UMAMI_WEBSITE_ID: ${{ vars.UMAMI_WEBSITE_ID }}
           VITE_UMAMI_SCRIPT_URL: ${{ vars.UMAMI_SCRIPT_URL }}
         run: npm run build

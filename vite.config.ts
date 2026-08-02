@@ -58,7 +58,7 @@ export default defineConfig(async ({ command, mode }) => {
     base: '/flying-chess/',
     test: {
       setupFiles: ['src/tests/setup.ts'],
-      include: ['src/tests/**/*.test.ts'],
+      include: ['src/tests/**/*.test.ts', 'packages/**/*.test.ts', 'apps/**/*.test.ts'],
       exclude: ['scripts/**', '**/e2e/**', 'node_modules/**'],
     },
     server: {
@@ -84,6 +84,7 @@ export default defineConfig(async ({ command, mode }) => {
         input: {
           main: resolve(__dirname, 'index.html'),
           controller: resolve(__dirname, 'controller.html'),
+          online: resolve(__dirname, 'online.html'),
         },
         output: {
           manualChunks: {

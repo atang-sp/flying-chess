@@ -70,6 +70,7 @@
   const playerCount = ref(2)
   const playerNames = ref<string[]>(['玩家1', '玩家2'])
   const selectedMode = ref<GameMode>(props.initialMode)
+  const onlinePartyUrl = `${import.meta.env.BASE_URL}online.html`
   const selectedScenePreset = ref<PartyScenePreset | 'default'>('default')
   const multiDeviceMode = ref(false)
   const victoryConfig = ref<VictoryConfig>(loadVictoryConfig())
@@ -419,6 +420,20 @@
             <span class="mode-card__desc">每人用自己的手机操作</span>
           </button>
         </div>
+
+        <a
+          v-if="selectedMode === 'party'"
+          :href="onlinePartyUrl"
+          class="mode-card online-mode-link"
+          data-testid="online-party-entry"
+        >
+          <span class="mode-card__icon">🌐</span>
+          <span class="mode-card__content">
+            <strong>联机升温局</strong>
+            <span>3–8 人扫码加入，由房间服务器同步局面</span>
+          </span>
+          <span class="mode-card__badge mode-card__badge--party">v1.12</span>
+        </a>
       </section>
 
       <!-- 玩家设置区域 -->

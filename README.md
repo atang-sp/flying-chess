@@ -127,7 +127,7 @@
 
 ### 环境要求
 
-- Node.js 18+
+- Node.js 20+
 - npm 或 yarn
 
 ### 安装步骤
@@ -178,6 +178,12 @@ npm install primevue primeicons
 ## 🚀 部署
 
 - **GitHub Pages**：支持自动/手动部署，详见 `deploy.sh` 和 `.github/workflows/deploy.yml`
+- **联机升温局**：从首页显式进入；3–8 名玩家通过各自手机连接
+  `wss://rooms.atang-sp.run.place`。公共棋盘由服务器权威同步，预测、惩罚选择、投票、
+  猜拳和小游戏答案按玩家投影。刷新或短暂断网会自动恢复原席位，主持人只能在 90 秒保护期后、
+  新回合安全节点移除离场玩家。
+- **房间服务**：构建、128 MiB 容量限制、Discourse Nginx/WSS 反代、监控和回滚步骤见
+  `deploy/room-server/README.md`。房间只在内存中保存，最长 2 小时；服务重启会结束房间。
 - **Umami Cloud**：生产网站名为 `flying-chess-production`，域名为
   `atang-sp.github.io`；Replays、Heatmaps、Performance 与公开 Share URL 必须保持关闭。
 - **Vercel/Netlify**：直接连接仓库，构建命令 `npm run build`，输出目录 `dist`

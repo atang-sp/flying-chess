@@ -1,0 +1,605 @@
+import { afterEach, describe, expect, it } from 'vitest'
+import WebSocket from 'ws'
+import { createRoomServer, type RunningRoomServer } from '../src/server'
+import type { ServerMessage } from '../src/protocol'
+
+const quietEventDeck = [
+  {
+    id: 'quiet-server-test',
+    title: '测试占位事件',
+    description: '本测试不会触发',
+    tags: ['test'],
+    trigger: { kind: 'every_n_turns' as const, interval: 100 },
+    effect: { kind: 'punishment_multiplier' as const, multiplier: 1, durationTurns: 1 },
+  },
+]
+
+class TestClient {
+  private readonly messages: ServerMessage[] = []
+  private readonly waiters: Array<{
+    predicate: (message: ServerMessage) => boolean
+    resolve: (message: ServerMessage) => void
+  }> = []
+
+  private constructor(private readonly socket: WebSocket) {
+    socket.on('message', raw => {
+      const message = JSON.parse(raw.toString()) as ServerMessage
+      const waiterIndex = this.waiters.findIndex(waiter => waiter.predicate(message))
+      if (waiterIndex >= 0) {
+        const [waiter] = this.waiters.splice(waiterIndex, 1)
+        waiter.resolve(message)
+      } else {
+        this.messages.push(message)
+      }
+    })
+  }
+
+  static async connect(url: string): Promise<TestClient> {
+    const socket = new WebSocket(url)
+    await new Promise<void>((resolve, reject) => {
+      socket.once('open', resolve)
+      socket.once('error', reject)
+    })
+    return new TestClient(socket)
+  }
+
+  send(message: object): void {
+    this.socket.send(JSON.stringify(message))
+  }
+
+  next(predicate: (message: ServerMessage) => boolean): Promise<ServerMessage> {
+    const bufferedIndex = this.messages.findIndex(predicate)
+    if (bufferedIndex >= 0) {
+      const [message] = this.messages.splice(bufferedIndex, 1)
+      return Promise.resolve(message)
+    }
+    return new Promise(resolve => this.waiters.push({ predicate, resolve }))
+  }
+
+  close(): void {
+    this.socket.close()
+  }
+
+  async disconnect(): Promise<void> {
+    const closed = new Promise<void>(resolve => this.socket.once('close', () => resolve()))
+    this.socket.close()
+    await closed
+  }
+}
+
+describe('联网升温局服务器权威纵向切片', () => {
+  let server: RunningRoomServer | undefined
+  const clients: TestClient[] = []
+
+  afterEach(async () => {
+    clients.forEach(client => client.close())
+    await server?.close()
+  })
+
+  it('三个玩家通过 WebSocket 建房加入后，由服务器判定掷骰与移动并同步给所有客户端', async () => {
+    server = await createRoomServer({ port: 0, rollDice: () => 6, eventDeck: quietEventDeck })
+    const host = await TestClient.connect(server.wsUrl)
+    const playerTwo = await TestClient.connect(server.wsUrl)
+    const playerThree = await TestClient.connect(server.wsUrl)
+    clients.push(host, playerTwo, playerThree)
+
+    host.send({
+      type: 'create_room',
+      requestId: 'create-1',
+      nickname: '主持人',
+      color: '#ff6b6b',
+    })
+    const created = await host.next(message => message.type === 'session')
+    expect(created).toMatchObject({
+      type: 'session',
+      requestId: 'create-1',
+      isHost: true,
+      roomCode: expect.stringMatching(/^[A-Z2-9]{6}$/),
+    })
+    if (created.type !== 'session') throw new Error('expected session')
+
+    playerTwo.send({
+      type: 'join_room',
+      requestId: 'join-2',
+      roomCode: created.roomCode,
+      nickname: '玩家二',
+      color: '#4ecdc4',
+    })
+    const joinedTwo = await playerTwo.next(message => message.type === 'session')
+    playerThree.send({
+      type: 'join_room',
+      requestId: 'join-3',
+      roomCode: created.roomCode,
+      nickname: '玩家三',
+      color: '#45b7d1',
+    })
+    await playerThree.next(message => message.type === 'session')
+
+    for (const [index, client] of [host, playerTwo, playerThree].entries()) {
+      client.send({ type: 'confirm_settings', requestId: `slice-confirm-${index}` })
+    }
+    await host.next(
+      message => message.type === 'room_state' && message.room.confirmedPlayerIds.length === 3
+    )
+
+    host.send({ type: 'start_game', requestId: 'start-1' })
+    const started = await host.next(
+      message => message.type === 'room_state' && message.room.game?.status === 'playing'
+    )
+    expect(started).toMatchObject({
+      type: 'room_state',
+      room: {
+        players: [{ nickname: '主持人' }, { nickname: '玩家二' }, { nickname: '玩家三' }],
+        game: {
+          phase: 'awaiting_prediction',
+        },
+      },
+    })
+
+    playerTwo.send({
+      type: 'submit_prediction',
+      requestId: 'predict-1',
+      prediction: 'high',
+    })
+    await host.next(
+      message => message.type === 'room_state' && message.room.game?.phase === 'awaiting_roll'
+    )
+
+    host.send({ type: 'roll_dice', requestId: 'roll-1' })
+    const rolledViews = await Promise.all(
+      [host, playerTwo, playerThree].map(client =>
+        client.next(
+          message =>
+            message.type === 'room_state' &&
+            message.room.game?.phase === 'awaiting_reaction' &&
+            message.room.game.diceValue === 6
+        )
+      )
+    )
+    expect(rolledViews).toHaveLength(3)
+
+    playerTwo.send({
+      type: 'decide_reaction',
+      requestId: 'reaction-1',
+      decision: 'keep',
+    })
+    await host.next(
+      message => message.type === 'room_state' && message.room.game?.phase === 'awaiting_move'
+    )
+
+    host.send({ type: 'move', requestId: 'move-1' })
+    const movedViews = await Promise.all(
+      [host, playerTwo, playerThree].map(client =>
+        client.next(
+          message =>
+            message.type === 'room_state' &&
+            message.room.game?.phase === 'awaiting_roll' &&
+            message.room.game.players[0]?.position === 1
+        )
+      )
+    )
+    expect(movedViews).toHaveLength(3)
+    const playerTwoView = movedViews[1]
+    expect(playerTwoView).toMatchObject({
+      type: 'room_state',
+      room: {
+        game: {
+          currentPlayerId: joinedTwo.type === 'session' ? joinedTwo.playerId : expect.any(String),
+        },
+      },
+    })
+    if (playerTwoView.type !== 'room_state') throw new Error('expected room state')
+    expect(playerTwoView.room.game?.allowedCommands).toContain('roll_dice')
+  })
+
+  it('设置变更会清空全员确认，未重新全员确认时服务器拒绝开局', async () => {
+    server = await createRoomServer({ port: 0 })
+    const host = await TestClient.connect(server.wsUrl)
+    const playerTwo = await TestClient.connect(server.wsUrl)
+    const playerThree = await TestClient.connect(server.wsUrl)
+    clients.push(host, playerTwo, playerThree)
+
+    host.send({
+      type: 'create_room',
+      requestId: 'create-settings',
+      nickname: '主持人',
+      color: '#ff6b6b',
+    })
+    const created = await host.next(message => message.type === 'session')
+    if (created.type !== 'session') throw new Error('expected session')
+    const join = async (client: TestClient, suffix: string, color: string) => {
+      client.send({
+        type: 'join_room',
+        requestId: `join-${suffix}`,
+        roomCode: created.roomCode,
+        nickname: `玩家${suffix}`,
+        color,
+      })
+      return client.next(message => message.type === 'session')
+    }
+    await join(playerTwo, '二', '#4ecdc4')
+    await join(playerThree, '三', '#45b7d1')
+
+    host.send({
+      type: 'update_settings',
+      requestId: 'settings-1',
+      settings: { scenePreset: 'icebreaker', boardPreset: 'party_default' },
+    })
+    await host.next(
+      message => message.type === 'room_state' && message.room.settings.scenePreset === 'icebreaker'
+    )
+
+    for (const [index, client] of [host, playerTwo, playerThree].entries()) {
+      client.send({ type: 'confirm_settings', requestId: `confirm-${index}` })
+    }
+    const allConfirmed = await host.next(
+      message => message.type === 'room_state' && message.room.confirmedPlayerIds.length === 3
+    )
+    expect(allConfirmed).toMatchObject({
+      type: 'room_state',
+      room: { confirmedPlayerIds: expect.arrayContaining([created.playerId]) },
+    })
+
+    host.send({
+      type: 'update_settings',
+      requestId: 'settings-2',
+      settings: { scenePreset: 'hardcore', boardPreset: 'party_default' },
+    })
+    const confirmationsCleared = await host.next(
+      message =>
+        message.type === 'room_state' &&
+        message.room.settings.scenePreset === 'hardcore' &&
+        message.room.confirmedPlayerIds.length === 0
+    )
+    expect(confirmationsCleared).toMatchObject({ type: 'room_state' })
+
+    host.send({ type: 'start_game', requestId: 'start-blocked' })
+    await expect(
+      host.next(
+        message =>
+          message.type === 'error' &&
+          message.requestId === 'start-blocked' &&
+          message.code === 'NOT_ALL_CONFIRMED'
+      )
+    ).resolves.toMatchObject({ message: '所有玩家确认设置后才能开始' })
+
+    for (const [index, client] of [host, playerTwo, playerThree].entries()) {
+      client.send({ type: 'confirm_settings', requestId: `reconfirm-${index}` })
+    }
+    await host.next(
+      message => message.type === 'room_state' && message.room.confirmedPlayerIds.length === 3
+    )
+    host.send({ type: 'start_game', requestId: 'start-confirmed' })
+    await expect(
+      host.next(message => message.type === 'room_state' && message.room.status === 'playing')
+    ).resolves.toMatchObject({ type: 'room_state' })
+  })
+
+  it('主持人可以把管理角色转交给另一名玩家，权限立即随角色移动', async () => {
+    server = await createRoomServer({ port: 0 })
+    const host = await TestClient.connect(server.wsUrl)
+    const successor = await TestClient.connect(server.wsUrl)
+    clients.push(host, successor)
+
+    host.send({
+      type: 'create_room',
+      requestId: 'create-transfer',
+      nickname: '原主持人',
+      color: '#ff6b6b',
+    })
+    const created = await host.next(message => message.type === 'session')
+    if (created.type !== 'session') throw new Error('expected session')
+    successor.send({
+      type: 'join_room',
+      requestId: 'join-successor',
+      roomCode: created.roomCode,
+      nickname: '新主持人',
+      color: '#4ecdc4',
+    })
+    const joined = await successor.next(message => message.type === 'session')
+    if (joined.type !== 'session') throw new Error('expected session')
+
+    host.send({
+      type: 'transfer_host',
+      requestId: 'transfer-1',
+      playerId: joined.playerId,
+    })
+    await expect(
+      successor.next(
+        message => message.type === 'room_state' && message.room.hostPlayerId === joined.playerId
+      )
+    ).resolves.toMatchObject({ type: 'room_state' })
+
+    host.send({
+      type: 'update_settings',
+      requestId: 'old-host-settings',
+      settings: { scenePreset: 'icebreaker', boardPreset: 'party_default' },
+    })
+    await expect(
+      host.next(
+        message =>
+          message.type === 'error' &&
+          message.requestId === 'old-host-settings' &&
+          message.code === 'HOST_ONLY'
+      )
+    ).resolves.toMatchObject({ type: 'error' })
+
+    successor.send({
+      type: 'update_settings',
+      requestId: 'new-host-settings',
+      settings: { scenePreset: 'icebreaker', boardPreset: 'party_default' },
+    })
+    await expect(
+      host.next(
+        message =>
+          message.type === 'room_state' && message.room.settings.scenePreset === 'icebreaker'
+      )
+    ).resolves.toMatchObject({ type: 'room_state' })
+  })
+
+  it('八名玩家可在 60 秒门槛内加入，第九名被容量门禁拒绝', async () => {
+    server = await createRoomServer({ port: 0 })
+    const serverUrl = server.wsUrl
+    const palette = [
+      '#ff6b6b',
+      '#4ecdc4',
+      '#45b7d1',
+      '#96ceb4',
+      '#feca57',
+      '#ff9ff3',
+      '#54a0ff',
+      '#5f27cd',
+      '#111111',
+    ]
+    const roomClients = await Promise.all(
+      palette.map(async () => {
+        const client = await TestClient.connect(serverUrl)
+        clients.push(client)
+        return client
+      })
+    )
+    const [host, ...guests] = roomClients
+    if (!host) throw new Error('expected host client')
+    const startedAt = performance.now()
+    host.send({
+      type: 'create_room',
+      requestId: 'capacity-create',
+      nickname: '玩家1',
+      color: palette[0],
+    })
+    const created = await host.next(message => message.type === 'session')
+    if (created.type !== 'session') throw new Error('expected session')
+
+    for (let index = 0; index < 7; index += 1) {
+      const guest = guests[index]
+      if (!guest) throw new Error('expected guest client')
+      guest.send({
+        type: 'join_room',
+        requestId: `capacity-join-${index}`,
+        roomCode: created.roomCode,
+        nickname: `玩家${index + 2}`,
+        color: palette[index + 1],
+      })
+      await guest.next(message => message.type === 'session')
+    }
+    await expect(
+      host.next(message => message.type === 'room_state' && message.room.players.length === 8)
+    ).resolves.toMatchObject({ type: 'room_state' })
+    expect(performance.now() - startedAt).toBeLessThan(60_000)
+
+    const ninth = guests[7]
+    if (!ninth) throw new Error('expected ninth client')
+    ninth.send({
+      type: 'join_room',
+      requestId: 'capacity-join-9',
+      roomCode: created.roomCode,
+      nickname: '玩家9',
+      color: palette[8],
+    })
+    await expect(
+      ninth.next(message => message.type === 'error' && message.requestId === 'capacity-join-9')
+    ).resolves.toMatchObject({ type: 'error', code: 'ROOM_FULL' })
+  })
+
+  it('断线后凭一次性恢复凭证回到原席位，并在 90 秒保护期后允许主持人移除', async () => {
+    let now = 1_000
+    server = await createRoomServer({ port: 0, now: () => now, reconnectGraceMs: 90_000 })
+    const host = await TestClient.connect(server.wsUrl)
+    const player = await TestClient.connect(server.wsUrl)
+    clients.push(host, player)
+    host.send({
+      type: 'create_room',
+      requestId: 'resume-create',
+      nickname: '主持人',
+      color: '#ff6b6b',
+    })
+    const created = await host.next(message => message.type === 'session')
+    if (created.type !== 'session') throw new Error('expected session')
+    player.send({
+      type: 'join_room',
+      requestId: 'resume-join',
+      roomCode: created.roomCode,
+      nickname: '可恢复玩家',
+      color: '#4ecdc4',
+    })
+    const joined = await player.next(message => message.type === 'session')
+    if (joined.type !== 'session') throw new Error('expected session')
+
+    await player.disconnect()
+    await expect(
+      host.next(
+        message =>
+          message.type === 'room_state' &&
+          message.room.players.some(
+            candidate => candidate.id === joined.playerId && !candidate.connected
+          )
+      )
+    ).resolves.toMatchObject({ type: 'room_state' })
+
+    const resumedClient = await TestClient.connect(server.wsUrl)
+    clients.push(resumedClient)
+    resumedClient.send({
+      type: 'resume_room',
+      requestId: 'resume-valid',
+      roomCode: joined.roomCode,
+      playerId: joined.playerId,
+      resumeToken: joined.resumeToken,
+    })
+    const resumed = await resumedClient.next(message => message.type === 'session')
+    expect(resumed).toMatchObject({
+      type: 'session',
+      requestId: 'resume-valid',
+      playerId: joined.playerId,
+    })
+    if (resumed.type !== 'session') throw new Error('expected session')
+    expect(resumed.resumeToken).not.toBe(joined.resumeToken)
+
+    now += 1_000
+    await resumedClient.disconnect()
+    await host.next(
+      message =>
+        message.type === 'room_state' &&
+        message.room.players.some(
+          candidate => candidate.id === joined.playerId && !candidate.connected
+        )
+    )
+    now += 90_000
+    host.send({ type: 'remove_player', requestId: 'remove-offline', playerId: joined.playerId })
+    await expect(
+      host.next(
+        message =>
+          message.type === 'room_state' &&
+          !message.room.players.some(candidate => candidate.id === joined.playerId)
+      )
+    ).resolves.toMatchObject({ type: 'room_state' })
+  })
+
+  it('服务器在预测截止时采用安全默认值，而不是等待客户端自报超时', async () => {
+    let now = 5_000
+    server = await createRoomServer({ port: 0, now: () => now })
+    const host = await TestClient.connect(server.wsUrl)
+    const playerTwo = await TestClient.connect(server.wsUrl)
+    const playerThree = await TestClient.connect(server.wsUrl)
+    clients.push(host, playerTwo, playerThree)
+    host.send({
+      type: 'create_room',
+      requestId: 'timeout-create',
+      nickname: '主持人',
+      color: '#ff6b6b',
+    })
+    const created = await host.next(message => message.type === 'session')
+    if (created.type !== 'session') throw new Error('expected session')
+    for (const [index, client] of [playerTwo, playerThree].entries()) {
+      client.send({
+        type: 'join_room',
+        requestId: `timeout-join-${index}`,
+        roomCode: created.roomCode,
+        nickname: `玩家${index + 2}`,
+        color: index === 0 ? '#4ecdc4' : '#45b7d1',
+      })
+      await client.next(message => message.type === 'session')
+    }
+    for (const [index, client] of [host, playerTwo, playerThree].entries()) {
+      client.send({ type: 'confirm_settings', requestId: `timeout-confirm-${index}` })
+    }
+    await host.next(
+      message => message.type === 'room_state' && message.room.confirmedPlayerIds.length === 3
+    )
+    host.send({ type: 'start_game', requestId: 'timeout-start' })
+    await host.next(
+      message => message.type === 'room_state' && message.room.game?.phase === 'awaiting_prediction'
+    )
+    now += 10_000
+    const defaulted = await host.next(
+      message => message.type === 'room_state' && message.room.game?.phase === 'awaiting_roll'
+    )
+    if (defaulted.type !== 'room_state') throw new Error('expected room state')
+    expect(defaulted.room.game?.reaction?.prediction).toBeUndefined()
+    const privateDefault = await playerTwo.next(
+      message => message.type === 'room_state' && message.room.game?.phase === 'awaiting_roll'
+    )
+    if (privateDefault.type !== 'room_state') throw new Error('expected room state')
+    expect(privateDefault.room.game?.reaction?.prediction).toBe('low')
+  })
+
+  it('逐玩家序列化不会把秘密出拳发送给本人以外的客户端', async () => {
+    server = await createRoomServer({
+      port: 0,
+      rollDice: () => 6,
+      eventDeck: [
+        {
+          id: 'private-rps',
+          title: '全员猜拳',
+          description: '秘密出拳后统一揭晓',
+          tags: ['猜拳'],
+          trigger: { kind: 'every_n_turns', interval: 1 },
+          effect: { kind: 'rock_paper_scissors' },
+        },
+      ],
+    })
+    const host = await TestClient.connect(server.wsUrl)
+    const playerTwo = await TestClient.connect(server.wsUrl)
+    const playerThree = await TestClient.connect(server.wsUrl)
+    clients.push(host, playerTwo, playerThree)
+    host.send({
+      type: 'create_room',
+      requestId: 'private-create',
+      nickname: '主持人',
+      color: '#ff6b6b',
+    })
+    const created = await host.next(message => message.type === 'session')
+    if (created.type !== 'session') throw new Error('expected session')
+    for (const [index, client] of [playerTwo, playerThree].entries()) {
+      client.send({
+        type: 'join_room',
+        requestId: `private-join-${index}`,
+        roomCode: created.roomCode,
+        nickname: `玩家${index + 2}`,
+        color: index === 0 ? '#4ecdc4' : '#45b7d1',
+      })
+      await client.next(message => message.type === 'session')
+    }
+    for (const [index, client] of [host, playerTwo, playerThree].entries()) {
+      client.send({ type: 'confirm_settings', requestId: `private-confirm-${index}` })
+    }
+    await host.next(
+      message => message.type === 'room_state' && message.room.confirmedPlayerIds.length === 3
+    )
+    host.send({ type: 'start_game', requestId: 'private-start' })
+    await host.next(
+      message => message.type === 'room_state' && message.room.game?.phase === 'awaiting_prediction'
+    )
+    playerTwo.send({ type: 'submit_prediction', requestId: 'private-predict', prediction: 'high' })
+    await host.next(
+      message => message.type === 'room_state' && message.room.game?.phase === 'awaiting_roll'
+    )
+    host.send({ type: 'roll_dice', requestId: 'private-roll' })
+    await playerTwo.next(
+      message => message.type === 'room_state' && message.room.game?.phase === 'awaiting_reaction'
+    )
+    playerTwo.send({ type: 'decide_reaction', requestId: 'private-react', decision: 'keep' })
+    await host.next(
+      message => message.type === 'room_state' && message.room.game?.phase === 'awaiting_move'
+    )
+    host.send({ type: 'move', requestId: 'private-move' })
+    await playerTwo.next(
+      message =>
+        message.type === 'room_state' && message.room.game?.pendingAction?.kind === 'event_rps'
+    )
+    playerTwo.send({ type: 'rps', requestId: 'private-choice', choice: 'scissors' })
+    const unrelatedViews = await Promise.all(
+      [host, playerThree].map(client =>
+        client.next(
+          message =>
+            message.type === 'room_state' &&
+            message.room.game?.pendingAction?.kind === 'event_rps' &&
+            message.room.game.pendingAction.submittedCount === 1
+        )
+      )
+    )
+    for (const view of unrelatedViews) {
+      expect(JSON.stringify(view)).not.toContain('scissors')
+      expect(JSON.stringify(view)).not.toContain('choices')
+    }
+  })
+})

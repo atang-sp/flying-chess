@@ -1,0 +1,343 @@
+.online-shell {
+  width: min(1100px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2rem 0 4rem;
+}
+
+.online-header {
+  position: relative;
+  padding: clamp(1.5rem, 5vw, 3.5rem) 0 2rem;
+}
+
+.online-header h1 {
+  max-width: 720px;
+  margin: 0.2rem 0 0.75rem;
+  font-size: clamp(2rem, 7vw, 4.5rem);
+  line-height: 1.05;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.online-header p:not(.eyebrow) {
+  color: var(--text-secondary);
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 1.5rem;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--color-accent-light);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.connection-pill,
+.host-badge {
+  display: inline-flex;
+  margin-top: 0.75rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid rgb(74 139 104 / 0.55);
+  border-radius: 999px;
+  background: rgb(74 139 104 / 0.12);
+  color: #a9e1bf;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.connection-pill[data-status='disconnected'] {
+  border-color: rgb(192 83 77 / 0.55);
+  background: rgb(192 83 77 / 0.12);
+  color: #efaaa5;
+}
+
+.online-card {
+  padding: clamp(1.2rem, 4vw, 2rem);
+  border: var(--glass-border);
+  border-radius: var(--radius-xl);
+  background: var(--bg-glass);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.join-card {
+  display: grid;
+  gap: 1rem;
+  width: min(520px, 100%);
+}
+
+.join-card h2,
+.online-card h2 {
+  margin: 0;
+  font-weight: 750;
+}
+
+.join-card label {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+  font-weight: 650;
+}
+
+.join-card input,
+.join-card select,
+.settings-panel select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.7rem 0.85rem;
+  border: var(--glass-border);
+  border-radius: var(--radius-md);
+  background: #10251f;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.settings-panel {
+  display: grid;
+  gap: 0.8rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid rgb(223 196 142 / 0.13);
+  border-radius: var(--radius-md);
+  background: rgb(1 10 8 / 0.18);
+}
+
+.settings-panel h3 {
+  margin: 0;
+}
+
+.settings-panel label {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--text-secondary);
+}
+
+.settings-summary,
+.settings-summary div {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.settings-summary div {
+  grid-template-columns: 5rem 1fr;
+}
+
+.settings-summary dt {
+  color: var(--text-muted);
+}
+
+.settings-summary dd {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.confirmed-note {
+  color: #a9e1bf;
+}
+
+.join-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.join-divider::before,
+.join-divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: rgb(255 255 255 / 0.1);
+}
+
+.error-banner {
+  padding: 0.8rem 1rem;
+  border: 1px solid rgb(192 83 77 / 0.55);
+  border-radius: var(--radius-md);
+  background: rgb(192 83 77 / 0.16);
+  color: #ffd3d0;
+}
+
+.online-grid,
+.game-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.8fr) minmax(320px, 1.4fr);
+  gap: 1rem;
+}
+
+.room-code {
+  display: block;
+  margin: 0.4rem 0 1rem;
+  color: var(--color-accent-light);
+  font-size: clamp(2.4rem, 10vw, 4rem);
+  font-weight: 850;
+  letter-spacing: 0.14em;
+}
+
+.room-qr {
+  display: block;
+  width: min(240px, 100%);
+  padding: 0.6rem;
+  border-radius: var(--radius-md);
+  background: white;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.player-list {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0;
+  list-style: none;
+}
+
+.player-list li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.7rem;
+  border-radius: var(--radius-md);
+  background: rgb(255 255 255 / 0.045);
+}
+
+.player-dot,
+.board-piece {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.connection-label,
+.hint {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.text-button {
+  padding: 0.25rem 0.45rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent-light);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.game-layout {
+  grid-template-columns: minmax(230px, 0.7fr) minmax(360px, 1.5fr);
+}
+
+.positions-card {
+  grid-column: 1 / -1;
+}
+
+.dice-face {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  aspect-ratio: 1;
+  margin: 1.2rem 0;
+  border: 1px solid rgb(225 199 142 / 0.45);
+  border-radius: 24px;
+  background: #f9eed8;
+  color: #14221d;
+  font-size: 3.2rem;
+  font-weight: 850;
+}
+
+.decision-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin: 0.8rem 0;
+}
+
+.decision-panel {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgb(223 196 142 / 0.18);
+}
+
+.deadline-note {
+  color: #ffd166;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.session-controls {
+  margin-bottom: 1rem;
+}
+
+.compact-list {
+  margin-bottom: 1rem;
+}
+
+.compact-list li {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.decision-panel h3,
+.decision-panel p {
+  margin: 0;
+}
+
+.memory-sequence {
+  font-size: 1.7rem;
+  letter-spacing: 0.25em;
+}
+
+.online-board {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(34px, 1fr));
+  gap: 0.4rem;
+  margin-top: 1rem;
+}
+
+.board-cell {
+  position: relative;
+  display: flex;
+  min-height: 52px;
+  padding: 0.3rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  border: 1px solid rgb(223 196 142 / 0.13);
+  border-radius: 10px;
+  background: rgb(237 222 191 / 0.07);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.board-piece {
+  align-self: flex-end;
+  flex: none;
+}
+
+@media (max-width: 720px) {
+  .online-grid,
+  .game-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .positions-card {
+    grid-column: auto;
+  }
+
+  .online-board {
+    grid-template-columns: repeat(5, minmax(32px, 1fr));
+  }
+}
