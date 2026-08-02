@@ -22,7 +22,7 @@ function proofKind(reference) {
 function validEvidence() {
   return {
     schemaVersion: 1,
-    release: 'v1.12.3',
+    release: 'v1.12.4',
     publicGateway: {
       dnsResolved: true,
       certificateSans: ['atang-sp.run.place', 'rooms.atang-sp.run.place'],
@@ -126,7 +126,7 @@ function validProof(evidence, reference) {
 
 function verifyEvidence(evidence, overrides = {}) {
   return verifyOnlineAcceptanceEvidence(evidence, {
-    expectedRelease: 'v1.12.3',
+    expectedRelease: 'v1.12.4',
     referenceExists: () => true,
     readReference: reference => validProof(evidence, reference),
     readArtifact: () => Buffer.from(artifactContents),
@@ -292,11 +292,11 @@ describe('联机升温局验收证据', () => {
 
   it('拒绝与当前待发布版本不一致的证据', () => {
     const evidence = validEvidence()
-    const result = verifyEvidence(evidence, { expectedRelease: 'v1.12.4' })
+    const result = verifyEvidence(evidence, { expectedRelease: 'v1.12.5' })
 
     expect(result.failures).toContainEqual({
       gate: 'release.current',
-      message: '证据发布 v1.12.3 与当前待发布版本 v1.12.4 不一致',
+      message: '证据发布 v1.12.4 与当前待发布版本 v1.12.5 不一致',
     })
   })
 
@@ -326,7 +326,7 @@ describe('联机升温局验收证据', () => {
       readReference: reference =>
         JSON.stringify({
           schemaVersion: 1,
-          release: 'v1.12.3',
+          release: 'v1.12.4',
           recordedAtUtc: '2026-08-02T10:00:00.000Z',
           kind: proofKind(reference),
           artifacts: [
@@ -396,7 +396,7 @@ describe('联机升温局验收证据', () => {
       const result = spawnSync(process.execPath, [verifierPath, evidencePath], { encoding: 'utf8' })
 
       expect(result.status).toBe(0)
-      expect(result.stdout).toContain('PASS v1.12.3')
+      expect(result.stdout).toContain('PASS v1.12.4')
     } finally {
       rmSync(temporaryDirectory, { recursive: true, force: true })
     }
