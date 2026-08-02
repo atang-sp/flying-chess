@@ -1,13 +1,13 @@
 # 联机升温局房间服务部署
 
-生产拓扑：GitHub Pages 前端连接 `wss://rooms.atang-sp.run.place`；Discourse 容器内的 Nginx 终止 TLS，并反代到 Docker 网桥 `172.17.0.1:8787`。房间服务不写磁盘，容器被限制为 128 MiB 内存、1 CPU、只读根文件系统。
+生产拓扑：GitHub Pages 前端连接 `wss://rooms.atang-sp.run.place`；Discourse 容器内的 Nginx 终止 TLS，并反代到 Docker 网桥 `172.17.0.1:8787`。房间容器使用 host 网络并只监听该网桥地址，避免 Docker 发布端口在同机容器间被防火墙阻断，也不会把 `8787` 暴露到公网。房间服务不写磁盘，容器被限制为 128 MiB 内存、1 CPU、只读根文件系统。
 
 ## 构建与安装
 
-在已检出不可变 `v1.12.0` 标签的仓库根目录执行：
+在已检出不可变 `v1.12.1` 标签的仓库根目录执行：
 
 ```bash
-docker build -f apps/room-server/Dockerfile -t flying-chess-room:1.12.0 .
+docker build -f apps/room-server/Dockerfile -t flying-chess-room:1.12.1 .
 install -m 0644 deploy/room-server/flying-chess-room.service /etc/systemd/system/
 install -m 0644 deploy/room-server/flying-chess-room-health.service /etc/systemd/system/
 install -m 0644 deploy/room-server/flying-chess-room-health.timer /etc/systemd/system/
