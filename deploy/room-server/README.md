@@ -4,10 +4,10 @@
 
 ## 构建与安装
 
-在已检出不可变 `v1.12.2` 标签的仓库根目录执行：
+在已检出不可变 `v1.12.3` 标签的仓库根目录执行：
 
 ```bash
-docker build -f apps/room-server/Dockerfile -t flying-chess-room:1.12.2 .
+docker build -f apps/room-server/Dockerfile -t flying-chess-room:1.12.3 .
 ufw allow in on docker0 from 172.17.0.0/16 to 172.17.0.1 port 8787 proto tcp comment "flying chess room from discourse"
 install -m 0644 deploy/room-server/flying-chess-room.service /etc/systemd/system/
 install -m 0644 deploy/room-server/flying-chess-room-health.service /etc/systemd/system/
@@ -45,3 +45,5 @@ ufw delete allow in on docker0 from 172.17.0.0/16 to 172.17.0.1 port 8787 proto 
 ```
 
 停止服务会结束全部内存房间，这是协议的既定行为。不要尝试从磁盘恢复房间。
+
+发布后的真机与真人现场验收见 [ACCEPTANCE.md](./ACCEPTANCE.md)。缺少其中任一匿名证据时，发布不得判定完成。

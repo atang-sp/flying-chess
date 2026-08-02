@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "release": "v1.12.3",
+  "publicGateway": {
+    "dnsResolved": false,
+    "certificateSans": [],
+    "httpsHealth": false,
+    "wssCreateJoinReconnect": false,
+    "evidenceRefs": ["evidence/public-gateway.json"]
+  },
+  "loadTest": {
+    "rooms": 20,
+    "connections": 160,
+    "measurementScope": "all_room_clients",
+    "p95Ms": null,
+    "rssMiB": null,
+    "evidenceRefs": ["evidence/load-test.json"]
+  },
+  "privacy": {
+    "passed": false,
+    "evidenceRefs": ["evidence/privacy-audit.json"]
+  },
+  "production": {
+    "discourseHealthy": false,
+    "kernelOomEvents": null,
+    "swapSamplesMiB": [],
+    "evidenceRefs": ["evidence/production-observation.json"]
+  },
+  "physicalDevices": [
+    {
+      "platform": "ios_safari",
+      "realDevice": false,
+      "createRoom": false,
+      "reconnect": false,
+      "fullGameCompleted": false,
+      "evidenceRefs": ["evidence/ios-session.json"]
+    },
+    {
+      "platform": "android_chrome",
+      "realDevice": false,
+      "createRoom": false,
+      "reconnect": false,
+      "fullGameCompleted": false,
+      "evidenceRefs": ["evidence/android-session.json"]
+    }
+  ],
+  "fieldSessions": [
+    {
+      "playerCount": 4,
+      "realParticipants": false,
+      "unattended": false,
+      "completed": false,
+      "joinConfirmSeconds": null,
+      "staffInterventions": null,
+      "evidenceRefs": ["evidence/4-player-session.json"]
+    },
+    {
+      "playerCount": 6,
+      "realParticipants": false,
+      "unattended": false,
+      "completed": false,
+      "joinConfirmSeconds": null,
+      "staffInterventions": null,
+      "evidenceRefs": ["evidence/6-player-session.json"]
+    },
+    {
+      "playerCount": 8,
+      "realParticipants": false,
+      "unattended": false,
+      "completed": false,
+      "joinConfirmSeconds": null,
+      "staffInterventions": null,
+      "evidenceRefs": ["evidence/8-player-session.json"]
+    }
+  ]
+}

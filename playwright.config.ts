@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+
+const packageVersion = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
+  .version as string
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -10,8 +14,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command:
-        'VITE_ROOM_SERVER_URL=ws://127.0.0.1:8787 npm run dev -- --host 127.0.0.1 --port 4175',
+      command: `VITE_APP_VERSION=${packageVersion} VITE_ROOM_SERVER_URL=ws://127.0.0.1:8787 npm run dev -- --host 127.0.0.1 --port 4175`,
       url: 'http://127.0.0.1:4175/flying-chess/',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

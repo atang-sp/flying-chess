@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "release": "v1.12.3",
+  "recordedAtUtc": "2026-08-02T00:00:00.000Z",
+  "kind": "replace_with_required_kind",
+  "artifacts": [
+    {
+      "path": "artifacts/replace-with-anonymous-artifact.bin",
+      "sha256": "replace_with_64_lowercase_hex_characters"
+    }
+  ],
+  "claims": {}
+}
