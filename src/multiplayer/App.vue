@@ -1,31 +1,25 @@
 <script setup lang="ts">
   import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
   import QRCode from 'qrcode'
-  import type {
-    OnlineClientMessage,
-    OnlineRoomSettings,
-    OnlineRoomView,
-    OnlineServerMessage,
+  import {
+    ONLINE_PLAYER_COLORS,
+    type OnlineClientMessage,
+    type OnlineRoomSettings,
+    type OnlineRoomView,
+    type OnlineServerMessage,
   } from '@flying-chess/game-core'
   import { OnlineRoomClient, type OnlineConnectionStatus } from './roomClient'
 
-  const COLORS = [
-    '#ff6b6b',
-    '#4ecdc4',
-    '#45b7d1',
-    '#96ceb4',
-    '#feca57',
-    '#ff9ff3',
-    '#54a0ff',
-    '#5f27cd',
-  ] as const
   const serverUrl = import.meta.env.VITE_ROOM_SERVER_URL ?? 'wss://rooms.atang-sp.run.place'
   const SESSION_STORAGE_KEY = 'flying-chess-online-session-v1'
   const localGameUrl = import.meta.env.BASE_URL
+  const onlineEntryUrl = `${import.meta.env.BASE_URL}online.html`
   const query = new URLSearchParams(window.location.search)
+  const roomCodeFromQuery = (query.get('room') ?? '').trim().toUpperCase()
+  const invitedRoomCode = /^[A-Z2-9]{6}$/.test(roomCodeFromQuery) ? roomCodeFromQuery : ''
   const nickname = ref('')
-  const color = ref<(typeof COLORS)[number]>('#ff6b6b')
-  const roomCodeInput = ref((query.get('room') ?? '').toUpperCase())
+  const color = ref<(typeof ONLINE_PLAYER_COLORS)[number]>(ONLINE_PLAYER_COLORS[0])
+  const roomCodeInput = ref(roomCodeFromQuery)
   const status = ref<OnlineConnectionStatus>('connecting')
   const errorMessage = ref('')
   const session = ref<Extract<OnlineServerMessage, { type: 'session' }> | null>(null)
@@ -66,6 +60,7 @@
   }
 
   let storedSession = loadStoredSession()
+  if (invitedRoomCode && storedSession?.roomCode !== invitedRoomCode) storedSession = null
 
   const client = new OnlineRoomClient(serverUrl, {
     onStatus: nextStatus => {
@@ -88,7 +83,7 @@
     () =>
       isHost.value &&
       room.value?.status === 'lobby' &&
-      (room.value?.players.length ?? 0) >= 3 &&
+      (room.value?.players.length ?? 0) >= 2 &&
       room.value?.confirmedPlayerIds.length === room.value?.players.length
   )
   const isConfirmed = computed(
@@ -288,7 +283,12 @@
     <p v-if="errorMessage" class="error-banner" role="alert">{{ errorMessage }}</p>
 
     <section v-if="!session" class="online-card join-card">
-      <h2>创建或加入房间</h2>
+      <h2>{{ invitedRoomCode ? '加入受邀房间' : '创建或加入房间' }}</h2>
+      <div v-if="invitedRoomCode" class="invite-target">
+        <p class="eyebrow">受邀房间</p>
+        <strong class="room-code" data-testid="invite-room-code">{{ invitedRoomCode }}</strong>
+        <p>填写昵称后即可加入，无需再次输入房间码。</p>
+      </div>
       <label>
         昵称
         <input
@@ -302,35 +302,52 @@
       <label>
         颜色
         <select v-model="color" data-testid="color">
-          <option v-for="option in COLORS" :key="option" :value="option">{{ option }}</option>
+          <option v-for="option in ONLINE_PLAYER_COLORS" :key="option" :value="option">
+            {{ option }}
+          </option>
         </select>
       </label>
-      <button
-        class="btn btn-primary"
-        data-testid="create-room"
-        :disabled="status !== 'connected' || !nickname.trim()"
-        @click="createRoom"
-      >
-        创建房间
-      </button>
-      <div class="join-divider"><span>或输入 6 位房间码</span></div>
-      <label>
-        房间码
-        <input
-          v-model="roomCodeInput"
-          maxlength="6"
-          autocapitalize="characters"
-          placeholder="ABC234"
-        />
-      </label>
-      <button
-        class="btn btn-secondary"
-        data-testid="join-room"
-        :disabled="status !== 'connected' || !nickname.trim() || roomCodeInput.length !== 6"
-        @click="joinRoom"
-      >
-        加入房间
-      </button>
+      <template v-if="invitedRoomCode">
+        <button
+          class="btn btn-primary"
+          data-testid="join-room"
+          :disabled="status !== 'connected' || !nickname.trim()"
+          @click="joinRoom"
+        >
+          加入这个房间
+        </button>
+        <a :href="onlineEntryUrl" class="text-button invite-alternative">
+          创建房间或输入其他房间码
+        </a>
+      </template>
+      <template v-else>
+        <button
+          class="btn btn-primary"
+          data-testid="create-room"
+          :disabled="status !== 'connected' || !nickname.trim()"
+          @click="createRoom"
+        >
+          创建房间
+        </button>
+        <div class="join-divider"><span>或输入 6 位房间码</span></div>
+        <label>
+          房间码
+          <input
+            v-model="roomCodeInput"
+            maxlength="6"
+            autocapitalize="characters"
+            placeholder="ABC234"
+          />
+        </label>
+        <button
+          class="btn btn-secondary"
+          data-testid="join-room"
+          :disabled="status !== 'connected' || !nickname.trim() || roomCodeInput.length !== 6"
+          @click="joinRoom"
+        >
+          加入房间
+        </button>
+      </template>
     </section>
 
     <template v-else-if="room">
@@ -453,7 +470,7 @@
           >
             全员到齐，开始游戏
           </button>
-          <p v-if="isHost && room.players.length < 3" class="hint">至少 3 人才能开始。</p>
+          <p v-if="isHost && room.players.length < 2" class="hint">至少 2 人才能开始。</p>
           <p v-else-if="isHost && !canStart" class="hint">等待所有玩家确认设置。</p>
           <p v-else-if="!isHost" class="hint">等待主持人开始。</p>
         </div>

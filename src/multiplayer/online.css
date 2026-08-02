@@ -83,6 +83,28 @@
   font-weight: 650;
 }
 
+.invite-target {
+  padding: 1rem;
+  border: 1px solid rgb(223 196 142 / 0.22);
+  border-radius: var(--radius-md);
+  background: rgb(223 196 142 / 0.08);
+}
+
+.invite-target .room-code {
+  margin-bottom: 0.35rem;
+  font-size: clamp(2rem, 12vw, 3rem);
+}
+
+.invite-target p:last-child {
+  margin-bottom: 0;
+  color: var(--text-secondary);
+}
+
+.invite-alternative {
+  justify-self: center;
+  text-decoration: none;
+}
+
 .join-card input,
 .join-card select,
 .settings-panel select {

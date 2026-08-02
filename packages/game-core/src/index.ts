@@ -86,6 +86,17 @@ export type { PartyEventCard, PartyEventState } from '../../../src/services/part
 
 export const ONLINE_RULESET_VERSION = 'party_v2' as const
 
+export const ONLINE_PLAYER_COLORS = [
+  '#ff6b6b',
+  '#4ecdc4',
+  '#45b7d1',
+  '#96ceb4',
+  '#feca57',
+  '#ff9ff3',
+  '#54a0ff',
+  '#5f27cd',
+] as const
+
 export const ONLINE_SCENE_PRESETS = ['default', 'icebreaker', 'hardcore', 'couple'] as const
 export const ONLINE_BOARD_PRESETS = [
   'party_default',
@@ -630,11 +641,11 @@ export function createOnlineGame(
   options: OnlineGameCreationOptions = {}
 ): OnlineGameState {
   if (
-    roster.length < 3 ||
+    roster.length < 2 ||
     roster.length > 8 ||
     new Set(roster.map(player => player.id)).size !== roster.length
   ) {
-    throw new GameCommandError('INVALID_ROSTER', '联网升温局需要 3–8 名身份唯一的玩家')
+    throw new GameCommandError('INVALID_ROSTER', '联网升温局需要 2–8 名身份唯一的玩家')
   }
   const firstPlayer = roster[0]
   if (!firstPlayer) throw new GameCommandError('INVALID_ROSTER', '玩家名单不能为空')
@@ -1667,8 +1678,8 @@ export function removeOnlinePlayerAtSafeNode(
   if (!isOnlinePlayerRemovalSafe(state)) {
     throw new GameCommandError('INVALID_PHASE', '只能在新回合的安全节点移除离场玩家')
   }
-  if (state.players.length <= 3) {
-    throw new GameCommandError('INVALID_ROSTER', '联网升温局至少保留三名玩家')
+  if (state.players.length <= 2) {
+    throw new GameCommandError('INVALID_ROSTER', '联网升温局至少保留两名玩家')
   }
   const removedIndex = state.players.findIndex(player => player.id === playerId)
   if (removedIndex < 0) throw new GameCommandError('PLAYER_NOT_FOUND', '离场玩家不存在')

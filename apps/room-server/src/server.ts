@@ -7,6 +7,7 @@ import {
   DEFAULT_ONLINE_ROOM_SETTINGS,
   GameCommandError,
   ONLINE_BOARD_PRESETS,
+  ONLINE_PLAYER_COLORS,
   ONLINE_SCENE_PRESETS,
   isOnlinePlayerRemovalSafe,
   projectOnlineGameView,
@@ -236,11 +237,15 @@ export async function createRoomServer(
       if (room.players.length >= MAX_PLAYERS_PER_ROOM) {
         throw new ProtocolError('ROOM_FULL', '房间人数已满', message.requestId)
       }
-      const player = createPlayer(message.nickname, message.color, socket, message.requestId)
-      if (
-        room.players.some(existing => existing.color.toLowerCase() === player.color.toLowerCase())
-      ) {
-        throw new ProtocolError('COLOR_TAKEN', '该颜色已被选择', message.requestId)
+      let player = createPlayer(message.nickname, message.color, socket, message.requestId)
+      if (room.players.some(existing => colorsMatch(existing.color, player.color))) {
+        const availableColor = ONLINE_PLAYER_COLORS.find(candidate =>
+          room.players.every(existing => !colorsMatch(existing.color, candidate))
+        )
+        if (!availableColor) {
+          throw new ProtocolError('COLOR_TAKEN', '没有可用的玩家颜色', message.requestId)
+        }
+        player = { ...player, color: availableColor }
       }
       room.players.push(player)
       room.confirmedPlayerIds.clear()
@@ -534,6 +539,10 @@ function createPlayer(
     socket,
     disconnectedAt: null,
   }
+}
+
+function colorsMatch(left: string, right: string): boolean {
+  return left.toLowerCase() === right.toLowerCase()
 }
 
 function sendSession(socket: WebSocket, room: Room, player: RoomPlayer, requestId: string): void {

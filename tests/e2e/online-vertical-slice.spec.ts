@@ -1,5 +1,44 @@
 import { expect, test } from '@playwright/test'
 
+test('扫码受邀页突出加入动作，并允许两名玩家确认后开局', async ({ browser }) => {
+  const hostContext = await browser.newContext()
+  const guestContext = await browser.newContext()
+  const host = await hostContext.newPage()
+  const guest = await guestContext.newPage()
+
+  try {
+    await host.goto('/flying-chess/online.html')
+    await host.getByTestId('nickname').fill('主持人')
+    await host.getByTestId('create-room').click()
+    const roomCode = (await host.getByTestId('room-code').textContent())?.trim()
+    expect(roomCode).toMatch(/^[A-Z2-9]{6}$/)
+
+    await guest.goto('/flying-chess/online.html')
+    await guest.evaluate(() => {
+      sessionStorage.setItem(
+        'flying-chess-online-session-v1',
+        JSON.stringify({ roomCode: 'OLD234', playerId: 'old-player', resumeToken: 'old-token' })
+      )
+    })
+    await guest.goto(`/flying-chess/online.html?room=${roomCode}`)
+    await expect(guest.getByRole('heading', { name: '加入受邀房间' })).toBeVisible()
+    await expect(guest.getByTestId('invite-room-code')).toHaveText(roomCode ?? '')
+    await expect(guest.getByTestId('create-room')).toHaveCount(0)
+    await guest.getByTestId('nickname').fill('玩家二')
+    await guest.getByTestId('join-room').click()
+
+    await expect(host.getByTestId('room-player')).toHaveCount(2)
+    await Promise.all([host, guest].map(page => page.getByTestId('confirm-settings').click()))
+    await expect(host.getByTestId('start-online-game')).toBeEnabled()
+    await host.getByTestId('start-online-game').click()
+    await guest.getByTestId('predict-high').click()
+    await expect(host.getByTestId('roll-dice')).toBeVisible()
+  } finally {
+    await hostContext.close()
+    await guestContext.close()
+  }
+})
+
 test('两套浏览器通过房间服务器完成建房、加入、刷新重连、掷骰和移动', async ({ browser }) => {
   const hostContext = await browser.newContext()
   const guestContext = await browser.newContext()

@@ -5,6 +5,7 @@ import {
   applyOnlineGameTimeout,
   createOnlineGame,
   projectOnlineGameView,
+  removeOnlinePlayerAtSafeNode,
   type BoardCell,
   type PartyEventCard,
   type OnlinePlayerInput,
@@ -28,6 +29,22 @@ const quietEventDeck: readonly PartyEventCard[] = [
 ]
 
 describe('联网升温局权威规则内核', () => {
+  it('允许两名玩家创建联机升温局', () => {
+    const game = createOnlineGame(roster.slice(0, 2))
+
+    expect(game.players).toHaveLength(2)
+    expect(game.status).toBe('playing')
+  })
+
+  it('安全节点允许三人局移除至两人，但不允许只剩一人', () => {
+    const twoPlayerGame = removeOnlinePlayerAtSafeNode(createOnlineGame(roster), 'p3')
+
+    expect(twoPlayerGame.players.map(player => player.id)).toEqual(['p1', 'p2'])
+    expect(() => removeOnlinePlayerAtSafeNode(twoPlayerGame, 'p2')).toThrow(
+      '联网升温局至少保留两名玩家'
+    )
+  })
+
   it('反应者预测成功后可镜像骰点，镜像后的当前玩家不能再次重掷', () => {
     let game = createOnlineGame(roster)
     expect(projectOnlineGameView(game, 'p2').allowedCommands).toContain('submit_prediction')

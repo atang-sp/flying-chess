@@ -178,7 +178,7 @@ npm install primevue primeicons
 ## 🚀 部署
 
 - **GitHub Pages**：支持自动/手动部署，详见 `deploy.sh` 和 `.github/workflows/deploy.yml`
-- **联机升温局**：从首页显式进入；3–8 名玩家通过各自手机连接
+- **联机升温局**：从首页显式进入；2–8 名玩家通过各自手机连接
   `wss://rooms.atang-sp.run.place`。公共棋盘由服务器权威同步，预测、惩罚选择、投票、
   猜拳和小游戏答案按玩家投影。刷新或短暂断网会自动恢复原席位，主持人只能在 90 秒保护期后、
   新回合安全节点移除离场玩家。
