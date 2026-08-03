@@ -1,8 +1,30 @@
-import { expect, test } from '@playwright/test'
+import {
+  devices,
+  expect,
+  test,
+  type BrowserContextOptions,
+  type ViewportSize,
+} from '@playwright/test'
 
-test('扫码受邀页突出加入动作，并允许两名玩家确认后开局', async ({ browser }) => {
-  const hostContext = await browser.newContext()
-  const guestContext = await browser.newContext()
+function projectContextOptions(
+  projectName: string,
+  viewport: ViewportSize | null | undefined
+): BrowserContextOptions {
+  const device = projectName === 'mobile-chrome' ? devices['Pixel 5'] : devices['Desktop Chrome']
+  return {
+    userAgent: device.userAgent,
+    viewport: viewport ?? device.viewport,
+    screen: device.screen,
+    deviceScaleFactor: device.deviceScaleFactor,
+    isMobile: device.isMobile,
+    hasTouch: device.hasTouch,
+  }
+}
+
+test('扫码受邀页突出加入动作，并允许两名玩家确认后开局', async ({ browser }, testInfo) => {
+  const options = projectContextOptions(testInfo.project.name, testInfo.project.use.viewport)
+  const hostContext = await browser.newContext(options)
+  const guestContext = await browser.newContext(options)
   const host = await hostContext.newPage()
   const guest = await guestContext.newPage()
 
@@ -39,9 +61,12 @@ test('扫码受邀页突出加入动作，并允许两名玩家确认后开局',
   }
 })
 
-test('两套浏览器通过房间服务器完成建房、加入、刷新重连、掷骰和移动', async ({ browser }) => {
-  const hostContext = await browser.newContext()
-  const guestContext = await browser.newContext()
+test('两套浏览器通过房间服务器完成建房、加入、刷新重连、掷骰和移动', async ({
+  browser,
+}, testInfo) => {
+  const options = projectContextOptions(testInfo.project.name, testInfo.project.use.viewport)
+  const hostContext = await browser.newContext(options)
+  const guestContext = await browser.newContext(options)
   const host = await hostContext.newPage()
   const playerTwo = await guestContext.newPage()
   const playerThree = await guestContext.newPage()

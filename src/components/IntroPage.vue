@@ -40,6 +40,7 @@
   import ProgressAchievements from './ProgressAchievements.vue'
   import PartyStudioEditor from './PartyStudioEditor.vue'
   import type { GameMode } from '../config/modes'
+  import { VERSION } from '../config/version'
   import type { PartyScenePreset, VictoryConfig } from '../types/game'
   import { PARTY_MIN_PLAYERS } from '../services/partyMode'
   import type { PartyEventCard } from '../services/partyEvents'
@@ -71,6 +72,7 @@
   const playerNames = ref<string[]>(['玩家1', '玩家2'])
   const selectedMode = ref<GameMode>(props.initialMode)
   const onlinePartyUrl = `${import.meta.env.BASE_URL}online.html`
+  const applicationVersion = VERSION
   const selectedScenePreset = ref<PartyScenePreset | 'default'>('default')
   const multiDeviceMode = ref(false)
   const victoryConfig = ref<VictoryConfig>(loadVictoryConfig())
@@ -432,7 +434,9 @@
             <strong>联机升温局</strong>
             <span>2–8 人扫码加入，由房间服务器同步局面</span>
           </span>
-          <span class="mode-card__badge mode-card__badge--party">应用 v1.12 · party_v2</span>
+          <span class="mode-card__badge mode-card__badge--party">
+            应用 v{{ applicationVersion }} · party_v2
+          </span>
         </a>
       </section>
 

@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -7,6 +7,9 @@ import { describe, expect, it } from 'vitest'
 import { verifyOnlineAcceptanceEvidence } from './online-acceptance-evidence.mjs'
 
 const verifierPath = fileURLToPath(new URL('./online-acceptance-evidence.mjs', import.meta.url))
+const packageVersion = JSON.parse(
+  readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')
+).version
 const artifactContents = 'anonymous acceptance artifact'
 const artifactSha256 = '6a8a31835b9db9c616312f93f89e556ca380cc986fca993da786ee72697b957d'
 
@@ -371,6 +374,7 @@ describe('联机升温局验收证据', () => {
     const temporaryDirectory = mkdtempSync(join(tmpdir(), 'flying-chess-acceptance-'))
     try {
       const evidence = validEvidence()
+      evidence.release = `v${packageVersion}`
       const references = [
         ...evidence.publicGateway.evidenceRefs,
         ...evidence.loadTest.evidenceRefs,
@@ -396,7 +400,7 @@ describe('联机升温局验收证据', () => {
       const result = spawnSync(process.execPath, [verifierPath, evidencePath], { encoding: 'utf8' })
 
       expect(result.status).toBe(0)
-      expect(result.stdout).toContain('PASS v1.12.4')
+      expect(result.stdout).toContain(`PASS v${packageVersion}`)
     } finally {
       rmSync(temporaryDirectory, { recursive: true, force: true })
     }
