@@ -7,6 +7,10 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',')
   .map(origin => origin.trim())
   .filter(Boolean)
 const testDice = Number.parseInt(process.env.ROOM_SERVER_TEST_DICE ?? '', 10)
+const testReconnectGraceMs = Number.parseInt(
+  process.env.ROOM_SERVER_TEST_RECONNECT_GRACE_MS ?? '',
+  10
+)
 const rollDice =
   process.env.NODE_ENV === 'test' && Number.isInteger(testDice) && testDice >= 1 && testDice <= 6
     ? () => testDice
@@ -32,6 +36,10 @@ async function main(): Promise<void> {
     rollDice,
     eventDeck: quietTestEventDeck,
     allowedOrigins,
+    reconnectGraceMs:
+      process.env.NODE_ENV === 'test' && testReconnectGraceMs > 0
+        ? testReconnectGraceMs
+        : undefined,
   })
   console.info(`room server listening on port ${server.port}`)
 

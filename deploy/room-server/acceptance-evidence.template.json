@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "release": "v1.12.5",
+  "release": "v1.12.6",
   "publicGateway": {
     "dnsResolved": false,
     "certificateSans": [],

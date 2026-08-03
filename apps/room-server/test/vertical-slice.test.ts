@@ -288,6 +288,75 @@ describe('联网升温局服务器权威纵向切片', () => {
     ).resolves.toMatchObject({ type: 'room_state' })
   })
 
+  it('普通玩家只能请求暂停，只有主持人可以暂停和恢复整局', async () => {
+    server = await createRoomServer({ port: 0 })
+    const host = await TestClient.connect(server.wsUrl)
+    const guest = await TestClient.connect(server.wsUrl)
+    clients.push(host, guest)
+
+    host.send({
+      type: 'create_room',
+      requestId: 'pause-create',
+      nickname: '主持人',
+      color: '#ff6b6b',
+    })
+    const created = await host.next(message => message.type === 'session')
+    if (created.type !== 'session') throw new Error('expected session')
+    guest.send({
+      type: 'join_room',
+      requestId: 'pause-join',
+      roomCode: created.roomCode,
+      nickname: '普通玩家',
+      color: '#4ecdc4',
+    })
+    const joined = await guest.next(message => message.type === 'session')
+    if (joined.type !== 'session') throw new Error('expected session')
+
+    host.send({ type: 'confirm_settings', requestId: 'pause-confirm-host' })
+    guest.send({ type: 'confirm_settings', requestId: 'pause-confirm-guest' })
+    await host.next(
+      message => message.type === 'room_state' && message.room.confirmedPlayerIds.length === 2
+    )
+    host.send({ type: 'start_game', requestId: 'pause-start' })
+    await host.next(message => message.type === 'room_state' && message.room.status === 'playing')
+
+    guest.send({ type: 'pause_game', requestId: 'pause-request' })
+    const requested = await host.next(
+      message =>
+        message.type === 'room_state' &&
+        message.room.pauseRequestedPlayerIds.includes(joined.playerId)
+    )
+    expect(requested).toMatchObject({
+      type: 'room_state',
+      room: { game: { paused: false }, pauseRequestedPlayerIds: [joined.playerId] },
+    })
+
+    host.send({ type: 'pause_game', requestId: 'pause-approve' })
+    await expect(
+      guest.next(
+        message =>
+          message.type === 'room_state' &&
+          message.room.game?.paused === true &&
+          message.room.pauseRequestedPlayerIds.length === 0
+      )
+    ).resolves.toMatchObject({ type: 'room_state' })
+
+    guest.send({ type: 'resume_game', requestId: 'pause-resume-guest' })
+    await expect(
+      guest.next(
+        message =>
+          message.type === 'error' &&
+          message.requestId === 'pause-resume-guest' &&
+          message.code === 'HOST_ONLY'
+      )
+    ).resolves.toMatchObject({ type: 'error' })
+
+    host.send({ type: 'resume_game', requestId: 'pause-resume-host' })
+    await expect(
+      guest.next(message => message.type === 'room_state' && message.room.game?.paused === false)
+    ).resolves.toMatchObject({ type: 'room_state' })
+  })
+
   it('主持人可以把管理角色转交给另一名玩家，权限立即随角色移动', async () => {
     server = await createRoomServer({ port: 0 })
     const host = await TestClient.connect(server.wsUrl)
@@ -607,14 +676,33 @@ describe('联网升温局服务器权威纵向切片', () => {
     const joined = await successor.next(message => message.type === 'session')
     if (joined.type !== 'session') throw new Error('expected session')
 
+    host.send({ type: 'confirm_settings', requestId: 'failover-confirm-host' })
+    successor.send({ type: 'confirm_settings', requestId: 'failover-confirm-successor' })
+    await host.next(
+      message => message.type === 'room_state' && message.room.confirmedPlayerIds.length === 2
+    )
+    host.send({ type: 'start_game', requestId: 'failover-start' })
+    await host.next(message => message.type === 'room_state' && message.room.status === 'playing')
+
     await host.disconnect()
     now += 90_000
 
-    await expect(
-      successor.next(
-        message => message.type === 'room_state' && message.room.hostPlayerId === joined.playerId
-      )
-    ).resolves.toMatchObject({ type: 'room_state' })
+    const transferred = await successor.next(
+      message => message.type === 'room_state' && message.room.hostPlayerId === joined.playerId
+    )
+    expect(transferred).toMatchObject({
+      type: 'room_state',
+      room: {
+        players: expect.arrayContaining([
+          expect.objectContaining({
+            id: created.playerId,
+            connected: false,
+            removable: false,
+            removalBlockReason: 'minimum_players',
+          }),
+        ]),
+      },
+    })
   })
 
   it('断线后凭一次性恢复凭证回到原席位，并在 90 秒保护期后允许主持人移除', async () => {
