@@ -369,7 +369,11 @@
       </div>
     </div>
 
-    <p class="board-hint">轻点格子查看完整内容 · 方向键可逐格浏览</p>
+    <p class="board-hint">
+      {{
+        interactionDisabled ? '棋盘由房间服务器实时同步' : '轻点格子查看完整内容 · 方向键可逐格浏览'
+      }}
+    </p>
   </section>
 </template>
 

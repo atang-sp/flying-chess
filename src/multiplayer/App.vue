@@ -2,14 +2,26 @@
   import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
   import QRCode from 'qrcode'
   import {
+    ONLINE_TURN_DURATION_OPTIONS,
     ONLINE_PLAYER_COLORS,
+    cloneOnlineRoomSettings,
+    createOnlineBoardConfig,
+    type BoardCell,
+    type BoardConfig,
     type OnlineClientMessage,
     type OnlineRoomPlayerView,
     type OnlineRoomSettings,
     type OnlineRoomView,
     type OnlineServerMessage,
+    type Player,
+    type PunishmentConfig,
+    type TrapAction,
   } from '@flying-chess/game-core'
   import { VERSION } from '../config/version'
+  import BoardConfigPanel from '../components/BoardConfig.vue'
+  import PunishmentConfigPanel from '../components/PunishmentConfig.vue'
+  import TrapConfigPanel from '../components/TrapConfig.vue'
+  import GameBoard from '../components/GameBoard.vue'
   import { OnlineRoomClient, type OnlineConnectionStatus } from './roomClient'
 
   const serverUrl = import.meta.env.VITE_ROOM_SERVER_URL ?? 'wss://rooms.atang-sp.run.place'
@@ -27,10 +39,8 @@
   const errorMessage = ref('')
   const session = ref<Extract<OnlineServerMessage, { type: 'session' }> | null>(null)
   const room = ref<OnlineRoomView | null>(null)
-  const settingsDraft = ref<OnlineRoomSettings>({
-    scenePreset: 'default',
-    boardPreset: 'party_default',
-  })
+  const settingsDraft = ref<OnlineRoomSettings>(cloneOnlineRoomSettings())
+  let lastSyncedSettings = settingsSignature(settingsDraft.value)
   const qrCodeUrl = ref('')
   const memoryAnswer = ref<string[]>([])
   const eventSelectedPlayerIds = ref<string[]>([])
@@ -43,6 +53,18 @@
     readonly roomCode: string
     readonly playerId: string
     readonly resumeToken: string
+  }
+
+  function settingsSignature(settings: OnlineRoomSettings | OnlineRoomView['settings']): string {
+    const payload: Record<string, unknown> = {
+      scenePreset: settings.scenePreset,
+      boardPreset: settings.boardPreset,
+      boardConfig: settings.boardConfig,
+      turnDurationSeconds: settings.turnDurationSeconds,
+    }
+    if (settings.punishmentConfig) payload.punishmentConfig = settings.punishmentConfig
+    if (settings.traps) payload.traps = settings.traps
+    return JSON.stringify(payload)
   }
 
   function loadStoredSession(): StoredSession | null {
@@ -96,7 +118,37 @@
     () =>
       !!session.value && (room.value?.confirmedPlayerIds.includes(session.value.playerId) ?? false)
   )
+  const hasUnsavedSettings = computed(
+    () =>
+      !!room.value &&
+      settingsSignature(settingsDraft.value) !== settingsSignature(room.value.settings)
+  )
   const game = computed(() => room.value?.game ?? null)
+  const sharedBoard = computed<BoardCell[]>(() =>
+    (game.value?.board ?? []).map(cell => ({
+      id: cell.position,
+      position: cell.position,
+      type: cell.type,
+      effect: cell.effect ? { ...cell.effect, description: '联机棋盘公开效果' } : undefined,
+    }))
+  )
+  const sharedPlayers = computed<Player[]>(() =>
+    (game.value?.players ?? []).map((player, index) => ({
+      id: index + 1,
+      name: player.nickname,
+      color: player.color,
+      position: player.position,
+      isWinner: player.isWinner,
+      hasTakenOff: player.hasTakenOff,
+      failedTakeoffAttempts: player.failedTakeoffAttempts,
+    }))
+  )
+  const sharedCurrentPlayerIndex = computed(() =>
+    Math.max(
+      0,
+      (game.value?.players ?? []).findIndex(player => player.id === game.value?.currentPlayerId)
+    )
+  )
   const currentPlayer = computed(() =>
     game.value?.players.find(player => player.id === game.value?.currentPlayerId)
   )
@@ -132,6 +184,7 @@
     couple: '双人终局风格',
   }
   const boardPresetLabels: Record<OnlineRoomSettings['boardPreset'], string> = {
+    standard: '标准模式棋盘',
     party_default: '升温局默认棋盘',
     icebreaker: '破冰棋盘',
     hardcore: '加码棋盘',
@@ -166,6 +219,28 @@
     const values: number[] = []
     for (let value = minimum; value <= maximum; value += safeStep) values.push(value)
     return values
+  }
+
+  function handleBoardPresetChange(event: Event): void {
+    const boardPreset = (event.target as HTMLSelectElement)
+      .value as OnlineRoomSettings['boardPreset']
+    settingsDraft.value = {
+      ...settingsDraft.value,
+      boardPreset,
+      boardConfig: createOnlineBoardConfig(boardPreset),
+    }
+  }
+
+  function handleBoardConfigUpdate(boardConfig: BoardConfig): void {
+    settingsDraft.value = { ...settingsDraft.value, boardConfig: { ...boardConfig } }
+  }
+
+  function handlePunishmentConfigUpdate(punishmentConfig: PunishmentConfig): void {
+    settingsDraft.value = { ...settingsDraft.value, punishmentConfig }
+  }
+
+  function handleTrapConfigUpdate(traps: TrapAction[]): void {
+    settingsDraft.value = { ...settingsDraft.value, traps }
   }
 
   function handleMessage(message: OnlineServerMessage): void {
@@ -271,6 +346,7 @@
         window.location.origin
       )
       invitationUrl.searchParams.set('room', code)
+      invitationUrl.searchParams.set('v', applicationVersion)
       qrCodeUrl.value = await QRCode.toDataURL(invitationUrl.toString(), {
         errorCorrectionLevel: 'M',
         margin: 1,
@@ -282,7 +358,11 @@
   watch(
     () => room.value?.settings,
     settings => {
-      if (settings) settingsDraft.value = { ...settings }
+      if (!settings) return
+      const signature = settingsSignature(settings)
+      if (signature === lastSyncedSettings) return
+      settingsDraft.value = cloneOnlineRoomSettings(settings)
+      lastSyncedSettings = signature
     },
     { deep: true }
   )
@@ -429,7 +509,7 @@
           <p class="eyebrow">房间码</p>
           <strong class="room-code" data-testid="room-code">{{ session.roomCode }}</strong>
           <img v-if="qrCodeUrl" :src="qrCodeUrl" alt="加入本房间的二维码" class="room-qr" />
-          <p>让其他玩家扫码或打开联机入口后输入房间码。</p>
+          <p>让其他玩家扫码加入；房间会自动带入，无需手动输入房间码。</p>
         </div>
 
         <div class="online-card roster-card">
@@ -492,17 +572,41 @@
                 </select>
               </label>
               <label>
-                棋盘
-                <select v-model="settingsDraft.boardPreset">
+                棋盘基础模板
+                <select :value="settingsDraft.boardPreset" @change="handleBoardPresetChange">
+                  <option value="standard">标准模式棋盘</option>
                   <option value="party_default">升温局默认棋盘</option>
                   <option value="icebreaker">破冰棋盘</option>
                   <option value="hardcore">加码棋盘</option>
                   <option value="couple_finale">终局棋盘</option>
                 </select>
               </label>
+              <label>
+                每次操作限时
+                <select v-model.number="settingsDraft.turnDurationSeconds">
+                  <option
+                    v-for="duration in ONLINE_TURN_DURATION_OPTIONS"
+                    :key="duration"
+                    :value="duration"
+                  >
+                    {{ duration }} 秒
+                  </option>
+                </select>
+              </label>
+              <BoardConfigPanel
+                :config="settingsDraft.boardConfig"
+                :default-config="createOnlineBoardConfig(settingsDraft.boardPreset)"
+                @update="handleBoardConfigUpdate"
+              />
+              <PunishmentConfigPanel
+                :config="settingsDraft.punishmentConfig"
+                @update="handlePunishmentConfigUpdate"
+              />
+              <TrapConfigPanel :traps="[...settingsDraft.traps]" @update="handleTrapConfigUpdate" />
               <button
                 class="btn btn-secondary"
                 data-testid="save-settings"
+                :disabled="!hasUnsavedSettings"
                 @click="
                   send({
                     type: 'update_settings',
@@ -527,15 +631,28 @@
                   {{ boardPresetLabels[room.settings.boardPreset] }}
                 </dd>
               </div>
+              <div>
+                <dt>棋盘大小</dt>
+                <dd data-testid="board-size-setting">
+                  {{ room.settings.boardConfig.totalCells }} 格
+                </dd>
+              </div>
+              <div>
+                <dt>操作限时</dt>
+                <dd data-testid="turn-duration-setting">
+                  {{ room.settings.turnDurationSeconds }} 秒
+                </dd>
+              </div>
             </dl>
           </div>
           <button
             v-if="!isConfirmed"
             class="btn btn-secondary"
             data-testid="confirm-settings"
+            :disabled="isHost && hasUnsavedSettings"
             @click="send({ type: 'confirm_settings', requestId: requestId('confirm') })"
           >
-            我已查看并确认设置
+            {{ isHost && hasUnsavedSettings ? '请先保存设置' : '我已查看并确认设置' }}
           </button>
           <p v-else class="confirmed-note">✓ 你已确认；设置变化后需重新确认。</p>
           <button
@@ -571,7 +688,7 @@
             · 你的筹码
             {{ game.myTokensRemaining }}
           </p>
-          <p v-if="deadlineSeconds !== null" class="deadline-note">
+          <p v-if="deadlineSeconds !== null" class="deadline-note" data-testid="deadline-note">
             本操作剩余 {{ deadlineSeconds }} 秒
           </p>
           <p v-if="game.paused" class="confirmed-note">游戏已暂停，倒计时已冻结。</p>
@@ -1123,18 +1240,12 @@
 
         <div class="online-card board-card">
           <h2>公共棋盘</h2>
-          <div class="online-board" aria-label="40 格公共棋盘">
-            <div v-for="position in game.boardSize" :key="position" class="board-cell">
-              <span>{{ position }}</span>
-              <i
-                v-for="player in game.players.filter(candidate => candidate.position === position)"
-                :key="player.id"
-                class="board-piece"
-                :style="{ background: player.color }"
-                :title="player.nickname"
-              ></i>
-            </div>
-          </div>
+          <GameBoard
+            :board="sharedBoard"
+            :players="sharedPlayers"
+            :current-player-index="sharedCurrentPlayerIndex"
+            :interaction-disabled="true"
+          />
         </div>
 
         <div class="online-card positions-card">

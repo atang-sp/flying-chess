@@ -2,11 +2,8 @@ import type {
   BoardCell,
   Player,
   PunishmentAction,
-  PunishmentBodyPart,
   PunishmentConfig,
   PunishmentConstraints,
-  PunishmentPosition,
-  PunishmentTool,
   PunishmentVariant,
   ResolvedCellEffectResult,
   ResolvedDareResult,
@@ -18,6 +15,7 @@ import type {
   TurnConsequence,
 } from '../types/game'
 import { SecureRandom } from '../utils/secureRandom'
+import { createCompatiblePunishmentAction as createSharedCompatiblePunishmentAction } from '@flying-chess/game-core/config'
 
 export type PunishmentRuleInput =
   | {
@@ -88,93 +86,20 @@ const secureRandomSource: RuleRandomSource = {
   choice: entries => SecureRandom.choice([...entries]),
 }
 
-type NamedRatioEntry = { name: string; ratio: number }
-
-const entriesWithNames = <T extends { ratio: number }>(
-  config: Record<string, T>
-): Array<T & { name: string }> =>
-  Object.entries(config).map(([name, entry]) => ({ ...entry, name }))
-
-const chooseWeighted = <T extends NamedRatioEntry>(
-  entries: readonly T[],
-  randomSource: RuleRandomSource
-): T => {
-  const enabledEntries = entries.filter(entry => entry.ratio > 0)
-  if (enabledEntries.length === 0) {
-    throw new Error('没有启用的惩罚配置')
-  }
-
-  return randomSource.weightedChoice(
-    enabledEntries,
-    enabledEntries.map(entry => entry.ratio)
-  )
-}
-
-const isPositionCompatible = (
-  position: PunishmentPosition,
-  bodyPart: PunishmentBodyPart
-): boolean =>
-  position.compatibleBodyParts.length === 0 || position.compatibleBodyParts.includes(bodyPart.name)
-
-const hasCompatiblePosition = (
-  positions: readonly (PunishmentPosition & { name: string })[],
-  bodyPart: PunishmentBodyPart
-): boolean => positions.some(position => isPositionCompatible(position, bodyPart))
-
 export const createCompatiblePunishmentAction = (
   config: PunishmentConfig,
   randomSource: RuleRandomSource = secureRandomSource,
   constraints?: PunishmentConstraints
-): PunishmentAction => {
-  const tools = entriesWithNames<PunishmentTool>(config.tools)
-  const bodyParts = entriesWithNames<PunishmentBodyPart>(config.bodyParts)
-  const positions = entriesWithNames<PunishmentPosition>(config.positions)
-  const enabledBodyParts = bodyParts.filter(bodyPart => bodyPart.ratio > 0)
-  const enabledPositions = positions.filter(position => position.ratio > 0)
-
-  const maxIntensity = constraints?.maxToolIntensity ?? Infinity
-
-  const viableTools = tools.filter(
-    tool =>
-      tool.ratio > 0 &&
-      tool.intensity <= maxIntensity &&
-      enabledBodyParts.some(
-        bodyPart =>
-          bodyPart.sensitivity >= tool.intensity &&
-          hasCompatiblePosition(enabledPositions, bodyPart)
-      )
+): PunishmentAction =>
+  createSharedCompatiblePunishmentAction(
+    config,
+    {
+      randomInt: randomSource.randomInt,
+      choice: randomSource.choice,
+      weightedChoice: randomSource.weightedChoice,
+    },
+    constraints
   )
-  const tool = chooseWeighted(viableTools, randomSource)
-
-  const compatibleBodyParts = enabledBodyParts.filter(
-    bodyPart =>
-      bodyPart.sensitivity >= tool.intensity && hasCompatiblePosition(enabledPositions, bodyPart)
-  )
-  const bodyPart = chooseWeighted(compatibleBodyParts, randomSource)
-
-  const compatiblePositions = enabledPositions.filter(position =>
-    isPositionCompatible(position, bodyPart)
-  )
-  const position = chooseWeighted(compatiblePositions, randomSource)
-
-  const step = Math.max(1, config.step || 1)
-  const minimum = Math.max(1, constraints?.minStrikes ?? config.minStrikes ?? step)
-  const maximum = Math.max(minimum, constraints?.maxStrikes ?? config.maxStrikes ?? minimum)
-  const minimumMultiple = Math.ceil(minimum / step)
-  const maximumMultiple = Math.floor(maximum / step)
-  if (minimumMultiple > maximumMultiple) {
-    throw new Error('惩罚次数范围内没有合法步长')
-  }
-
-  const strikes = randomSource.randomInt(minimumMultiple, maximumMultiple) * step
-  return {
-    tool,
-    bodyPart,
-    position,
-    strikes,
-    description: `用${tool.name}打${bodyPart.name}${strikes}下，姿势：${position.name}`,
-  }
-}
 
 /** Pick a random punishment variant for party mode based on act and probability */
 export const pickPunishmentVariant = (

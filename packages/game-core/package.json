@@ -1,10 +1,11 @@
 {
   "name": "@flying-chess/game-core",
-  "version": "1.12.6",
+  "version": "1.13.0",
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./config": "./src/sharedConfig.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit -p tsconfig.json"

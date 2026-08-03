@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import WebSocket from 'ws'
+import { DEFAULT_ONLINE_ROOM_SETTINGS, type OnlineRoomSettings } from '@flying-chess/game-core'
 import { createRoomServer, type RunningRoomServer } from '../src/server'
 import type { ServerMessage } from '../src/protocol'
 
@@ -233,14 +234,28 @@ describe('联网升温局服务器权威纵向切片', () => {
     await join(playerTwo, '二', '#4ecdc4')
     await join(playerThree, '三', '#45b7d1')
 
+    const untrustedSettings = {
+      ...DEFAULT_ONLINE_ROOM_SETTINGS,
+      scenePreset: 'icebreaker',
+      punishmentConfig: { tools: { privateTool: 'do-not-broadcast' } },
+      privateConfig: 'do-not-broadcast',
+    } as unknown as OnlineRoomSettings
     host.send({
       type: 'update_settings',
       requestId: 'settings-1',
-      settings: { scenePreset: 'icebreaker', boardPreset: 'party_default' },
+      settings: untrustedSettings,
     })
-    await host.next(
+    const sanitized = await host.next(
       message => message.type === 'room_state' && message.room.settings.scenePreset === 'icebreaker'
     )
+    if (sanitized.type !== 'room_state') throw new Error('expected room state')
+    expect(sanitized.room.settings).toHaveProperty('punishmentConfig')
+    const guestSanitized = await playerTwo.next(
+      message => message.type === 'room_state' && message.room.settings.scenePreset === 'icebreaker'
+    )
+    if (guestSanitized.type !== 'room_state') throw new Error('expected room state')
+    expect(guestSanitized.room.settings).not.toHaveProperty('punishmentConfig')
+    expect(guestSanitized.room.settings).not.toHaveProperty('privateConfig')
 
     for (const [index, client] of [host, playerTwo, playerThree].entries()) {
       client.send({ type: 'confirm_settings', requestId: `confirm-${index}` })
@@ -256,7 +271,7 @@ describe('联网升温局服务器权威纵向切片', () => {
     host.send({
       type: 'update_settings',
       requestId: 'settings-2',
-      settings: { scenePreset: 'hardcore', boardPreset: 'party_default' },
+      settings: { ...DEFAULT_ONLINE_ROOM_SETTINGS, scenePreset: 'hardcore' },
     })
     const confirmationsCleared = await host.next(
       message =>
@@ -286,6 +301,37 @@ describe('联网升温局服务器权威纵向切片', () => {
     await expect(
       host.next(message => message.type === 'room_state' && message.room.status === 'playing')
     ).resolves.toMatchObject({ type: 'room_state' })
+  })
+
+  it('服务器拒绝超出单机标准模式约束的棋盘设置', async () => {
+    server = await createRoomServer({ port: 0 })
+    const host = await TestClient.connect(server.wsUrl)
+    clients.push(host)
+    host.send({
+      type: 'create_room',
+      requestId: 'invalid-settings-create',
+      nickname: '主持人',
+      color: '#ff6b6b',
+    })
+    await host.next(message => message.type === 'session')
+
+    host.send({
+      type: 'update_settings',
+      requestId: 'invalid-board-settings',
+      settings: {
+        ...DEFAULT_ONLINE_ROOM_SETTINGS,
+        boardConfig: {
+          ...DEFAULT_ONLINE_ROOM_SETTINGS.boardConfig,
+          totalCells: 20,
+        },
+      },
+    })
+
+    await expect(
+      host.next(
+        message => message.type === 'error' && message.requestId === 'invalid-board-settings'
+      )
+    ).resolves.toMatchObject({ code: 'INVALID_SETTINGS', message: '房间设置无效' })
   })
 
   it('普通玩家只能请求暂停，只有主持人可以暂停和恢复整局', async () => {
@@ -395,7 +441,7 @@ describe('联网升温局服务器权威纵向切片', () => {
     host.send({
       type: 'update_settings',
       requestId: 'old-host-settings',
-      settings: { scenePreset: 'icebreaker', boardPreset: 'party_default' },
+      settings: { ...DEFAULT_ONLINE_ROOM_SETTINGS, scenePreset: 'icebreaker' },
     })
     await expect(
       host.next(
@@ -409,7 +455,7 @@ describe('联网升温局服务器权威纵向切片', () => {
     successor.send({
       type: 'update_settings',
       requestId: 'new-host-settings',
-      settings: { scenePreset: 'icebreaker', boardPreset: 'party_default' },
+      settings: { ...DEFAULT_ONLINE_ROOM_SETTINGS, scenePreset: 'icebreaker' },
     })
     await expect(
       host.next(
@@ -813,7 +859,7 @@ describe('联网升温局服务器权威纵向切片', () => {
     await host.next(
       message => message.type === 'room_state' && message.room.game?.phase === 'awaiting_prediction'
     )
-    now += 10_000
+    now += 60_000
     const defaulted = await host.next(
       message => message.type === 'room_state' && message.room.game?.phase === 'awaiting_roll'
     )

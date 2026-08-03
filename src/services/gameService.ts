@@ -7,14 +7,25 @@ import type {
   PunishmentBodyPart,
   PunishmentTool,
   PunishmentPosition,
+  PunishmentConstraints,
   BoardConfig,
   TrapAction,
-  TrapVariant,
 } from '../types/game'
 import { GAME_CONFIG } from '../config/gameConfig'
 import { SecureRandom } from '../utils/secureRandom'
 import { devLog } from '../utils/logger'
 import { createCompatiblePunishmentAction } from './ruleResolution'
+import {
+  createBoardConfig as createSharedBoardConfig,
+  createPunishmentConfig as createSharedPunishmentConfig,
+  createSharedBoard,
+  normalizeBoardConfig,
+  validatePunishmentConfig as validateSharedPunishmentConfig,
+  validateBoardConfig,
+  type BoardRandomSource,
+  type ConfigSnapshot,
+  normalizeConfigSnapshot,
+} from '@flying-chess/game-core/config'
 
 type BoardEffectCountField = Exclude<keyof BoardConfig, 'totalCells'>
 
@@ -40,7 +51,9 @@ export class GameService {
     punishmentConfig?: PunishmentConfig,
     boardConfig?: BoardConfig,
     customTraps?: TrapAction[],
-    contentPools?: PartyBoardContentPools
+    contentPools?: PartyBoardContentPools,
+    randomSource?: BoardRandomSource,
+    modeConfig?: ConfigSnapshot
   ): BoardCell[] {
     // 1. 读取配置
     const config = punishmentConfig || this.createPunishmentConfig()
@@ -52,7 +65,14 @@ export class GameService {
     }
 
     // 始终使用随机分配逻辑，确保所有格子都严格按照棋盘配置来生成
-    const board = this.createBoardRandom(config, boardConf, traps, contentPools)
+    const board = this.createBoardRandom(
+      config,
+      boardConf,
+      traps,
+      contentPools,
+      randomSource,
+      modeConfig
+    )
     this.latestBoard = board
     return board
   }
@@ -62,349 +82,45 @@ export class GameService {
     config: PunishmentConfig,
     boardConf: BoardConfig,
     traps: TrapAction[],
-    contentPools?: PartyBoardContentPools
+    contentPools?: PartyBoardContentPools,
+    randomSource?: BoardRandomSource,
+    modeConfig?: ConfigSnapshot
   ): BoardCell[] {
-    const totalCells = boardConf.totalCells
+    const qaQuestions = contentPools?.qaQuestions ?? [
+      ...GAME_CONFIG.PARTY_QA_QUESTIONS.warmup,
+      ...GAME_CONFIG.PARTY_QA_QUESTIONS.heating,
+      ...GAME_CONFIG.PARTY_QA_QUESTIONS.finale,
+    ]
+    const dareInstructions = contentPools?.dareInstructions ?? [
+      ...GAME_CONFIG.PARTY_DARE_INSTRUCTIONS.warmup,
+      ...GAME_CONFIG.PARTY_DARE_INSTRUCTIONS.heating,
+      ...GAME_CONFIG.PARTY_DARE_INSTRUCTIONS.finale,
+    ]
 
-    const startPosition = 1
-    const endPosition = totalCells
-
-    // 所有位置
-    const allPositions = Array.from({ length: totalCells }, (_, i) => i + 1)
-    const availablePositions = allPositions.filter(
-      pos => pos !== startPosition && pos !== endPosition
-    )
-
-    // 随机打乱
-    for (let i = availablePositions.length - 1; i > 0; i--) {
-      const j = SecureRandom.randomIntBelow(i + 1)
-      ;[availablePositions[i], availablePositions[j]] = [
-        availablePositions[j],
-        availablePositions[i],
-      ]
+    const baseConfig: ConfigSnapshot = modeConfig ?? {
+      modeId: 'classic',
+      rulesetVersion: 'classic_v1',
+      boardConfig: normalizeBoardConfig(boardConf),
+      punishmentConfig: config,
+      traps,
+      qaQuestions: [...qaQuestions],
+      dareInstructions: [...dareInstructions],
+      stageConstraints: {},
+      authority: 'local',
     }
-
-    const cellMap = new Map<number, BoardCell>()
-
-    // 起点
-    cellMap.set(startPosition, {
-      id: startPosition,
-      type: 'bonus',
-      position: startPosition,
-      effect: {
-        type: 'move',
-        value: 0,
-        description: '起点',
-      },
-    })
-
-    // 终点
-    cellMap.set(endPosition, {
-      id: endPosition,
-      type: 'bonus',
-      position: endPosition,
-      effect: {
-        type: 'move',
-        value: 0,
-        description: '终点 - 游戏胜利',
-      },
-    })
-
-    const availableCount = totalCells - 2
-    let currentIndex = 0
-
-    // 惩罚格子
-    const punishmentCount = Math.min(boardConf.punishmentCells, availableCount - currentIndex)
-    const punishmentPositions = availablePositions.slice(
-      currentIndex,
-      currentIndex + punishmentCount
-    )
-    currentIndex += punishmentCount
-
-    // 连锁惩罚格子
-    const chainPunishmentCount = Math.min(
-      boardConf.chainPunishmentCells,
-      availableCount - currentIndex
-    )
-    const chainPunishmentPositions = availablePositions.slice(
-      currentIndex,
-      currentIndex + chainPunishmentCount
-    )
-    currentIndex += chainPunishmentCount
-
-    // 奖励格子
-    const bonusCount = Math.min(boardConf.bonusCells, availableCount - currentIndex)
-    const bonusPositions = availablePositions.slice(currentIndex, currentIndex + bonusCount)
-    currentIndex += bonusCount
-
-    // 后退格子
-    const reverseCount = Math.min(boardConf.reverseCells, availableCount - currentIndex)
-    const reversePositions = availablePositions.slice(currentIndex, currentIndex + reverseCount)
-    currentIndex += reverseCount
-
-    // 休息格子
-    const restCount = Math.min(boardConf.restCells, availableCount - currentIndex)
-    const restPositions = availablePositions.slice(currentIndex, currentIndex + restCount)
-    currentIndex += restCount
-
-    // 回到起点格子
-    const restartCount = Math.min(boardConf.restartCells, availableCount - currentIndex)
-    const restartPositions = availablePositions.slice(currentIndex, currentIndex + restartCount)
-    currentIndex += restartCount
-
-    // 机关格子
-    const trapCount = Math.min(boardConf.trapCells, availableCount - currentIndex)
-    const trapPositions = availablePositions.slice(currentIndex, currentIndex + trapCount)
-    currentIndex += trapCount
-
-    // 问答格子（升温局专属）
-    const qaCount = Math.min(boardConf.qaCells ?? 0, availableCount - currentIndex)
-    const qaPositions = availablePositions.slice(currentIndex, currentIndex + qaCount)
-    currentIndex += qaCount
-
-    // 指令格子（升温局专属）
-    const dareCount = Math.min(boardConf.dareCells ?? 0, availableCount - currentIndex)
-    const darePositions = availablePositions.slice(currentIndex, currentIndex + dareCount)
-    currentIndex += dareCount
-
-    // 填充惩罚格子
-    punishmentPositions.forEach(pos => {
-      const punishment = createCompatiblePunishmentAction(config)
-
-      cellMap.set(pos, {
-        id: pos,
-        type: 'punishment',
-        position: pos,
-        effect: {
-          type: 'punishment',
-          value: 0,
-          description: punishment.description,
-          punishment,
-        },
-      })
-    })
-
-    // 填充连锁惩罚格子
-    chainPunishmentPositions.forEach(pos => {
-      const punishment = createCompatiblePunishmentAction(config)
-
-      cellMap.set(pos, {
-        id: pos,
-        type: 'chain_punishment',
-        position: pos,
-        effect: {
-          type: 'chain_punishment',
-          value: 0,
-          description: `连锁惩罚：${punishment.description}`,
-          punishment,
-        },
-      })
-    })
-
-    // 奖励格子
-    bonusPositions.forEach(pos => {
-      const bonusTypes = [
-        { value: 2, description: '前进2步' },
-        { value: 3, description: '前进3步' },
-      ]
-      const randomBonus = SecureRandom.choice(bonusTypes)
-
-      cellMap.set(pos, {
-        id: pos,
-        type: 'bonus',
-        position: pos,
-        effect: {
-          type: 'move',
-          value: randomBonus.value,
-          description: randomBonus.description,
-        },
-      })
-    })
-
-    // 后退格子
-    reversePositions.forEach(pos => {
-      const reverseTypes = [
-        { type: 'reverse', value: 2, description: '后退2步' },
-        { type: 'reverse', value: 3, description: '后退3步' },
-      ]
-      const randomReverse = SecureRandom.choice(reverseTypes)
-
-      cellMap.set(pos, {
-        id: pos,
-        type: 'special',
-        position: pos,
-        effect: {
-          type: randomReverse.type as 'reverse',
-          value: randomReverse.value,
-          description: randomReverse.description,
-        },
-      })
-    })
-
-    // 休息格子
-    restPositions.forEach(pos => {
-      cellMap.set(pos, {
-        id: pos,
-        type: 'special',
-        position: pos,
-        effect: {
-          type: 'rest',
-          value: 1,
-          description: '休息1回合',
-        },
-      })
-    })
-
-    // 回到起点格子
-    restartPositions.forEach(pos => {
-      cellMap.set(pos, {
-        id: pos,
-        type: 'restart',
-        position: pos,
-        effect: {
-          type: 'restart',
-          value: 0,
-          description: '回到起点',
-        },
-      })
-    })
-
-    // 机关格子
-    trapPositions.forEach(pos => {
-      const randomTrap = SecureRandom.choice(traps) as TrapAction & {
-        trapVariant?: string
-        choiceA?: string
-        choiceB?: string
-      }
-
-      cellMap.set(pos, {
-        id: pos,
-        type: 'trap',
-        position: pos,
-        effect: {
-          type: 'trap',
-          value: 0,
-          description: randomTrap.description,
-          trapVariant: randomTrap.trapVariant as TrapVariant | undefined,
-          choiceA: randomTrap.choiceA,
-          choiceB: randomTrap.choiceB,
-        },
-      })
-    })
-
-    // 问答格子（升温局专属）
-    if (qaPositions.length > 0) {
-      const allQuestions = contentPools?.qaQuestions ?? [
-        ...GAME_CONFIG.PARTY_QA_QUESTIONS.warmup,
-        ...GAME_CONFIG.PARTY_QA_QUESTIONS.heating,
-        ...GAME_CONFIG.PARTY_QA_QUESTIONS.finale,
-      ]
-      qaPositions.forEach(pos => {
-        const question = SecureRandom.choice([...allQuestions])
-        cellMap.set(pos, {
-          id: pos,
-          type: 'qa',
-          position: pos,
-          effect: {
-            type: 'qa',
-            value: 0,
-            description: question,
-          },
-        })
-      })
-    }
-
-    // 指令格子（升温局专属）
-    if (darePositions.length > 0) {
-      const allDares = contentPools?.dareInstructions ?? [
-        ...GAME_CONFIG.PARTY_DARE_INSTRUCTIONS.warmup,
-        ...GAME_CONFIG.PARTY_DARE_INSTRUCTIONS.heating,
-        ...GAME_CONFIG.PARTY_DARE_INSTRUCTIONS.finale,
-      ]
-      darePositions.forEach(pos => {
-        const dare = SecureRandom.choice([...allDares])
-        cellMap.set(pos, {
-          id: pos,
-          type: 'dare',
-          position: pos,
-          effect: {
-            type: 'dare',
-            value: 0,
-            description: dare,
-          },
-        })
-      })
-    }
-
-    // 为剩余的空位置创建普通格子（无效果）
-    for (let i = 1; i <= totalCells; i++) {
-      if (!cellMap.has(i)) {
-        cellMap.set(i, {
-          id: i,
-          type: 'bonus',
-          position: i,
-          effect: {
-            type: 'move',
-            value: 0,
-            description: '普通格子',
-          },
-        })
-      }
-    }
-
-    const randomBoard: BoardCell[] = []
-    for (let i = 1; i <= totalCells; i++) {
-      const cell = cellMap.get(i)
-      if (cell) {
-        randomBoard.push(cell)
-      }
-    }
-
-    this.logBoardStats(randomBoard, '自定义棋盘分配信息')
-
-    return randomBoard
-  }
-
-  private static logBoardStats(board: BoardCell[], title: string): void {
-    const punishmentCount = board.filter(c => c.type === 'punishment').length
-    const chainPunishmentCount = board.filter(c => c.type === 'chain_punishment').length
-    const bonusCount = board.filter(c => c.type === 'bonus').length
-    const reverseCount = board.filter(
-      c => c.type === 'special' && c.effect?.type === 'reverse'
-    ).length
-    const restCount = board.filter(c => c.type === 'special' && c.effect?.type === 'rest').length
-    const restartCount = board.filter(c => c.type === 'restart').length
-    const trapCount = board.filter(c => c.type === 'trap').length
-    const qaCount = board.filter(c => c.type === 'qa').length
-    const dareCount = board.filter(c => c.type === 'dare').length
-
-    devLog(title, {
-      totalCells: board.length,
-      punishmentCount,
-      chainPunishmentCount,
-      bonusCount,
-      reverseCount,
-      restCount,
-      restartCount,
-      trapCount,
-      qaCount,
-      dareCount,
-      totalAssigned:
-        punishmentCount +
-        chainPunishmentCount +
-        bonusCount +
-        reverseCount +
-        restCount +
-        restartCount +
-        trapCount +
-        qaCount +
-        dareCount,
-    })
-
-    // 输出每个格子
-    board.forEach(cell => {
-      devLog(`位置 ${cell.position}: ${cell.type} - ${cell.effect?.description || '无效果'}`)
-    })
+    return createSharedBoard(
+      normalizeConfigSnapshot({
+        ...baseConfig,
+        boardConfig: normalizeBoardConfig(boardConf),
+        punishmentConfig: config,
+        traps,
+        qaQuestions: [...(contentPools?.qaQuestions ?? baseConfig.qaQuestions ?? qaQuestions)],
+        dareInstructions: [
+          ...(contentPools?.dareInstructions ?? baseConfig.dareInstructions ?? dareInstructions),
+        ],
+      }),
+      randomSource
+    ) as BoardCell[]
   }
 
   static createPlayers(): Player[] {
@@ -454,67 +170,35 @@ export class GameService {
   }
 
   static createPunishmentConfig(): PunishmentConfig {
-    // 将配置对象转换为包含 name 属性的格式
-    const tools: Record<string, PunishmentTool> = {}
-    Object.entries(GAME_CONFIG.DEFAULT_TOOLS).forEach(([name, tool]) => {
-      tools[name] = { ...tool, name }
-    })
-
-    const bodyParts: Record<string, PunishmentBodyPart> = {}
-    Object.entries(GAME_CONFIG.DEFAULT_BODY_PARTS).forEach(([name, bodyPart]) => {
-      bodyParts[name] = { ...bodyPart, name }
-    })
-
-    const positions: Record<string, PunishmentPosition> = {}
-    Object.entries(GAME_CONFIG.DEFAULT_POSITIONS).forEach(([name, position]) => {
-      positions[name] = { ...position, name }
-    })
-
-    return {
-      tools,
-      bodyParts,
-      positions,
-      minStrikes: GAME_CONFIG.DEFAULT_PUNISHMENT_STRIKES.min,
-      maxStrikes: GAME_CONFIG.DEFAULT_PUNISHMENT_STRIKES.max,
-      step: GAME_CONFIG.DEFAULT_PUNISHMENT_STRIKES.step,
-      maxTakeoffFailures: 5,
-      doublePunishmentChance: GAME_CONFIG.DEFAULT_DOUBLE_PUNISHMENT_CHANCE,
-    }
+    return createSharedPunishmentConfig()
   }
 
   static createBoardConfig(): BoardConfig {
-    return { ...GAME_CONFIG.DEFAULT_BOARD_CONFIG } as BoardConfig
+    return createSharedBoardConfig()
   }
 
   static validateBoardConfig(config: BoardConfig): boolean {
-    const assignedCounts = [
-      config.punishmentCells,
-      config.chainPunishmentCells,
-      config.bonusCells,
-      config.reverseCells,
-      config.restCells,
-      config.restartCells,
-      config.trapCells,
-      config.qaCells ?? 0,
-      config.dareCells ?? 0,
-    ]
-    const totalUsed = assignedCounts.reduce((sum, count) => sum + count, 0)
-
-    return (
-      Number.isInteger(config.totalCells) &&
-      config.totalCells >= 20 &&
-      config.totalCells <= 100 &&
-      assignedCounts.every(count => Number.isInteger(count) && count >= 0) &&
-      totalUsed <= config.totalCells - 2
-    )
+    return validateBoardConfig(config)
   }
 
-  static createAutoBoardConfig(totalCells: number): BoardConfig {
+  static createAutoBoardConfig(
+    totalCells: number,
+    contentCounts: Pick<BoardConfig, 'qaCells' | 'dareCells'> = {}
+  ): BoardConfig {
     if (!Number.isInteger(totalCells) || totalCells < 20 || totalCells > 100) {
       throw new Error('自动分配要求总格子数为 20-100 范围内的整数')
     }
 
-    const assignableCells = totalCells - 2
+    const capacity = totalCells - 2
+    const qaCells =
+      contentCounts.qaCells === undefined
+        ? undefined
+        : Math.min(Math.max(0, Math.trunc(contentCounts.qaCells)), capacity)
+    const dareCells =
+      contentCounts.dareCells === undefined
+        ? undefined
+        : Math.min(Math.max(0, Math.trunc(contentCounts.dareCells)), capacity - (qaCells ?? 0))
+    const assignableCells = capacity - (qaCells ?? 0) - (dareCells ?? 0)
     const targets: Array<{ field: BoardEffectCountField; ratio: number }> = [
       { field: 'punishmentCells', ratio: 0.68 },
       { field: 'chainPunishmentCells', ratio: 0.07 },
@@ -552,6 +236,8 @@ export class GameService {
       restartCells: 0,
       trapCells: 0,
       totalCells,
+      ...(qaCells === undefined ? {} : { qaCells }),
+      ...(dareCells === undefined ? {} : { dareCells }),
     }
     allocations.forEach(allocation => {
       config[allocation.field] = allocation.count
@@ -570,7 +256,8 @@ export class GameService {
     board: BoardCell[],
     currentPlayerIndex: number,
     totalPlayers: number,
-    punishmentConfig: PunishmentConfig
+    punishmentConfig: PunishmentConfig,
+    constraints?: PunishmentConstraints
   ): {
     newPosition: number
     effect?: string
@@ -646,7 +333,11 @@ export class GameService {
         }
 
         // 未达到上限，继续惩罚流程
-        const generatedPunishment = createCompatiblePunishmentAction(punishmentConfig)
+        const generatedPunishment = createCompatiblePunishmentAction(
+          punishmentConfig,
+          undefined,
+          constraints
+        )
 
         // 计算惩罚执行者 - 等概率随机选择其他玩家
         const otherPlayersCount = totalPlayers - 1
@@ -1075,54 +766,11 @@ export class GameService {
   }
 
   // 生成随机惩罚组合
-  static generateRandomPunishment(config: PunishmentConfig): PunishmentAction {
-    // 随机选择工具
-    const toolsArray = this.configToArray(config.tools)
-    const tool = this.selectByRatio(toolsArray)
-
-    // 根据工具强度选择合适的部位
-    const bodyPartsArray = this.configToArray(config.bodyParts)
-    const validBodyParts = bodyPartsArray.filter(b => b.sensitivity >= tool.intensity)
-    let bodyPart: PunishmentBodyPart & { name: string }
-    if (validBodyParts.length > 0) {
-      bodyPart = this.selectByRatio(validBodyParts)
-    } else {
-      // 如果没有合适的部位，选择耐受度最高的部位
-      bodyPart = bodyPartsArray.reduce((max, current) =>
-        current.sensitivity > max.sensitivity ? current : max
-      )
-    }
-
-    // 随机选择姿势（考虑姿势-部位兼容性）
-    const positionsArray = this.configToArray(config.positions)
-    const compatiblePositions = positionsArray.filter(p =>
-      this.isPositionCompatibleWithBodyPart(p, bodyPart)
-    )
-    const position =
-      compatiblePositions.length > 0
-        ? this.selectByRatio(compatiblePositions)
-        : this.selectByRatio(positionsArray)
-
-    // 在配置的范围内随机生成惩罚次数，确保是步长的倍数
-    const minStrikes = Math.max(1, config.minStrikes || 10)
-    const maxStrikes = Math.max(minStrikes, config.maxStrikes || 30)
-    const step = config.step || 5
-
-    // 确保最小值和最大值都是步长的倍数
-    const minMultiple = Math.ceil(minStrikes / step)
-    const maxMultiple = Math.floor(maxStrikes / step)
-
-    // 在有效的倍数范围内随机选择
-    const randomMultiple = SecureRandom.randomInt(minMultiple, maxMultiple)
-    const strikes = randomMultiple * step
-
-    return {
-      tool,
-      bodyPart,
-      position,
-      strikes,
-      description: `用${tool.name}打${bodyPart.name}${strikes}下，姿势：${position.name}`,
-    }
+  static generateRandomPunishment(
+    config: PunishmentConfig,
+    constraints?: PunishmentConstraints
+  ): PunishmentAction {
+    return createCompatiblePunishmentAction(config, undefined, constraints)
   }
 
   // 验证惩罚配置的合理性
@@ -1131,6 +779,12 @@ export class GameService {
     errorMessage?: string
     requiredSensitivity?: number
   } {
+    if (!validateSharedPunishmentConfig(config)) {
+      return {
+        isValid: false,
+        errorMessage: '惩罚配置无效：工具、部位、姿势及次数参数必须符合共享配置约束。',
+      }
+    }
     const toolsArray = this.configToArray(config.tools)
     const bodyPartsArray = this.configToArray(config.bodyParts)
     const positionsArray = this.configToArray(config.positions)

@@ -5,8 +5,6 @@ import {
   createPartySession,
   createPartyTieBreakState,
   decidePartyReaction,
-  getActConstraints,
-  getActDoublePunishmentChance,
   getPartyTimeLimitLeaders,
   isPartyPunishmentChoiceEligible,
   pausePartySession,
@@ -21,8 +19,44 @@ import {
   type PartySession,
   type PartyTieBreakState,
 } from '../../../src/services/partyMode'
-import { GAME_CONFIG } from '../../../src/config/gameConfig'
 import { GameService } from '../../../src/services/gameService'
+import {
+  createBoardConfig as createSharedBoardConfig,
+  createModeConfig,
+  createPunishmentConfig as createSharedPunishmentConfig,
+  createSharedBoard,
+  createStandardConfigSnapshot,
+  GAME_CONFIG,
+  MODE_POLICIES,
+  normalizeBoardConfig,
+  normalizePunishmentConfig,
+  normalizeTrapConfig,
+  validatePunishmentConfig,
+  validateTrapConfig,
+  validateBoardConfig,
+} from './sharedConfig'
+
+export {
+  createModeConfig,
+  createSharedBoard,
+  createStandardConfigSnapshot,
+  normalizePunishmentConfig,
+  normalizeTrapConfig,
+  normalizeConfigSnapshot,
+  projectPublicConfig,
+  serializeConfigSnapshot,
+  validateConfigSnapshot,
+  validatePunishmentConfig,
+  validateTrapConfig,
+} from './sharedConfig'
+export type {
+  BoardRandomSource,
+  ConfigOverrides,
+  ConfigSnapshot,
+  ModeId,
+  ModePolicy,
+  PublicConfigProjection,
+} from './sharedConfig'
 import {
   applyPartyPunishmentIntervention,
   getPartyPunishmentInterventionOptions,
@@ -72,6 +106,7 @@ import type {
   PunishmentConstraints,
   PunishmentVariant,
   ResolvedPunishmentResult,
+  TrapAction,
   VictoryConfig,
 } from '../../../src/types/game'
 
@@ -82,6 +117,7 @@ export type {
   PunishmentAction,
   PunishmentConfig,
   ResolvedPunishmentResult,
+  TrapAction,
   VictoryConfig,
 } from '../../../src/types/game'
 export type { PartyEventCard, PartyEventState } from '../../../src/services/partyEvents'
@@ -101,24 +137,135 @@ export const ONLINE_PLAYER_COLORS = [
 
 export const ONLINE_SCENE_PRESETS = ['default', 'icebreaker', 'hardcore', 'couple'] as const
 export const ONLINE_BOARD_PRESETS = [
+  'standard',
   'party_default',
   'icebreaker',
   'hardcore',
   'couple_finale',
 ] as const
+export const ONLINE_TURN_DURATION_OPTIONS = [30, 60, 90, 120] as const
 
 export type OnlineScenePreset = (typeof ONLINE_SCENE_PRESETS)[number]
 export type OnlineBoardPreset = (typeof ONLINE_BOARD_PRESETS)[number]
+export type OnlineTurnDurationSeconds = (typeof ONLINE_TURN_DURATION_OPTIONS)[number]
 
 export interface OnlineRoomSettings {
   readonly scenePreset: OnlineScenePreset
   readonly boardPreset: OnlineBoardPreset
+  readonly boardConfig: BoardConfig
+  readonly turnDurationSeconds: OnlineTurnDurationSeconds
+  readonly punishmentConfig: PunishmentConfig
+  readonly traps: readonly TrapAction[]
+}
+
+export interface OnlineRoomSettingsView {
+  readonly scenePreset: OnlineScenePreset
+  readonly boardPreset: OnlineBoardPreset
+  readonly boardConfig: BoardConfig
+  readonly turnDurationSeconds: OnlineTurnDurationSeconds
+  /** Present only in the host's lobby projection. */
+  readonly punishmentConfig?: PunishmentConfig
+  /** Present only in the host's lobby projection. */
+  readonly traps?: readonly TrapAction[]
 }
 
 export const DEFAULT_ONLINE_ROOM_SETTINGS: OnlineRoomSettings = Object.freeze({
   scenePreset: 'default',
-  boardPreset: 'party_default',
+  boardPreset: 'standard',
+  boardConfig: Object.freeze(createSharedBoardConfig()) as BoardConfig,
+  turnDurationSeconds: 60,
+  punishmentConfig: createSharedPunishmentConfig(),
+  traps: createModeConfig('online_party').traps,
 })
+
+export function createOnlineBoardConfig(boardPreset: OnlineBoardPreset): BoardConfig {
+  if (boardPreset === 'standard') return createSharedBoardConfig()
+  if (boardPreset === 'icebreaker')
+    return { ...GAME_CONFIG.PARTY_SCENE_PRESETS.icebreaker.boardConfig }
+  if (boardPreset === 'hardcore') return { ...GAME_CONFIG.PARTY_SCENE_PRESETS.hardcore.boardConfig }
+  if (boardPreset === 'couple_finale')
+    return { ...GAME_CONFIG.PARTY_SCENE_PRESETS.intimate.boardConfig }
+  return { ...createModeConfig('online_party').boardConfig }
+}
+
+export function cloneOnlineRoomSettings(
+  settings: OnlineRoomSettings | OnlineRoomSettingsView = DEFAULT_ONLINE_ROOM_SETTINGS
+): OnlineRoomSettings {
+  const boardConfig = normalizeBoardConfig(settings.boardConfig)
+  return {
+    scenePreset: settings.scenePreset,
+    boardPreset: settings.boardPreset,
+    boardConfig,
+    turnDurationSeconds: settings.turnDurationSeconds,
+    punishmentConfig: normalizePunishmentConfig(
+      settings.punishmentConfig,
+      DEFAULT_ONLINE_ROOM_SETTINGS.punishmentConfig
+    ),
+    traps: normalizeTrapConfig(settings.traps, DEFAULT_ONLINE_ROOM_SETTINGS.traps),
+  }
+}
+
+export function normalizeOnlineRoomSettings(value: unknown): OnlineRoomSettings | null {
+  if (!value || typeof value !== 'object') return null
+  const settings = value as Record<string, unknown>
+  const boardPreset = settings.boardPreset as OnlineBoardPreset
+  const scenePreset = settings.scenePreset as OnlineScenePreset
+  const boardConfig =
+    settings.boardConfig === undefined
+      ? ONLINE_BOARD_PRESETS.includes(boardPreset)
+        ? createOnlineBoardConfig(boardPreset)
+        : undefined
+      : settings.boardConfig
+  const turnDurationSeconds =
+    settings.turnDurationSeconds === undefined ? 60 : settings.turnDurationSeconds
+  if (
+    !ONLINE_SCENE_PRESETS.includes(scenePreset) ||
+    !ONLINE_BOARD_PRESETS.includes(boardPreset) ||
+    !ONLINE_TURN_DURATION_OPTIONS.includes(turnDurationSeconds as OnlineTurnDurationSeconds) ||
+    !validateBoardConfig(boardConfig) ||
+    (settings.punishmentConfig !== undefined &&
+      !validatePunishmentConfig(normalizePunishmentConfig(settings.punishmentConfig))) ||
+    (settings.traps !== undefined && !validateTrapConfig(settings.traps))
+  ) {
+    return null
+  }
+  const punishmentConfig = normalizePunishmentConfig(
+    settings.punishmentConfig,
+    DEFAULT_ONLINE_ROOM_SETTINGS.punishmentConfig
+  )
+  const traps = normalizeTrapConfig(settings.traps, DEFAULT_ONLINE_ROOM_SETTINGS.traps)
+  return cloneOnlineRoomSettings({
+    scenePreset,
+    boardPreset,
+    boardConfig,
+    turnDurationSeconds: turnDurationSeconds as OnlineTurnDurationSeconds,
+    punishmentConfig,
+    traps,
+  })
+}
+
+export function projectOnlineRoomSettings(
+  settings: OnlineRoomSettings,
+  includePrivate = false
+): OnlineRoomSettingsView {
+  const publicSettings: OnlineRoomSettingsView = {
+    scenePreset: settings.scenePreset,
+    boardPreset: settings.boardPreset,
+    boardConfig: normalizeBoardConfig(settings.boardConfig),
+    turnDurationSeconds: settings.turnDurationSeconds,
+  }
+  return includePrivate
+    ? {
+        ...publicSettings,
+        punishmentConfig: normalizePunishmentConfig(settings.punishmentConfig),
+        traps: normalizeTrapConfig(settings.traps),
+      }
+    : publicSettings
+}
+
+export function isValidOnlineRoomSettings(value: unknown): value is OnlineRoomSettings {
+  return normalizeOnlineRoomSettings(value) !== null
+}
 
 export interface OnlinePlayerInput {
   readonly id: string
@@ -387,7 +534,7 @@ export interface OnlineGameView {
   readonly status: OnlineGameState['status']
   readonly revision: number
   readonly boardSize: number
-  readonly settings: OnlineRoomSettings
+  readonly settings: OnlineRoomSettingsView
   readonly currentAct: PartyAct
   readonly roundNumber: number
   readonly myTokensRemaining: number
@@ -398,7 +545,14 @@ export interface OnlineGameView {
     prediction?: PartyPrediction
     predictionCorrect?: boolean
   }> | null
-  readonly board: readonly Readonly<{ position: number; type: BoardCell['type'] }>[]
+  readonly board: readonly Readonly<{
+    position: number
+    type: BoardCell['type']
+    effect?: Readonly<{
+      type: NonNullable<BoardCell['effect']>['type']
+      value: number
+    }>
+  }>[]
   readonly pendingAction:
     | Readonly<{
         kind: 'punishment_choice'
@@ -592,7 +746,7 @@ export interface OnlineRoomView {
   readonly status: 'lobby' | 'playing' | 'finished'
   readonly hostPlayerId: string
   readonly players: readonly OnlineRoomPlayerView[]
-  readonly settings: OnlineRoomSettings
+  readonly settings: OnlineRoomSettingsView
   readonly confirmedPlayerIds: readonly string[]
   readonly skipRequestedPlayerIds: readonly string[]
   readonly pauseRequestedPlayerIds: readonly string[]
@@ -620,6 +774,7 @@ export class GameCommandError extends Error {
   constructor(
     readonly code:
       | 'INVALID_ROSTER'
+      | 'INVALID_SETTINGS'
       | 'GAME_FINISHED'
       | 'PLAYER_NOT_FOUND'
       | 'NOT_YOUR_TURN'
@@ -670,15 +825,25 @@ export function createOnlineGame(
   ) {
     throw new GameCommandError('INVALID_ROSTER', '联网升温局需要 2–8 名身份唯一的玩家')
   }
+  if (!isValidOnlineRoomSettings(settings)) {
+    throw new GameCommandError('INVALID_SETTINGS', '联机房间设置无效')
+  }
   const firstPlayer = roster[0]
   if (!firstPlayer) throw new GameCommandError('INVALID_ROSTER', '玩家名单不能为空')
-  const punishmentConfig = options.punishmentConfig ?? GameService.createPunishmentConfig()
-  const baselineTraps = GAME_CONFIG.PARTY_TRAPS.filter(
-    trap => !trap.trapVariant?.startsWith('mini_game_') || trap.trapVariant === 'mini_game_reaction'
-  ).filter(trap => settings.scenePreset !== 'couple' || trap.trapVariant !== 'all_players')
-  const board = options.board
-    ? [...options.board]
-    : GameService.createBoard(punishmentConfig, boardConfigFor(settings.boardPreset), baselineTraps)
+  const resolvedSettings = cloneOnlineRoomSettings(settings)
+  const punishmentConfig = options.punishmentConfig ?? resolvedSettings.punishmentConfig
+  const baselineTraps = resolvedSettings.traps
+    .filter(
+      trap =>
+        !trap.trapVariant?.startsWith('mini_game_') || trap.trapVariant === 'mini_game_reaction'
+    )
+    .filter(trap => resolvedSettings.scenePreset !== 'couple' || trap.trapVariant !== 'all_players')
+  const standardConfig = createStandardConfigSnapshot()
+  standardConfig.punishmentConfig = punishmentConfig
+  const onlineConfig = createModeConfig('online_party', standardConfig)
+  onlineConfig.boardConfig = normalizeBoardConfig(resolvedSettings.boardConfig)
+  onlineConfig.traps = baselineTraps.map(trap => ({ ...trap }))
+  const board = options.board ? [...options.board] : createSharedBoard(onlineConfig)
   const partySession = beginPartyTurn(
     createPartySession({ playerCount: roster.length, startedAt: options.startedAt ?? 0 }),
     0
@@ -689,10 +854,10 @@ export function createOnlineGame(
     status: 'playing',
     revision: 1,
     boardSize: board.length,
-    settings,
+    settings: resolvedSettings,
     partySession,
     board,
-    punishmentConfig,
+    punishmentConfig: onlineConfig.punishmentConfig,
     pendingAction: null,
     eventState: createPartyEventState(options.eventDeck),
     eventQueue: [],
@@ -704,7 +869,7 @@ export function createOnlineGame(
     currentPlayerId: firstPlayer.id,
     phase: 'awaiting_prediction',
     diceValue: null,
-    deadlineAt: (options.startedAt ?? 0) + 10_000,
+    deadlineAt: (options.startedAt ?? 0) + resolvedSettings.turnDurationSeconds * 1_000,
     players: roster.map(player => ({
       ...player,
       position: 0,
@@ -1413,7 +1578,8 @@ function applyOnlineGameCommandInternal(
     [...state.board],
     actorIndex,
     state.players.length,
-    state.punishmentConfig
+    state.punishmentConfig,
+    onlineActConstraints(state)
   )
   const moved: OnlinePlayer = {
     ...actor,
@@ -1621,7 +1787,7 @@ export function projectOnlineGameView(state: OnlineGameState, viewerId: string):
     status: state.status,
     revision: state.revision,
     boardSize: state.boardSize,
-    settings: state.settings,
+    settings: projectOnlineRoomSettings(state.settings),
     currentAct: state.partySession.act,
     roundNumber: state.partySession.roundNumber,
     myTokensRemaining: state.partySession.tokensRemaining[viewerIndex] ?? 0,
@@ -1640,7 +1806,11 @@ export function projectOnlineGameView(state: OnlineGameState, viewerId: string):
               : undefined,
         }
       : null,
-    board: state.board.map(cell => ({ position: cell.position, type: cell.type })),
+    board: state.board.map(cell => ({
+      position: cell.position,
+      type: cell.type,
+      effect: cell.effect ? { type: cell.effect.type, value: cell.effect.value } : undefined,
+    })),
     pendingAction,
     winnerPlayerId: state.winnerPlayerId,
     victorySettlement: state.victorySettlement,
@@ -2040,31 +2210,13 @@ function onlineDeadlineKey(state: OnlineGameState): string | null {
 }
 
 function onlineDeadlineDuration(state: OnlineGameState): number {
-  if (state.phase === 'awaiting_prediction' || state.phase === 'awaiting_reaction') return 10_000
-  if (state.pendingAction?.kind === 'punishment_intervention') return 15_000
-  if (state.pendingAction?.kind === 'event_vote') return 10_000
-  if (
-    state.pendingAction?.kind === 'event_mini_game' &&
-    state.pendingAction.card.effect.game === 'quick_quiz'
-  ) {
-    return 8_000
-  }
-  return 20_000
+  return state.settings.turnDurationSeconds * 1_000
 }
 
 function requireCurrentPlayer(state: OnlineGameState, actorId: string): void {
   if (state.currentPlayerId !== actorId) {
     throw new GameCommandError('NOT_YOUR_TURN', '当前不是你的回合')
   }
-}
-
-function boardConfigFor(boardPreset: OnlineBoardPreset): BoardConfig {
-  if (boardPreset === 'icebreaker')
-    return { ...GAME_CONFIG.PARTY_SCENE_PRESETS.icebreaker.boardConfig }
-  if (boardPreset === 'hardcore') return { ...GAME_CONFIG.PARTY_SCENE_PRESETS.hardcore.boardConfig }
-  if (boardPreset === 'couple_finale')
-    return { ...GAME_CONFIG.PARTY_SCENE_PRESETS.intimate.boardConfig }
-  return { ...GAME_CONFIG.PARTY_BOARD_CONFIG }
 }
 
 function onlineActConstraints(state: OnlineGameState): PunishmentConstraints {
@@ -2077,7 +2229,7 @@ function onlineActConstraints(state: OnlineGameState): PunishmentConstraints {
           ? GAME_CONFIG.PARTY_SCENE_PRESETS.intimate
           : undefined
   return {
-    ...getActConstraints(state.partySession.act),
+    ...(MODE_POLICIES.online_party.stageConstraints[state.partySession.act] ?? {}),
     ...(scene?.actConstraintsOverride?.[state.partySession.act] ?? {}),
   }
 }
@@ -2109,13 +2261,11 @@ function beginLandingResolution(
     return completeOnlineTurn(state, state.players, actorIndex, false, dependencies.now?.())
   }
   if (effect.type === 'punishment' || effect.type === 'chain_punishment') {
-    const action =
-      effect.punishment ??
-      createCompatiblePunishmentAction(
-        state.punishmentConfig,
-        undefined,
-        onlineActConstraints(state)
-      )
+    const action = createCompatiblePunishmentAction(
+      state.punishmentConfig,
+      undefined,
+      onlineActConstraints(state)
+    )
     return beginPunishmentResolution(
       state,
       {
@@ -2400,7 +2550,7 @@ function continueAfterPunishmentAcknowledgement(
       )
     }
   }
-  const doubleChance = getActDoublePunishmentChance(state.partySession.act)
+  const doubleChance = onlineActConstraints(state).doublePunishmentChance ?? 20
   const doubleRoll = dependencies.randomInt?.(1, 100) ?? 101
   if (
     !pending.doubled &&
@@ -2796,7 +2946,7 @@ function startEventMiniGame(
       card,
       actorIndex,
       startedAt: now,
-      deadline: now + 20_000,
+      deadline: now + state.settings.turnDurationSeconds * 1_000,
       sequence: challenge.sequence,
       options: challenge.options,
     }
@@ -2806,7 +2956,7 @@ function startEventMiniGame(
       card,
       actorIndex,
       startedAt: now,
-      deadline: now + 8_000,
+      deadline: now + state.settings.turnDurationSeconds * 1_000,
     }
   }
   return {

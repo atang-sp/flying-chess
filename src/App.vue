@@ -106,12 +106,13 @@
   import { usePartyMode } from './composables/usePartyMode'
   import { useMultiDeviceHost } from './composables/useMultiDeviceHost'
   import { type GameMode } from './config/modes'
+  import { createModeConfig, createStandardConfigSnapshot } from '@flying-chess/game-core/config'
   import {
     createPartyPunishmentChoices,
     getActConstraints,
-    getActDoublePunishmentChance,
     getPartyTimeLimitLeaders,
     isPartyPunishmentChoiceEligible,
+    type PartyAct,
     type PartyPrediction,
     type PartyReactionDecision,
   } from './services/partyMode'
@@ -360,6 +361,17 @@
   const showDareDisplay = ref(false)
   const currentDareInstruction = ref('')
   const selectedPartyScene = ref<PartyScenePreset | 'default'>('default')
+
+  const getCurrentPartyActConstraints = (act: PartyAct): PunishmentConstraints => {
+    const scene =
+      selectedPartyScene.value === 'default'
+        ? undefined
+        : GAME_CONFIG.PARTY_SCENE_PRESETS[selectedPartyScene.value]
+    return {
+      ...getActConstraints(act),
+      ...(scene?.actConstraintsOverride?.[act] ?? {}),
+    }
+  }
 
   // 反弹效果弹窗状态
   const showBounceDisplay = ref(false)
@@ -698,7 +710,7 @@
       const partySessionSnapshot = partySession.value
       const actConstraints =
         isPartyGame.value && partySessionSnapshot
-          ? getActConstraints(partySessionSnapshot.act)
+          ? getCurrentPartyActConstraints(partySessionSnapshot.act)
           : undefined
       const actAwarePunishment =
         actConstraints !== undefined
@@ -1548,10 +1560,16 @@
     eventDeck?: readonly PartyEventCard[]
     studioConfig?: PartyStudioConfig
   }) => {
-    classicConfigSnapshot.value = {
+    const standardSnapshot = createStandardConfigSnapshot({
       boardConfig: cloneConfig(gameState.boardConfig),
       punishmentConfig: cloneConfig(gameState.punishmentConfig),
-      trapConfig: cloneConfig(trapConfig.value),
+      traps: cloneConfig(trapConfig.value),
+    })
+    const partySnapshot = createModeConfig('party', standardSnapshot)
+    classicConfigSnapshot.value = {
+      boardConfig: cloneConfig(standardSnapshot.boardConfig),
+      punishmentConfig: cloneConfig(standardSnapshot.punishmentConfig),
+      trapConfig: cloneConfig(standardSnapshot.traps),
     }
     activeMode.value = 'party'
     selectedPartyScene.value = playerConfig.scenePreset ?? 'default'
@@ -1560,33 +1578,50 @@
     gameState.diceValue = null
     gameState.winner = null
     gameState.pendingEffect = null
-    gameState.punishmentConfig = GameService.createPunishmentConfig()
+    gameState.punishmentConfig = cloneConfig(partySnapshot.punishmentConfig)
 
     const sceneKey = selectedPartyScene.value
     const scene = sceneKey !== 'default' ? GAME_CONFIG.PARTY_SCENE_PRESETS[sceneKey] : undefined
     const studio = playerConfig.studioConfig?.enabled ? playerConfig.studioConfig : undefined
     activePartyStudioConfig.value = studio ?? null
     gameState.boardConfig = {
-      ...(studio?.boardConfig ?? scene?.boardConfig ?? GAME_CONFIG.PARTY_BOARD_CONFIG),
+      ...(studio?.boardConfig ?? scene?.boardConfig ?? partySnapshot.boardConfig),
     } as BoardConfig
 
     const unlockedPartyContent = getUnlockedPartyContent(localProgress.value)
     const partyTraps =
       sceneKey === 'intimate'
-        ? GAME_CONFIG.PARTY_TRAPS.filter(trap => trap.trapVariant !== 'all_players')
-        : [...GAME_CONFIG.PARTY_TRAPS]
+        ? partySnapshot.traps.filter(trap => trap.trapVariant !== 'all_players')
+        : [...partySnapshot.traps]
     trapConfig.value = partyTraps.filter(
       trap =>
         !trap.trapVariant?.startsWith('mini_game_') ||
         unlockedPartyContent.miniGameTraps.includes(trap.trapVariant)
     )
 
-    const warmupConstraints: PunishmentConstraints = {
-      ...getActConstraints('warmup'),
-      ...(scene?.actConstraintsOverride?.warmup ?? {}),
-    }
+    const warmupConstraints = getCurrentPartyActConstraints('warmup')
     if (warmupConstraints.doublePunishmentChance !== undefined) {
       gameState.punishmentConfig.doublePunishmentChance = warmupConstraints.doublePunishmentChance
+    }
+
+    const partyBoardConfig = createModeConfig(
+      'party',
+      createStandardConfigSnapshot({
+        boardConfig: cloneConfig(gameState.boardConfig),
+        punishmentConfig: cloneConfig(gameState.punishmentConfig),
+        traps: cloneConfig(trapConfig.value),
+        qaQuestions: studio ? Object.values(studio.qaQuestions).flat() : undefined,
+        dareInstructions: studio ? Object.values(studio.dareInstructions).flat() : undefined,
+      })
+    )
+    partyBoardConfig.boardConfig = cloneConfig(gameState.boardConfig)
+    partyBoardConfig.punishmentConfig = cloneConfig(gameState.punishmentConfig)
+    partyBoardConfig.traps = cloneConfig(trapConfig.value)
+    partyBoardConfig.punishmentConstraints = { ...warmupConstraints }
+    partyBoardConfig.stageConstraints = {
+      warmup: { ...warmupConstraints },
+      heating: { ...getCurrentPartyActConstraints('heating') },
+      finale: { ...getCurrentPartyActConstraints('finale') },
     }
 
     const generatedBoard = GameService.createBoard(
@@ -1598,7 +1633,9 @@
             qaQuestions: Object.values(studio.qaQuestions).flat(),
             dareInstructions: Object.values(studio.dareInstructions).flat(),
           }
-        : undefined
+        : undefined,
+      undefined,
+      partyBoardConfig
     )
     gameState.board = studio
       ? applyPartyBoardLayout(generatedBoard, studio.cellLayout)
@@ -2061,7 +2098,10 @@
           gameState.board,
           gameState.currentPlayerIndex,
           gameState.players.length,
-          gameState.punishmentConfig
+          gameState.punishmentConfig,
+          isPartyGame.value
+            ? getCurrentPartyActConstraints(partySession.value?.act ?? 'warmup')
+            : undefined
         )
 
       // 更新玩家位置
@@ -2418,7 +2458,8 @@
         punishmentResolution.variant !== 'encore'
       ) {
         const chance = isPartyGame.value
-          ? getActDoublePunishmentChance(partySession.value?.act ?? 'warmup')
+          ? (getCurrentPartyActConstraints(partySession.value?.act ?? 'warmup')
+              .doublePunishmentChance ?? 0)
           : (gameState.punishmentConfig.doublePunishmentChance ?? 0)
         if (chance > 0 && SecureRandom.randomInt(1, 100) <= chance) {
           pendingDoublePunishment.value = { ...currentPunishment.value }
@@ -2470,7 +2511,13 @@
   const handleChainRollResult = (continueChain: boolean) => {
     showChainPunishmentRoll.value = false
     if (continueChain) {
-      const newPunishment = GameService.generateRandomPunishment(gameState.punishmentConfig)
+      const actConstraints = isPartyGame.value
+        ? getCurrentPartyActConstraints(partySession.value?.act ?? 'warmup')
+        : undefined
+      const newPunishment = GameService.generateRandomPunishment(
+        gameState.punishmentConfig,
+        actConstraints
+      )
       const chainResolution = resolveRule({
         source: 'board_punishment',
         actorIndex: gameState.currentPlayerIndex,
@@ -2793,7 +2840,7 @@
     pendingRuleResolution.value = null
 
     const actConstraints = partySession.value
-      ? getActConstraints(partySession.value.act)
+      ? getCurrentPartyActConstraints(partySession.value.act)
       : undefined
     const punishment = createCompatiblePunishmentAction(
       gameState.punishmentConfig,

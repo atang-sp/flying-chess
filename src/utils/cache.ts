@@ -6,6 +6,7 @@ import {
   type GameMode,
 } from '../config/modes'
 import { normalizeVictoryConfig } from '../services/victorySettlement'
+import { normalizeConfigSnapshot } from '@flying-chess/game-core/config'
 import {
   DEFAULT_PARTY_EVENT_DECK,
   validatePartyEventDeck,
@@ -57,7 +58,17 @@ export interface CachedConfig {
  * 保存配置到 localStorage
  */
 export function saveConfig(data: Omit<CachedConfig, 'savedAt'>) {
-  const payload: CachedConfig = { ...data, savedAt: Date.now() }
+  const normalized = normalizeConfigSnapshot({
+    boardConfig: data.boardConfig,
+    punishmentConfig: data.punishmentConfig,
+    trapConfig: data.trapConfig,
+  })
+  const payload: CachedConfig = {
+    boardConfig: normalized.boardConfig,
+    punishmentConfig: normalized.punishmentConfig,
+    trapConfig: normalized.traps,
+    savedAt: Date.now(),
+  }
   try {
     localStorage.setItem(GAME_CONFIG_STORAGE_KEY, JSON.stringify(payload))
   } catch (err) {
@@ -80,7 +91,13 @@ export function loadConfig(ttl: number = DEFAULT_TTL): CachedConfig | null {
       localStorage.removeItem(GAME_CONFIG_STORAGE_KEY)
       return null
     }
-    return cached
+    const normalized = normalizeConfigSnapshot(cached)
+    return {
+      boardConfig: normalized.boardConfig,
+      punishmentConfig: normalized.punishmentConfig,
+      trapConfig: normalized.traps,
+      savedAt: cached.savedAt,
+    }
   } catch (err) {
     console.warn('读取缓存配置失败:', err)
     return null

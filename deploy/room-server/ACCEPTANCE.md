@@ -18,9 +18,9 @@
 证据不得提交到仓库。先复制模板到已被 `.gitignore` 排除的目录：
 
 ```bash
-mkdir -p .acceptance-evidence/v1.12.6/{evidence,artifacts}
+mkdir -p .acceptance-evidence/v1.13.0/{evidence,artifacts}
 cp deploy/room-server/acceptance-evidence.template.json \
-  .acceptance-evidence/v1.12.6/evidence.json
+  .acceptance-evidence/v1.13.0/evidence.json
 ```
 
 每个 `evidenceRefs` 都必须指向结构化 JSON 证明，可从 `acceptance-proof.template.json` 复制。证明必须包含同一个发布标签、UTC 时间、证明类别、与主清单完全一致的 `claims`，以及至少一个原始材料文件和它的 SHA-256。校验器会读取原始文件并重新计算摘要；空文件、目录、错误摘要、错误版本、错误类别、声明不一致或私人字段都会失败。
@@ -43,7 +43,7 @@ cp deploy/room-server/acceptance-evidence.template.json \
 计算摘要示例：
 
 ```bash
-sha256sum .acceptance-evidence/v1.12.6/artifacts/<已脱敏材料>
+sha256sum .acceptance-evidence/v1.13.0/artifacts/<已脱敏材料>
 ```
 
 生产资源证据至少在现场验收前、中、后各采样一次。`swapSamplesMiB` 至少填 3 个数；校验器将峰峰值不超过 128MiB 作为“无 swap 振荡”的保守可重复判据。
@@ -78,7 +78,7 @@ sha256sum .acceptance-evidence/v1.12.6/artifacts/<已脱敏材料>
 
 ```bash
 npm run verify:online-acceptance -- \
-  .acceptance-evidence/v1.12.6/evidence.json
+  .acceptance-evidence/v1.13.0/evidence.json
 ```
 
 退出码 `0` 且输出 `PASS` 才表示证据合同满足；退出码 `1` 表示一个或多个硬门槛失败，退出码 `2` 表示文件/JSON 用法错误。该命令只校验证据完整性，不会替代人工核对材料真实性。
