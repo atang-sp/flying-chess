@@ -4,6 +4,7 @@
   import {
     ONLINE_PLAYER_COLORS,
     type OnlineClientMessage,
+    type OnlineRoomPlayerView,
     type OnlineRoomSettings,
     type OnlineRoomView,
     type OnlineServerMessage,
@@ -33,6 +34,7 @@
   const qrCodeUrl = ref('')
   const memoryAnswer = ref<string[]>([])
   const eventSelectedPlayerIds = ref<string[]>([])
+  const hostTransferNotice = ref('')
   const currentTime = ref(Date.now())
   let requestSequence = 0
   let clockTimer: number | undefined
@@ -117,11 +119,41 @@
       game.value?.phase ?? ''
     )
   )
+  const hasRequestedPause = computed(
+    () =>
+      !!session.value &&
+      (room.value?.pauseRequestedPlayerIds.includes(session.value.playerId) ?? false)
+  )
+
+  const scenePresetLabels: Record<OnlineRoomSettings['scenePreset'], string> = {
+    default: '默认升温局',
+    icebreaker: '初见破冰',
+    hardcore: '老友加码',
+    couple: '双人终局风格',
+  }
+  const boardPresetLabels: Record<OnlineRoomSettings['boardPreset'], string> = {
+    party_default: '升温局默认棋盘',
+    icebreaker: '破冰棋盘',
+    hardcore: '加码棋盘',
+    couple_finale: '终局棋盘',
+  }
+  const actLabels: Record<'warmup' | 'heating' | 'finale', string> = {
+    warmup: '热身阶段',
+    heating: '升温阶段',
+    finale: '终局阶段',
+  }
 
   function offlineSeconds(disconnectedAt: number | undefined): number {
     return disconnectedAt === undefined
       ? 0
       : Math.max(0, Math.floor((currentTime.value - disconnectedAt) / 1_000))
+  }
+
+  function offlineRetentionMessage(player: OnlineRoomPlayerView): string {
+    if (player.removalBlockReason === 'minimum_players') return '双人局需保留两位玩家'
+    if (player.removalBlockReason === 'unsafe_game_state') return '等待新回合安全节点后可移除'
+    if (player.removalBlockReason === 'reconnect_grace') return '保留原席位（90 秒保护）'
+    return '保留原席位'
   }
 
   function punishmentCountOptions(
@@ -253,6 +285,22 @@
       if (settings) settingsDraft.value = { ...settings }
     },
     { deep: true }
+  )
+
+  watch(
+    () => room.value?.hostPlayerId,
+    (nextHostPlayerId, previousHostPlayerId) => {
+      if (
+        previousHostPlayerId &&
+        nextHostPlayerId &&
+        nextHostPlayerId !== previousHostPlayerId &&
+        nextHostPlayerId === session.value?.playerId
+      ) {
+        hostTransferNotice.value = '原主持人离线或已转交，你已接任主持人。'
+      } else if (nextHostPlayerId !== session.value?.playerId) {
+        hostTransferNotice.value = ''
+      }
+    }
   )
 
   watch(
@@ -469,11 +517,15 @@
             <dl v-else class="settings-summary">
               <div>
                 <dt>场景</dt>
-                <dd>{{ room.settings.scenePreset }}</dd>
+                <dd data-testid="scene-setting-label">
+                  {{ scenePresetLabels[room.settings.scenePreset] }}
+                </dd>
               </div>
               <div>
                 <dt>棋盘</dt>
-                <dd>{{ room.settings.boardPreset }}</dd>
+                <dd data-testid="board-setting-label">
+                  {{ boardPresetLabels[room.settings.boardPreset] }}
+                </dd>
               </div>
             </dl>
           </div>
@@ -509,8 +561,14 @@
           <p class="eyebrow">第 {{ game.revision }} 次状态更新</p>
           <h2 v-if="game.status === 'finished'">对局结束</h2>
           <h2 v-else>{{ currentPlayer?.nickname }} 的回合</h2>
+          <span v-if="isHost" class="host-badge" data-testid="host-role">你是主持人</span>
+          <p v-if="hostTransferNotice" class="confirmed-note" role="status">
+            {{ hostTransferNotice }}
+          </p>
           <p>
-            第 {{ game.roundNumber }} 轮 · {{ game.currentAct }} · 你的筹码
+            第 {{ game.roundNumber }} 轮 ·
+            <span data-testid="act-label">{{ actLabels[game.currentAct] }}</span>
+            · 你的筹码
             {{ game.myTokensRemaining }}
           </p>
           <p v-if="deadlineSeconds !== null" class="deadline-note">
@@ -520,20 +578,26 @@
           <p v-if="room.skipRequestedPlayerIds.length" class="hint">
             {{ room.skipRequestedPlayerIds.length }} 人请求跳过当前核心操作，等待主持人决定。
           </p>
+          <p v-if="room.pauseRequestedPlayerIds.length" class="hint">
+            {{ room.pauseRequestedPlayerIds.length }} 人请求暂停，等待主持人决定。
+          </p>
           <div class="decision-grid session-controls">
             <button
-              v-if="game.paused"
+              v-if="game.paused && isHost"
               class="btn btn-secondary"
+              data-testid="resume-game"
               @click="send({ type: 'resume_game', requestId: requestId('resume-game') })"
             >
               恢复游戏
             </button>
             <button
-              v-else
+              v-else-if="!game.paused"
               class="btn btn-secondary"
+              :data-testid="isHost ? 'pause-game' : 'request-pause'"
+              :disabled="!isHost && hasRequestedPause"
               @click="send({ type: 'pause_game', requestId: requestId('pause') })"
             >
-              暂停游戏
+              {{ isHost ? '暂停游戏' : hasRequestedPause ? '已请求暂停' : '请求暂停' }}
             </button>
             <button
               v-if="!game.paused"
@@ -543,6 +607,7 @@
               {{ isCoreOperation && !isHost ? '请求主持人跳过' : '跳过当前操作' }}
             </button>
           </div>
+          <p v-if="game.paused && !isHost" class="hint">等待主持人恢复游戏。</p>
           <ul
             v-if="room.players.some(player => !player.connected)"
             class="player-list compact-list"
@@ -565,7 +630,12 @@
               >
                 移除离场玩家
               </button>
-              <small v-else>保留原席位（90 秒保护）</small>
+              <small v-else-if="player.removable" data-testid="offline-retention-status">
+                等待主持人处理离场玩家
+              </small>
+              <small v-else data-testid="offline-retention-status">
+                {{ offlineRetentionMessage(player) }}
+              </small>
             </li>
           </ul>
           <div class="dice-face" data-testid="dice-value">{{ game.diceValue ?? '—' }}</div>

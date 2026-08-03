@@ -585,6 +585,7 @@ export interface OnlineRoomPlayerView {
   readonly connected: boolean
   readonly disconnectedAt?: number
   readonly removable: boolean
+  readonly removalBlockReason?: 'reconnect_grace' | 'minimum_players' | 'unsafe_game_state'
 }
 
 export interface OnlineRoomView {
@@ -594,6 +595,7 @@ export interface OnlineRoomView {
   readonly settings: OnlineRoomSettings
   readonly confirmedPlayerIds: readonly string[]
   readonly skipRequestedPlayerIds: readonly string[]
+  readonly pauseRequestedPlayerIds: readonly string[]
   readonly game: OnlineGameView | null
 }
 

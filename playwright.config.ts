@@ -20,7 +20,8 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: 'NODE_ENV=test ROOM_SERVER_TEST_DICE=6 npm run dev:room-server',
+      command:
+        'NODE_ENV=test ROOM_SERVER_TEST_DICE=6 ROOM_SERVER_TEST_RECONNECT_GRACE_MS=500 npm run dev:room-server',
       url: 'http://127.0.0.1:8787/health',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

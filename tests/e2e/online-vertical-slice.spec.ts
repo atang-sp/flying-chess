@@ -50,9 +50,21 @@ test('扫码受邀页突出加入动作，并允许两名玩家确认后开局',
     await guest.getByTestId('join-room').click()
 
     await expect(host.getByTestId('room-player')).toHaveCount(2)
+    await expect(guest.getByTestId('scene-setting-label')).toHaveText('默认升温局')
+    await expect(guest.getByTestId('board-setting-label')).toHaveText('升温局默认棋盘')
     await Promise.all([host, guest].map(page => page.getByTestId('confirm-settings').click()))
     await expect(host.getByTestId('start-online-game')).toBeEnabled()
     await host.getByTestId('start-online-game').click()
+    await expect(host.getByTestId('host-role')).toHaveText('你是主持人')
+    await expect(guest.getByTestId('host-role')).toHaveCount(0)
+    await expect(guest.getByTestId('act-label')).toHaveText('热身阶段')
+    await guest.getByTestId('request-pause').click()
+    await expect(host.getByText('1 人请求暂停，等待主持人决定。')).toBeVisible()
+    await expect(guest.getByTestId('request-pause')).toBeDisabled()
+    await host.getByTestId('pause-game').click()
+    await expect(guest.getByText('游戏已暂停，倒计时已冻结。')).toBeVisible()
+    await expect(guest.getByTestId('resume-game')).toHaveCount(0)
+    await host.getByTestId('resume-game').click()
     await guest.getByTestId('predict-high').click()
     await expect(host.getByTestId('roll-dice')).toBeVisible()
   } finally {
@@ -114,6 +126,39 @@ test('两套浏览器通过房间服务器完成建房、加入、刷新重连�
     await expect(playerTwo.getByText('房间服务已连接')).toBeVisible()
     await expect(playerTwo.getByTestId('roll-dice')).toBeVisible()
     await expect(playerTwo.getByTestId('player-position')).toHaveCount(3)
+  } finally {
+    await hostContext.close()
+    await guestContext.close()
+  }
+})
+
+test('主持人断线后明确通知接任玩家，并说明双人局保留离线席位的原因', async ({
+  browser,
+}, testInfo) => {
+  const options = projectContextOptions(testInfo.project.name, testInfo.project.use.viewport)
+  const hostContext = await browser.newContext(options)
+  const guestContext = await browser.newContext(options)
+  const host = await hostContext.newPage()
+  const guest = await guestContext.newPage()
+
+  try {
+    await host.goto('/flying-chess/online.html')
+    await host.getByTestId('nickname').fill('主持人')
+    await host.getByTestId('create-room').click()
+    const roomCode = (await host.getByTestId('room-code').textContent())?.trim()
+    expect(roomCode).toMatch(/^[A-Z2-9]{6}$/)
+
+    await guest.goto(`/flying-chess/online.html?room=${roomCode}`)
+    await guest.getByTestId('nickname').fill('接任玩家')
+    await guest.getByTestId('join-room').click()
+    await Promise.all([host, guest].map(page => page.getByTestId('confirm-settings').click()))
+    await host.getByTestId('start-online-game').click()
+    await expect(guest.getByTestId('host-role')).toHaveCount(0)
+
+    await host.close()
+    await expect(guest.getByTestId('host-role')).toHaveText('你是主持人')
+    await expect(guest.getByRole('status')).toHaveText('原主持人离线或已转交，你已接任主持人。')
+    await expect(guest.getByTestId('offline-retention-status')).toHaveText('双人局需保留两位玩家')
   } finally {
     await hostContext.close()
     await guestContext.close()

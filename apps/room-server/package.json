@@ -1,6 +1,6 @@
 {
   "name": "@flying-chess/room-server",
-  "version": "1.12.5",
+  "version": "1.12.6",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,7 @@
     "type-check": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@flying-chess/game-core": "1.12.5",
+    "@flying-chess/game-core": "1.12.6",
     "ws": "^8.18.3"
   },
   "devDependencies": {

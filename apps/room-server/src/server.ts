@@ -50,6 +50,7 @@ interface Room {
   settings: OnlineRoomSettings
   readonly confirmedPlayerIds: Set<string>
   readonly skipRequestedPlayerIds: Set<string>
+  readonly pauseRequestedPlayerIds: Set<string>
   game: OnlineGameState | null
 }
 
@@ -222,6 +223,8 @@ export async function createRoomServer(
       if (!session || session.player.socket !== socket) return
       session.player.socket = null
       session.player.disconnectedAt = now()
+      session.room.skipRequestedPlayerIds.delete(session.player.id)
+      session.room.pauseRequestedPlayerIds.delete(session.player.id)
       if (rooms.get(session.room.code) === session.room) broadcastRoom(session.room)
     })
   })
@@ -242,6 +245,7 @@ export async function createRoomServer(
         settings: { ...DEFAULT_ONLINE_ROOM_SETTINGS },
         confirmedPlayerIds: new Set(),
         skipRequestedPlayerIds: new Set(),
+        pauseRequestedPlayerIds: new Set(),
         game: null,
       }
       rooms.set(code, room)
@@ -322,6 +326,8 @@ export async function createRoomServer(
         )
       }
       room.hostPlayerId = message.playerId
+      room.skipRequestedPlayerIds.clear()
+      room.pauseRequestedPlayerIds.clear()
       broadcastRoom(room)
       return
     }
@@ -360,6 +366,8 @@ export async function createRoomServer(
       }
       room.players.splice(targetIndex, 1)
       room.confirmedPlayerIds.delete(target.id)
+      room.skipRequestedPlayerIds.delete(target.id)
+      room.pauseRequestedPlayerIds.delete(target.id)
       broadcastRoom(room)
       return
     }
@@ -428,6 +436,16 @@ export async function createRoomServer(
     }
 
     if (!room.game) throw new ProtocolError('GAME_NOT_STARTED', '游戏尚未开始', message.requestId)
+    if (message.type === 'pause_game' && room.hostPlayerId !== player.id) {
+      if (room.game.partySession.pausedAt === undefined) {
+        room.pauseRequestedPlayerIds.add(player.id)
+        broadcastRoom(room)
+      }
+      return
+    }
+    if (message.type === 'resume_game' && room.hostPlayerId !== player.id) {
+      throw new ProtocolError('HOST_ONLY', '只有主持人可以恢复游戏', message.requestId)
+    }
     let command: OnlineGameCommand
     if (message.type === 'submit_prediction') {
       command = { type: message.type, prediction: message.prediction }
@@ -466,6 +484,9 @@ export async function createRoomServer(
     }
     room.game = applyOnlineGameCommand(room.game, player.id, command, gameDependencies)
     room.skipRequestedPlayerIds.clear()
+    if (message.type === 'pause_game' || message.type === 'resume_game') {
+      room.pauseRequestedPlayerIds.clear()
+    }
     broadcastRoom(room)
   }
 
@@ -526,25 +547,41 @@ function projectRoom(
   now: number,
   reconnectGraceMs: number
 ): RoomView {
+  const removalSafe = room.game ? isOnlinePlayerRemovalSafe(room.game) : true
   return {
     status: room.game?.status ?? 'lobby',
     hostPlayerId: room.hostPlayerId,
-    players: room.players.map<RoomPlayerView>(player => ({
-      id: player.id,
-      nickname: player.nickname,
-      color: player.color,
-      connected: player.socket?.readyState === WebSocket.OPEN,
-      disconnectedAt: player.disconnectedAt ?? undefined,
-      removable:
-        player.disconnectedAt !== null &&
-        now - player.disconnectedAt >= reconnectGraceMs &&
-        (!room.game || (room.players.length > 2 && isOnlinePlayerRemovalSafe(room.game))),
-    })),
+    players: room.players.map<RoomPlayerView>(player => {
+      const connected = player.socket?.readyState === WebSocket.OPEN
+      const graceExpired =
+        player.disconnectedAt !== null && now - player.disconnectedAt >= reconnectGraceMs
+      const removable =
+        !connected && graceExpired && (!room.game || (room.players.length > 2 && removalSafe))
+      const removalBlockReason = connected
+        ? undefined
+        : !graceExpired
+          ? ('reconnect_grace' as const)
+          : room.game && room.players.length <= 2
+            ? ('minimum_players' as const)
+            : room.game && !removalSafe
+              ? ('unsafe_game_state' as const)
+              : undefined
+      return {
+        id: player.id,
+        nickname: player.nickname,
+        color: player.color,
+        connected,
+        disconnectedAt: player.disconnectedAt ?? undefined,
+        removable,
+        removalBlockReason,
+      }
+    }),
     settings: room.settings,
     confirmedPlayerIds: room.players
       .filter(player => room.confirmedPlayerIds.has(player.id))
       .map(player => player.id),
     skipRequestedPlayerIds: [...room.skipRequestedPlayerIds],
+    pauseRequestedPlayerIds: [...room.pauseRequestedPlayerIds],
     game: room.game ? projectOnlineGameView(room.game, viewerId) : null,
   }
 }

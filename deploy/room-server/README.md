@@ -4,10 +4,10 @@
 
 ## 构建与安装
 
-在已检出不可变 `v1.12.5` 标签的仓库根目录执行：
+在已检出不可变 `v1.12.6` 标签的仓库根目录执行：
 
 ```bash
-docker build -f apps/room-server/Dockerfile -t flying-chess-room:1.12.5 .
+docker build -f apps/room-server/Dockerfile -t flying-chess-room:1.12.6 .
 ufw allow in on docker0 from 172.17.0.0/16 to 172.17.0.1 port 8787 proto tcp comment "flying chess room from discourse"
 install -m 0644 deploy/room-server/flying-chess-room.service /etc/systemd/system/
 install -m 0644 deploy/room-server/flying-chess-room-health.service /etc/systemd/system/
