@@ -35,7 +35,8 @@ export class OnlineRoomClient {
       }
     })
     socket.addEventListener('close', () => {
-      if (this.socket === socket) this.socket = null
+      if (this.socket !== socket) return
+      this.socket = null
       this.callbacks.onStatus('disconnected')
       if (!this.manuallyClosed) this.scheduleReconnect()
     })
@@ -43,6 +44,10 @@ export class OnlineRoomClient {
       socket.addEventListener(
         'open',
         () => {
+          if (this.socket !== socket) {
+            socket.close()
+            return
+          }
           this.reconnectAttempt = 0
           this.callbacks.onStatus('connected')
           resolve()

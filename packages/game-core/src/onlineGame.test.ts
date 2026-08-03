@@ -34,6 +34,14 @@ describe('联网升温局权威规则内核', () => {
 
     expect(game.players).toHaveLength(2)
     expect(game.status).toBe('playing')
+    expect(
+      game.board.some(
+        cell =>
+          cell.effect?.type === 'trap' &&
+          (cell.effect.trapVariant === 'mini_game_memory' ||
+            cell.effect.trapVariant === 'mini_game_quiz')
+      )
+    ).toBe(false)
   })
 
   it('安全节点允许三人局移除至两人，但不允许只剩一人', () => {
@@ -66,6 +74,96 @@ describe('联网升温局权威规则内核', () => {
     })
     expect(game.diceValue).toBe(1)
     expect(projectOnlineGameView(game, 'p1').allowedCommands).toContain('move')
+  })
+
+  it('预测结果在反应者做出决定前不得向无关玩家泄露', () => {
+    let game = createOnlineGame(roster)
+    game = applyOnlineGameCommand(game, 'p2', {
+      type: 'submit_prediction',
+      prediction: 'high',
+    })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'roll_dice' }, { rollDice: () => 6 })
+
+    expect(game.phase).toBe('awaiting_reaction')
+    expect(projectOnlineGameView(game, 'p2').reaction).toMatchObject({
+      prediction: 'high',
+      predictionCorrect: true,
+    })
+    expect(projectOnlineGameView(game, 'p1').reaction?.prediction).toBeUndefined()
+    expect(projectOnlineGameView(game, 'p1').reaction?.predictionCorrect).toBeUndefined()
+    expect(projectOnlineGameView(game, 'p3').reaction?.predictionCorrect).toBeUndefined()
+  })
+
+  it('公共玩家列表不投影尚未消费的私密惩罚修正状态', () => {
+    const game = createOnlineGame(roster)
+    const stateWithPrivateModifier = {
+      ...game,
+      players: game.players.map((player, index) =>
+        index === 0
+          ? {
+              ...player,
+              pendingMiniGameImmunity: true,
+              pendingMiniGameMultiplier: 2,
+              pendingMercyMultiplier: 1.5,
+            }
+          : player
+      ),
+    }
+
+    const serializedView = JSON.stringify(projectOnlineGameView(stateWithPrivateModifier, 'p2'))
+    expect(serializedView).not.toContain('pendingMiniGameImmunity')
+    expect(serializedView).not.toContain('pendingMiniGameMultiplier')
+    expect(serializedView).not.toContain('pendingMercyMultiplier')
+  })
+
+  it('老友加码场景会应用暖场幕的最低惩罚强度', () => {
+    const board: BoardCell[] = Array.from({ length: 40 }, (_, index) => ({
+      id: index + 1,
+      position: index + 1,
+      type: 'bonus',
+      effect: { type: 'move', value: 0, description: '普通格子' },
+    }))
+    board[6] = {
+      id: 7,
+      position: 7,
+      type: 'punishment',
+      effect: {
+        type: 'punishment',
+        value: 0,
+        description: '场景约束测试',
+        punishment: {
+          tool: { name: '手掌', intensity: 2, ratio: 100 },
+          bodyPart: { name: '手心', sensitivity: 2, ratio: 100 },
+          position: { name: '站立', ratio: 100, compatibleBodyParts: ['手心'] },
+          strikes: 5,
+          description: '原始惩罚',
+        },
+      },
+    }
+    let game = createOnlineGame(
+      roster,
+      { scenePreset: 'hardcore', boardPreset: 'party_default' },
+      { board, eventDeck: quietEventDeck }
+    )
+    game = {
+      ...game,
+      players: game.players.map((player, index) =>
+        index === 0 ? { ...player, position: 1, hasTakenOff: true } : player
+      ),
+    }
+    game = applyOnlineGameCommand(game, 'p2', {
+      type: 'submit_prediction',
+      prediction: 'high',
+    })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'roll_dice' }, { rollDice: () => 6 })
+    game = applyOnlineGameCommand(game, 'p2', { type: 'decide_reaction', decision: 'keep' })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'move' })
+
+    expect(game.pendingAction?.kind).toBe('punishment_choice')
+    if (game.pendingAction?.kind !== 'punishment_choice') {
+      throw new Error('expected punishment choice')
+    }
+    expect(game.pendingAction.choices.every(choice => (choice.strikes ?? 0) >= 10)).toBe(true)
   })
 
   it('惩罚选择和筹码干预只投影给相关玩家，并由服务器结算免疫', () => {
@@ -393,6 +491,8 @@ describe('联网升温局权威规则内核', () => {
       { type: 'resolve_event' },
       { rollDice: () => 1, now: () => 100 }
     )
+    expect(game.deadlineAt).toBe(8_100)
+    expect(projectOnlineGameView(game, 'p2').pendingAction).toMatchObject({ deadline: 8_100 })
     game = applyOnlineGameCommand(
       game,
       'p2',
@@ -476,6 +576,58 @@ describe('联网升温局权威规则内核', () => {
     expect(game.phase).toBe('awaiting_roll')
     expect(game.partySession.reaction?.prediction).toBe('low')
     expect(game.deadlineAt).toBeNull()
+  })
+
+  it('需要选人的事件明确投影选择人数，超时后采用安全默认继续', () => {
+    const board: BoardCell[] = Array.from({ length: 40 }, (_, index) => ({
+      id: index + 1,
+      position: index + 1,
+      type: 'bonus',
+      effect: { type: 'move', value: 0, description: '普通格子' },
+    }))
+    const bindingDeck: readonly PartyEventCard[] = [
+      {
+        id: 'binding-event',
+        title: '命运绑定',
+        description: '选择两名玩家',
+        tags: ['关系'],
+        trigger: { kind: 'every_n_turns', interval: 1 },
+        effect: { kind: 'bind_players', durationTurns: 3 },
+      },
+    ]
+    let game = createOnlineGame(roster, DEFAULT_ONLINE_ROOM_SETTINGS, {
+      board,
+      eventDeck: bindingDeck,
+      startedAt: 0,
+    })
+    game = applyOnlineGameCommand(game, 'p2', {
+      type: 'submit_prediction',
+      prediction: 'high',
+    })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'roll_dice' }, { rollDice: () => 6 })
+    game = applyOnlineGameCommand(game, 'p2', { type: 'decide_reaction', decision: 'keep' })
+    game = applyOnlineGameCommand(
+      game,
+      'p1',
+      { type: 'move' },
+      { rollDice: () => 1, now: () => 100 }
+    )
+
+    expect(projectOnlineGameView(game, 'p2').pendingAction).toMatchObject({
+      kind: 'event_activation',
+      selectionPlayerCount: 2,
+    })
+    expect(game.deadlineAt).toBe(20_100)
+    expect(() =>
+      applyOnlineGameCommand(game, 'p2', {
+        type: 'resolve_event',
+        selectedPlayerIds: ['p1', 'p1'],
+      })
+    ).toThrow('绑定事件需要两名不同玩家')
+
+    game = applyOnlineGameTimeout(game, 20_100, { rollDice: () => 1, now: () => 20_100 })
+    expect(game.pendingAction).toBeNull()
+    expect(['awaiting_prediction', 'awaiting_roll']).toContain(game.phase)
   })
 
   it('移动类格子由服务器确认结算，休息效果会在下一轮跳过对应玩家', () => {

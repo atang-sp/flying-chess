@@ -13,6 +13,9 @@ export default defineConfig(async ({ command, mode }) => {
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // This is a multi-page app. Let the server/precache resolve these entry points instead of
+        // serving the classic game's index.html for a refreshed invitation or controller URL.
+        navigateFallbackDenylist: [/\/(?:online|controller)\.html(?:\?.*)?$/],
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {

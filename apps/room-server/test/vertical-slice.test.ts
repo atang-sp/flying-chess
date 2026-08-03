@@ -76,6 +76,19 @@ describe('联网升温局服务器权威纵向切片', () => {
     await server?.close()
   })
 
+  it('健康指标统计所有已建立连接，包括尚未加入房间的连接', async () => {
+    server = await createRoomServer({ port: 0 })
+    const idleClient = await TestClient.connect(server.wsUrl)
+    clients.push(idleClient)
+
+    const response = await fetch(`${server.wsUrl.replace('ws://', 'http://')}/health`)
+    await expect(response.json()).resolves.toMatchObject({
+      status: 'ok',
+      rooms: 0,
+      connections: 1,
+    })
+  })
+
   it('三个玩家通过 WebSocket 建房加入后，由服务器判定掷骰与移动并同步给所有客户端', async () => {
     server = await createRoomServer({ port: 0, rollDice: () => 6, eventDeck: quietEventDeck })
     const host = await TestClient.connect(server.wsUrl)
@@ -335,6 +348,141 @@ describe('联网升温局服务器权威纵向切片', () => {
           message.type === 'room_state' && message.room.settings.scenePreset === 'icebreaker'
       )
     ).resolves.toMatchObject({ type: 'room_state' })
+  })
+
+  it('不允许把主持权转交给离线玩家', async () => {
+    server = await createRoomServer({ port: 0 })
+    const host = await TestClient.connect(server.wsUrl)
+    const guest = await TestClient.connect(server.wsUrl)
+    clients.push(host, guest)
+    host.send({
+      type: 'create_room',
+      requestId: 'offline-transfer-create',
+      nickname: '主持人',
+      color: '#ff6b6b',
+    })
+    const created = await host.next(message => message.type === 'session')
+    if (created.type !== 'session') throw new Error('expected session')
+    guest.send({
+      type: 'join_room',
+      requestId: 'offline-transfer-join',
+      roomCode: created.roomCode,
+      nickname: '离线玩家',
+      color: '#4ecdc4',
+    })
+    const joined = await guest.next(message => message.type === 'session')
+    if (joined.type !== 'session') throw new Error('expected session')
+    await guest.disconnect()
+    await host.next(
+      message =>
+        message.type === 'room_state' &&
+        message.room.players.some(player => player.id === joined.playerId && !player.connected)
+    )
+
+    host.send({
+      type: 'transfer_host',
+      requestId: 'offline-transfer',
+      playerId: joined.playerId,
+    })
+    await expect(
+      host.next(
+        message =>
+          message.type === 'error' &&
+          message.requestId === 'offline-transfer' &&
+          message.code === 'PLAYER_DISCONNECTED'
+      )
+    ).resolves.toMatchObject({ type: 'error' })
+  })
+
+  it('已确认玩家断线后不能开局，规则错误保留原请求标识', async () => {
+    server = await createRoomServer({ port: 0 })
+    const host = await TestClient.connect(server.wsUrl)
+    const guest = await TestClient.connect(server.wsUrl)
+    clients.push(host, guest)
+    host.send({
+      type: 'create_room',
+      requestId: 'connected-start-create',
+      nickname: '主持人',
+      color: '#ff6b6b',
+    })
+    const created = await host.next(message => message.type === 'session')
+    if (created.type !== 'session') throw new Error('expected session')
+    guest.send({
+      type: 'join_room',
+      requestId: 'connected-start-join',
+      roomCode: created.roomCode,
+      nickname: '玩家二',
+      color: '#4ecdc4',
+    })
+    const joined = await guest.next(message => message.type === 'session')
+    if (joined.type !== 'session') throw new Error('expected session')
+    host.send({ type: 'confirm_settings', requestId: 'connected-start-host-confirm' })
+    guest.send({ type: 'confirm_settings', requestId: 'connected-start-guest-confirm' })
+    await host.next(
+      message => message.type === 'room_state' && message.room.confirmedPlayerIds.length === 2
+    )
+    await guest.disconnect()
+    await host.next(
+      message =>
+        message.type === 'room_state' &&
+        message.room.players.some(player => player.id === joined.playerId && !player.connected)
+    )
+
+    host.send({ type: 'start_game', requestId: 'connected-start-blocked' })
+    await expect(
+      host.next(
+        message =>
+          message.type === 'error' &&
+          message.requestId === 'connected-start-blocked' &&
+          message.code === 'PLAYERS_DISCONNECTED'
+      )
+    ).resolves.toMatchObject({ type: 'error' })
+
+    const resumed = await TestClient.connect(server.wsUrl)
+    clients.push(resumed)
+    resumed.send({
+      type: 'resume_room',
+      requestId: 'connected-start-resume',
+      roomCode: joined.roomCode,
+      playerId: joined.playerId,
+      resumeToken: joined.resumeToken,
+    })
+    await resumed.next(message => message.type === 'session')
+    host.send({ type: 'start_game', requestId: 'connected-start-ok' })
+    await host.next(message => message.type === 'room_state' && message.room.status === 'playing')
+
+    host.send({ type: 'roll_dice', requestId: 'rule-error-request-id' })
+    await expect(
+      host.next(
+        message =>
+          message.type === 'error' &&
+          message.requestId === 'rule-error-request-id' &&
+          message.code === 'INVALID_PHASE'
+      )
+    ).resolves.toMatchObject({ type: 'error' })
+  })
+
+  it('单连接消息洪泛会被限速并断开', async () => {
+    server = await createRoomServer({
+      port: 0,
+      messagesPerSecond: 1,
+      messageBurst: 2,
+    })
+    const client = await TestClient.connect(server.wsUrl)
+    clients.push(client)
+    client.send({
+      type: 'create_room',
+      requestId: 'rate-create',
+      nickname: '限速玩家',
+      color: '#ff6b6b',
+    })
+    await client.next(message => message.type === 'session')
+    client.send({ type: 'confirm_settings', requestId: 'rate-confirm-1' })
+    client.send({ type: 'confirm_settings', requestId: 'rate-confirm-2' })
+
+    await expect(
+      client.next(message => message.type === 'error' && message.code === 'RATE_LIMITED')
+    ).resolves.toMatchObject({ type: 'error' })
   })
 
   it('八名玩家可在 60 秒门槛内加入并全员确认，第九名被容量门禁拒绝', async () => {

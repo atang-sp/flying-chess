@@ -8,6 +8,7 @@
     type OnlineRoomView,
     type OnlineServerMessage,
   } from '@flying-chess/game-core'
+  import { VERSION } from '../config/version'
   import { OnlineRoomClient, type OnlineConnectionStatus } from './roomClient'
 
   const serverUrl = import.meta.env.VITE_ROOM_SERVER_URL ?? 'wss://rooms.atang-sp.run.place'
@@ -20,6 +21,7 @@
   const nickname = ref('')
   const color = ref<(typeof ONLINE_PLAYER_COLORS)[number]>(ONLINE_PLAYER_COLORS[0])
   const roomCodeInput = ref(roomCodeFromQuery)
+  const applicationVersion = VERSION
   const status = ref<OnlineConnectionStatus>('connecting')
   const errorMessage = ref('')
   const session = ref<Extract<OnlineServerMessage, { type: 'session' }> | null>(null)
@@ -30,6 +32,7 @@
   })
   const qrCodeUrl = ref('')
   const memoryAnswer = ref<string[]>([])
+  const eventSelectedPlayerIds = ref<string[]>([])
   const currentTime = ref(Date.now())
   let requestSequence = 0
   let clockTimer: number | undefined
@@ -84,6 +87,7 @@
       isHost.value &&
       room.value?.status === 'lobby' &&
       (room.value?.players.length ?? 0) >= 2 &&
+      room.value?.players.every(player => player.connected) &&
       room.value?.confirmedPlayerIds.length === room.value?.players.length
   )
   const isConfirmed = computed(
@@ -149,7 +153,11 @@
       errorMessage.value = ''
       return
     }
-    if (message.code === 'INVALID_RESUME_TOKEN' || message.code === 'ROOM_NOT_FOUND') {
+    if (
+      message.code === 'INVALID_RESUME_TOKEN' ||
+      message.code === 'ROOM_NOT_FOUND' ||
+      message.code === 'ROOM_EXPIRED'
+    ) {
       storedSession = null
       session.value = null
       room.value = null
@@ -198,6 +206,7 @@
   function chooseMemorySymbol(symbol: string): void {
     if (pendingAction.value?.kind !== 'event_mini_game') return
     const sequenceLength = pendingAction.value.sequence?.length ?? 0
+    if (memoryAnswer.value.length >= sequenceLength) return
     memoryAnswer.value = [...memoryAnswer.value, symbol]
     if (memoryAnswer.value.length < sequenceLength) return
     send({
@@ -205,6 +214,15 @@
       requestId: requestId('memory'),
       sequence: memoryAnswer.value,
     })
+  }
+
+  function toggleEventPlayer(playerId: string, requiredCount: number): void {
+    if (eventSelectedPlayerIds.value.includes(playerId)) {
+      eventSelectedPlayerIds.value = eventSelectedPlayerIds.value.filter(id => id !== playerId)
+      return
+    }
+    if (eventSelectedPlayerIds.value.length >= requiredCount) return
+    eventSelectedPlayerIds.value = [...eventSelectedPlayerIds.value, playerId]
   }
 
   function playerNickname(playerId: string | null | undefined): string {
@@ -244,6 +262,13 @@
     }
   )
 
+  watch(
+    () => `${game.value?.revision ?? 0}:${pendingAction.value?.kind ?? 'none'}`,
+    () => {
+      eventSelectedPlayerIds.value = []
+    }
+  )
+
   onMounted(async () => {
     clockTimer = window.setInterval(() => {
       currentTime.value = Date.now()
@@ -266,7 +291,7 @@
   <main class="online-shell">
     <header class="online-header">
       <a :href="localGameUrl" class="back-link">← 返回本地玩法</a>
-      <p class="eyebrow">应用 v1.12 · 规则集 party_v2 · 联机升温局</p>
+      <p class="eyebrow">应用 v{{ applicationVersion }} · 规则集 party_v2 · 联机升温局</p>
       <h1>每人一部手机，同步完成一局</h1>
       <p>服务器只在内存中保留房间；服务重启后房间结束。</p>
       <span class="connection-pill" :data-status="status">
@@ -369,7 +394,7 @@
               <span class="player-dot" :style="{ background: player.color }"></span>
               <span>{{ player.nickname }}</span>
               <button
-                v-if="isHost && player.id !== session.playerId"
+                v-if="isHost && player.id !== session.playerId && player.connected"
                 class="text-button"
                 :data-testid="`transfer-host-${player.id}`"
                 @click="
@@ -471,6 +496,9 @@
             全员到齐，开始游戏
           </button>
           <p v-if="isHost && room.players.length < 2" class="hint">至少 2 人才能开始。</p>
+          <p v-else-if="isHost && room.players.some(player => !player.connected)" class="hint">
+            等待所有玩家恢复连接后再开始。
+          </p>
           <p v-else-if="isHost && !canStart" class="hint">等待所有玩家确认设置。</p>
           <p v-else-if="!isHost" class="hint">等待主持人开始。</p>
         </div>
@@ -479,7 +507,8 @@
       <section v-else-if="game" class="game-layout">
         <div class="online-card game-status-card">
           <p class="eyebrow">第 {{ game.revision }} 次状态更新</p>
-          <h2>{{ currentPlayer?.nickname }} 的回合</h2>
+          <h2 v-if="game.status === 'finished'">对局结束</h2>
+          <h2 v-else>{{ currentPlayer?.nickname }} 的回合</h2>
           <p>
             第 {{ game.roundNumber }} 轮 · {{ game.currentAct }} · 你的筹码
             {{ game.myTokensRemaining }}
@@ -620,7 +649,16 @@
           >
             按骰点移动
           </button>
-          <p v-if="!canPredict && !canRoll && !canReact && !canReroll && !canMove">
+          <p
+            v-if="
+              game.status !== 'finished' &&
+              !canPredict &&
+              !canRoll &&
+              !canReact &&
+              !canReroll &&
+              !canMove
+            "
+          >
             请在自己的手机上操作，当前状态会自动同步。
           </p>
 
@@ -899,14 +937,35 @@
           <div v-else-if="pendingAction?.kind === 'event_activation'" class="decision-panel">
             <h3>{{ pendingAction.title }}</h3>
             <p>{{ pendingAction.description }}</p>
+            <div
+              v-if="
+                allowedCommands.includes('resolve_event') && pendingAction.selectionPlayerCount > 0
+              "
+              class="decision-grid"
+            >
+              <button
+                v-for="player in game.players"
+                :key="player.id"
+                class="btn btn-secondary"
+                :aria-pressed="eventSelectedPlayerIds.includes(player.id)"
+                :disabled="
+                  !eventSelectedPlayerIds.includes(player.id) &&
+                  eventSelectedPlayerIds.length >= pendingAction.selectionPlayerCount
+                "
+                @click="toggleEventPlayer(player.id, pendingAction.selectionPlayerCount)"
+              >
+                {{ eventSelectedPlayerIds.includes(player.id) ? '✓ ' : '' }}{{ player.nickname }}
+              </button>
+            </div>
             <button
               v-if="allowedCommands.includes('resolve_event')"
               class="btn btn-primary"
+              :disabled="eventSelectedPlayerIds.length !== pendingAction.selectionPlayerCount"
               @click="
                 send({
                   type: 'resolve_event',
                   requestId: requestId('event'),
-                  selectedPlayerIds: game.players.slice(0, 2).map(player => player.id),
+                  selectedPlayerIds: eventSelectedPlayerIds,
                 })
               "
             >
@@ -933,6 +992,7 @@
                   v-for="symbol in pendingAction.options ?? []"
                   :key="symbol"
                   class="btn btn-secondary"
+                  :disabled="memoryAnswer.length >= pendingAction.sequence.length"
                   @click="chooseMemorySymbol(symbol)"
                 >
                   {{ symbol }}
@@ -942,30 +1002,33 @@
             </template>
             <template v-else-if="pendingAction.game === 'quick_quiz'">
               <p>在截止时间前说出三个棋盘格子类型。</p>
-              <button
-                class="btn btn-primary"
-                @click="
-                  send({
-                    type: 'mini_game_quiz_result',
-                    requestId: requestId('quiz'),
-                    completed: true,
-                  })
-                "
-              >
-                已完成
-              </button>
-              <button
-                class="text-button"
-                @click="
-                  send({
-                    type: 'mini_game_quiz_result',
-                    requestId: requestId('quiz'),
-                    completed: false,
-                  })
-                "
-              >
-                放弃
-              </button>
+              <template v-if="allowedCommands.includes('mini_game_quiz_result')">
+                <button
+                  class="btn btn-primary"
+                  @click="
+                    send({
+                      type: 'mini_game_quiz_result',
+                      requestId: requestId('quiz'),
+                      completed: true,
+                    })
+                  "
+                >
+                  已完成
+                </button>
+                <button
+                  class="text-button"
+                  @click="
+                    send({
+                      type: 'mini_game_quiz_result',
+                      requestId: requestId('quiz'),
+                      completed: false,
+                    })
+                  "
+                >
+                  放弃
+                </button>
+              </template>
+              <p v-else>等待参与者完成快速问答。</p>
             </template>
           </div>
 

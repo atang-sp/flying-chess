@@ -30,6 +30,8 @@ const DEFAULT_RECONNECT_GRACE_MS = 90_000
 const MAX_MESSAGE_BYTES = 16 * 1_024
 const NICKNAME_MAX_LENGTH = 20
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/
+const DEFAULT_MESSAGES_PER_SECOND = 30
+const DEFAULT_MESSAGE_BURST = 60
 
 interface RoomPlayer {
   readonly id: string
@@ -67,6 +69,8 @@ export interface RoomServerOptions {
   readonly reconnectGraceMs?: number
   readonly maxConnections?: number
   readonly allowedOrigins?: readonly string[]
+  readonly messagesPerSecond?: number
+  readonly messageBurst?: number
 }
 
 export interface RunningRoomServer {
@@ -93,6 +97,8 @@ export async function createRoomServer(
   const roomTtlMs = options.roomTtlMs ?? DEFAULT_ROOM_TTL_MS
   const reconnectGraceMs = options.reconnectGraceMs ?? DEFAULT_RECONNECT_GRACE_MS
   const maxConnections = options.maxConnections ?? DEFAULT_MAX_CONNECTIONS
+  const messagesPerSecond = Math.max(1, options.messagesPerSecond ?? DEFAULT_MESSAGES_PER_SECOND)
+  const messageBurst = Math.max(1, options.messageBurst ?? DEFAULT_MESSAGE_BURST)
   const startedAt = Date.now()
   const gameDependencies: GameCommandDependencies = {
     rollDice: options.rollDice ?? (() => randomInt(1, 7)),
@@ -101,6 +107,7 @@ export async function createRoomServer(
   }
   const rooms = new Map<string, Room>()
   const sessions = new Map<WebSocket, ConnectionSession>()
+  let connectionCount = 0
   const httpServer = createServer((request, response) => {
     if (request.method === 'GET' && (request.url === '/health' || request.url === '/ready')) {
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
@@ -108,12 +115,7 @@ export async function createRoomServer(
         JSON.stringify({
           status: 'ok',
           rooms: rooms.size,
-          connections: [...rooms.values()].reduce(
-            (count, room) =>
-              count +
-              room.players.filter(player => player.socket?.readyState === WebSocket.OPEN).length,
-            0
-          ),
+          connections: connectionCount,
           uptimeSeconds: Math.floor((Date.now() - startedAt) / 1_000),
           rssBytes: process.memoryUsage().rss,
         })
@@ -176,14 +178,35 @@ export async function createRoomServer(
   heartbeatTimer.unref()
 
   webSocketServer.on('connection', socket => {
+    connectionCount += 1
+    let availableMessageTokens = messageBurst
+    let lastMessageRefillAt = Date.now()
     lastPongAt.set(socket, Date.now())
     socket.on('pong', () => lastPongAt.set(socket, Date.now()))
     socket.on('message', raw => {
+      const receivedAt = Date.now()
+      availableMessageTokens = Math.min(
+        messageBurst,
+        availableMessageTokens + ((receivedAt - lastMessageRefillAt) / 1_000) * messagesPerSecond
+      )
+      lastMessageRefillAt = receivedAt
+      if (availableMessageTokens < 1) {
+        send(socket, {
+          type: 'error',
+          code: 'RATE_LIMITED',
+          message: '消息过于频繁，请重新连接',
+        })
+        socket.close(1008, 'message rate exceeded')
+        return
+      }
+      availableMessageTokens -= 1
+      let requestId: string | undefined
       try {
         const message = parseClientMessage(raw.toString())
+        requestId = message.requestId
         handleMessage(socket, message)
       } catch (error) {
-        const protocolError = normalizeError(error)
+        const protocolError = normalizeError(error, requestId)
         send(socket, {
           type: 'error',
           requestId: protocolError.requestId,
@@ -193,12 +216,13 @@ export async function createRoomServer(
       }
     })
     socket.on('close', () => {
+      connectionCount = Math.max(0, connectionCount - 1)
       const session = sessions.get(socket)
       sessions.delete(socket)
       if (!session || session.player.socket !== socket) return
       session.player.socket = null
       session.player.disconnectedAt = now()
-      broadcastRoom(session.room)
+      if (rooms.get(session.room.code) === session.room) broadcastRoom(session.room)
     })
   })
 
@@ -289,6 +313,14 @@ export async function createRoomServer(
       if (!room.players.some(candidate => candidate.id === message.playerId)) {
         throw new ProtocolError('PLAYER_NOT_FOUND', '接任玩家不在房间中', message.requestId)
       }
+      const successor = room.players.find(candidate => candidate.id === message.playerId)
+      if (successor?.socket?.readyState !== WebSocket.OPEN) {
+        throw new ProtocolError(
+          'PLAYER_DISCONNECTED',
+          '只能把主持权转交给在线玩家',
+          message.requestId
+        )
+      }
       room.hostPlayerId = message.playerId
       broadcastRoom(room)
       return
@@ -378,6 +410,9 @@ export async function createRoomServer(
           '所有玩家确认设置后才能开始',
           message.requestId
         )
+      }
+      if (!room.players.every(roomPlayer => roomPlayer.socket?.readyState === WebSocket.OPEN)) {
+        throw new ProtocolError('PLAYERS_DISCONNECTED', '所有玩家在线时才能开始', message.requestId)
       }
       room.game = createOnlineGame(
         room.players.map(roomPlayer => ({
@@ -503,7 +538,7 @@ function projectRoom(
       removable:
         player.disconnectedAt !== null &&
         now - player.disconnectedAt >= reconnectGraceMs &&
-        (!room.game || isOnlinePlayerRemovalSafe(room.game)),
+        (!room.game || (room.players.length > 2 && isOnlinePlayerRemovalSafe(room.game))),
     })),
     settings: room.settings,
     confirmedPlayerIds: room.players
@@ -782,10 +817,11 @@ function createUniqueRoomCode(rooms: ReadonlyMap<string, Room>): string {
   throw new ProtocolError('ROOM_CODE_EXHAUSTED', '暂时无法分配房间码')
 }
 
-function normalizeError(error: unknown): ProtocolError {
+function normalizeError(error: unknown, requestId?: string): ProtocolError {
   if (error instanceof ProtocolError) return error
-  if (error instanceof GameCommandError) return new ProtocolError(error.code, error.message)
-  return new ProtocolError('INTERNAL_ERROR', '房间服务处理失败')
+  if (error instanceof GameCommandError)
+    return new ProtocolError(error.code, error.message, requestId)
+  return new ProtocolError('INTERNAL_ERROR', '房间服务处理失败', requestId)
 }
 
 function closeWebSocketServer(server: WebSocketServer): Promise<void> {

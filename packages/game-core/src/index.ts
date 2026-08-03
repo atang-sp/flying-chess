@@ -69,6 +69,8 @@ import type {
   Player,
   PunishmentAction,
   PunishmentConfig,
+  PunishmentConstraints,
+  PunishmentVariant,
   ResolvedPunishmentResult,
   VictoryConfig,
 } from '../../../src/types/game'
@@ -294,6 +296,17 @@ export interface OnlineVictorySettlementEntry {
   readonly count: number
 }
 
+export interface OnlineGamePlayerView {
+  readonly id: string
+  readonly nickname: string
+  readonly color: string
+  readonly position: number
+  readonly hasTakenOff: boolean
+  readonly failedTakeoffAttempts: number
+  readonly isWinner: boolean
+  readonly pendingSkippedTurns?: number
+}
+
 export interface OnlineGameState {
   readonly schemaVersion: 1
   readonly rulesetVersion: typeof ONLINE_RULESET_VERSION
@@ -428,6 +441,7 @@ export interface OnlineGameView {
         kind: 'event_activation'
         title: string
         description: string
+        selectionPlayerCount: 0 | 2
       }>
     | Readonly<{
         kind: 'event_rps'
@@ -468,7 +482,7 @@ export interface OnlineGameView {
   readonly diceValue: number | null
   readonly paused: boolean
   readonly deadlineAt: number | null
-  readonly players: readonly OnlinePlayer[]
+  readonly players: readonly OnlineGamePlayerView[]
   readonly allowedCommands: readonly OnlineGameCommandName[]
   readonly lastEvent: OnlineGameState['lastEvent']
 }
@@ -631,6 +645,13 @@ export interface OnlineGameCreationOptions {
   readonly victoryConfig?: VictoryConfig
 }
 
+const ONLINE_BASELINE_PUNISHMENT_VARIANTS: readonly PunishmentVariant[] = [
+  'blindbox',
+  'conditional',
+  'deferred',
+  'mutual',
+]
+
 const DEFAULT_DEPENDENCIES: GameCommandDependencies = {
   rollDice: () => (crypto.getRandomValues(new Uint8Array(1))[0] % 6) + 1,
 }
@@ -650,11 +671,12 @@ export function createOnlineGame(
   const firstPlayer = roster[0]
   if (!firstPlayer) throw new GameCommandError('INVALID_ROSTER', '玩家名单不能为空')
   const punishmentConfig = options.punishmentConfig ?? GameService.createPunishmentConfig()
+  const baselineTraps = GAME_CONFIG.PARTY_TRAPS.filter(
+    trap => !trap.trapVariant?.startsWith('mini_game_') || trap.trapVariant === 'mini_game_reaction'
+  ).filter(trap => settings.scenePreset !== 'couple' || trap.trapVariant !== 'all_players')
   const board = options.board
     ? [...options.board]
-    : GameService.createBoard(punishmentConfig, boardConfigFor(settings.boardPreset), [
-        ...GAME_CONFIG.PARTY_TRAPS,
-      ])
+    : GameService.createBoard(punishmentConfig, boardConfigFor(settings.boardPreset), baselineTraps)
   const partySession = beginPartyTurn(
     createPartySession({ playerCount: roster.length, startedAt: options.startedAt ?? 0 }),
     0
@@ -1088,7 +1110,7 @@ function applyOnlineGameCommandInternal(
     const action = createCompatiblePunishmentAction(
       state.punishmentConfig,
       undefined,
-      getActConstraints(state.partySession.act)
+      onlineActConstraints(state)
     )
     return beginPunishmentResolution(
       { ...state, pendingAction: null },
@@ -1121,7 +1143,7 @@ function applyOnlineGameCommandInternal(
       const action = createCompatiblePunishmentAction(
         state.punishmentConfig,
         undefined,
-        getActConstraints(state.partySession.act)
+        onlineActConstraints(state)
       )
       return beginPunishmentResolution(
         { ...state, pendingAction: null },
@@ -1220,6 +1242,16 @@ function applyOnlineGameCommandInternal(
     )
     if (selectedPlayerIndices.some(index => index < 0)) {
       throw new GameCommandError('PLAYER_NOT_FOUND', '事件选择了不在房间中的玩家')
+    }
+    const requiredSelectionCount = pending.card.effect.kind === 'bind_players' ? 2 : 0
+    if (
+      selectedPlayerIndices.length !== requiredSelectionCount ||
+      new Set(selectedPlayerIndices).size !== selectedPlayerIndices.length
+    ) {
+      throw new GameCommandError(
+        'INVALID_PHASE',
+        requiredSelectionCount === 2 ? '绑定事件需要两名不同玩家' : '当前事件不需要选择玩家'
+      )
     }
     if (pending.card.effect.kind === 'mini_game') {
       return startEventMiniGame(
@@ -1410,7 +1442,7 @@ function applyOnlineGameCommandInternal(
     const source = actor.hasTakenOff ? 'board_punishment' : 'takeoff_failure'
     const cellType =
       movement.cellEffect?.type === 'chain_punishment' ? 'chain_punishment' : 'punishment'
-    const constraints = getActConstraints(state.partySession.act)
+    const constraints = onlineActConstraints(state)
     const fallback = actor.hasTakenOff
       ? createPartyPunishmentChoices(state.punishmentConfig, undefined, constraints)[0]
       : movement.punishment
@@ -1601,7 +1633,7 @@ export function projectOnlineGameView(state: OnlineGameState, viewerId: string):
               ? reaction.prediction
               : undefined,
           predictionCorrect:
-            reaction.status === 'awaiting_decision' || reaction.status === 'resolved'
+            viewerIndex === reaction.reactorPlayerIndex || reaction.status === 'resolved'
               ? reaction.predictionCorrect
               : undefined,
         }
@@ -1615,7 +1647,16 @@ export function projectOnlineGameView(state: OnlineGameState, viewerId: string):
     diceValue: state.diceValue,
     paused: state.partySession.pausedAt !== undefined,
     deadlineAt: state.deadlineAt,
-    players: state.players,
+    players: state.players.map(player => ({
+      id: player.id,
+      nickname: player.nickname,
+      color: player.color,
+      position: player.position,
+      hasTakenOff: player.hasTakenOff,
+      failedTakeoffAttempts: player.failedTakeoffAttempts,
+      isWinner: player.isWinner,
+      pendingSkippedTurns: player.pendingSkippedTurns,
+    })),
     allowedCommands,
     lastEvent: state.lastEvent,
   }
@@ -1787,6 +1828,7 @@ function timeoutDecisionPlayerId(state: OnlineGameState): string | undefined {
     return state.players[pending.decisionPlayerIndex]?.id
   }
   if (pending?.kind === 'event_result') return state.currentPlayerId
+  if (pending?.kind === 'event_activation') return state.currentPlayerId
   if (pending?.kind === 'event_mini_game') return state.players[pending.actorIndex]?.id
   return undefined
 }
@@ -1999,6 +2041,12 @@ function onlineDeadlineDuration(state: OnlineGameState): number {
   if (state.phase === 'awaiting_prediction' || state.phase === 'awaiting_reaction') return 10_000
   if (state.pendingAction?.kind === 'punishment_intervention') return 15_000
   if (state.pendingAction?.kind === 'event_vote') return 10_000
+  if (
+    state.pendingAction?.kind === 'event_mini_game' &&
+    state.pendingAction.card.effect.game === 'quick_quiz'
+  ) {
+    return 8_000
+  }
   return 20_000
 }
 
@@ -2015,6 +2063,21 @@ function boardConfigFor(boardPreset: OnlineBoardPreset): BoardConfig {
   if (boardPreset === 'couple_finale')
     return { ...GAME_CONFIG.PARTY_SCENE_PRESETS.intimate.boardConfig }
   return { ...GAME_CONFIG.PARTY_BOARD_CONFIG }
+}
+
+function onlineActConstraints(state: OnlineGameState): PunishmentConstraints {
+  const scene =
+    state.settings.scenePreset === 'icebreaker'
+      ? GAME_CONFIG.PARTY_SCENE_PRESETS.icebreaker
+      : state.settings.scenePreset === 'hardcore'
+        ? GAME_CONFIG.PARTY_SCENE_PRESETS.hardcore
+        : state.settings.scenePreset === 'couple'
+          ? GAME_CONFIG.PARTY_SCENE_PRESETS.intimate
+          : undefined
+  return {
+    ...getActConstraints(state.partySession.act),
+    ...(scene?.actConstraintsOverride?.[state.partySession.act] ?? {}),
+  }
 }
 
 function toRulePlayers(players: readonly OnlinePlayer[]): Player[] {
@@ -2049,7 +2112,7 @@ function beginLandingResolution(
       createCompatiblePunishmentAction(
         state.punishmentConfig,
         undefined,
-        getActConstraints(state.partySession.act)
+        onlineActConstraints(state)
       )
     return beginPunishmentResolution(
       state,
@@ -2135,7 +2198,11 @@ function beginPunishmentResolution(
   const rulePlayers = toRulePlayers(state.players)
   const punishmentVariant =
     pending.source === 'board_punishment'
-      ? pickPunishmentVariant(state.partySession.act)
+      ? pickPunishmentVariant(
+          state.partySession.act,
+          undefined,
+          ONLINE_BASELINE_PUNISHMENT_VARIANTS
+        )
       : undefined
   let resolution =
     pending.source === 'board_punishment'
@@ -2581,6 +2648,7 @@ function projectPendingAction(
       kind: pending.kind,
       title: pending.card.title,
       description: pending.card.description,
+      selectionPlayerCount: pending.card.effect.kind === 'bind_players' ? 2 : 0,
     }
   }
   if (pending.kind === 'event_rps') {
