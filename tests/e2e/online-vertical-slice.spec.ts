@@ -3,8 +3,11 @@ import {
   expect,
   test,
   type BrowserContextOptions,
+  type Page,
   type ViewportSize,
 } from '@playwright/test'
+import jsQR from 'jsqr'
+import packageJson from '../../package.json' with { type: 'json' }
 
 function projectContextOptions(
   projectName: string,
@@ -21,6 +24,27 @@ function projectContextOptions(
   }
 }
 
+async function decodeInvitationQrCode(page: Page): Promise<string> {
+  const pixels = await page.getByRole('img', { name: '加入本房间的二维码' }).evaluate(image => {
+    const qrImage = image as HTMLImageElement
+    const canvas = document.createElement('canvas')
+    canvas.width = qrImage.naturalWidth
+    canvas.height = qrImage.naturalHeight
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('expected canvas context')
+    context.drawImage(qrImage, 0, 0)
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+    return {
+      data: Array.from(imageData.data),
+      width: imageData.width,
+      height: imageData.height,
+    }
+  })
+  const decoded = jsQR(new Uint8ClampedArray(pixels.data), pixels.width, pixels.height)
+  if (!decoded) throw new Error('expected invitation QR code to decode')
+  return decoded.data
+}
+
 test('扫码受邀页突出加入动作，并允许两名玩家确认后开局', async ({ browser }, testInfo) => {
   const options = projectContextOptions(testInfo.project.name, testInfo.project.use.viewport)
   const hostContext = await browser.newContext(options)
@@ -34,6 +58,11 @@ test('扫码受邀页突出加入动作，并允许两名玩家确认后开局',
     await host.getByTestId('create-room').click()
     const roomCode = (await host.getByTestId('room-code').textContent())?.trim()
     expect(roomCode).toMatch(/^[A-Z2-9]{6}$/)
+    const invitationUrl = new URL(await decodeInvitationQrCode(host))
+    expect(invitationUrl.searchParams.get('room')).toBe(roomCode)
+    expect(invitationUrl.searchParams.get('v')).toMatch(
+      new RegExp(`^${packageJson.version}(?:-dev)?$`)
+    )
 
     await guest.goto('/flying-chess/online.html')
     await guest.evaluate(() => {
@@ -42,7 +71,7 @@ test('扫码受邀页突出加入动作，并允许两名玩家确认后开局',
         JSON.stringify({ roomCode: 'OLD234', playerId: 'old-player', resumeToken: 'old-token' })
       )
     })
-    await guest.goto(`/flying-chess/online.html?room=${roomCode}`)
+    await guest.goto(invitationUrl.toString())
     await expect(guest.getByRole('heading', { name: '加入受邀房间' })).toBeVisible()
     await expect(guest.getByTestId('invite-room-code')).toHaveText(roomCode ?? '')
     await expect(guest.getByTestId('create-room')).toHaveCount(0)
@@ -50,14 +79,31 @@ test('扫码受邀页突出加入动作，并允许两名玩家确认后开局',
     await guest.getByTestId('join-room').click()
 
     await expect(host.getByTestId('room-player')).toHaveCount(2)
+    await expect(host.getByRole('heading', { name: '棋盘格子配置' })).toBeVisible()
+    await host.getByTestId('board-total-cells').fill('30')
+    await host.getByTestId('board-config-panel').getByRole('button', { name: '自动分配' }).click()
+    await host.getByTestId('board-config-panel').getByRole('button', { name: '重置默认' }).click()
+    await expect(host.getByTestId('board-total-cells')).toHaveValue('40')
+    await host.getByTestId('board-total-cells').fill('30')
+    await host.getByTestId('board-config-panel').getByRole('button', { name: '自动分配' }).click()
+    await guest.getByTestId('confirm-settings').click()
+    await expect(host.getByTestId('board-total-cells')).toHaveValue('30')
+    await host.getByTestId('save-settings').click()
     await expect(guest.getByTestId('scene-setting-label')).toHaveText('默认升温局')
-    await expect(guest.getByTestId('board-setting-label')).toHaveText('升温局默认棋盘')
+    await expect(guest.getByTestId('board-setting-label')).toHaveText('标准模式棋盘')
+    await expect(guest.getByTestId('board-size-setting')).toHaveText('30 格')
+    await expect(guest.getByTestId('turn-duration-setting')).toHaveText('60 秒')
     await Promise.all([host, guest].map(page => page.getByTestId('confirm-settings').click()))
     await expect(host.getByTestId('start-online-game')).toBeEnabled()
     await host.getByTestId('start-online-game').click()
     await expect(host.getByTestId('host-role')).toHaveText('你是主持人')
     await expect(guest.getByTestId('host-role')).toHaveCount(0)
     await expect(guest.getByTestId('act-label')).toHaveText('热身阶段')
+    await expect(guest.getByRole('region', { name: '飞行棋赛道' })).toBeVisible()
+    await expect(guest.getByTestId('board-cell-30')).toBeVisible()
+    await expect(guest.locator('[data-testid^="board-cell-"]')).toHaveCount(30)
+    await expect(guest.locator('[data-kind="punishment"]').first()).toBeVisible()
+    await expect(guest.getByTestId('deadline-note')).toContainText(/(59|60) 秒/)
     await guest.getByTestId('request-pause').click()
     await expect(host.getByText('1 人请求暂停，等待主持人决定。')).toBeVisible()
     await expect(guest.getByTestId('request-pause')).toBeDisabled()

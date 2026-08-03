@@ -233,8 +233,7 @@
   background: rgb(255 255 255 / 0.045);
 }
 
-.player-dot,
-.board-piece {
+.player-dot {
   width: 0.9rem;
   height: 0.9rem;
   border-radius: 50%;
@@ -262,6 +261,10 @@
 }
 
 .positions-card {
+  grid-column: 1 / -1;
+}
+
+.board-card {
   grid-column: 1 / -1;
 }
 
@@ -323,32 +326,6 @@
   letter-spacing: 0.25em;
 }
 
-.online-board {
-  display: grid;
-  grid-template-columns: repeat(8, minmax(34px, 1fr));
-  gap: 0.4rem;
-  margin-top: 1rem;
-}
-
-.board-cell {
-  position: relative;
-  display: flex;
-  min-height: 52px;
-  padding: 0.3rem;
-  align-items: flex-start;
-  justify-content: space-between;
-  border: 1px solid rgb(223 196 142 / 0.13);
-  border-radius: 10px;
-  background: rgb(237 222 191 / 0.07);
-  color: var(--text-muted);
-  font-size: 0.72rem;
-}
-
-.board-piece {
-  align-self: flex-end;
-  flex: none;
-}
-
 @media (max-width: 720px) {
   .online-grid,
   .game-layout {
@@ -357,9 +334,5 @@
 
   .positions-card {
     grid-column: auto;
-  }
-
-  .online-board {
-    grid-template-columns: repeat(5, minmax(32px, 1fr));
   }
 }

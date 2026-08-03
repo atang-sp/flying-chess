@@ -295,11 +295,12 @@ describe('联机升温局验收证据', () => {
 
   it('拒绝与当前待发布版本不一致的证据', () => {
     const evidence = validEvidence()
-    const result = verifyEvidence(evidence, { expectedRelease: 'v1.12.6' })
+    const expectedRelease = `v${packageVersion}`
+    const result = verifyEvidence(evidence, { expectedRelease })
 
     expect(result.failures).toContainEqual({
       gate: 'release.current',
-      message: '证据发布 v1.12.4 与当前待发布版本 v1.12.6 不一致',
+      message: `证据发布 v1.12.4 与当前待发布版本 ${expectedRelease} 不一致`,
     })
   })
 

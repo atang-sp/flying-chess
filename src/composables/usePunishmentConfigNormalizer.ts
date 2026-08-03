@@ -5,6 +5,7 @@ import type {
   PunishmentTool,
 } from '../types/game'
 import { GAME_CONFIG } from '../config/gameConfig'
+import { normalizePunishmentConfig as normalizeSharedPunishmentConfig } from '@flying-chess/game-core/config'
 
 type LegacyPosition = Omit<PunishmentPosition, 'compatibleBodyParts'> & {
   compatibleBodyParts?: string[]
@@ -52,15 +53,14 @@ function normalizePositions(
 export function usePunishmentConfigNormalizer() {
   const normalizePunishmentConfig = (config: PunishmentConfig): PunishmentConfig => {
     const legacyConfig = config as PunishmentConfig & LegacyConfigEntries
-
-    return {
-      ...config,
+    return normalizeSharedPunishmentConfig({
+      ...legacyConfig,
       tools: normalizeNamedEntries(legacyConfig.tools),
       bodyParts: normalizeNamedEntries(legacyConfig.bodyParts),
       positions: normalizePositions(legacyConfig.positions),
       doublePunishmentChance:
         config.doublePunishmentChance ?? GAME_CONFIG.DEFAULT_DOUBLE_PUNISHMENT_CHANCE,
-    }
+    })
   }
 
   return {

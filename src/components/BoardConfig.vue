@@ -18,6 +18,7 @@
 
   interface Props {
     config: BoardConfig
+    defaultConfig?: BoardConfig
   }
 
   interface Emits {
@@ -47,7 +48,9 @@
       localConfig.value.reverseCells +
       localConfig.value.restCells +
       localConfig.value.restartCells +
-      localConfig.value.trapCells
+      localConfig.value.trapCells +
+      (localConfig.value.qaCells ?? 0) +
+      (localConfig.value.dareCells ?? 0)
     return localConfig.value.totalCells - 2 - used
   })
 
@@ -78,20 +81,22 @@
       'restCells',
       'restartCells',
       'trapCells',
+      'qaCells',
+      'dareCells',
     ]
     const idx = order.indexOf(field)
     if (idx === -1) return
     // 计算当前已用
     let used = 0
     for (let i = 0; i <= idx; i++) {
-      used += Number(localConfig.value[order[i]])
+      used += Number(localConfig.value[order[i]] ?? 0)
     }
     // 如果超出总格子数，依次减少后面项
     const assignableCells = localConfig.value.totalCells - 2
     if (used > assignableCells) {
       let remain = used - assignableCells
       for (let i = idx + 1; i < order.length; i++) {
-        const v = Number(localConfig.value[order[i]])
+        const v = Number(localConfig.value[order[i]] ?? 0)
         if (v >= remain) {
           localConfig.value[order[i]] = v - remain
           remain = 0
@@ -108,27 +113,23 @@
   // 重置为默认值
   const resetToDefault = () => {
     localConfig.value = {
-      punishmentCells: props.config.punishmentCells,
-      chainPunishmentCells: props.config.chainPunishmentCells,
-      bonusCells: props.config.bonusCells,
-      reverseCells: props.config.reverseCells,
-      restCells: props.config.restCells,
-      restartCells: props.config.restartCells,
-      trapCells: props.config.trapCells,
-      totalCells: props.config.totalCells,
+      ...(props.defaultConfig ?? GameService.createBoardConfig()),
     }
     updateConfig()
   }
 
   // 自动分配格子
   const autoDistribute = () => {
-    localConfig.value = GameService.createAutoBoardConfig(localConfig.value.totalCells)
+    localConfig.value = GameService.createAutoBoardConfig(localConfig.value.totalCells, {
+      qaCells: localConfig.value.qaCells,
+      dareCells: localConfig.value.dareCells,
+    })
     updateConfig()
   }
 </script>
 
 <template>
-  <div class="board-config glass-card">
+  <div class="board-config glass-card" data-testid="board-config-panel">
     <div class="config-section">
       <h3>
         <Target :size="20" />
@@ -148,6 +149,7 @@
           <div class="input-group">
             <input
               v-model.number="localConfig.totalCells"
+              data-testid="board-total-cells"
               type="number"
               min="20"
               max="100"
@@ -296,6 +298,44 @@
             <span class="input-unit">格</span>
           </div>
           <div class="cell-description">玩家踩到后随机触发机关惩罚的格子</div>
+        </div>
+
+        <div v-if="localConfig.qaCells !== undefined" class="config-item">
+          <label class="config-label">
+            <span class="label-icon"><Info :size="18" /></span>
+            问答格子
+          </label>
+          <div class="input-group">
+            <input
+              v-model.number="localConfig.qaCells"
+              type="number"
+              min="0"
+              :max="localConfig.totalCells"
+              class="config-input"
+              @input="handleCellInput('qaCells')"
+            />
+            <span class="input-unit">格</span>
+          </div>
+          <div class="cell-description">玩家踩到后回答问题的格子</div>
+        </div>
+
+        <div v-if="localConfig.dareCells !== undefined" class="config-item">
+          <label class="config-label">
+            <span class="label-icon"><Target :size="18" /></span>
+            大冒险格子
+          </label>
+          <div class="input-group">
+            <input
+              v-model.number="localConfig.dareCells"
+              type="number"
+              min="0"
+              :max="localConfig.totalCells"
+              class="config-input"
+              @input="handleCellInput('dareCells')"
+            />
+            <span class="input-unit">格</span>
+          </div>
+          <div class="cell-description">玩家踩到后完成指令的格子</div>
         </div>
       </div>
 

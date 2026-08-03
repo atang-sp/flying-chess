@@ -3,13 +3,14 @@ import { createServer, type Server as HttpServer } from 'node:http'
 import {
   applyOnlineGameCommand,
   applyOnlineGameTimeout,
+  cloneOnlineRoomSettings,
   createOnlineGame,
   DEFAULT_ONLINE_ROOM_SETTINGS,
   GameCommandError,
-  ONLINE_BOARD_PRESETS,
   ONLINE_PLAYER_COLORS,
-  ONLINE_SCENE_PRESETS,
   isOnlinePlayerRemovalSafe,
+  normalizeOnlineRoomSettings,
+  projectOnlineRoomSettings,
   projectOnlineGameView,
   removeOnlinePlayerAtSafeNode,
   type GameCommandDependencies,
@@ -242,7 +243,7 @@ export async function createRoomServer(
         createdAt: now(),
         hostPlayerId: player.id,
         players: [player],
-        settings: { ...DEFAULT_ONLINE_ROOM_SETTINGS },
+        settings: cloneOnlineRoomSettings(DEFAULT_ONLINE_ROOM_SETTINGS),
         confirmedPlayerIds: new Set(),
         skipRequestedPlayerIds: new Set(),
         pauseRequestedPlayerIds: new Set(),
@@ -392,7 +393,7 @@ export async function createRoomServer(
       }
       if (room.game)
         throw new ProtocolError('GAME_ALREADY_STARTED', '开局后不能修改设置', message.requestId)
-      room.settings = { ...message.settings }
+      room.settings = cloneOnlineRoomSettings(message.settings)
       room.confirmedPlayerIds.clear()
       broadcastRoom(room)
       return
@@ -576,7 +577,7 @@ function projectRoom(
         removalBlockReason,
       }
     }),
-    settings: room.settings,
+    settings: projectOnlineRoomSettings(room.settings, room.hostPlayerId === viewerId),
     confirmedPlayerIds: room.players
       .filter(player => room.confirmedPlayerIds.has(player.id))
       .map(player => player.id),
@@ -684,10 +685,11 @@ function parseClientMessage(raw: string): ClientMessage {
     }
   }
   if (message.type === 'update_settings') {
-    if (!isOnlineRoomSettings(message.settings)) {
+    const normalizedSettings = normalizeOnlineRoomSettings(message.settings)
+    if (!normalizedSettings) {
       throw new ProtocolError('INVALID_SETTINGS', '房间设置无效', requestId)
     }
-    return { type: 'update_settings', requestId, settings: message.settings }
+    return { type: 'update_settings', requestId, settings: normalizedSettings }
   }
   if (message.type === 'transfer_host') {
     if (typeof message.playerId !== 'string' || !message.playerId) {
@@ -832,15 +834,6 @@ function parseClientMessage(raw: string): ClientMessage {
     return { type: message.type, requestId }
   }
   throw new ProtocolError('INVALID_MESSAGE', '未知消息类型', requestId)
-}
-
-function isOnlineRoomSettings(value: unknown): value is OnlineRoomSettings {
-  if (!value || typeof value !== 'object') return false
-  const settings = value as Record<string, unknown>
-  return (
-    ONLINE_SCENE_PRESETS.includes(settings.scenePreset as OnlineRoomSettings['scenePreset']) &&
-    ONLINE_BOARD_PRESETS.includes(settings.boardPreset as OnlineRoomSettings['boardPreset'])
-  )
 }
 
 function createUniqueRoomCode(rooms: ReadonlyMap<string, Room>): string {

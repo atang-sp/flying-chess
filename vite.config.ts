@@ -13,6 +13,16 @@ export default defineConfig(async ({ command, mode }) => {
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // The online room requires a live network connection. Serving a precached HTML shell can
+        // leave an installed PWA on an old roster limit or invitation flow after a release.
+        globIgnores: ['online.html'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ request, url }) =>
+              request.mode === 'navigate' && url.pathname.endsWith('/online.html'),
+            handler: 'NetworkOnly',
+          },
+        ],
         // This is a multi-page app. Let the server/precache resolve these entry points instead of
         // serving the classic game's index.html for a refreshed invitation or controller URL.
         navigateFallbackDenylist: [/\/(?:online|controller)\.html(?:\?.*)?$/],

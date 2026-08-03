@@ -4,6 +4,7 @@ import {
   applyOnlineGameCommand,
   applyOnlineGameTimeout,
   createOnlineGame,
+  normalizeOnlineRoomSettings,
   projectOnlineGameView,
   removeOnlinePlayerAtSafeNode,
   type BoardCell,
@@ -29,11 +30,88 @@ const quietEventDeck: readonly PartyEventCard[] = [
 ]
 
 describe('联网升温局权威规则内核', () => {
+  it('accepts the previous lobby settings payload and fills shared defaults', () => {
+    const settings = normalizeOnlineRoomSettings({
+      scenePreset: 'default',
+      boardPreset: 'party_default',
+    })
+
+    expect(settings).toMatchObject({
+      boardPreset: 'party_default',
+      turnDurationSeconds: 60,
+      boardConfig: { qaCells: 5, dareCells: 3 },
+    })
+    expect(settings?.punishmentConfig).toBeDefined()
+    expect(settings?.traps.length).toBeGreaterThan(0)
+  })
+
+  it('preserves validated custom punishment and trap settings during server normalization', () => {
+    const customTrap = {
+      name: '自定义陷阱',
+      description: '只用于本房间',
+      trapVariant: 'all_players' as const,
+    }
+    const settings = normalizeOnlineRoomSettings({
+      ...DEFAULT_ONLINE_ROOM_SETTINGS,
+      punishmentConfig: {
+        ...DEFAULT_ONLINE_ROOM_SETTINGS.punishmentConfig,
+        minStrikes: 4,
+      },
+      traps: [customTrap],
+    })
+
+    expect(settings?.punishmentConfig.minStrikes).toBe(4)
+    expect(settings?.traps).toEqual([customTrap])
+  })
+
+  it('默认给每个需要玩家操作的阶段 60 秒', () => {
+    const startedAt = 12_345
+    const game = createOnlineGame(roster.slice(0, 2), DEFAULT_ONLINE_ROOM_SETTINGS, {
+      startedAt,
+    })
+
+    expect(game.deadlineAt).toBe(startedAt + 60_000)
+  })
+
+  it('按房间的标准棋盘配置生成权威棋盘并投影格子效果', () => {
+    const boardConfig = {
+      punishmentCells: 19,
+      chainPunishmentCells: 2,
+      bonusCells: 1,
+      reverseCells: 1,
+      restCells: 1,
+      restartCells: 3,
+      trapCells: 1,
+      totalCells: 30,
+    }
+    const game = createOnlineGame(roster.slice(0, 2), {
+      ...DEFAULT_ONLINE_ROOM_SETTINGS,
+      boardConfig,
+    })
+
+    expect(game.board).toHaveLength(30)
+    expect(game.settings.boardConfig).toEqual(boardConfig)
+    expect(projectOnlineGameView(game, 'p1').board).toEqual(
+      game.board.map(cell => ({
+        position: cell.position,
+        type: cell.type,
+        effect: cell.effect ? { type: cell.effect.type, value: cell.effect.value } : undefined,
+      }))
+    )
+  })
+
   it('允许两名玩家创建联机升温局', () => {
     const game = createOnlineGame(roster.slice(0, 2))
 
     expect(game.players).toHaveLength(2)
     expect(game.status).toBe('playing')
+    expect(game.settings.boardPreset).toBe('standard')
+    expect(game.board.filter(cell => cell.type === 'qa')).toHaveLength(
+      game.settings.boardConfig.qaCells ?? 0
+    )
+    expect(game.board.filter(cell => cell.type === 'dare')).toHaveLength(
+      game.settings.boardConfig.dareCells ?? 0
+    )
     expect(
       game.board.some(
         cell =>
@@ -142,7 +220,7 @@ describe('联网升温局权威规则内核', () => {
     }
     let game = createOnlineGame(
       roster,
-      { scenePreset: 'hardcore', boardPreset: 'party_default' },
+      { ...DEFAULT_ONLINE_ROOM_SETTINGS, scenePreset: 'hardcore' },
       { board, eventDeck: quietEventDeck }
     )
     game = {
@@ -491,13 +569,13 @@ describe('联网升温局权威规则内核', () => {
       { type: 'resolve_event' },
       { rollDice: () => 1, now: () => 100 }
     )
-    expect(game.deadlineAt).toBe(8_100)
-    expect(projectOnlineGameView(game, 'p2').pendingAction).toMatchObject({ deadline: 8_100 })
+    expect(game.deadlineAt).toBe(60_100)
+    expect(projectOnlineGameView(game, 'p2').pendingAction).toMatchObject({ deadline: 60_100 })
     game = applyOnlineGameCommand(
       game,
       'p2',
       { type: 'mini_game_quiz_result', completed: true },
-      { rollDice: () => 1, now: () => 8_101 }
+      { rollDice: () => 1, now: () => 60_101 }
     )
     expect(game.players[1]?.pendingMiniGameMultiplier).toBe(2)
     game = applyOnlineGameCommand(game, 'p2', { type: 'acknowledge_event_result' })
@@ -553,7 +631,7 @@ describe('联网升温局权威规则内核', () => {
       eventDeck: quietEventDeck,
       startedAt: 1_000,
     })
-    expect(game.deadlineAt).toBe(11_000)
+    expect(game.deadlineAt).toBe(61_000)
 
     game = applyOnlineGameCommand(
       game,
@@ -561,7 +639,7 @@ describe('联网升温局权威规则内核', () => {
       { type: 'pause_game' },
       { rollDice: () => 1, now: () => 5_000 }
     )
-    expect(projectOnlineGameView(game, 'p1')).toMatchObject({ paused: true, deadlineAt: 11_000 })
+    expect(projectOnlineGameView(game, 'p1')).toMatchObject({ paused: true, deadlineAt: 61_000 })
     expect(projectOnlineGameView(game, 'p1').allowedCommands).toEqual(['resume_game'])
     expect(applyOnlineGameTimeout(game, 20_000)).toBe(game)
 
@@ -571,8 +649,8 @@ describe('联网升温局权威规则内核', () => {
       { type: 'resume_game' },
       { rollDice: () => 1, now: () => 20_000 }
     )
-    expect(game.deadlineAt).toBe(26_000)
-    game = applyOnlineGameTimeout(game, 26_000, { rollDice: () => 1, now: () => 26_000 })
+    expect(game.deadlineAt).toBe(76_000)
+    game = applyOnlineGameTimeout(game, 76_000, { rollDice: () => 1, now: () => 76_000 })
     expect(game.phase).toBe('awaiting_roll')
     expect(game.partySession.reaction?.prediction).toBe('low')
     expect(game.deadlineAt).toBeNull()
@@ -617,7 +695,7 @@ describe('联网升温局权威规则内核', () => {
       kind: 'event_activation',
       selectionPlayerCount: 2,
     })
-    expect(game.deadlineAt).toBe(20_100)
+    expect(game.deadlineAt).toBe(60_100)
     expect(() =>
       applyOnlineGameCommand(game, 'p2', {
         type: 'resolve_event',
@@ -625,7 +703,7 @@ describe('联网升温局权威规则内核', () => {
       })
     ).toThrow('绑定事件需要两名不同玩家')
 
-    game = applyOnlineGameTimeout(game, 20_100, { rollDice: () => 1, now: () => 20_100 })
+    game = applyOnlineGameTimeout(game, 60_100, { rollDice: () => 1, now: () => 60_100 })
     expect(game.pendingAction).toBeNull()
     expect(['awaiting_prediction', 'awaiting_roll']).toContain(game.phase)
   })
@@ -730,7 +808,7 @@ describe('联网升温局权威规则内核', () => {
         : 0
     expect(firstCount).toBeGreaterThanOrEqual(30)
     expect(firstCount % 6).toBe(0)
-    expect(game.deadlineAt).toBe(21_000)
+    expect(game.deadlineAt).toBe(61_000)
 
     game = applyOnlineGameCommand(
       game,
@@ -739,7 +817,7 @@ describe('联网升温局权威规则内核', () => {
       { rollDice: () => 1, now: () => 5_000 }
     )
     expect(game.pendingAction).toMatchObject({ kind: 'acknowledgement', playerIndex: 1 })
-    expect(game.deadlineAt).toBe(25_000)
+    expect(game.deadlineAt).toBe(65_000)
     expect(projectOnlineGameView(game, 'p3').pendingAction).toEqual({ kind: 'acknowledgement' })
     game = applyOnlineGameCommand(game, 'p2', { type: 'acknowledge' })
     expect(game.currentPlayerId).toBe('p2')

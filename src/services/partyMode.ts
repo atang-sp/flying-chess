@@ -1,5 +1,6 @@
 import type { PunishmentAction, PunishmentConfig, PunishmentConstraints } from '../types/game'
 import { GAME_CONFIG } from '../config/gameConfig'
+import { MODE_POLICIES } from '@flying-chess/game-core/config'
 import { createCompatiblePunishmentAction, type RuleRandomSource } from './ruleResolution'
 
 export type PartyAct = 'warmup' | 'heating' | 'finale'
@@ -7,12 +8,12 @@ export type PartyTokenAction = 'reroll' | 'punishment_choice' | 'transfer' | 'am
 
 /** Returns act-specific punishment constraints from config */
 export function getActConstraints(act: PartyAct): PunishmentConstraints {
-  return GAME_CONFIG.PARTY_ACT_CONSTRAINTS[act]
+  return MODE_POLICIES.party.stageConstraints[act] ?? GAME_CONFIG.PARTY_ACT_CONSTRAINTS[act]
 }
 
 /** Returns act-specific double punishment chance */
 export function getActDoublePunishmentChance(act: PartyAct): number {
-  return GAME_CONFIG.PARTY_ACT_CONSTRAINTS[act].doublePunishmentChance ?? 20
+  return getActConstraints(act).doublePunishmentChance ?? 20
 }
 export type PartyPrediction = 'low' | 'high'
 export type PartyReactionDecision = 'keep' | 'mirror'
