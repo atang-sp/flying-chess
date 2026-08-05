@@ -21,6 +21,12 @@ import {
 } from '@flying-chess/game-core'
 import { WebSocket, WebSocketServer } from 'ws'
 import type { ClientMessage, RoomPlayerView, RoomView, ServerMessage } from './protocol'
+import {
+  buildGameCompletionClaimUrl,
+  createGameCompletionClaim,
+  validateGameCompletionClaimConfiguration,
+  type GameCompletionClaimOptions,
+} from './gameCompletionClaims'
 
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const DEFAULT_ROOM_TTL_MS = 2 * 60 * 60 * 1_000
@@ -53,6 +59,9 @@ interface Room {
   readonly skipRequestedPlayerIds: Set<string>
   readonly pauseRequestedPlayerIds: Set<string>
   game: OnlineGameState | null
+  gameId: string | null
+  gameCompletedAt: number | null
+  readonly achievementClaimUrls: Map<string, string>
 }
 
 interface ConnectionSession {
@@ -73,6 +82,7 @@ export interface RoomServerOptions {
   readonly allowedOrigins?: readonly string[]
   readonly messagesPerSecond?: number
   readonly messageBurst?: number
+  readonly achievementClaims?: GameCompletionClaimOptions & Readonly<{ claimUrl: string }>
 }
 
 export interface RunningRoomServer {
@@ -94,6 +104,9 @@ class ProtocolError extends Error {
 export async function createRoomServer(
   options: RoomServerOptions = {}
 ): Promise<RunningRoomServer> {
+  if (options.achievementClaims) {
+    validateGameCompletionClaimConfiguration(options.achievementClaims)
+  }
   const now = options.now ?? Date.now
   const maxRooms = options.maxRooms ?? DEFAULT_MAX_ROOMS
   const roomTtlMs = options.roomTtlMs ?? DEFAULT_ROOM_TTL_MS
@@ -157,7 +170,7 @@ export async function createRoomServer(
       if (room.game) {
         const next = applyOnlineGameTimeout(room.game, timestamp, gameDependencies)
         if (next !== room.game) {
-          room.game = next
+          updateRoomGame(room, next)
           changed = true
         }
       }
@@ -248,6 +261,9 @@ export async function createRoomServer(
         skipRequestedPlayerIds: new Set(),
         pauseRequestedPlayerIds: new Set(),
         game: null,
+        gameId: null,
+        gameCompletedAt: null,
+        achievementClaimUrls: new Map(),
       }
       rooms.set(code, room)
       sessions.set(socket, { room, player })
@@ -432,6 +448,9 @@ export async function createRoomServer(
         room.settings,
         { startedAt: now(), eventDeck: options.eventDeck }
       )
+      room.gameId = randomUUID()
+      room.gameCompletedAt = null
+      room.achievementClaimUrls.clear()
       broadcastRoom(room)
       return
     }
@@ -483,12 +502,44 @@ export async function createRoomServer(
     } else {
       command = { type: message.type } as OnlineGameCommand
     }
-    room.game = applyOnlineGameCommand(room.game, player.id, command, gameDependencies)
+    updateRoomGame(room, applyOnlineGameCommand(room.game, player.id, command, gameDependencies))
     room.skipRequestedPlayerIds.clear()
     if (message.type === 'pause_game' || message.type === 'resume_game') {
       room.pauseRequestedPlayerIds.clear()
     }
     broadcastRoom(room)
+  }
+
+  function updateRoomGame(room: Room, nextGame: OnlineGameState): void {
+    const wasFinished = room.game?.status === 'finished'
+    room.game = nextGame
+    if (!wasFinished && nextGame.status === 'finished') completeRoomGame(room)
+  }
+
+  function completeRoomGame(room: Room): void {
+    if (!room.game || room.game.status !== 'finished' || room.gameCompletedAt !== null) return
+    const completedAt = now()
+    room.gameCompletedAt = completedAt
+    const claims = options.achievementClaims
+    if (!claims || !room.gameId) return
+
+    for (const player of room.players) {
+      const settlement = room.game.victorySettlement.find(entry => entry.playerId === player.id)
+      const token = createGameCompletionClaim(
+        {
+          claimId: randomUUID(),
+          gameId: room.gameId,
+          playerId: player.id,
+          rulesetVersion: room.game.rulesetVersion,
+          completedAt,
+          place:
+            room.game.winnerPlayerId === player.id ? 1 : (settlement?.place ?? room.players.length),
+          winner: room.game.winnerPlayerId === player.id,
+        },
+        claims
+      )
+      room.achievementClaimUrls.set(player.id, buildGameCompletionClaimUrl(claims.claimUrl, token))
+    }
   }
 
   function transferExpiredHost(room: Room, timestamp: number): boolean {
@@ -584,6 +635,7 @@ function projectRoom(
     skipRequestedPlayerIds: [...room.skipRequestedPlayerIds],
     pauseRequestedPlayerIds: [...room.pauseRequestedPlayerIds],
     game: room.game ? projectOnlineGameView(room.game, viewerId) : null,
+    achievementClaimUrl: room.achievementClaimUrls.get(viewerId),
   }
 }
 

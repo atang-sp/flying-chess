@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import WebSocket from 'ws'
 import { DEFAULT_ONLINE_ROOM_SETTINGS, type OnlineRoomSettings } from '@flying-chess/game-core'
 import { createRoomServer, type RunningRoomServer } from '../src/server'
+import { verifyGameCompletionClaim } from '../src/gameCompletionClaims'
 import type { ServerMessage } from '../src/protocol'
 
 const quietEventDeck = [
@@ -204,6 +205,188 @@ describe('联网升温局服务器权威纵向切片', () => {
     })
     if (playerTwoView.type !== 'room_state') throw new Error('expected room state')
     expect(playerTwoView.room.game?.allowedCommands).toContain('roll_dice')
+  })
+
+  it('终局后只向各自席位签发私有、可验证的论坛认领凭证', async () => {
+    const claimSecret = 'room-server-integration-secret-with-at-least-32-bytes'
+    const diceValues = [6, 6, 6, 6, 6, 6, 6, 6, 1]
+    server = await createRoomServer({
+      port: 0,
+      rollDice: () => diceValues.shift() ?? 1,
+      eventDeck: quietEventDeck,
+      achievementClaims: {
+        secret: claimSecret,
+        claimUrl: 'https://forum.example/where-is-my-friends/flying-chess/claim',
+      },
+    })
+    const host = await TestClient.connect(server.wsUrl)
+    const guest = await TestClient.connect(server.wsUrl)
+    clients.push(host, guest)
+
+    host.send({
+      type: 'create_room',
+      requestId: 'claim-create',
+      nickname: '主持人',
+      color: '#ff6b6b',
+    })
+    const hostSession = await host.next(message => message.type === 'session')
+    if (hostSession.type !== 'session') throw new Error('expected host session')
+    host.send({
+      type: 'update_settings',
+      requestId: 'claim-settings',
+      settings: {
+        ...DEFAULT_ONLINE_ROOM_SETTINGS,
+        boardConfig: {
+          punishmentCells: 0,
+          chainPunishmentCells: 0,
+          bonusCells: 0,
+          reverseCells: 0,
+          restCells: 0,
+          restartCells: 0,
+          trapCells: 0,
+          qaCells: 0,
+          dareCells: 0,
+          totalCells: 20,
+        },
+      },
+    })
+    await host.next(
+      message =>
+        message.type === 'room_state' && message.room.settings.boardConfig.totalCells === 20
+    )
+
+    guest.send({
+      type: 'join_room',
+      requestId: 'claim-join',
+      roomCode: hostSession.roomCode,
+      nickname: '玩家二',
+      color: '#4ecdc4',
+    })
+    const guestSession = await guest.next(message => message.type === 'session')
+    if (guestSession.type !== 'session') throw new Error('expected guest session')
+    host.send({ type: 'confirm_settings', requestId: 'claim-confirm-host' })
+    guest.send({ type: 'confirm_settings', requestId: 'claim-confirm-guest' })
+    await host.next(
+      message => message.type === 'room_state' && message.room.confirmedPlayerIds.length === 2
+    )
+    host.send({ type: 'start_game', requestId: 'claim-start' })
+    const started = await host.next(
+      message => message.type === 'room_state' && message.room.game?.status === 'playing'
+    )
+    if (started.type !== 'room_state') throw new Error('expected room state')
+    expect(started.room.achievementClaimUrl).toBeUndefined()
+
+    const takeTurn = async (
+      actor: TestClient,
+      reactor: TestClient,
+      actorId: string,
+      suffix: string,
+      readyPhase: 'awaiting_prediction' | 'awaiting_roll'
+    ): Promise<void> => {
+      if (readyPhase === 'awaiting_prediction') {
+        reactor.send({
+          type: 'submit_prediction',
+          requestId: `claim-predict-${suffix}`,
+          prediction: 'high',
+        })
+        await actor.next(
+          message =>
+            message.type === 'room_state' &&
+            message.room.game?.phase === 'awaiting_roll' &&
+            message.room.game.currentPlayerId === actorId
+        )
+      }
+      actor.send({ type: 'roll_dice', requestId: `claim-roll-${suffix}` })
+      const rolled = await actor.next(
+        message =>
+          message.type === 'room_state' &&
+          (message.room.game?.phase === 'awaiting_reaction' ||
+            message.room.game?.phase === 'awaiting_move') &&
+          message.room.game.currentPlayerId === actorId
+      )
+      if (rolled.type !== 'room_state') throw new Error('expected rolled room state')
+      if (rolled.room.game?.phase === 'awaiting_reaction') {
+        reactor.send({
+          type: 'decide_reaction',
+          requestId: `claim-reaction-${suffix}`,
+          decision: 'keep',
+        })
+        await actor.next(
+          message =>
+            message.type === 'room_state' &&
+            message.room.game?.phase === 'awaiting_move' &&
+            message.room.game.currentPlayerId === actorId
+        )
+      }
+      actor.send({ type: 'move', requestId: `claim-move-${suffix}` })
+    }
+
+    const waitUntilTurn = async (
+      client: TestClient,
+      playerId: string
+    ): Promise<'awaiting_prediction' | 'awaiting_roll'> => {
+      const ready = await client.next(
+        message =>
+          message.type === 'room_state' &&
+          (message.room.game?.phase === 'awaiting_prediction' ||
+            message.room.game?.phase === 'awaiting_roll') &&
+          message.room.game.currentPlayerId === playerId
+      )
+      if (ready.type !== 'room_state' || !ready.room.game) {
+        throw new Error('expected turn-ready room state')
+      }
+      return ready.room.game.phase as 'awaiting_prediction' | 'awaiting_roll'
+    }
+
+    let hostReadyPhase = started.room.game?.phase as 'awaiting_prediction' | 'awaiting_roll'
+    for (let round = 0; round < 4; round += 1) {
+      await takeTurn(host, guest, hostSession.playerId, `host-${round}`, hostReadyPhase)
+      const guestReadyPhase = await waitUntilTurn(guest, guestSession.playerId)
+      await takeTurn(guest, host, guestSession.playerId, `guest-${round}`, guestReadyPhase)
+      hostReadyPhase = await waitUntilTurn(host, hostSession.playerId)
+    }
+    await takeTurn(host, guest, hostSession.playerId, 'host-final', hostReadyPhase)
+
+    const [hostFinished, guestFinished] = await Promise.all([
+      host.next(
+        message =>
+          message.type === 'room_state' &&
+          message.room.status === 'finished' &&
+          Boolean(message.room.achievementClaimUrl)
+      ),
+      guest.next(
+        message =>
+          message.type === 'room_state' &&
+          message.room.status === 'finished' &&
+          Boolean(message.room.achievementClaimUrl)
+      ),
+    ])
+    if (hostFinished.type !== 'room_state' || guestFinished.type !== 'room_state') {
+      throw new Error('expected finished room states')
+    }
+    const hostUrl = new URL(hostFinished.room.achievementClaimUrl ?? '')
+    const guestUrl = new URL(guestFinished.room.achievementClaimUrl ?? '')
+    const hostFragment = new URLSearchParams(hostUrl.hash.replace(/^#/, ''))
+    const guestFragment = new URLSearchParams(guestUrl.hash.replace(/^#/, ''))
+    const hostClaim = verifyGameCompletionClaim(hostFragment.get('token') ?? '', claimSecret)
+    const guestClaim = verifyGameCompletionClaim(guestFragment.get('token') ?? '', claimSecret)
+
+    expect(hostUrl.origin).toBe('https://forum.example')
+    expect(hostUrl.search).toBe('')
+    expect(hostClaim).toMatchObject({
+      event: 'game_completed',
+      player_id: hostSession.playerId,
+      winner: true,
+      place: 1,
+    })
+    expect(guestClaim).toMatchObject({
+      event: 'game_completed',
+      player_id: guestSession.playerId,
+      winner: false,
+    })
+    expect(guestClaim.game_id).toBe(hostClaim.game_id)
+    expect(guestClaim.jti).not.toBe(hostClaim.jti)
+    expect(guestUrl.toString()).not.toBe(hostUrl.toString())
   })
 
   it('设置变更会清空全员确认，未重新全员确认时服务器拒绝开局', async () => {

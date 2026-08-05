@@ -6,6 +6,11 @@ const host = process.env.HOST ?? '0.0.0.0'
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',')
   .map(origin => origin.trim())
   .filter(Boolean)
+const achievementClaimSecret = process.env.ACHIEVEMENT_CLAIM_SECRET
+const achievementClaimUrl = process.env.ACHIEVEMENT_CLAIM_URL?.trim()
+if (Boolean(achievementClaimSecret) !== Boolean(achievementClaimUrl)) {
+  throw new Error('ACHIEVEMENT_CLAIM_SECRET and ACHIEVEMENT_CLAIM_URL must be configured together')
+}
 const testDice = Number.parseInt(process.env.ROOM_SERVER_TEST_DICE ?? '', 10)
 const testReconnectGraceMs = Number.parseInt(
   process.env.ROOM_SERVER_TEST_RECONNECT_GRACE_MS ?? '',
@@ -36,6 +41,10 @@ async function main(): Promise<void> {
     rollDice,
     eventDeck: quietTestEventDeck,
     allowedOrigins,
+    achievementClaims:
+      achievementClaimSecret && achievementClaimUrl
+        ? { secret: achievementClaimSecret, claimUrl: achievementClaimUrl }
+        : undefined,
     reconnectGraceMs:
       process.env.NODE_ENV === 'test' && testReconnectGraceMs > 0
         ? testReconnectGraceMs
