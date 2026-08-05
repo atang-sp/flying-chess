@@ -751,6 +751,8 @@ export interface OnlineRoomView {
   readonly skipRequestedPlayerIds: readonly string[]
   readonly pauseRequestedPlayerIds: readonly string[]
   readonly game: OnlineGameView | null
+  /** Private, per-seat forum handoff issued only after a server-confirmed finish. */
+  readonly achievementClaimUrl?: string
 }
 
 export type OnlineServerMessage =

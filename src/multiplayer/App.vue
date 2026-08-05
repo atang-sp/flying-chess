@@ -1235,6 +1235,17 @@
             <p v-for="entry in game.victorySettlement" :key="entry.playerId">
               {{ playerNickname(entry.playerId) }}：第 {{ entry.place }} 名，{{ entry.count }} 次
             </p>
+            <a
+              v-if="room.achievementClaimUrl"
+              class="btn btn-primary"
+              data-testid="claim-forum-achievement"
+              :href="room.achievementClaimUrl"
+            >
+              绑定论坛账号，保存本局成就
+            </a>
+            <p v-if="room.achievementClaimUrl" class="hint">
+              可选操作；论坛只会保存服务器确认的完成记录，不公开你的游戏昵称。
+            </p>
           </div>
         </div>
 

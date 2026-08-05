@@ -4,10 +4,10 @@
 
 ## 构建与安装
 
-在已检出不可变 `v1.13.0` 标签的仓库根目录执行：
+在已检出不可变 `v1.14.0` 标签的仓库根目录执行：
 
 ```bash
-docker build -f apps/room-server/Dockerfile -t flying-chess-room:1.13.0 .
+docker build -f apps/room-server/Dockerfile -t flying-chess-room:1.14.0 .
 ufw allow in on docker0 from 172.17.0.0/16 to 172.17.0.1 port 8787 proto tcp comment "flying chess room from discourse"
 install -m 0644 deploy/room-server/flying-chess-room.service /etc/systemd/system/
 install -m 0644 deploy/room-server/flying-chess-room-health.service /etc/systemd/system/
@@ -16,7 +16,14 @@ systemctl daemon-reload
 systemctl enable --now flying-chess-room.service flying-chess-room-health.timer
 ```
 
-`/etc/flying-chess-room.env` 可覆盖 `ROOM_IMAGE`，不得放置房间码、昵称、玩法设置或消息内容。服务只输出启动状态；Nginx 对该子域关闭 access log。
+`/etc/flying-chess-room.env` 可覆盖 `ROOM_IMAGE`。启用论坛成就认领时，还必须同时配置：
+
+```dotenv
+ACHIEVEMENT_CLAIM_SECRET=<与 Discourse 插件相同的至少 32 字节随机密钥>
+ACHIEVEMENT_CLAIM_URL=https://atang-sp.run.place/where-is-my-friends/flying-chess
+```
+
+该文件必须为 root 所有且权限为 `0600`。两项缺一时服务拒绝启动；轮换密钥会令尚未认领的旧凭证失效。不得在这里放置房间码、昵称、玩法设置或消息内容。服务只输出启动状态；Nginx 对房间子域关闭 access log。认领凭证只放在 URL fragment 中，不会随论坛页面请求进入 HTTP access log。
 
 ## Discourse 反代与证书
 
