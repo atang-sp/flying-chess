@@ -122,6 +122,8 @@ export interface PlayerSettings {
   playerNames: string[]
 }
 
+type PlayerSettingsStorageReader = Pick<Storage, 'getItem'>
+
 export function savePlayerSettings(settings: PlayerSettings) {
   try {
     localStorage.setItem(PLAYER_SETTINGS_STORAGE_KEY, JSON.stringify(settings))
@@ -130,11 +132,28 @@ export function savePlayerSettings(settings: PlayerSettings) {
   }
 }
 
-export function loadPlayerSettings(): PlayerSettings | null {
-  const raw = localStorage.getItem(PLAYER_SETTINGS_STORAGE_KEY)
+export function loadPlayerSettings(
+  storage: PlayerSettingsStorageReader = localStorage
+): PlayerSettings | null {
+  const raw = storage.getItem(PLAYER_SETTINGS_STORAGE_KEY)
   if (!raw) return null
   try {
-    return JSON.parse(raw) as PlayerSettings
+    const value: unknown = JSON.parse(raw)
+    if (!value || typeof value !== 'object') return null
+    const candidate = value as Record<string, unknown>
+    if (
+      !Number.isSafeInteger(candidate.playerCount) ||
+      Number(candidate.playerCount) < 1 ||
+      !Array.isArray(candidate.playerNames) ||
+      candidate.playerNames.length !== candidate.playerCount ||
+      candidate.playerNames.some(name => typeof name !== 'string')
+    ) {
+      return null
+    }
+    return {
+      playerCount: Number(candidate.playerCount),
+      playerNames: [...candidate.playerNames],
+    }
   } catch (err) {
     console.warn('读取玩家设置失败:', err)
     return null

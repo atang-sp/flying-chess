@@ -323,6 +323,9 @@ test('native WebRTC pairs two phone controllers without cloud signalling', async
     await expect(controllerPage.locator('.controller-main')).toBeVisible()
     await expect(controllerPage.getByTitle('干预筹码')).toBeVisible()
   }
+  await expect(controllers[0].getByRole('button', { name: '🎲 掷骰子' })).toBeVisible()
+  await controllers[0].getByRole('button', { name: '🎲 掷骰子' }).click()
+  await expect(controllers[1].getByRole('button', { name: /小 \(1-3\)/ })).toBeVisible()
 })
 
 test('party mode preserves the classic custom configuration while running and after reset', async ({

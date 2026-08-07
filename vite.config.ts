@@ -88,11 +88,6 @@ export default defineConfig(async ({ command, mode }) => {
       open: false,
       // 允许跨域
       cors: true,
-      // 热更新配置
-      hmr: {
-        host: 'localhost',
-        port: 5173,
-      },
     },
     build: {
       outDir: 'dist',

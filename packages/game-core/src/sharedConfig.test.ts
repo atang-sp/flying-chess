@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createModeConfig,
+  cryptoRandomInt,
   createSharedBoard,
   createStandardConfigSnapshot,
   MODE_POLICIES,
@@ -14,10 +15,29 @@ import {
 
 const deterministicRandom = (value = 0): BoardRandomSource => ({
   randomInt: (minimum, maximum) => Math.min(maximum, Math.max(minimum, value)),
-  choice: entries => entries[value % entries.length]!,
+  choice: entries => {
+    const selected = entries[value % entries.length]
+    if (selected === undefined) throw new Error('test random source received an empty collection')
+    return selected
+  },
 })
 
 describe('shared game configuration contract', () => {
+  it('rejects uint32 tail samples so bounded random integers stay uniform', () => {
+    const samples = [0xffff_ffff, 5]
+    let calls = 0
+    const source = {
+      getRandomValues(values: Uint32Array) {
+        values[0] = samples[calls] ?? 0
+        calls += 1
+        return values
+      },
+    }
+
+    expect(cryptoRandomInt(1, 6, source)).toBe(6)
+    expect(calls).toBe(2)
+  })
+
   it('derives local and online heating snapshots from the effective standard snapshot', () => {
     const standard = createStandardConfigSnapshot({
       boardConfig: { totalCells: 40 },
@@ -37,9 +57,12 @@ describe('shared game configuration contract', () => {
     expect(online.boardConfig).toEqual(local.boardConfig)
     expect(online.punishmentConfig).toEqual(local.punishmentConfig)
 
-    local.punishmentConfig.tools['手掌']!.ratio = 0
+    const localHand = local.punishmentConfig.tools['手掌']
+    const standardHand = standard.punishmentConfig.tools['手掌']
+    if (!localHand || !standardHand) throw new Error('expected standard hand punishment tool')
+    localHand.ratio = 0
     local.boardConfig.totalCells = 60
-    expect(standard.punishmentConfig.tools['手掌']!.ratio).toBeGreaterThan(0)
+    expect(standardHand.ratio).toBeGreaterThan(0)
     expect(standard.boardConfig.totalCells).toBe(40)
   })
 

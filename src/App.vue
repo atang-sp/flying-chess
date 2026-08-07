@@ -735,11 +735,19 @@
         })
       ) {
         try {
-          partyPunishmentChoices.value = createPartyPunishmentChoices(
+          const choices = createPartyPunishmentChoices(
             gameState.punishmentConfig,
             undefined,
             actConstraints
           )
+          partyPunishmentChoices.value = choices
+          if (multiDevice.isRemotePlayer(gameState.currentPlayerIndex)) {
+            multiDevice.requestAction(gameState.currentPlayerIndex, {
+              type: 'punishment_choice',
+              choiceA: choices[0].description,
+              choiceB: choices[1].description,
+            })
+          }
           pendingPartyLanding.value = {
             currentPlayer,
             fromPosition,
@@ -2960,6 +2968,7 @@
     gameFinished,
     isPartyGame,
     sessionPaused,
+    canRollDice,
     victoryConfig,
     overlayState: () => ({
       currentPunishment: Boolean(currentPunishment.value),

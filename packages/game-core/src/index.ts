@@ -23,6 +23,7 @@ import { GameService } from '../../../src/services/gameService'
 import {
   createBoardConfig as createSharedBoardConfig,
   createModeConfig,
+  cryptoRandomInt,
   createPunishmentConfig as createSharedPunishmentConfig,
   createSharedBoard,
   createStandardConfigSnapshot,
@@ -812,7 +813,7 @@ const ONLINE_BASELINE_PUNISHMENT_VARIANTS: readonly PunishmentVariant[] = [
 ]
 
 const DEFAULT_DEPENDENCIES: GameCommandDependencies = {
-  rollDice: () => (crypto.getRandomValues(new Uint8Array(1))[0] % 6) + 1,
+  rollDice: () => cryptoRandomInt(1, 6),
 }
 
 export function createOnlineGame(
