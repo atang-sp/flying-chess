@@ -206,7 +206,18 @@
   const currentPartyMiniGameSource = ref<'event' | 'trap' | null>(null)
   const localProgress = ref(loadLocalProgress())
   const activePartyStudioConfig = ref<PartyStudioConfig | null>(null)
+  interface PartyStartConfig {
+    count: number
+    names: string[]
+    mode: 'party'
+    scenePreset?: PartyScenePreset | 'default'
+    eventDeck?: readonly PartyEventCard[]
+    studioConfig?: PartyStudioConfig
+    multiDevice?: boolean
+  }
+  const activePartyStartConfig = ref<PartyStartConfig | null>(null)
   const partyTieCandidates = ref<readonly number[]>([])
+  const partyTieBreakRef = ref<{ roll: () => void } | null>(null)
   const classicConfigSnapshot = ref<{
     boardConfig: BoardConfig
     punishmentConfig: PunishmentConfig
@@ -1497,6 +1508,7 @@
     sessionPaused.value = false
     activeMode.value = null
     activePartyStudioConfig.value = null
+    activePartyStartConfig.value = null
     classicConfigSnapshot.value = null
     partyMode.clear()
     partyDiceDecisionVisible.value = false
@@ -1560,14 +1572,8 @@
 
   const cloneConfig = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
-  const startPartyGame = (playerConfig: {
-    count: number
-    names: string[]
-    mode: 'party'
-    scenePreset?: PartyScenePreset | 'default'
-    eventDeck?: readonly PartyEventCard[]
-    studioConfig?: PartyStudioConfig
-  }) => {
+  const startPartyGame = (playerConfig: PartyStartConfig) => {
+    activePartyStartConfig.value = cloneConfig(playerConfig)
     const standardSnapshot = createStandardConfigSnapshot({
       boardConfig: cloneConfig(gameState.boardConfig),
       punishmentConfig: cloneConfig(gameState.punishmentConfig),
@@ -1770,6 +1776,7 @@
     currentPartyMiniGameKind.value = null
     currentPartyMiniGameSource.value = null
     partyTieCandidates.value = []
+    activePartyStartConfig.value = null
     activeMode.value = null
     multiDevice.stopHost()
 
@@ -1966,6 +1973,21 @@
       partyTieCandidates.value = leaders
     }
     return 'ended'
+  }
+
+  const requestPartyTieBreakRoll = (playerIndex: number) => {
+    partyTieCandidates.value.forEach(candidateIndex => {
+      multiDevice.clearPendingAction(candidateIndex)
+    })
+    multiDevice.requestAction(playerIndex, { type: 'tiebreak_roll' })
+  }
+
+  const finishPartyTieBreak = (winnerPlayerIndex: number) => {
+    partyTieCandidates.value.forEach(candidateIndex => {
+      multiDevice.clearPendingAction(candidateIndex)
+    })
+    multiDevice.broadcastStateToAll()
+    finishGameWithPlayer(winnerPlayerIndex)
   }
 
   const resolveNaturalVictory = (playerIndex: number, preserveClassicVictoryAudio = true): void => {
@@ -2929,21 +2951,25 @@
 
   // 处理胜利结算画面的"再来一局"按钮
   const handleVictoryPlayAgain = async () => {
-    const playerCount = gameState.players.length
-    const playerNames = gameState.players.map(player => player.name)
     const completedMode = activeMode.value
+    const partyReplayConfig = activePartyStartConfig.value
+      ? cloneConfig(activePartyStartConfig.value)
+      : null
+    const playerCount = gameState.players.length
     gameTelemetry.playAgain()
     showVictoryScreen.value = false
     resetGame()
 
-    if (completedMode === 'party') {
+    if (completedMode === 'party' && partyReplayConfig) {
       await nextTick()
-      startPartyGame({
-        count: playerCount,
-        names: playerNames,
-        mode: 'party',
-        scenePreset: selectedPartyScene.value,
-      })
+      startPartyGame(partyReplayConfig)
+      if (partyReplayConfig.multiDevice) {
+        try {
+          await multiDevice.startHost()
+        } catch (error) {
+          devLog('多设备模式重启失败:', error)
+        }
+      }
       return
     }
 
@@ -3010,6 +3036,7 @@
       handleBounceConfirm: () => confirmBounce(),
       handleTakeoffPunishmentDismiss: handleTakeoffPunishmentDisplay,
       handleTakeoffReliefDismiss: () => confirmTakeoffRelief(),
+      handlePartyTieBreakRoll: () => partyTieBreakRef.value?.roll(),
     },
   })
   const lanPairingAnswerInput = ref('')
@@ -3338,11 +3365,8 @@
     }
   }
 
-  // 切换自动引导开关
-  const toggleAutoGuide = () => {
-    autoGuideEnabled.value = !autoGuideEnabled.value
-    devLog(`自动引导开关切换为: ${autoGuideEnabled.value}`)
-    // 保存到localStorage
+  const persistAutoGuideSetting = () => {
+    devLog(`自动引导开关设置为: ${autoGuideEnabled.value}`)
     localStorage.setItem('autoGuideEnabled', autoGuideEnabled.value.toString())
   }
 
@@ -3372,11 +3396,18 @@
     // 可以在这里添加错误提示
   }
 
-  const handleImportSuccess = async (message: string) => {
-    devLog(`配置导入成功: ${message}`)
+  const prepareForConfigImport = () => {
+    const importedDuringActiveSession = gameStarted.value || activeMode.value !== null
     if (gameStarted.value) {
       gameTelemetry.finishGame('config_import', turnCount.value)
     }
+    if (importedDuringActiveSession) {
+      resetGame()
+    }
+  }
+
+  const handleImportSuccess = async (message: string) => {
+    devLog(`配置导入成功: ${message}`)
 
     // 重新加载玩家设置
     const playerSettings = loadPlayerSettings()
@@ -3979,10 +4010,12 @@
     />
 
     <PartyTieBreak
+      ref="partyTieBreakRef"
       :visible="partyTieCandidates.length > 1"
       :players="gameState.players"
       :candidate-indices="partyTieCandidates"
-      @winner="finishGameWithPlayer"
+      @turn="requestPartyTieBreakRoll"
+      @winner="finishPartyTieBreak"
     />
 
     <!-- 胜利结算画面 -->
@@ -4121,7 +4154,7 @@
                 v-model="autoGuideEnabled"
                 type="checkbox"
                 class="setting-checkbox"
-                @change="toggleAutoGuide"
+                @change="persistAutoGuideSetting"
               />
               <span class="checkbox-text">自动显示引导</span>
             </label>
@@ -4144,10 +4177,10 @@
     <!-- 配置导出对话框 -->
     <ConfigExport
       :visible="showConfigExport"
-      :current-board="gameState.board"
       @close="closeConfigExport"
       @export-success="handleExportSuccess"
       @export-error="handleExportError"
+      @import-will-apply="prepareForConfigImport"
       @import-success="handleImportSuccess"
       @import-error="handleImportError"
     />

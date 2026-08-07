@@ -1134,7 +1134,9 @@ export function normalizePunishmentConfig(
       ratio: typeof entry.ratio === 'number' ? entry.ratio : current.ratio,
       compatibleBodyParts: Array.isArray(entry.compatibleBodyParts)
         ? entry.compatibleBodyParts.filter((part): part is string => typeof part === 'string')
-        : [...current.compatibleBodyParts],
+        : Array.isArray(current.compatibleBodyParts)
+          ? [...current.compatibleBodyParts]
+          : [],
     })
   )
   return {

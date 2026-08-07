@@ -293,14 +293,8 @@ export function validateImportedConfigData(configData: UnknownRecord): string[] 
     validateBoardContent(configData.boardContent, errors)
   }
 
-  const knownSections = [
-    'playerSettings',
-    'punishmentConfig',
-    'boardConfig',
-    'trapConfig',
-    'boardContent',
-  ]
-  if (!knownSections.some(section => configData[section] !== undefined)) {
+  const importableSections = ['playerSettings', 'punishmentConfig', 'boardConfig', 'trapConfig']
+  if (!importableSections.some(section => configData[section] !== undefined)) {
     errors.push('data 至少需要包含一个可导入的配置项')
   }
 

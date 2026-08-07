@@ -10,7 +10,6 @@ export interface ExportOptions {
   punishmentConfig: boolean
   boardConfig: boolean
   trapConfig: boolean
-  boardContent: boolean
 }
 
 // 棋盘内容（包含随机种子）

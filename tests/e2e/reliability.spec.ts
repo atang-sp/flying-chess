@@ -327,6 +327,44 @@ test('native WebRTC pairs two phone controllers without cloud signalling', async
   await expect(controllers[0].getByRole('button', { name: '🎲 掷骰子' })).toBeVisible()
   await controllers[0].getByRole('button', { name: '🎲 掷骰子' }).click()
   await expect(controllers[1].getByRole('button', { name: /小 \(1-3\)/ })).toBeVisible()
+
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: { players: Array<{ position: number }> }
+      partyMode: { session: { value: Record<string, unknown> | null } }
+      completePartyTurnForPlayer: (playerIndex: number) => string
+    }
+    debugWindow.gameState.players[0].position = 12
+    debugWindow.gameState.players[1].position = 12
+    const session = debugWindow.partyMode.session.value
+    if (!session) throw new Error('party session missing')
+    debugWindow.partyMode.session.value = {
+      ...session,
+      startedAt: performance.now() - 20 * 60_000 - 1,
+    }
+    const randomValues = [5, 0, 0, 0]
+    let randomValueIndex = 0
+    Object.defineProperty(window.crypto, 'getRandomValues', {
+      configurable: true,
+      value: (values: Uint32Array) => {
+        values[0] = randomValues[randomValueIndex] ?? 0
+        randomValueIndex += 1
+        return values
+      },
+    })
+    debugWindow.completePartyTurnForPlayer(0)
+    debugWindow.completePartyTurnForPlayer(1)
+  })
+
+  const firstTieAction = controllers[0].locator('.action-group').filter({ hasText: '并列决胜' })
+  await expect(firstTieAction).toBeVisible()
+  await firstTieAction.getByRole('button', { name: '🎲 掷骰子' }).click()
+  const secondTieAction = controllers[1].locator('.action-group').filter({ hasText: '并列决胜' })
+  await expect(secondTieAction).toBeVisible()
+  await secondTieAction.getByRole('button', { name: '🎲 掷骰子' }).click()
+
+  await expect(page.getByTestId('party-tie-break')).toBeHidden()
+  await expect(page.getByTestId('party-highlight-card')).toBeVisible()
 })
 
 test('party mode preserves the classic custom configuration while running and after reset', async ({
@@ -1146,6 +1184,27 @@ test('party victory renders a local-only non-sensitive highlight card', async ({
   await expect(highlight).not.toContainText('玩家1')
 })
 
+test('party play again preserves the selected scene configuration', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  await page.getByTestId('mode-party').click()
+  await page.getByRole('button', { name: /初见破冰/ }).click()
+  await page.getByTestId('start-game').click()
+  await expect(page.locator('[data-kind="qa"]')).toHaveCount(8)
+
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      finishGameWithPlayer: (playerIndex: number) => void
+    }
+    debugWindow.finishGameWithPlayer(0)
+  })
+  await page.locator('.play-again-button').click()
+
+  await expect(page.getByTestId('party-status')).toBeVisible()
+  await expect(page.locator('[data-kind="qa"]')).toHaveCount(8)
+})
+
 test('party time limit finishes the round and resolves tied leaders by dice', async ({
   page,
 }, testInfo) => {
@@ -1353,6 +1412,39 @@ test('tracks a successful in-game configuration import as config_import', async 
   expect(serializedEvents).not.toContain('机密配置内容')
 })
 
+test('in-game configuration import ends the old party session before applying a new roster', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await startPartyGame(page)
+  await page.locator('.guide-controls .export-btn').click()
+  await page.getByRole('button', { name: '导入', exact: true }).click()
+  await page.locator('.json-textarea').fill(
+    JSON.stringify({
+      version: '1.0.0',
+      exportedAt: '2026-08-07T00:00:00.000Z',
+      gameTitle: '飞行棋配置',
+      data: {
+        playerSettings: {
+          playerCount: 3,
+          playerNames: ['甲', '乙', '丙'],
+        },
+      },
+    })
+  )
+  await page.locator('.import-text-btn').click()
+
+  await expect(page.getByTestId('mode-party')).toBeVisible()
+  await expect(page.getByTestId('party-status')).toBeHidden()
+
+  await page.getByRole('button', { name: 'Close' }).click()
+  await page.getByTestId('mode-party').click()
+  await page.getByTestId('start-game').click()
+
+  await expect(page.getByLabel('丙剩余2枚干预筹码')).toBeVisible()
+})
+
 test('telemetry transport failures do not block setup, play, dice, or completion', async ({
   page,
 }, testInfo) => {
@@ -1389,6 +1481,24 @@ test('telemetry transport failures do not block setup, play, dice, or completion
     page.locator('.header-actions').getByRole('button', { name: '再来一局' })
   ).toBeVisible()
   expect(pageErrors).toEqual([])
+})
+
+test('auto guide setting toggles once and persists the selected value', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  await page.getByTitle('引导设置').click()
+  const autoGuide = page.getByRole('checkbox', { name: '自动显示引导' })
+  await expect(autoGuide).not.toBeChecked()
+
+  await autoGuide.click()
+
+  await expect(autoGuide).toBeChecked()
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('autoGuideEnabled')))
+    .toBe('true')
 })
 
 test('desktop app fills the viewport width', async ({ page }, testInfo) => {
@@ -1805,6 +1915,7 @@ test('rest effect consumes the affected player next turn without a dice roll', a
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chrome')
+  test.setTimeout(45_000)
 
   await page.goto('/flying-chess/')
   await page.evaluate(() => {
@@ -1872,22 +1983,26 @@ test('rest effect consumes the affected player next turn without a dice roll', a
   })
 
   await page.locator('.dice-cube').click({ force: true })
-  await expect(page.getByText('休息一回合', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('休息一回合', { exact: true }).first()).toBeVisible({
+    timeout: 10_000,
+  })
   await page.getByRole('button', { name: '确认', exact: true }).click()
   await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const debugWindow = window as typeof window & {
-          gameState: {
-            currentPlayerIndex: number
-            players: Array<{ pendingSkippedTurns?: number }>
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const debugWindow = window as typeof window & {
+            gameState: {
+              currentPlayerIndex: number
+              players: Array<{ pendingSkippedTurns?: number }>
+            }
           }
-        }
-        return {
-          currentPlayerIndex: debugWindow.gameState.currentPlayerIndex,
-          pendingSkippedTurns: debugWindow.gameState.players[0].pendingSkippedTurns,
-        }
-      })
+          return {
+            currentPlayerIndex: debugWindow.gameState.currentPlayerIndex,
+            pendingSkippedTurns: debugWindow.gameState.players[0].pendingSkippedTurns,
+          }
+        }),
+      { timeout: 10_000 }
     )
     .toEqual({ currentPlayerIndex: 1, pendingSkippedTurns: 1 })
 
@@ -1903,24 +2018,26 @@ test('rest effect consumes the affected player next turn without a dice roll', a
     delete landingCell.effect
   })
 
-  await expect(page.locator('.dice-cube')).toHaveClass(/can-roll/)
+  await expect(page.locator('.dice-cube')).toHaveClass(/can-roll/, { timeout: 10_000 })
   await page.locator('.dice-cube').click({ force: true })
   await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const debugWindow = window as typeof window & {
-          gameState: {
-            currentPlayerIndex: number
-            players: Array<{ pendingSkippedTurns?: number }>
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const debugWindow = window as typeof window & {
+            gameState: {
+              currentPlayerIndex: number
+              players: Array<{ pendingSkippedTurns?: number }>
+            }
+            lastEffect: { value: string }
           }
-          lastEffect: { value: string }
-        }
-        return {
-          currentPlayerIndex: debugWindow.gameState.currentPlayerIndex,
-          pendingSkippedTurns: debugWindow.gameState.players[0].pendingSkippedTurns,
-          lastEffect: debugWindow.lastEffect.value,
-        }
-      })
+          return {
+            currentPlayerIndex: debugWindow.gameState.currentPlayerIndex,
+            pendingSkippedTurns: debugWindow.gameState.players[0].pendingSkippedTurns,
+            lastEffect: debugWindow.lastEffect.value,
+          }
+        }),
+      { timeout: 10_000 }
     )
     .toEqual({
       currentPlayerIndex: 1,

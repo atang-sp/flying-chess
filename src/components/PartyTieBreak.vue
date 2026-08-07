@@ -17,6 +17,7 @@
 
   const emit = defineEmits<{
     (event: 'winner', playerIndex: number): void
+    (event: 'turn', playerIndex: number): void
   }>()
 
   const state = ref<PartyTieBreakState | null>(null)
@@ -31,6 +32,8 @@
 
   const reset = () => {
     state.value = createPartyTieBreakState(props.candidateIndices)
+    const playerIndex = currentPlayerIndex.value
+    if (playerIndex !== undefined) emit('turn', playerIndex)
   }
 
   watch(
@@ -60,8 +63,13 @@
     if (result.winnerPlayerIndex !== undefined) {
       resolved.value = true
       emit('winner', result.winnerPlayerIndex)
+      return
     }
+    const nextPlayerIndex = currentPlayerIndex.value
+    if (nextPlayerIndex !== undefined) emit('turn', nextPlayerIndex)
   }
+
+  defineExpose({ roll })
 </script>
 
 <template>

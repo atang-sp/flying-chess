@@ -32,6 +32,7 @@ export interface MultiDeviceHostActions {
   handleBounceConfirm: () => void
   handleTakeoffPunishmentDismiss: () => void
   handleTakeoffReliefDismiss: () => void
+  handlePartyTieBreakRoll: (playerIndex: number) => void
 }
 
 export interface MultiDeviceOverlayState {
@@ -255,6 +256,7 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
         handleRemoteAcknowledge(playerIndex)
         break
       case 'tiebreak_roll':
+        deps.actions.handlePartyTieBreakRoll(playerIndex)
         break
       default:
         devLog('[MultiDeviceHost] Unknown message type:', msg)
