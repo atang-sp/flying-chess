@@ -74,3 +74,12 @@ jobs:
 
       - name: Run browser tests
         run: npm run test:e2e
+
+      - name: Upload browser failure traces
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces-${{ github.run_attempt }}
+          path: test-results
+          if-no-files-found: ignore
+          retention-days: 7

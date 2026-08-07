@@ -313,9 +313,10 @@ test('native WebRTC pairs two phone controllers without cloud signalling', async
 
     await page.getByTestId('lan-pairing-answer-input').fill(await answerField.inputValue())
     await page.getByTestId('lan-pairing-submit').click()
-    if (index === 0) {
-      await expect.poll(() => page.locator('.connection-item.connected').count()).toBe(1)
-    }
+    await expect(
+      page.getByTitle(`多设备模式 - ${index + 1}/2 已连接`),
+      `controller ${index + 1} should finish its WebRTC handshake`
+    ).toBeVisible({ timeout: 15_000 })
   }
 
   await expect(lobby).toBeHidden()
