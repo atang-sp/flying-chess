@@ -5,7 +5,9 @@ import {
   VICTORY_CONFIG_STORAGE_KEY,
   PARTY_EVENT_DECK_STORAGE_KEY,
   LOCAL_PROGRESS_STORAGE_KEY,
+  PLAYER_SETTINGS_STORAGE_KEY,
   loadGameMode,
+  loadPlayerSettings,
   loadPartyEventDeck,
   loadLocalProgress,
   loadVictoryConfig,
@@ -19,6 +21,19 @@ import { DEFAULT_PARTY_EVENT_DECK } from '../services/partyEvents'
 import { recordLocalProgress } from '../services/localProgress'
 
 describe('本地游戏数据清理', () => {
+  it('损坏的玩家设置不会作为可信数组进入启动流程', () => {
+    const values = new Map<string, string>([
+      [PLAYER_SETTINGS_STORAGE_KEY, JSON.stringify({ playerCount: 2, playerNames: null })],
+    ])
+    const storage = {
+      getItem(key: string) {
+        return values.get(key) ?? null
+      },
+    }
+
+    expect(loadPlayerSettings(storage)).toBeNull()
+  })
+
   it('清除配置、玩家、备份和引导偏好使用的实际键名', () => {
     const values = new Map<string, string>(LOCAL_GAME_STORAGE_KEYS.map(key => [key, 'saved']))
     const storage = {

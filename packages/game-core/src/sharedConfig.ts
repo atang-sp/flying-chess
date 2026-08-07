@@ -159,6 +159,10 @@ export interface BoardRandomSource {
   weightedChoice?<T>(entries: readonly T[], weights: readonly number[]): T
 }
 
+export interface CryptoRandomSource {
+  getRandomValues(values: Uint32Array): Uint32Array
+}
+
 export interface PublicConfigProjection {
   modeId: ModeId
   rulesetVersion: RulesetVersion
@@ -1282,16 +1286,36 @@ export function projectPublicConfig(config: ConfigSnapshot): PublicConfigProject
   }
 }
 
+export function cryptoRandomInt(
+  minimum: number,
+  maximum: number,
+  source: CryptoRandomSource = globalThis.crypto
+): number {
+  if (!Number.isSafeInteger(minimum) || !Number.isSafeInteger(maximum) || minimum > maximum) {
+    throw new RangeError('随机整数范围必须是按升序排列的安全整数')
+  }
+  const range = maximum - minimum + 1
+  const uint32Range = 0x1_0000_0000
+  if (range > uint32Range) {
+    throw new RangeError('随机整数范围不能超过 uint32 可表示的取值数量')
+  }
+  const acceptanceLimit = Math.floor(uint32Range / range) * range
+  const bytes = new Uint32Array(1)
+  let sample: number
+  do {
+    source.getRandomValues(bytes)
+    sample = bytes[0]
+  } while (sample >= acceptanceLimit)
+  return minimum + (sample % range)
+}
+
 const secureRandomSource: BoardRandomSource = {
-  randomInt: (minimum, maximum) => {
-    const range = maximum - minimum + 1
-    const bytes = new Uint32Array(1)
-    globalThis.crypto.getRandomValues(bytes)
-    return minimum + (bytes[0]! % range)
-  },
+  randomInt: cryptoRandomInt,
   choice: entries => {
     if (entries.length === 0) throw new Error('不能从空集合中选择')
-    return entries[secureRandomSource.randomInt(0, entries.length - 1)]!
+    const selected = entries[secureRandomSource.randomInt(0, entries.length - 1)]
+    if (selected === undefined) throw new Error('随机选择结果超出集合范围')
+    return selected
   },
 }
 
@@ -1314,7 +1338,9 @@ const chooseWeighted = <T extends { ratio: number }>(
     cumulative += entry.ratio
     if (threshold <= cumulative) return entry
   }
-  return enabled[enabled.length - 1]!
+  const fallback = enabled[enabled.length - 1]
+  if (fallback === undefined) throw new Error('没有启用的惩罚配置')
+  return fallback
 }
 
 export function createCompatiblePunishmentAction(
@@ -1390,10 +1416,13 @@ export function createSharedBoard(
   const availablePositions = Array.from({ length: totalCells - 2 }, (_, index) => index + 2)
   for (let index = availablePositions.length - 1; index > 0; index -= 1) {
     const swapIndex = random.randomInt(0, index)
-    ;[availablePositions[index], availablePositions[swapIndex]] = [
-      availablePositions[swapIndex]!,
-      availablePositions[index]!,
-    ]
+    const current = availablePositions[index]
+    const swap = availablePositions[swapIndex]
+    if (current === undefined || swap === undefined) {
+      throw new Error('棋盘随机源返回了越界位置')
+    }
+    availablePositions[index] = swap
+    availablePositions[swapIndex] = current
   }
 
   const board = new Map<number, BoardCell>([
@@ -1546,5 +1575,9 @@ export function createSharedBoard(
       })
     }
   }
-  return Array.from({ length: totalCells }, (_, index) => board.get(index + 1)!)
+  return Array.from({ length: totalCells }, (_, index) => {
+    const cell = board.get(index + 1)
+    if (!cell) throw new Error(`棋盘缺少第 ${index + 1} 格`)
+    return cell
+  })
 }

@@ -557,6 +557,7 @@ export async function createRoomServer(
     if (!successor) return false
     room.hostPlayerId = successor.id
     room.skipRequestedPlayerIds.clear()
+    room.pauseRequestedPlayerIds.clear()
     return true
   }
 

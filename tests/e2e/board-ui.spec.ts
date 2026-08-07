@@ -22,6 +22,13 @@ async function startDefaultGame(page: Page) {
   await expect(page.locator('.game-board')).toBeVisible()
 }
 
+test('玩家人数图标按钮提供可读名称', async ({ page }) => {
+  await page.goto('/flying-chess/')
+
+  await expect(page.getByRole('button', { name: '减少玩家人数' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '增加玩家人数' })).toBeVisible()
+})
+
 test('手机上可轻点查看格子全文，并明确区分普通格和奖励格', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile-chrome')
 

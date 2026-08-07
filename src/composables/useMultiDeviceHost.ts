@@ -54,9 +54,49 @@ export interface MultiDeviceHostDeps {
   gameFinished: Ref<boolean>
   isPartyGame: ComputedRef<boolean>
   sessionPaused: Ref<boolean>
+  canRollDice: ComputedRef<boolean>
   victoryConfig: Ref<VictoryConfig>
   overlayState: () => MultiDeviceOverlayState
   actions: MultiDeviceHostActions
+}
+
+export function controllerMessageMatchesRequiredAction(
+  message: ControllerMessage,
+  requiredAction: RequiredAction | null,
+  canRollDice: boolean
+): boolean {
+  switch (message.type) {
+    case 'join':
+      return false
+    case 'roll_dice':
+      return canRollDice && (requiredAction === null || requiredAction.type === 'roll_dice')
+    case 'predict':
+      return requiredAction?.type === 'predict'
+    case 'reaction_decision':
+      return requiredAction?.type === 'reaction_decision'
+    case 'reroll':
+      return requiredAction?.type === 'dice_decision' && requiredAction.canReroll
+    case 'continue_move':
+      return requiredAction?.type === 'dice_decision'
+    case 'select_punishment':
+    case 'skip_punishment_choice':
+      return requiredAction?.type === 'punishment_choice'
+    case 'punishment_intervention':
+      return (
+        requiredAction?.type === 'punishment_intervention' &&
+        requiredAction.actions.includes(message.action) &&
+        (message.action !== 'transfer' ||
+          requiredAction.transferTargets.some(
+            target => target.playerIndex === message.targetPlayerIndex
+          ))
+      )
+    case 'decline_punishment_intervention':
+      return requiredAction?.type === 'punishment_intervention'
+    case 'acknowledge':
+      return requiredAction?.type === 'acknowledge'
+    case 'tiebreak_roll':
+      return requiredAction?.type === 'tiebreak_roll'
+  }
 }
 
 export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
@@ -167,6 +207,11 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
   }
 
   function routeControllerAction(playerIndex: number, msg: ControllerMessage): void {
+    const requiredAction = requiredActionForPlayer(playerIndex)
+    const canRollDice = deps.canRollDice.value && deps.gameState.currentPlayerIndex === playerIndex
+    if (!controllerMessageMatchesRequiredAction(msg, requiredAction, canRollDice)) return
+    if (requiredAction?.type !== 'roll_dice') clearPendingAction(playerIndex)
+
     switch (msg.type) {
       case 'roll_dice':
         if (deps.gameState.currentPlayerIndex === playerIndex) {
@@ -247,7 +292,7 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
     for (const [peerId, playerIndex] of peerToPlayerIndex) {
       if (!network.isConnected(peerId)) continue
 
-      const action = pendingActions.value.get(playerIndex) ?? null
+      const action = requiredActionForPlayer(playerIndex)
       const view = projectPlayerView(
         playerIndex,
         deps.gameState,
@@ -257,6 +302,26 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
       )
       network.sendTo(peerId, { type: 'state_update', view })
     }
+  }
+
+  function requiredActionForPlayer(playerIndex: number): RequiredAction | null {
+    const explicitAction = pendingActions.value.get(playerIndex)
+    if (explicitAction) return explicitAction
+    if (
+      deps.canRollDice.value &&
+      deps.gameState.currentPlayerIndex === playerIndex &&
+      deps.gameStarted.value &&
+      !deps.gameFinished.value
+    ) {
+      return { type: 'roll_dice' }
+    }
+    if (
+      deps.gameState.currentPlayerIndex === playerIndex &&
+      Object.values(deps.overlayState()).some(Boolean)
+    ) {
+      return { type: 'acknowledge', message: deps.lastEffect.value || '请在主屏查看并确认当前操作' }
+    }
+    return null
   }
 
   function requestAction(playerIndex: number, action: RequiredAction): void {

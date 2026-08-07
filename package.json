@@ -1,6 +1,6 @@
 {
   "name": "ludo-vue-demo",
-  "version": "1.14.0",
+  "version": "1.14.1",
   "private": true,
   "workspaces": [
     "packages/*",
@@ -22,7 +22,7 @@
     "deploy:manual": "npm run build && echo '✅ 构建完成，请手动上传dist文件夹到GitHub Pages'",
     "build:tag": "node scripts/build-with-tag.js",
     "lint": "eslint . --ext .vue,.js,.ts,.jsx,.tsx --fix",
-    "lint:check": "eslint . --ext .vue,.js,.ts,.jsx,.tsx",
+    "lint:check": "eslint . --ext .vue,.js,.ts,.jsx,.tsx --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "type-check": "vue-tsc --noEmit && npm run type-check --workspaces --if-present",
@@ -61,7 +61,7 @@
     "vue": "^3.5.13"
   },
   "overrides": {
-    "brace-expansion": "5.0.8"
+    "brace-expansion": "5.0.9"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",

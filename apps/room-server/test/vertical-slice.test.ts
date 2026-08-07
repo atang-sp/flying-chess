@@ -913,6 +913,13 @@ describe('联网升温局服务器权威纵向切片', () => {
     host.send({ type: 'start_game', requestId: 'failover-start' })
     await host.next(message => message.type === 'room_state' && message.room.status === 'playing')
 
+    successor.send({ type: 'pause_game', requestId: 'failover-pause-request' })
+    await host.next(
+      message =>
+        message.type === 'room_state' &&
+        message.room.pauseRequestedPlayerIds.includes(joined.playerId)
+    )
+
     await host.disconnect()
     now += 90_000
 
@@ -922,6 +929,7 @@ describe('联网升温局服务器权威纵向切片', () => {
     expect(transferred).toMatchObject({
       type: 'room_state',
       room: {
+        pauseRequestedPlayerIds: [],
         players: expect.arrayContaining([
           expect.objectContaining({
             id: created.playerId,
