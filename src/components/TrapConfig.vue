@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue'
   import { Skull, Trash2, Plus, Check, X, Info, RotateCcw } from '@lucide/vue'
-  import type { TrapAction } from '../types/game'
+  import type { TrapAction } from '@flying-chess/game-core/types'
   import { GAME_CONFIG } from '../config/gameConfig'
   import { GameService } from '../services/gameService'
 

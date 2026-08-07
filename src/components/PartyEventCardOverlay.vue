@@ -1,13 +1,13 @@
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue'
   import { Hand, Link2, Sparkles, Vote } from '@lucide/vue'
-  import type { Player } from '../types/game'
+  import type { Player } from '@flying-chess/game-core/types'
   import {
     resolvePartyRockPaperScissors,
     tallyPartyVotes,
     type PartyEventCard,
     type PartyRockPaperScissorsChoice,
-  } from '../services/partyEvents'
+  } from '@flying-chess/game-core/party-events'
 
   const props = defineProps<{
     card: PartyEventCard | null

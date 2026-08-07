@@ -502,7 +502,18 @@ export async function createRoomServer(
     } else {
       command = { type: message.type } as OnlineGameCommand
     }
-    updateRoomGame(room, applyOnlineGameCommand(room.game, player.id, command, gameDependencies))
+    updateRoomGame(
+      room,
+      applyOnlineGameCommand(
+        room.game,
+        {
+          actorPlayerId: player.id,
+          authority: room.hostPlayerId === player.id ? 'host' : 'player',
+        },
+        command,
+        gameDependencies
+      )
+    )
     room.skipRequestedPlayerIds.clear()
     if (message.type === 'pause_game' || message.type === 'resume_game') {
       room.pauseRequestedPlayerIds.clear()
@@ -635,7 +646,11 @@ function projectRoom(
       .map(player => player.id),
     skipRequestedPlayerIds: [...room.skipRequestedPlayerIds],
     pauseRequestedPlayerIds: [...room.pauseRequestedPlayerIds],
-    game: room.game ? projectOnlineGameView(room.game, viewerId) : null,
+    game: room.game
+      ? projectOnlineGameView(room.game, viewerId, {
+          authority: room.hostPlayerId === viewerId ? 'host' : 'player',
+        })
+      : null,
     achievementClaimUrl: room.achievementClaimUrls.get(viewerId),
   }
 }

@@ -1,4 +1,4 @@
-import type { BoardCell } from '../types/game'
+import type { BoardCell } from '@flying-chess/game-core/types'
 
 export type CellVisualKind =
   | 'start'

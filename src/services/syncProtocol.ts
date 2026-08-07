@@ -1,4 +1,4 @@
-import type { Player, GameState } from '../types/game'
+import type { Player, GameState } from '@flying-chess/game-core/types'
 import type {
   PublicPlayerInfo,
   PlayerView,
@@ -6,7 +6,7 @@ import type {
   ControllerMessage,
   RequiredAction,
 } from '../types/network'
-import type { PartySession, PartyAct } from './partyMode'
+import type { PartySession, PartyAct } from '@flying-chess/game-core/party-mode'
 
 export function toPublicPlayerInfo(player: Player): PublicPlayerInfo {
   return {

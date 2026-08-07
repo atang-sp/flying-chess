@@ -3,9 +3,12 @@
   import { Gamepad2, Sparkles } from '@lucide/vue'
   import finishFlagUrl from '../assets/kenney/flag_triangle.svg?url'
   import type { GameMode } from '../config/modes'
-  import type { PartyHighlight } from '../services/partyMode'
-  import type { Player, VictoryConfig } from '../types/game'
-  import { DEFAULT_VICTORY_CONFIG, resolveVictorySettlement } from '../services/victorySettlement'
+  import type { PartyHighlight } from '@flying-chess/game-core/party-mode'
+  import type { Player, VictoryConfig } from '@flying-chess/game-core/types'
+  import {
+    DEFAULT_VICTORY_CONFIG,
+    resolveVictorySettlement,
+  } from '@flying-chess/game-core/victory-settlement'
   import PlayerMeeple from './PlayerMeeple.vue'
 
   interface Props {

@@ -207,6 +207,85 @@ describe('联网升温局服务器权威纵向切片', () => {
     expect(playerTwoView.room.game?.allowedCommands).toContain('roll_dice')
   })
 
+  it('服务器拒绝无关玩家跳过他人的私密预测', async () => {
+    server = await createRoomServer({ port: 0, eventDeck: quietEventDeck })
+    const host = await TestClient.connect(server.wsUrl)
+    const reactor = await TestClient.connect(server.wsUrl)
+    const unrelated = await TestClient.connect(server.wsUrl)
+    clients.push(host, reactor, unrelated)
+
+    host.send({
+      type: 'create_room',
+      requestId: 'auth-create',
+      nickname: '主持人',
+      color: '#ff6b6b',
+    })
+    const hostSession = await host.next(message => message.type === 'session')
+    if (hostSession.type !== 'session') throw new Error('expected host session')
+
+    reactor.send({
+      type: 'join_room',
+      requestId: 'auth-join-reactor',
+      roomCode: hostSession.roomCode,
+      nickname: '反应者',
+      color: '#4ecdc4',
+    })
+    await reactor.next(message => message.type === 'session')
+    unrelated.send({
+      type: 'join_room',
+      requestId: 'auth-join-unrelated',
+      roomCode: hostSession.roomCode,
+      nickname: '无关玩家',
+      color: '#45b7d1',
+    })
+    const unrelatedSession = await unrelated.next(message => message.type === 'session')
+    if (unrelatedSession.type !== 'session') throw new Error('expected unrelated session')
+
+    for (const [index, client] of [host, reactor, unrelated].entries()) {
+      client.send({ type: 'confirm_settings', requestId: `auth-confirm-${index}` })
+    }
+    await host.next(
+      message => message.type === 'room_state' && message.room.confirmedPlayerIds.length === 3
+    )
+    host.send({ type: 'start_game', requestId: 'auth-start' })
+    await unrelated.next(
+      message => message.type === 'room_state' && message.room.game?.phase === 'awaiting_prediction'
+    )
+
+    unrelated.send({ type: 'skip_action', requestId: 'auth-illegal-skip' })
+    await expect(
+      unrelated.next(
+        message => message.type === 'error' && message.requestId === 'auth-illegal-skip'
+      )
+    ).resolves.toMatchObject({
+      type: 'error',
+      code: 'NOT_AUTHORIZED',
+    })
+
+    reactor.send({
+      type: 'submit_prediction',
+      requestId: 'auth-valid-prediction',
+      prediction: 'high',
+    })
+    await expect(
+      host.next(
+        message => message.type === 'room_state' && message.room.game?.phase === 'awaiting_roll'
+      )
+    ).resolves.toMatchObject({ type: 'room_state' })
+
+    unrelated.send({ type: 'skip_action', requestId: 'auth-core-skip-request' })
+    await expect(
+      host.next(
+        message =>
+          message.type === 'room_state' &&
+          message.room.skipRequestedPlayerIds.includes(unrelatedSession.playerId)
+      )
+    ).resolves.toMatchObject({
+      type: 'room_state',
+      room: { game: { phase: 'awaiting_roll' } },
+    })
+  })
+
   it('终局后只向各自席位签发私有、可验证的论坛认领凭证', async () => {
     const claimSecret = 'room-server-integration-secret-with-at-least-32-bytes'
     const diceValues = [6, 6, 6, 6, 6, 6, 6, 6, 1]

@@ -3,7 +3,7 @@ import type {
   PunishmentConfig,
   PunishmentPosition,
   PunishmentTool,
-} from '../types/game'
+} from '@flying-chess/game-core/types'
 import { GAME_CONFIG } from '../config/gameConfig'
 import { normalizePunishmentConfig as normalizeSharedPunishmentConfig } from '@flying-chess/game-core/config'
 

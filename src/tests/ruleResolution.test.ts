@@ -6,7 +6,7 @@ import {
   finalizePunishmentCount,
   resolveRule,
   scaleResolvedPunishmentCount,
-} from '../services/ruleResolution'
+} from '@flying-chess/game-core/rule-resolution'
 import { GameService } from '../services/gameService'
 import { SecureRandom } from '../utils/secureRandom'
 import type {
@@ -15,7 +15,7 @@ import type {
   Player,
   PunishmentAction,
   PunishmentConfig,
-} from '../types/game'
+} from '@flying-chess/game-core/types'
 
 const players: Player[] = [
   {

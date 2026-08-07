@@ -1,5 +1,5 @@
 import { GameService } from '../services/gameService'
-import type { Player } from '../types/game'
+import type { Player } from '@flying-chess/game-core/types'
 import type { PlayerSettings } from '../utils/cache'
 
 export function usePlayerState() {

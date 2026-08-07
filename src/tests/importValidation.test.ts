@@ -117,6 +117,30 @@ describe('导入配置校验', () => {
     expect(validateImportData(data).isValid).toBe(false)
   })
 
+  it('拒绝只能通过零权重条目拼出兼容关系的惩罚配置', () => {
+    const data = cloneValidImport()
+    data.data.punishmentConfig.tools = {
+      重工具: { name: '重工具', intensity: 8, ratio: 100 },
+      轻工具: { name: '轻工具', intensity: 1, ratio: 0 },
+    } as never
+    data.data.punishmentConfig.bodyParts = {
+      强部位: { name: '强部位', sensitivity: 8, ratio: 100 },
+      弱部位: { name: '弱部位', sensitivity: 1, ratio: 0 },
+    } as never
+    data.data.punishmentConfig.positions = {
+      限定姿势: {
+        name: '限定姿势',
+        ratio: 100,
+        compatibleBodyParts: ['弱部位'],
+      },
+    } as never
+
+    const result = validateImportData(data)
+
+    expect(result.isValid).toBe(false)
+    expect(result.errors.join('\n')).toContain('无法组成任何兼容的惩罚')
+  })
+
   it('将旧配置中缺少兼容部位的自定义姿势归一化为不限制部位', () => {
     const data = cloneValidImport()
     const positions = data.data.punishmentConfig.positions as Record<
@@ -132,6 +156,19 @@ describe('导入配置校验', () => {
     expect(
       normalizePunishmentConfig(data.data.punishmentConfig).positions.自定义姿势
         ?.compatibleBodyParts
+    ).toEqual([])
+  })
+
+  it('旧配置沿用内置姿势名时也不继承默认部位限制', () => {
+    const data = cloneValidImport()
+    const position = data.data.punishmentConfig.positions.站立 as {
+      compatibleBodyParts?: string[]
+    }
+    delete position.compatibleBodyParts
+
+    expect(validateImportData(data).isValid).toBe(true)
+    expect(
+      normalizePunishmentConfig(data.data.punishmentConfig).positions.站立?.compatibleBodyParts
     ).toEqual([])
   })
 

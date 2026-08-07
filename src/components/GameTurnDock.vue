@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { computed } from 'vue'
   import { Footprints, Sparkles } from '@lucide/vue'
-  import type { Player } from '../types/game'
+  import type { Player } from '@flying-chess/game-core/types'
   import { vibrate } from '../utils/haptics'
   import CoolDice from './CoolDice.vue'
   import PlayerMeeple from './PlayerMeeple.vue'

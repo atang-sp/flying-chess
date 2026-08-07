@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { computed, ref, watchPostEffect } from 'vue'
   import { ChevronLeft, ChevronRight, LocateFixed, Users, X } from '@lucide/vue'
-  import type { BoardCell, Player } from '../types/game'
+  import type { BoardCell, Player } from '@flying-chess/game-core/types'
   import { getBoardCellPresentation } from '../utils/boardPresentation'
 
   interface Props {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { Snowflake, Flame, Heart, Users } from '@lucide/vue'
   import { GAME_CONFIG } from '../config/gameConfig'
-  import type { PartyScenePreset } from '../types/game'
+  import type { PartyScenePreset } from '@flying-chess/game-core/types'
 
   interface Props {
     selected?: PartyScenePreset | 'default'

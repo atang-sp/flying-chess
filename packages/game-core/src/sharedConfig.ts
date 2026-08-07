@@ -142,7 +142,7 @@ export interface ConfigOverrides {
   rulesetVersion?: RulesetVersion
   authority?: 'local' | 'server'
   boardConfig?: Partial<BoardConfig>
-  punishmentConfig?: Partial<PunishmentConfig> & {
+  punishmentConfig?: Omit<Partial<PunishmentConfig>, 'tools' | 'bodyParts' | 'positions'> & {
     tools?: Record<string, Partial<PunishmentTool>>
     bodyParts?: Record<string, Partial<PunishmentBodyPart>>
     positions?: Record<string, Partial<PunishmentPosition>>
@@ -156,6 +156,9 @@ export interface ConfigOverrides {
 export interface BoardRandomSource {
   randomInt(minimum: number, maximum: number): number
   choice<T>(entries: readonly T[]): T
+  /** Uniform value in [0, 1). Used for scale-invariant weighted selection when available. */
+  random?(): number
+  /** @deprecated Weighted selection is owned by this module; callers only provide entropy. */
   weightedChoice?<T>(entries: readonly T[], weights: readonly number[]): T
 }
 
@@ -755,6 +758,42 @@ const standardSnapshot: ConfigSnapshot = {
   authority: 'local',
 }
 
+const applyNamedOverrides = <T extends { name: string }, Override extends Partial<T>>(
+  base: Record<string, T>,
+  overrides: Record<string, Override>,
+  isCompleteEntry: (entry: Override) => boolean,
+  normalize: (name: string, entry: Override, fallback: T | undefined) => T
+): Record<string, T> => {
+  const overrideEntries = Object.entries(overrides)
+  const replaceCategory =
+    overrideEntries.length > 0 && overrideEntries.every(([, entry]) => isCompleteEntry(entry))
+  const names = replaceCategory
+    ? overrideEntries.map(([name]) => name)
+    : [...new Set([...Object.keys(base), ...overrideEntries.map(([name]) => name)])]
+
+  return Object.fromEntries(
+    names.map(name => {
+      const entry = overrides[name] ?? {}
+      return [name, normalize(name, entry as Override, base[name])]
+    })
+  )
+}
+
+const hasCompleteToolFields = (entry: Partial<PunishmentTool>): boolean =>
+  typeof entry.name === 'string' &&
+  typeof entry.intensity === 'number' &&
+  typeof entry.ratio === 'number'
+
+const hasCompleteBodyPartFields = (entry: Partial<PunishmentBodyPart>): boolean =>
+  typeof entry.name === 'string' &&
+  typeof entry.sensitivity === 'number' &&
+  typeof entry.ratio === 'number'
+
+const hasCompletePositionFields = (entry: Partial<PunishmentPosition>): boolean =>
+  typeof entry.name === 'string' &&
+  typeof entry.ratio === 'number' &&
+  Array.isArray(entry.compatibleBodyParts)
+
 export function createStandardConfigSnapshot(overrides: ConfigOverrides = {}): ConfigSnapshot {
   const snapshot = cloneConfig(standardSnapshot)
   if (overrides.modeId) snapshot.modeId = overrides.modeId
@@ -776,31 +815,44 @@ export function createStandardConfigSnapshot(overrides: ConfigOverrides = {}): C
     snapshot.punishmentConfig = {
       ...snapshot.punishmentConfig,
       ...punishment,
-      tools: Object.fromEntries(
-        Object.entries(snapshot.punishmentConfig.tools).map(([name, tool]) => [
-          name,
-          { ...tool, ...(punishment.tools?.[name] ?? {}) },
-        ])
-      ),
-      bodyParts: Object.fromEntries(
-        Object.entries(snapshot.punishmentConfig.bodyParts).map(([name, bodyPart]) => [
-          name,
-          { ...bodyPart, ...(punishment.bodyParts?.[name] ?? {}) },
-        ])
-      ),
-      positions: Object.fromEntries(
-        Object.entries(snapshot.punishmentConfig.positions).map(([name, position]) => [
-          name,
-          {
-            ...position,
-            ...(punishment.positions?.[name] ?? {}),
-            compatibleBodyParts: [
-              ...(punishment.positions?.[name]?.compatibleBodyParts ??
-                position.compatibleBodyParts),
-            ],
-          },
-        ])
-      ),
+      tools: punishment.tools
+        ? applyNamedOverrides(
+            snapshot.punishmentConfig.tools,
+            punishment.tools,
+            hasCompleteToolFields,
+            (name, tool, fallback) => ({
+              name: tool.name ?? fallback?.name ?? name,
+              intensity: tool.intensity ?? fallback?.intensity ?? 1,
+              ratio: tool.ratio ?? fallback?.ratio ?? 0,
+            })
+          )
+        : cloneRecord(snapshot.punishmentConfig.tools),
+      bodyParts: punishment.bodyParts
+        ? applyNamedOverrides(
+            snapshot.punishmentConfig.bodyParts,
+            punishment.bodyParts,
+            hasCompleteBodyPartFields,
+            (name, bodyPart, fallback) => ({
+              name: bodyPart.name ?? fallback?.name ?? name,
+              sensitivity: bodyPart.sensitivity ?? fallback?.sensitivity ?? 1,
+              ratio: bodyPart.ratio ?? fallback?.ratio ?? 0,
+            })
+          )
+        : cloneRecord(snapshot.punishmentConfig.bodyParts),
+      positions: punishment.positions
+        ? applyNamedOverrides(
+            snapshot.punishmentConfig.positions,
+            punishment.positions,
+            hasCompletePositionFields,
+            (name, position, fallback) => ({
+              name: position.name ?? fallback?.name ?? name,
+              ratio: position.ratio ?? fallback?.ratio ?? 0,
+              compatibleBodyParts: [
+                ...(position.compatibleBodyParts ?? fallback?.compatibleBodyParts ?? []),
+              ],
+            })
+          )
+        : cloneRecord(snapshot.punishmentConfig.positions),
     }
   }
   if (overrides.traps) snapshot.traps = cloneTraps(overrides.traps)
@@ -1023,7 +1075,7 @@ const cloneRecord = <T extends { name: string }>(record: Record<string, T>): Rec
     ])
   )
 
-export function validatePunishmentConfig(value: unknown): value is PunishmentConfig {
+function isStructurallyValidPunishmentConfig(value: unknown): value is PunishmentConfig {
   if (!isRecord(value)) return false
   const tools = value.tools
   const bodyParts = value.bodyParts
@@ -1092,18 +1144,106 @@ export function validatePunishmentConfig(value: unknown): value is PunishmentCon
     Object.values(tools).some(entry => validRatio(entry) && entry.ratio > 0) &&
     Object.values(bodyParts).some(entry => validRatio(entry) && entry.ratio > 0) &&
     Object.values(positions).some(entry => validRatio(entry) && entry.ratio > 0) &&
-    Number.isInteger(minStrikes) &&
+    Number.isSafeInteger(minStrikes) &&
     Number(minStrikes) >= 1 &&
-    Number.isInteger(maxStrikes) &&
+    Number(minStrikes) <= 100 &&
+    Number.isSafeInteger(maxStrikes) &&
     Number(maxStrikes) >= Number(minStrikes) &&
-    Number.isInteger(step) &&
+    Number(maxStrikes) <= 100 &&
+    Number.isSafeInteger(step) &&
     Number(step) >= 1 &&
-    Number.isInteger(maxTakeoffFailures) &&
+    Number(step) <= 100 &&
+    Number.isSafeInteger(maxTakeoffFailures) &&
     Number(maxTakeoffFailures) >= 1 &&
+    Number(maxTakeoffFailures) <= 10 &&
     typeof doublePunishmentChance === 'number' &&
+    Number.isFinite(doublePunishmentChance) &&
     doublePunishmentChance >= 0 &&
     doublePunishmentChance <= 100
   )
+}
+
+export type PunishmentConfigIssueCode =
+  | 'INVALID_STRUCTURE'
+  | 'NO_COMPATIBLE_COMBINATION'
+  | 'INVALID_STRIKE_RANGE'
+
+export interface PunishmentConfigIssue {
+  readonly code: PunishmentConfigIssueCode
+  readonly message: string
+}
+
+export type PunishmentConfigValidationResult =
+  | Readonly<{ isValid: true; issues: readonly [] }>
+  | Readonly<{ isValid: false; issues: readonly PunishmentConfigIssue[] }>
+
+export function inspectPunishmentConfig(
+  value: unknown,
+  constraints: PunishmentConstraints = {}
+): PunishmentConfigValidationResult {
+  if (!isStructurallyValidPunishmentConfig(value)) {
+    return {
+      isValid: false,
+      issues: [
+        {
+          code: 'INVALID_STRUCTURE',
+          message: '工具、部位、姿势或惩罚次数参数超出有效范围。',
+        },
+      ],
+    }
+  }
+
+  const minimum = Math.max(1, constraints.minStrikes ?? value.minStrikes)
+  const maximum = Math.max(minimum, constraints.maxStrikes ?? value.maxStrikes)
+  if (Math.ceil(minimum / value.step) > Math.floor(maximum / value.step)) {
+    return {
+      isValid: false,
+      issues: [
+        {
+          code: 'INVALID_STRIKE_RANGE',
+          message: '惩罚次数范围内没有符合当前步长的可用值。',
+        },
+      ],
+    }
+  }
+
+  const maxIntensity = constraints.maxToolIntensity ?? Infinity
+  const hasCompatibleCombination = Object.values(value.tools).some(
+    tool =>
+      tool.ratio > 0 &&
+      tool.intensity <= maxIntensity &&
+      Object.values(value.bodyParts).some(
+        bodyPart =>
+          bodyPart.ratio > 0 &&
+          bodyPart.sensitivity >= tool.intensity &&
+          Object.values(value.positions).some(
+            position =>
+              position.ratio > 0 &&
+              (position.compatibleBodyParts.length === 0 ||
+                position.compatibleBodyParts.includes(bodyPart.name))
+          )
+      )
+  )
+  if (!hasCompatibleCombination) {
+    return {
+      isValid: false,
+      issues: [
+        {
+          code: 'NO_COMPATIBLE_COMBINATION',
+          message: '当前启用的工具、部位和姿势无法组成任何兼容的惩罚。',
+        },
+      ],
+    }
+  }
+
+  return { isValid: true, issues: [] }
+}
+
+export function validatePunishmentConfig(
+  value: unknown,
+  constraints?: PunishmentConstraints
+): value is PunishmentConfig {
+  return inspectPunishmentConfig(value, constraints).isValid
 }
 
 export function normalizePunishmentConfig(
@@ -1134,9 +1274,7 @@ export function normalizePunishmentConfig(
       ratio: typeof entry.ratio === 'number' ? entry.ratio : current.ratio,
       compatibleBodyParts: Array.isArray(entry.compatibleBodyParts)
         ? entry.compatibleBodyParts.filter((part): part is string => typeof part === 'string')
-        : Array.isArray(current.compatibleBodyParts)
-          ? [...current.compatibleBodyParts]
-          : [],
+        : [],
     })
   )
   return {
@@ -1257,12 +1395,26 @@ export function validateConfigSnapshot(value: unknown): value is ConfigSnapshot 
     Object.entries(stageConstraints).every(
       ([act, stage]) => partyActs.includes(act as PartyAct) && isValidPunishmentConstraints(stage)
     )
+  const punishmentConfigValid = validatePunishmentConfig(value.punishmentConfig)
+  const baseConstraints = isValidPunishmentConstraints(constraints) ? constraints : {}
+  const generatableForBase =
+    punishmentConfigValid &&
+    validConstraints &&
+    validatePunishmentConfig(value.punishmentConfig, baseConstraints)
+  const generatableForEveryStage =
+    punishmentConfigValid &&
+    validStageConstraints &&
+    Object.values(stageConstraints as Record<string, unknown>).every(
+      stage =>
+        isValidPunishmentConstraints(stage) &&
+        validatePunishmentConfig(value.punishmentConfig, { ...baseConstraints, ...stage })
+    )
   return (
     ((value.modeId === 'classic' && value.rulesetVersion === 'classic_v1') ||
       ((value.modeId === 'party' || value.modeId === 'online_party') &&
         value.rulesetVersion === 'party_v2')) &&
     validateBoardConfig(value.boardConfig) &&
-    validatePunishmentConfig(value.punishmentConfig) &&
+    punishmentConfigValid &&
     validateTrapConfig(value.traps) &&
     Array.isArray(value.qaQuestions) &&
     value.qaQuestions.every(entry => typeof entry === 'string') &&
@@ -1270,6 +1422,8 @@ export function validateConfigSnapshot(value: unknown): value is ConfigSnapshot 
     value.dareInstructions.every(entry => typeof entry === 'string') &&
     validConstraints &&
     validStageConstraints &&
+    generatableForBase &&
+    generatableForEveryStage &&
     value.authority === MODE_POLICIES[value.modeId as ModeId]?.authority
   )
 }
@@ -1313,6 +1467,7 @@ export function cryptoRandomInt(
 
 const secureRandomSource: BoardRandomSource = {
   randomInt: cryptoRandomInt,
+  random: () => cryptoRandomInt(0, 0xffff_ffff) / 0x1_0000_0000,
   choice: entries => {
     if (entries.length === 0) throw new Error('不能从空集合中选择')
     const selected = entries[secureRandomSource.randomInt(0, entries.length - 1)]
@@ -1321,28 +1476,48 @@ const secureRandomSource: BoardRandomSource = {
   },
 }
 
-const chooseWeighted = <T extends { ratio: number }>(
+export function chooseWeighted<T>(
+  entries: readonly T[],
+  weights: readonly number[],
+  randomUnit: () => number = () => cryptoRandomInt(0, 0xffff_ffff) / 0x1_0000_0000
+): T {
+  if (entries.length === 0 || entries.length !== weights.length) {
+    throw new Error('加权选择的候选项与权重数量必须一致且不能为空')
+  }
+  if (weights.some(weight => !Number.isFinite(weight) || weight < 0)) {
+    throw new RangeError('加权选择的权重必须是非负有限数')
+  }
+  const total = weights.reduce((sum, weight) => sum + weight, 0)
+  if (!(total > 0) || !Number.isFinite(total)) {
+    throw new RangeError('加权选择的权重总和必须是正有限数')
+  }
+  const unit = randomUnit()
+  if (!Number.isFinite(unit) || unit < 0 || unit >= 1) {
+    throw new RangeError('随机源必须返回 [0, 1) 范围内的数字')
+  }
+  const threshold = unit * total
+  let cumulative = 0
+  for (let index = 0; index < entries.length; index += 1) {
+    cumulative += weights[index] ?? 0
+    const entry = entries[index]
+    if (entry !== undefined && threshold < cumulative) return entry
+  }
+  const fallback = entries[entries.length - 1]
+  if (fallback === undefined) throw new Error('加权选择没有可用候选项')
+  return fallback
+}
+
+const chooseByRatio = <T extends { ratio: number }>(
   entries: readonly T[],
   random: BoardRandomSource
 ): T => {
   const enabled = entries.filter(entry => entry.ratio > 0)
   if (enabled.length === 0) throw new Error('没有启用的惩罚配置')
-  if (random.weightedChoice) {
-    return random.weightedChoice(
-      enabled,
-      enabled.map(entry => entry.ratio)
-    )
-  }
-  const total = enabled.reduce((sum, entry) => sum + entry.ratio, 0)
-  const threshold = random.randomInt(1, Math.max(1, Math.ceil(total)))
-  let cumulative = 0
-  for (const entry of enabled) {
-    cumulative += entry.ratio
-    if (threshold <= cumulative) return entry
-  }
-  const fallback = enabled[enabled.length - 1]
-  if (fallback === undefined) throw new Error('没有启用的惩罚配置')
-  return fallback
+  return chooseWeighted(
+    enabled,
+    enabled.map(entry => entry.ratio),
+    () => random.random?.() ?? random.randomInt(0, 0x00ff_ffff) / 0x0100_0000
+  )
 }
 
 export function createCompatiblePunishmentAction(
@@ -1370,7 +1545,7 @@ export function createCompatiblePunishmentAction(
           )
       )
   )
-  const tool = chooseWeighted(viableTools, random)
+  const tool = chooseByRatio(viableTools, random)
   const viableBodyParts = bodyParts.filter(
     bodyPart =>
       bodyPart.ratio > 0 &&
@@ -1382,8 +1557,8 @@ export function createCompatiblePunishmentAction(
             position.compatibleBodyParts.includes(bodyPart.name))
       )
   )
-  const bodyPart = chooseWeighted(viableBodyParts, random)
-  const position = chooseWeighted(
+  const bodyPart = chooseByRatio(viableBodyParts, random)
+  const position = chooseByRatio(
     positions.filter(
       candidate =>
         candidate.ratio > 0 &&

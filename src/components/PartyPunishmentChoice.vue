@@ -1,11 +1,11 @@
 <script setup lang="ts">
   import { onBeforeUnmount, ref, watch } from 'vue'
   import { Coins, Flame, Timer } from '@lucide/vue'
-  import type { PunishmentAction } from '../types/game'
+  import type { PunishmentAction } from '@flying-chess/game-core/types'
   import {
     PARTY_DECISION_TIMEOUT_SECONDS,
     PARTY_DEFAULT_PUNISHMENT_DECISION,
-  } from '../services/partyMode'
+  } from '@flying-chess/game-core/party-mode'
 
   const props = defineProps<{
     visible: boolean

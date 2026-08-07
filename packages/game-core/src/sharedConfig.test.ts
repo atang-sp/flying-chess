@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import {
+  createCompatiblePunishmentAction,
   createModeConfig,
   cryptoRandomInt,
   createSharedBoard,
   createStandardConfigSnapshot,
   MODE_POLICIES,
   normalizeConfigSnapshot,
+  inspectPunishmentConfig,
   projectPublicConfig,
   serializeConfigSnapshot,
+  validatePunishmentConfig,
   validateConfigSnapshot,
   type BoardRandomSource,
   type ConfigSnapshot,
+  type PunishmentConfig,
 } from './sharedConfig'
 
 const deterministicRandom = (value = 0): BoardRandomSource => ({
@@ -23,6 +27,113 @@ const deterministicRandom = (value = 0): BoardRandomSource => ({
 })
 
 describe('shared game configuration contract', () => {
+  it('对小数权重使用比例不变的连续区间选择', () => {
+    const lowQuantile: BoardRandomSource = {
+      randomInt: minimum => minimum,
+      random: () => 0,
+      choice: entries => {
+        const selected = entries[0]
+        if (selected === undefined) throw new Error('expected a weighted candidate')
+        return selected
+      },
+    }
+    const highQuantile: BoardRandomSource = {
+      randomInt: (_minimum, maximum) => maximum,
+      random: () => 1 - Number.EPSILON,
+      choice: entries => {
+        const selected = entries[entries.length - 1]
+        if (selected === undefined) throw new Error('expected a weighted candidate')
+        return selected
+      },
+    }
+
+    for (const scale of [0.1, 1, 50]) {
+      const config: PunishmentConfig = {
+        tools: {
+          A: { name: 'A', intensity: 1, ratio: scale },
+          B: { name: 'B', intensity: 1, ratio: scale },
+        },
+        bodyParts: { C: { name: 'C', sensitivity: 1, ratio: scale } },
+        positions: { D: { name: 'D', ratio: scale, compatibleBodyParts: [] } },
+        minStrikes: 1,
+        maxStrikes: 1,
+        step: 1,
+        maxTakeoffFailures: 1,
+        doublePunishmentChance: 0,
+      }
+
+      expect(createCompatiblePunishmentAction(config, lowQuantile).tool.name).toBe('A')
+      expect(createCompatiblePunishmentAction(config, highQuantile).tool.name).toBe('B')
+    }
+  })
+
+  it('拒绝各分类分别启用但没有完整兼容组合的惩罚配置', () => {
+    const config: PunishmentConfig = {
+      tools: {
+        重工具: { name: '重工具', intensity: 8, ratio: 100 },
+      },
+      bodyParts: {
+        强部位: { name: '强部位', sensitivity: 8, ratio: 100 },
+        弱部位: { name: '弱部位', sensitivity: 1, ratio: 0 },
+      },
+      positions: {
+        限定姿势: { name: '限定姿势', ratio: 100, compatibleBodyParts: ['弱部位'] },
+      },
+      minStrikes: 1,
+      maxStrikes: 5,
+      step: 1,
+      maxTakeoffFailures: 1,
+      doublePunishmentChance: 0,
+    }
+
+    expect(validatePunishmentConfig(config)).toBe(false)
+    expect(inspectPunishmentConfig(config)).toMatchObject({
+      isValid: false,
+      issues: [{ code: 'NO_COMPATIBLE_COMBINATION' }],
+    })
+  })
+
+  it('根据幕约束拒绝该阶段无法生成的惩罚配置', () => {
+    const config: PunishmentConfig = {
+      tools: { 中强度: { name: '中强度', intensity: 5, ratio: 100 } },
+      bodyParts: { 可承受: { name: '可承受', sensitivity: 5, ratio: 100 } },
+      positions: { 任意: { name: '任意', ratio: 100, compatibleBodyParts: [] } },
+      minStrikes: 5,
+      maxStrikes: 10,
+      step: 5,
+      maxTakeoffFailures: 1,
+      doublePunishmentChance: 0,
+    }
+    const party = createModeConfig('party')
+    party.punishmentConfig = config
+
+    expect(validatePunishmentConfig(config)).toBe(true)
+    expect(inspectPunishmentConfig(config, { maxToolIntensity: 4 })).toMatchObject({
+      isValid: false,
+      issues: [{ code: 'NO_COMPATIBLE_COMBINATION' }],
+    })
+    expect(validateConfigSnapshot(party)).toBe(false)
+  })
+
+  it('拒绝在惩罚次数区间内无法落点的步长', () => {
+    const config: PunishmentConfig = {
+      tools: { A: { name: 'A', intensity: 1, ratio: 1 } },
+      bodyParts: { B: { name: 'B', sensitivity: 1, ratio: 1 } },
+      positions: { C: { name: 'C', ratio: 1, compatibleBodyParts: [] } },
+      minStrikes: 2,
+      maxStrikes: 3,
+      step: 4,
+      maxTakeoffFailures: 1,
+      doublePunishmentChance: 0,
+    }
+
+    expect(validatePunishmentConfig(config)).toBe(false)
+    expect(inspectPunishmentConfig(config)).toMatchObject({
+      isValid: false,
+      issues: [{ code: 'INVALID_STRIKE_RANGE' }],
+    })
+  })
+
   it('rejects uint32 tail samples so bounded random integers stay uniform', () => {
     const samples = [0xffff_ffff, 5]
     let calls = 0
@@ -64,6 +175,52 @@ describe('shared game configuration contract', () => {
     local.boardConfig.totalCells = 60
     expect(standardHand.ratio).toBeGreaterThan(0)
     expect(standard.boardConfig.totalCells).toBe(40)
+  })
+
+  it('完整惩罚分类覆盖会保留自定义条目且不重新混入默认条目', () => {
+    const standard = createStandardConfigSnapshot({
+      punishmentConfig: {
+        tools: {
+          自定义工具: { name: '自定义工具', intensity: 4, ratio: 0.5 },
+        },
+        bodyParts: {
+          自定义部位: { name: '自定义部位', sensitivity: 4, ratio: 0.5 },
+        },
+        positions: {
+          自定义姿势: {
+            name: '自定义姿势',
+            ratio: 0.5,
+            compatibleBodyParts: ['自定义部位'],
+          },
+        },
+      },
+    })
+    const party = createModeConfig('party', standard)
+
+    expect(Object.keys(standard.punishmentConfig.tools)).toEqual(['自定义工具'])
+    expect(Object.keys(standard.punishmentConfig.bodyParts)).toEqual(['自定义部位'])
+    expect(Object.keys(standard.punishmentConfig.positions)).toEqual(['自定义姿势'])
+    expect(party.punishmentConfig).toEqual(standard.punishmentConfig)
+  })
+
+  it('局部惩罚条目覆盖只修改目标字段并保留其余默认条目', () => {
+    const standard = createStandardConfigSnapshot({
+      punishmentConfig: {
+        tools: {
+          手掌: { ratio: 0.5 },
+        },
+      },
+    })
+
+    expect(standard.punishmentConfig.tools['手掌']).toMatchObject({
+      name: '手掌',
+      intensity: 2,
+      ratio: 0.5,
+    })
+    expect(standard.punishmentConfig.tools['尺子']).toBeDefined()
+    expect(Object.keys(standard.punishmentConfig.tools)).toHaveLength(
+      Object.keys(createStandardConfigSnapshot().punishmentConfig.tools).length
+    )
   })
 
   it('uses one board generator and one compatible punishment pool for local and online modes', () => {

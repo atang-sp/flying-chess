@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeVictoryConfig, resolveVictorySettlement } from '../services/victorySettlement'
-import type { Player, VictoryConfig } from '../types/game'
+import {
+  normalizeVictoryConfig,
+  resolveVictorySettlement,
+} from '@flying-chess/game-core/victory-settlement'
+import type { Player, VictoryConfig } from '@flying-chess/game-core/types'
 
 const players: Player[] = [
   { id: 1, name: '冠军', color: '#ef4444', position: 40, isWinner: true },

@@ -13,7 +13,7 @@
     Check,
     X,
   } from '@lucide/vue'
-  import type { BoardConfig } from '../types/game'
+  import type { BoardConfig } from '@flying-chess/game-core/types'
   import { GameService } from '../services/gameService'
 
   interface Props {

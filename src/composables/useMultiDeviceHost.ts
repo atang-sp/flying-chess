@@ -8,11 +8,11 @@ import type {
   RequiredAction,
   RoomInfo,
 } from '../types/network'
-import type { GameState, VictoryConfig } from '../types/game'
-import type { PartySession } from '../services/partyMode'
-import type { PartyPunishmentIntervention } from '../services/partyPunishmentInterventions'
+import type { GameState, VictoryConfig } from '@flying-chess/game-core/types'
+import type { PartySession } from '@flying-chess/game-core/party-mode'
+import type { PartyPunishmentIntervention } from '@flying-chess/game-core/party-interventions'
 import { devLog } from '../utils/logger'
-import { resolveVictorySettlement } from '../services/victorySettlement'
+import { resolveVictorySettlement } from '@flying-chess/game-core/victory-settlement'
 
 export interface MultiDeviceHostActions {
   handleDiceRoll: () => Promise<void>

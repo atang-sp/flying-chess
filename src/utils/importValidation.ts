@@ -1,5 +1,6 @@
 import { GameService } from '../services/gameService'
-import type { BoardConfig } from '../types/game'
+import type { BoardConfig } from '@flying-chess/game-core/types'
+import { inspectPunishmentConfig, normalizePunishmentConfig } from '@flying-chess/game-core/config'
 
 type UnknownRecord = Record<string, unknown>
 
@@ -134,6 +135,7 @@ function validatePunishmentConfig(raw: unknown, errors: string[]): void {
     errors.push('data.punishmentConfig 必须是对象')
     return
   }
+  const initialErrorCount = errors.length
 
   const tools = readNamedEntries(raw.tools, 'data.punishmentConfig.tools', errors)
   const bodyParts = readNamedEntries(raw.bodyParts, 'data.punishmentConfig.bodyParts', errors)
@@ -227,26 +229,11 @@ function validatePunishmentConfig(raw: unknown, errors: string[]): void {
     errors.push('data.punishmentConfig.step 在惩罚次数范围内无法产生有效值')
   }
 
-  const validToolIntensities = tools
-    .map(entry => entry.value.intensity)
-    .filter((value): value is number => typeof value === 'number' && value >= 1 && value <= 10)
-  const validSensitivities = bodyParts
-    .map(entry => entry.value.sensitivity)
-    .filter((value): value is number => typeof value === 'number' && value >= 1 && value <= 10)
-  if (
-    validToolIntensities.length === tools.length &&
-    validSensitivities.length === bodyParts.length
-  ) {
-    tools.forEach(({ name, value }) => {
-      if (!validSensitivities.some(sensitivity => sensitivity >= (value.intensity as number))) {
-        errors.push(`data.punishmentConfig.tools.${name} 没有可承受其强度的部位`)
-      }
-    })
-    bodyParts.forEach(({ name, value }) => {
-      if (!validToolIntensities.some(intensity => intensity <= (value.sensitivity as number))) {
-        errors.push(`data.punishmentConfig.bodyParts.${name} 没有可使用的工具`)
-      }
-    })
+  if (errors.length === initialErrorCount) {
+    const inspection = inspectPunishmentConfig(normalizePunishmentConfig(raw))
+    if (!inspection.isValid) {
+      errors.push(...inspection.issues.map(issue => `data.punishmentConfig ${issue.message}`))
+    }
   }
 }
 

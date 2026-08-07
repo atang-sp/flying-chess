@@ -1766,6 +1766,41 @@ test('default board reports no unassigned effect cells', async ({ page }, testIn
   await expect(page.getByText('剩余可用格子：0 格')).toBeVisible()
 })
 
+test('升温局开局前拒绝暖场阶段无法生成的惩罚配置', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        punishmentConfig: {
+          tools: Record<string, { intensity: number; ratio: number }>
+          bodyParts: Record<string, { sensitivity: number; ratio: number }>
+          positions: Record<string, { ratio: number; compatibleBodyParts: string[] }>
+        }
+      }
+    }
+    Object.values(debugWindow.gameState.punishmentConfig.tools).forEach(tool => {
+      tool.intensity = 8
+      tool.ratio = 100
+    })
+    Object.values(debugWindow.gameState.punishmentConfig.bodyParts).forEach(bodyPart => {
+      bodyPart.sensitivity = 8
+      bodyPart.ratio = 100
+    })
+    Object.values(debugWindow.gameState.punishmentConfig.positions).forEach(position => {
+      position.ratio = 100
+      position.compatibleBodyParts = []
+    })
+  })
+
+  await page.getByTestId('mode-party').click()
+  await page.getByTestId('start-game').click()
+
+  await expect(page.getByRole('dialog', { name: '升温局配置无效' })).toBeVisible()
+  await expect(page.locator('.game-board')).toBeHidden()
+})
+
 test('movement watchdog preserves a turn while a trap overlay is active', async ({
   page,
 }, testInfo) => {
@@ -1776,6 +1811,8 @@ test('movement watchdog preserves a turn while a trap overlay is active', async 
     const debugWindow = window as typeof window & {
       gameState: { gameStatus: string }
       showTrapDisplay: { value: boolean }
+      activeMode: { value: 'classic' | 'party' | null }
+      partyEventQueue: { value: unknown[] }
       checkGameStateHealth: () => void
     }
     const originalNow = Date.now
@@ -1783,6 +1820,8 @@ test('movement watchdog preserves a turn while a trap overlay is active', async 
 
     try {
       Date.now = () => startedAt
+      debugWindow.activeMode.value = 'party'
+      debugWindow.partyEventQueue.value.push({ id: 'preserved-event' })
       debugWindow.gameState.gameStatus = 'moving'
       debugWindow.showTrapDisplay.value = true
       debugWindow.checkGameStateHealth()
@@ -1798,6 +1837,8 @@ test('movement watchdog preserves a turn while a trap overlay is active', async 
       return {
         withOverlay,
         afterOverlay: debugWindow.gameState.gameStatus,
+        activeMode: debugWindow.activeMode.value,
+        queuedEvents: debugWindow.partyEventQueue.value.length,
       }
     } finally {
       Date.now = originalNow
@@ -1807,6 +1848,8 @@ test('movement watchdog preserves a turn while a trap overlay is active', async 
   expect(states).toEqual({
     withOverlay: 'moving',
     afterOverlay: 'waiting',
+    activeMode: 'party',
+    queuedEvents: 1,
   })
 })
 

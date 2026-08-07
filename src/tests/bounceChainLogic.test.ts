@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { GameService } from '../services/gameService'
-import type { BoardCell, Player, PunishmentAction, PunishmentConfig } from '../types/game'
+import type {
+  BoardCell,
+  Player,
+  PunishmentAction,
+  PunishmentConfig,
+} from '@flying-chess/game-core/types'
 
 const createBaseBoard = (size: number): BoardCell[] => {
   return Array.from({ length: size }, (_, i) => ({

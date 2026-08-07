@@ -1,11 +1,11 @@
 <script setup lang="ts">
   import { computed, onBeforeUnmount, ref, watch } from 'vue'
   import { ArrowRightLeft, Ban, Coins, Flame, Timer } from '@lucide/vue'
-  import type { Player, ResolvedPunishmentResult } from '../types/game'
+  import type { Player, ResolvedPunishmentResult } from '@flying-chess/game-core/types'
   import type {
     PartyPunishmentIntervention,
     PartyPunishmentInterventionOption,
-  } from '../services/partyPunishmentInterventions'
+  } from '@flying-chess/game-core/party-interventions'
 
   const TIMEOUT_SECONDS = 10
 

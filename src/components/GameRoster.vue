@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { computed } from 'vue'
   import { Flame, MapPin } from '@lucide/vue'
-  import type { Player } from '../types/game'
+  import type { Player } from '@flying-chess/game-core/types'
   import PlayerMeeple from './PlayerMeeple.vue'
 
   interface Props {

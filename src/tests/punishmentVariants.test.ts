@@ -5,9 +5,9 @@ import {
   createMutualPunishmentReturn,
   getPunishmentVariantPresentation,
   resolveConditionalPunishment,
-} from '../services/punishmentVariants'
-import { resolveRule } from '../services/ruleResolution'
-import type { Player, PunishmentAction, PunishmentConfig } from '../types/game'
+} from '@flying-chess/game-core/punishment-variants'
+import { resolveRule } from '@flying-chess/game-core/rule-resolution'
+import type { Player, PunishmentAction, PunishmentConfig } from '@flying-chess/game-core/types'
 
 const players: Player[] = [
   { id: 1, name: '红方', color: '#ef4444', position: 8, isWinner: false },

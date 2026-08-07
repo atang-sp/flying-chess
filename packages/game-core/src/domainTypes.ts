@@ -9,7 +9,7 @@ import type {
   PunishmentVariant,
   TrapAction,
   TrapVariant,
-} from '@flying-chess/game-core/config'
+} from './sharedConfig'
 
 export type {
   BoardCell,
@@ -23,7 +23,7 @@ export type {
   PunishmentConstraints,
   TrapAction,
   TrapVariant,
-} from '@flying-chess/game-core/config'
+} from './sharedConfig'
 
 export interface Player {
   id: number

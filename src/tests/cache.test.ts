@@ -17,7 +17,7 @@ import {
   savePartyEventDeck,
   saveLocalProgress,
 } from '../utils/cache'
-import { DEFAULT_PARTY_EVENT_DECK } from '../services/partyEvents'
+import { DEFAULT_PARTY_EVENT_DECK } from '@flying-chess/game-core/party-events'
 import { recordLocalProgress } from '../services/localProgress'
 
 describe('本地游戏数据清理', () => {

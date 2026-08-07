@@ -4,7 +4,7 @@ import {
   loadRemoteCommunityPack,
   validateCommunityPack,
 } from '../services/communityPacks'
-import { DEFAULT_PARTY_EVENT_DECK } from '../services/partyEvents'
+import { DEFAULT_PARTY_EVENT_DECK } from '@flying-chess/game-core/party-events'
 
 const pack = {
   schemaVersion: 1,

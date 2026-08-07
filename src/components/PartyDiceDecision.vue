@@ -4,7 +4,7 @@
   import {
     PARTY_DECISION_TIMEOUT_SECONDS,
     PARTY_DEFAULT_DICE_DECISION,
-  } from '../services/partyMode'
+  } from '@flying-chess/game-core/party-mode'
 
   const props = defineProps<{
     visible: boolean

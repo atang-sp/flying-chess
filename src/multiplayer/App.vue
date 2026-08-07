@@ -582,7 +582,7 @@
                 </select>
               </label>
               <label>
-                每次操作限时
+                决策限时
                 <select v-model.number="settingsDraft.turnDurationSeconds">
                   <option
                     v-for="duration in ONLINE_TURN_DURATION_OPTIONS"
@@ -592,6 +592,7 @@
                     {{ duration }} 秒
                   </option>
                 </select>
+                <small class="hint">仅用于预测、反应和惩罚选择等决策阶段。</small>
               </label>
               <BoardConfigPanel
                 :config="settingsDraft.boardConfig"
@@ -638,7 +639,7 @@
                 </dd>
               </div>
               <div>
-                <dt>操作限时</dt>
+                <dt>决策限时</dt>
                 <dd data-testid="turn-duration-setting">
                   {{ room.settings.turnDurationSeconds }} 秒
                 </dd>
@@ -689,7 +690,7 @@
             {{ game.myTokensRemaining }}
           </p>
           <p v-if="deadlineSeconds !== null" class="deadline-note" data-testid="deadline-note">
-            本操作剩余 {{ deadlineSeconds }} 秒
+            本次决策剩余 {{ deadlineSeconds }} 秒
           </p>
           <p v-if="game.paused" class="confirmed-note">游戏已暂停，倒计时已冻结。</p>
           <p v-if="room.skipRequestedPlayerIds.length" class="hint">
@@ -717,8 +718,9 @@
               {{ isHost ? '暂停游戏' : hasRequestedPause ? '已请求暂停' : '请求暂停' }}
             </button>
             <button
-              v-if="!game.paused"
+              v-if="!game.paused && allowedCommands.includes('skip_action')"
               class="text-button"
+              data-testid="skip-action"
               @click="send({ type: 'skip_action', requestId: requestId('skip') })"
             >
               {{ isCoreOperation && !isHost ? '请求主持人跳过' : '跳过当前操作' }}

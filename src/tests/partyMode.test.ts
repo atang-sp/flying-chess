@@ -16,8 +16,8 @@ import {
   resumePartySession,
   spendPartyToken,
   submitPartyPrediction,
-} from '../services/partyMode'
-import type { PunishmentConfig } from '../types/game'
+} from '@flying-chess/game-core/party-mode'
+import type { PunishmentConfig } from '@flying-chess/game-core/types'
 
 describe('升温局阶段导演', () => {
   it('按完整轮次从暖场推进到升温和终局', () => {
@@ -311,7 +311,7 @@ describe('升温局阶段导演', () => {
     let countSelection = 0
 
     const choices = createPartyPunishmentChoices(config, {
-      weightedChoice: entries => entries[0],
+      random: () => 0,
       randomInt: () => {
         countSelection += 1
         return countSelection

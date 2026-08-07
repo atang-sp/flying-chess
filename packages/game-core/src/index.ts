@@ -18,8 +18,23 @@ import {
   type PartyReactionDecision,
   type PartySession,
   type PartyTieBreakState,
-} from '../../../src/services/partyMode'
-import { GameService } from '../../../src/services/gameService'
+} from './partyMode'
+import { resolveCellEffect, resolvePlayerMovement } from './movement'
+import {
+  createAutoBoardConfig,
+  findBoardCell,
+  getBoardCellType,
+  getPlayerDisplayPosition,
+  isSpecialBoardCell,
+} from './boardRules'
+import {
+  createPlayerRoster,
+  DEFAULT_PLAYER_COLORS,
+  hasPlayerWon,
+  nextPlayerIndex,
+} from './playerRules'
+import { canPlayerSkipOwnOnlineAction } from './onlineCommandPolicy'
+import { scheduleOnlineDeadline, timeoutDecisionPlayerId } from './onlineDeadline'
 import {
   createBoardConfig as createSharedBoardConfig,
   createModeConfig,
@@ -41,11 +56,13 @@ export {
   createModeConfig,
   createSharedBoard,
   createStandardConfigSnapshot,
+  chooseWeighted,
   normalizePunishmentConfig,
   normalizeTrapConfig,
   normalizeConfigSnapshot,
   projectPublicConfig,
   serializeConfigSnapshot,
+  inspectPunishmentConfig,
   validateConfigSnapshot,
   validatePunishmentConfig,
   validateTrapConfig,
@@ -57,20 +74,23 @@ export type {
   ModeId,
   ModePolicy,
   PublicConfigProjection,
+  PunishmentConfigIssue,
+  PunishmentConfigIssueCode,
+  PunishmentConfigValidationResult,
 } from './sharedConfig'
 import {
   applyPartyPunishmentIntervention,
   getPartyPunishmentInterventionOptions,
   type PartyPunishmentIntervention,
   type PartyPunishmentInterventionOption,
-} from '../../../src/services/partyPunishmentInterventions'
+} from './partyPunishmentInterventions'
 import {
   createCompatiblePunishmentAction,
   finalizePunishmentCount,
   pickPunishmentVariant,
   resolveRule,
   scaleResolvedPunishmentCount,
-} from '../../../src/services/ruleResolution'
+} from './ruleResolution'
 import {
   applyPartyEventPunishmentRules,
   activatePartyEvent,
@@ -83,21 +103,15 @@ import {
   type PartyEventSignal,
   type PartyEventState,
   type PartyRockPaperScissorsChoice,
-} from '../../../src/services/partyEvents'
-import {
-  consumePartyMiniGameModifier,
-  createMemoryChallenge,
-} from '../../../src/services/partyMiniGames'
+} from './partyEvents'
+import { consumePartyMiniGameModifier, createMemoryChallenge } from './partyMiniGames'
 import {
   createDeferredPunishment,
   createEncorePunishmentReturn,
   createMutualPunishmentReturn,
   resolveConditionalPunishment,
-} from '../../../src/services/punishmentVariants'
-import {
-  DEFAULT_VICTORY_CONFIG,
-  resolveVictorySettlement,
-} from '../../../src/services/victorySettlement'
+} from './punishmentVariants'
+import { DEFAULT_VICTORY_CONFIG, resolveVictorySettlement } from './victorySettlement'
 import type {
   BoardCell,
   BoardConfig,
@@ -109,7 +123,7 @@ import type {
   ResolvedPunishmentResult,
   TrapAction,
   VictoryConfig,
-} from '../../../src/types/game'
+} from './domainTypes'
 
 export type {
   BoardCell,
@@ -120,21 +134,23 @@ export type {
   ResolvedPunishmentResult,
   TrapAction,
   VictoryConfig,
-} from '../../../src/types/game'
-export type { PartyEventCard, PartyEventState } from '../../../src/services/partyEvents'
+} from './domainTypes'
+export type { PartyEventCard, PartyEventState } from './partyEvents'
+export {
+  createAutoBoardConfig,
+  createPlayerRoster,
+  DEFAULT_PLAYER_COLORS,
+  findBoardCell,
+  getBoardCellType,
+  getPlayerDisplayPosition,
+  hasPlayerWon,
+  isSpecialBoardCell,
+  nextPlayerIndex,
+}
 
 export const ONLINE_RULESET_VERSION = 'party_v2' as const
 
-export const ONLINE_PLAYER_COLORS = [
-  '#ff6b6b',
-  '#4ecdc4',
-  '#45b7d1',
-  '#96ceb4',
-  '#feca57',
-  '#ff9ff3',
-  '#54a0ff',
-  '#5f27cd',
-] as const
+export const ONLINE_PLAYER_COLORS = DEFAULT_PLAYER_COLORS
 
 export const ONLINE_SCENE_PRESETS = ['default', 'icebreaker', 'hardcore', 'couple'] as const
 export const ONLINE_BOARD_PRESETS = [
@@ -179,6 +195,24 @@ export const DEFAULT_ONLINE_ROOM_SETTINGS: OnlineRoomSettings = Object.freeze({
   traps: createModeConfig('online_party').traps,
 })
 
+function onlinePunishmentConstraintsFor(
+  scenePreset: OnlineScenePreset,
+  act: PartyAct
+): PunishmentConstraints {
+  const scene =
+    scenePreset === 'icebreaker'
+      ? GAME_CONFIG.PARTY_SCENE_PRESETS.icebreaker
+      : scenePreset === 'hardcore'
+        ? GAME_CONFIG.PARTY_SCENE_PRESETS.hardcore
+        : scenePreset === 'couple'
+          ? GAME_CONFIG.PARTY_SCENE_PRESETS.intimate
+          : undefined
+  return {
+    ...(MODE_POLICIES.online_party.stageConstraints[act] ?? {}),
+    ...(scene?.actConstraintsOverride?.[act] ?? {}),
+  }
+}
+
 export function createOnlineBoardConfig(boardPreset: OnlineBoardPreset): BoardConfig {
   if (boardPreset === 'standard') return createSharedBoardConfig()
   if (boardPreset === 'icebreaker')
@@ -219,21 +253,23 @@ export function normalizeOnlineRoomSettings(value: unknown): OnlineRoomSettings 
       : settings.boardConfig
   const turnDurationSeconds =
     settings.turnDurationSeconds === undefined ? 60 : settings.turnDurationSeconds
+  const punishmentConfig = normalizePunishmentConfig(
+    settings.punishmentConfig,
+    DEFAULT_ONLINE_ROOM_SETTINGS.punishmentConfig
+  )
+  const punishmentIsGeneratable = (['warmup', 'heating', 'finale'] as const).every(act =>
+    validatePunishmentConfig(punishmentConfig, onlinePunishmentConstraintsFor(scenePreset, act))
+  )
   if (
     !ONLINE_SCENE_PRESETS.includes(scenePreset) ||
     !ONLINE_BOARD_PRESETS.includes(boardPreset) ||
     !ONLINE_TURN_DURATION_OPTIONS.includes(turnDurationSeconds as OnlineTurnDurationSeconds) ||
     !validateBoardConfig(boardConfig) ||
-    (settings.punishmentConfig !== undefined &&
-      !validatePunishmentConfig(normalizePunishmentConfig(settings.punishmentConfig))) ||
+    (settings.punishmentConfig !== undefined && !punishmentIsGeneratable) ||
     (settings.traps !== undefined && !validateTrapConfig(settings.traps))
   ) {
     return null
   }
-  const punishmentConfig = normalizePunishmentConfig(
-    settings.punishmentConfig,
-    DEFAULT_ONLINE_ROOM_SETTINGS.punishmentConfig
-  )
   const traps = normalizeTrapConfig(settings.traps, DEFAULT_ONLINE_ROOM_SETTINGS.traps)
   return cloneOnlineRoomSettings({
     scenePreset,
@@ -642,137 +678,12 @@ export interface OnlineGameView {
   readonly lastEvent: OnlineGameState['lastEvent']
 }
 
-export type OnlineClientMessage =
-  | Readonly<{
-      type: 'create_room'
-      requestId: string
-      nickname: string
-      color: string
-    }>
-  | Readonly<{
-      type: 'join_room'
-      requestId: string
-      roomCode: string
-      nickname: string
-      color: string
-    }>
-  | Readonly<{
-      type: 'resume_room'
-      requestId: string
-      roomCode: string
-      playerId: string
-      resumeToken: string
-    }>
-  | Readonly<{ type: 'start_game'; requestId: string }>
-  | Readonly<{
-      type: 'update_settings'
-      requestId: string
-      settings: OnlineRoomSettings
-    }>
-  | Readonly<{ type: 'confirm_settings'; requestId: string }>
-  | Readonly<{ type: 'transfer_host'; requestId: string; playerId: string }>
-  | Readonly<{ type: 'remove_player'; requestId: string; playerId: string }>
-  | Readonly<{ type: 'pause_game'; requestId: string }>
-  | Readonly<{ type: 'resume_game'; requestId: string }>
-  | Readonly<{ type: 'skip_action'; requestId: string }>
-  | Readonly<{
-      type: 'submit_prediction'
-      requestId: string
-      prediction: PartyPrediction
-    }>
-  | Readonly<{ type: 'roll_dice'; requestId: string }>
-  | Readonly<{
-      type: 'decide_reaction'
-      requestId: string
-      decision: PartyReactionDecision
-    }>
-  | Readonly<{ type: 'reroll'; requestId: string }>
-  | Readonly<{
-      type: 'choose_punishment'
-      requestId: string
-      selectedIndex: 0 | 1 | null
-    }>
-  | Readonly<{
-      type: 'intervene'
-      requestId: string
-      action: PartyPunishmentIntervention['action']
-      targetPlayerId?: string
-    }>
-  | Readonly<{ type: 'decline_intervention'; requestId: string }>
-  | Readonly<{ type: 'choose_punishment_count'; requestId: string; count: number }>
-  | Readonly<{ type: 'resolve_condition'; requestId: string; conditionMet: boolean }>
-  | Readonly<{ type: 'defer_punishment'; requestId: string; defer: boolean }>
-  | Readonly<{ type: 'acknowledge'; requestId: string }>
-  | Readonly<{ type: 'request_mercy'; requestId: string }>
-  | Readonly<{ type: 'decide_mercy'; requestId: string; accepted: boolean }>
-  | Readonly<{ type: 'chain_roll'; requestId: string }>
-  | Readonly<{ type: 'resolve_content'; requestId: string; accepted: boolean }>
-  | Readonly<{ type: 'vote'; requestId: string; optionIndex: number }>
-  | Readonly<{
-      type: 'resolve_event'
-      requestId: string
-      selectedPlayerIds?: readonly string[]
-    }>
-  | Readonly<{ type: 'acknowledge_event_result'; requestId: string }>
-  | Readonly<{
-      type: 'rps'
-      requestId: string
-      choice: PartyRockPaperScissorsChoice
-    }>
-  | Readonly<{ type: 'mini_game_press'; requestId: string }>
-  | Readonly<{
-      type: 'mini_game_memory_answer'
-      requestId: string
-      sequence: readonly string[]
-    }>
-  | Readonly<{
-      type: 'mini_game_quiz_result'
-      requestId: string
-      completed: boolean
-    }>
-  | Readonly<{ type: 'tiebreak_roll'; requestId: string }>
-  | Readonly<{ type: 'move'; requestId: string }>
-
-export interface OnlineRoomPlayerView {
-  readonly id: string
-  readonly nickname: string
-  readonly color: string
-  readonly connected: boolean
-  readonly disconnectedAt?: number
-  readonly removable: boolean
-  readonly removalBlockReason?: 'reconnect_grace' | 'minimum_players' | 'unsafe_game_state'
-}
-
-export interface OnlineRoomView {
-  readonly status: 'lobby' | 'playing' | 'finished'
-  readonly hostPlayerId: string
-  readonly players: readonly OnlineRoomPlayerView[]
-  readonly settings: OnlineRoomSettingsView
-  readonly confirmedPlayerIds: readonly string[]
-  readonly skipRequestedPlayerIds: readonly string[]
-  readonly pauseRequestedPlayerIds: readonly string[]
-  readonly game: OnlineGameView | null
-  /** Private, per-seat forum handoff issued only after a server-confirmed finish. */
-  readonly achievementClaimUrl?: string
-}
-
-export type OnlineServerMessage =
-  | Readonly<{
-      type: 'session'
-      requestId: string
-      roomCode: string
-      playerId: string
-      resumeToken: string
-      isHost: boolean
-    }>
-  | Readonly<{ type: 'room_state'; room: OnlineRoomView }>
-  | Readonly<{
-      type: 'error'
-      requestId?: string
-      code: string
-      message: string
-    }>
-
+export type {
+  OnlineClientMessage,
+  OnlineRoomPlayerView,
+  OnlineRoomView,
+  OnlineServerMessage,
+} from './onlineProtocol'
 export class GameCommandError extends Error {
   constructor(
     readonly code:
@@ -780,6 +691,7 @@ export class GameCommandError extends Error {
       | 'INVALID_SETTINGS'
       | 'GAME_FINISHED'
       | 'PLAYER_NOT_FOUND'
+      | 'NOT_AUTHORIZED'
       | 'NOT_YOUR_TURN'
       | 'INVALID_PHASE'
       | 'INVALID_DICE',
@@ -788,6 +700,17 @@ export class GameCommandError extends Error {
     super(message)
     this.name = 'GameCommandError'
   }
+}
+
+export type OnlineCommandAuthority = 'player' | 'host' | 'system'
+
+export interface OnlineCommandContext {
+  readonly actorPlayerId: string
+  readonly authority: OnlineCommandAuthority
+}
+
+export interface OnlineGameProjectionContext {
+  readonly authority: Exclude<OnlineCommandAuthority, 'system'>
 }
 
 export interface GameCommandDependencies {
@@ -886,10 +809,13 @@ export function createOnlineGame(
 
 export function applyOnlineGameCommand(
   state: OnlineGameState,
-  actorId: string,
+  actor: string | OnlineCommandContext,
   command: OnlineGameCommand,
   dependencies: GameCommandDependencies = DEFAULT_DEPENDENCIES
 ): OnlineGameState {
+  const commandContext: OnlineCommandContext =
+    typeof actor === 'string' ? { actorPlayerId: actor, authority: 'player' } : actor
+  const actorId = commandContext.actorPlayerId
   const now = dependencies.now?.() ?? Date.now()
   if (command.type === 'pause_game') {
     if (state.status === 'finished') throw new GameCommandError('GAME_FINISHED', '本局已经结束')
@@ -920,7 +846,7 @@ export function applyOnlineGameCommand(
     throw new GameCommandError('INVALID_PHASE', '游戏已暂停，请先恢复')
   }
   if (command.type === 'skip_action') {
-    const skipped = skipOnlineGameAction(state, actorId, dependencies)
+    const skipped = skipOnlineGameAction(state, commandContext, dependencies)
     return scheduleOnlineDeadline(state, skipped, now)
   }
   const next = applyOnlineGameCommandInternal(
@@ -1575,20 +1501,20 @@ function applyOnlineGameCommandInternal(
   const rulePlayers = toRulePlayers(state.players)
   const ruleActor = rulePlayers[actorIndex]
   if (!ruleActor) throw new GameCommandError('PLAYER_NOT_FOUND', '玩家不在本局中')
-  const movement = GameService.movePlayer(
-    ruleActor,
-    state.diceValue,
-    [...state.board],
-    actorIndex,
-    state.players.length,
-    state.punishmentConfig,
-    onlineActConstraints(state)
-  )
+  const movement = resolvePlayerMovement({
+    player: ruleActor,
+    diceValue: state.diceValue,
+    board: state.board,
+    currentPlayerIndex: actorIndex,
+    totalPlayers: state.players.length,
+    punishmentConfig: state.punishmentConfig,
+    constraints: onlineActConstraints(state),
+  })
   const moved: OnlinePlayer = {
     ...actor,
     position: movement.newPosition,
-    hasTakenOff: ruleActor.hasTakenOff ?? false,
-    failedTakeoffAttempts: ruleActor.failedTakeoffAttempts ?? 0,
+    hasTakenOff: movement.playerState.hasTakenOff,
+    failedTakeoffAttempts: movement.playerState.failedTakeoffAttempts,
     isWinner: movement.newPosition === state.boardSize,
   }
   const players = state.players.map((player, index) => (index === actorIndex ? moved : player))
@@ -1660,182 +1586,7 @@ function applyOnlineGameCommandInternal(
   return completeOnlineTurn(movedState, players, actorIndex, false, dependencies.now?.())
 }
 
-export function projectOnlineGameView(state: OnlineGameState, viewerId: string): OnlineGameView {
-  const viewerIndex = state.players.findIndex(player => player.id === viewerId)
-  const isTurn = state.currentPlayerId === viewerId && state.status === 'playing'
-  const reaction = state.partySession.reaction
-  let allowedCommands: readonly OnlineGameCommandName[] = []
-  if (
-    state.phase === 'awaiting_prediction' &&
-    reaction?.status === 'awaiting_prediction' &&
-    reaction.reactorPlayerIndex === viewerIndex
-  ) {
-    allowedCommands = ['submit_prediction']
-  } else if (state.phase === 'awaiting_roll' && isTurn) {
-    allowedCommands = ['roll_dice']
-  } else if (
-    state.phase === 'awaiting_reaction' &&
-    reaction?.status === 'awaiting_decision' &&
-    reaction.reactorPlayerIndex === viewerIndex
-  ) {
-    allowedCommands = ['decide_reaction']
-  } else if (state.phase === 'awaiting_move' && isTurn) {
-    const canReroll =
-      !state.partySession.diceChangedThisTurn &&
-      state.partySession.interventionUsedThisTurn === undefined &&
-      (state.partySession.tokensRemaining[viewerIndex] ?? 0) > 0
-    allowedCommands = canReroll ? ['reroll', 'move'] : ['move']
-  } else if (
-    state.phase === 'awaiting_punishment_choice' &&
-    state.pendingAction?.kind === 'punishment_choice' &&
-    state.pendingAction.playerIndex === viewerIndex
-  ) {
-    allowedCommands = ['choose_punishment']
-  } else if (
-    state.phase === 'awaiting_punishment_intervention' &&
-    state.pendingAction?.kind === 'punishment_intervention'
-  ) {
-    const option = state.pendingAction.options.find(
-      candidate => candidate.playerIndex === viewerIndex
-    )
-    if (option && !state.pendingAction.declinedPlayerIndices.includes(viewerIndex)) {
-      allowedCommands = ['intervene', 'decline_intervention']
-    }
-  } else if (
-    state.phase === 'awaiting_acknowledgement' &&
-    state.pendingAction?.kind === 'acknowledgement' &&
-    state.pendingAction.playerIndex === viewerIndex
-  ) {
-    allowedCommands = state.pendingAction.mercyAvailable
-      ? ['acknowledge', 'request_mercy']
-      : ['acknowledge']
-  } else if (
-    state.phase === 'awaiting_mercy_decision' &&
-    state.pendingAction?.kind === 'mercy_decision' &&
-    state.pendingAction.decisionPlayerIndex === viewerIndex
-  ) {
-    allowedCommands = ['decide_mercy']
-  } else if (
-    state.phase === 'awaiting_punishment_count' &&
-    state.pendingAction?.kind === 'punishment_count' &&
-    state.pendingAction.chooserPlayerIndex === viewerIndex
-  ) {
-    allowedCommands = ['choose_punishment_count']
-  } else if (
-    state.phase === 'awaiting_punishment_variant' &&
-    state.pendingAction?.kind === 'punishment_variant' &&
-    state.pendingAction.decisionPlayerIndex === viewerIndex
-  ) {
-    allowedCommands =
-      state.pendingAction.resolution.variant === 'conditional'
-        ? ['resolve_condition']
-        : ['defer_punishment']
-  } else if (
-    state.phase === 'awaiting_chain_roll' &&
-    state.pendingAction?.kind === 'chain_roll' &&
-    state.pendingAction.playerIndex === viewerIndex
-  ) {
-    allowedCommands = ['chain_roll']
-  } else if (
-    state.phase === 'awaiting_content' &&
-    state.pendingAction?.kind === 'content' &&
-    state.pendingAction.playerIndex === viewerIndex
-  ) {
-    allowedCommands = ['resolve_content']
-  } else if (state.phase === 'awaiting_event' && state.pendingAction?.kind === 'event_vote') {
-    if (state.pendingAction.votes[viewerIndex] === undefined) allowedCommands = ['vote']
-  } else if (
-    state.phase === 'awaiting_event' &&
-    state.pendingAction?.kind === 'event_activation' &&
-    isTurn
-  ) {
-    allowedCommands = ['resolve_event']
-  } else if (state.phase === 'awaiting_event' && state.pendingAction?.kind === 'event_rps') {
-    if (state.pendingAction.choices[viewerIndex] === undefined) allowedCommands = ['rps']
-  } else if (
-    state.phase === 'awaiting_event' &&
-    state.pendingAction?.kind === 'event_result' &&
-    isTurn
-  ) {
-    allowedCommands = ['acknowledge_event_result']
-  } else if (
-    state.phase === 'awaiting_mini_game' &&
-    state.pendingAction?.kind === 'event_mini_game'
-  ) {
-    if (state.pendingAction.card.effect.game === 'reaction') {
-      allowedCommands = ['mini_game_press']
-    } else if (state.pendingAction.actorIndex === viewerIndex) {
-      allowedCommands =
-        state.pendingAction.card.effect.game === 'memory'
-          ? ['mini_game_memory_answer']
-          : ['mini_game_quiz_result']
-    }
-  } else if (
-    state.phase === 'awaiting_tiebreak' &&
-    state.pendingAction?.kind === 'tiebreak' &&
-    state.currentPlayerId === viewerId
-  ) {
-    allowedCommands = ['tiebreak_roll']
-  }
-  if (state.status === 'playing') {
-    allowedCommands =
-      state.partySession.pausedAt !== undefined
-        ? ['resume_game']
-        : [...allowedCommands, 'pause_game', 'skip_action']
-  }
-  const pendingAction = projectPendingAction(state, viewerIndex)
-  return {
-    schemaVersion: state.schemaVersion,
-    rulesetVersion: state.rulesetVersion,
-    status: state.status,
-    revision: state.revision,
-    boardSize: state.boardSize,
-    settings: projectOnlineRoomSettings(state.settings),
-    currentAct: state.partySession.act,
-    roundNumber: state.partySession.roundNumber,
-    myTokensRemaining: state.partySession.tokensRemaining[viewerIndex] ?? 0,
-    reaction: reaction
-      ? {
-          status: reaction.status,
-          targetPlayerId: state.players[reaction.targetPlayerIndex]?.id ?? '',
-          reactorPlayerId: state.players[reaction.reactorPlayerIndex]?.id ?? '',
-          prediction:
-            viewerIndex === reaction.reactorPlayerIndex || reaction.status === 'resolved'
-              ? reaction.prediction
-              : undefined,
-          predictionCorrect:
-            viewerIndex === reaction.reactorPlayerIndex || reaction.status === 'resolved'
-              ? reaction.predictionCorrect
-              : undefined,
-        }
-      : null,
-    board: state.board.map(cell => ({
-      position: cell.position,
-      type: cell.type,
-      effect: cell.effect ? { type: cell.effect.type, value: cell.effect.value } : undefined,
-    })),
-    pendingAction,
-    winnerPlayerId: state.winnerPlayerId,
-    victorySettlement: state.victorySettlement,
-    currentPlayerId: state.currentPlayerId,
-    phase: state.phase,
-    diceValue: state.diceValue,
-    paused: state.partySession.pausedAt !== undefined,
-    deadlineAt: state.deadlineAt,
-    players: state.players.map(player => ({
-      id: player.id,
-      nickname: player.nickname,
-      color: player.color,
-      position: player.position,
-      hasTakenOff: player.hasTakenOff,
-      failedTakeoffAttempts: player.failedTakeoffAttempts,
-      isWinner: player.isWinner,
-      pendingSkippedTurns: player.pendingSkippedTurns,
-    })),
-    allowedCommands,
-    lastEvent: state.lastEvent,
-  }
-}
+export { projectOnlineGameView } from './onlineProjection'
 
 export function applyOnlineGameTimeout(
   state: OnlineGameState,
@@ -1855,7 +1606,7 @@ export function applyOnlineGameTimeout(
   if (relevantPlayerId) {
     return applyOnlineGameCommand(
       state,
-      relevantPlayerId,
+      { actorPlayerId: relevantPlayerId, authority: 'system' },
       { type: 'skip_action' },
       timedDependencies
     )
@@ -1869,7 +1620,12 @@ export function applyOnlineGameTimeout(
     for (const player of state.players) {
       if (next.deadlineAt === null || next.deadlineAt > now) break
       try {
-        next = applyOnlineGameCommand(next, player.id, { type: 'skip_action' }, timedDependencies)
+        next = applyOnlineGameCommand(
+          next,
+          { actorPlayerId: player.id, authority: 'system' },
+          { type: 'skip_action' },
+          timedDependencies
+        )
       } catch (error) {
         if (!(error instanceof GameCommandError) || error.code !== 'NOT_YOUR_TURN') throw error
       }
@@ -1983,38 +1739,17 @@ export function removeOnlinePlayerAtSafeNode(
   }
 }
 
-function timeoutDecisionPlayerId(state: OnlineGameState): string | undefined {
-  const pending = state.pendingAction
-  if (state.phase === 'awaiting_prediction') {
-    return state.players[state.partySession.reaction?.reactorPlayerIndex ?? -1]?.id
-  }
-  if (state.phase === 'awaiting_reaction') {
-    return state.players[state.partySession.reaction?.reactorPlayerIndex ?? -1]?.id
-  }
-  if (pending?.kind === 'punishment_choice' || pending?.kind === 'acknowledgement') {
-    return state.players[pending.playerIndex]?.id
-  }
-  if (pending?.kind === 'punishment_count') return state.players[pending.chooserPlayerIndex]?.id
-  if (pending?.kind === 'punishment_variant') {
-    return state.players[pending.decisionPlayerIndex]?.id
-  }
-  if (pending?.kind === 'content') return state.players[pending.playerIndex]?.id
-  if (pending?.kind === 'mercy_decision') {
-    return state.players[pending.decisionPlayerIndex]?.id
-  }
-  if (pending?.kind === 'event_result') return state.currentPlayerId
-  if (pending?.kind === 'event_activation') return state.currentPlayerId
-  if (pending?.kind === 'event_mini_game') return state.players[pending.actorIndex]?.id
-  return undefined
-}
-
 function skipOnlineGameAction(
   state: OnlineGameState,
-  actorId: string,
+  context: OnlineCommandContext,
   dependencies: GameCommandDependencies
 ): OnlineGameState {
+  const actorId = context.actorPlayerId
   const actorIndex = state.players.findIndex(player => player.id === actorId)
   if (actorIndex < 0) throw new GameCommandError('PLAYER_NOT_FOUND', '玩家不在本局中')
+  if (context.authority === 'player' && !canPlayerSkipOwnOnlineAction(state, actorId)) {
+    throw new GameCommandError('NOT_AUTHORIZED', '当前玩家不能跳过其他人的操作')
+  }
   const pending = state.pendingAction
   if (state.phase === 'awaiting_prediction') {
     const reactor = state.players[state.partySession.reaction?.reactorPlayerIndex ?? -1]
@@ -2051,13 +1786,25 @@ function skipOnlineGameAction(
     )
   }
   if (pending?.kind === 'punishment_intervention') {
-    const option = pending.options.find(candidate => candidate.playerIndex === actorIndex)
-    if (!option || pending.declinedPlayerIndices.includes(actorIndex)) {
+    const skippedPlayerIndex =
+      context.authority === 'player'
+        ? actorIndex
+        : pending.options.find(
+            candidate => !pending.declinedPlayerIndices.includes(candidate.playerIndex)
+          )?.playerIndex
+    const option = pending.options.find(candidate => candidate.playerIndex === skippedPlayerIndex)
+    if (
+      skippedPlayerIndex === undefined ||
+      !option ||
+      pending.declinedPlayerIndices.includes(skippedPlayerIndex)
+    ) {
       throw new GameCommandError('NOT_YOUR_TURN', '当前玩家没有可跳过的干预')
     }
+    const skippedPlayer = state.players[skippedPlayerIndex]
+    if (!skippedPlayer) throw new GameCommandError('PLAYER_NOT_FOUND', '干预玩家不存在')
     return applyOnlineGameCommandInternal(
       state,
-      actorId,
+      skippedPlayer.id,
       { type: 'decline_intervention' },
       dependencies
     )
@@ -2113,23 +1860,35 @@ function skipOnlineGameAction(
     return applyOnlineGameCommandInternal(state, player.id, { type: 'acknowledge' }, dependencies)
   }
   if (pending?.kind === 'event_vote') {
-    if (pending.votes[actorIndex] !== undefined) {
+    const skippedPlayerIndex =
+      context.authority === 'player'
+        ? actorIndex
+        : state.players.findIndex((_player, index) => pending.votes[index] === undefined)
+    if (skippedPlayerIndex < 0 || pending.votes[skippedPlayerIndex] !== undefined) {
       throw new GameCommandError('NOT_YOUR_TURN', '当前玩家已经投票')
     }
+    const skippedPlayer = state.players[skippedPlayerIndex]
+    if (!skippedPlayer) throw new GameCommandError('PLAYER_NOT_FOUND', '投票玩家不存在')
     return applyOnlineGameCommandInternal(
       state,
-      actorId,
+      skippedPlayer.id,
       { type: 'vote', optionIndex: 0 },
       dependencies
     )
   }
   if (pending?.kind === 'event_rps') {
-    if (pending.choices[actorIndex] !== undefined) {
+    const skippedPlayerIndex =
+      context.authority === 'player'
+        ? actorIndex
+        : state.players.findIndex((_player, index) => pending.choices[index] === undefined)
+    if (skippedPlayerIndex < 0 || pending.choices[skippedPlayerIndex] !== undefined) {
       throw new GameCommandError('NOT_YOUR_TURN', '当前玩家已经出拳')
     }
+    const skippedPlayer = state.players[skippedPlayerIndex]
+    if (!skippedPlayer) throw new GameCommandError('PLAYER_NOT_FOUND', '猜拳玩家不存在')
     return applyOnlineGameCommandInternal(
       state,
-      actorId,
+      skippedPlayer.id,
       { type: 'rps', choice: 'rock' },
       dependencies
     )
@@ -2169,53 +1928,6 @@ function skipOnlineGameAction(
   throw new GameCommandError('INVALID_PHASE', '当前没有可跳过的操作')
 }
 
-function scheduleOnlineDeadline(
-  previous: OnlineGameState,
-  next: OnlineGameState,
-  now: number
-): OnlineGameState {
-  if (next.status === 'finished') return { ...next, deadlineAt: null }
-  const previousKey = onlineDeadlineKey(previous)
-  const nextKey = onlineDeadlineKey(next)
-  if (nextKey === null) return { ...next, deadlineAt: null }
-  if (previousKey === nextKey && previous.deadlineAt !== null) {
-    return { ...next, deadlineAt: previous.deadlineAt }
-  }
-  return { ...next, deadlineAt: now + onlineDeadlineDuration(next) }
-}
-
-function onlineDeadlineKey(state: OnlineGameState): string | null {
-  const pending = state.pendingAction
-  if (state.phase === 'awaiting_prediction' || state.phase === 'awaiting_reaction') {
-    return state.phase
-  }
-  if (
-    pending?.kind === 'punishment_choice' ||
-    pending?.kind === 'punishment_count' ||
-    pending?.kind === 'punishment_variant' ||
-    pending?.kind === 'acknowledgement' ||
-    pending?.kind === 'content' ||
-    pending?.kind === 'mercy_decision' ||
-    pending?.kind === 'event_activation' ||
-    pending?.kind === 'event_result'
-  ) {
-    return `${pending.kind}:${state.revision}`
-  }
-  if (pending?.kind === 'punishment_intervention') return pending.kind
-  if (
-    pending?.kind === 'event_vote' ||
-    pending?.kind === 'event_rps' ||
-    pending?.kind === 'event_mini_game'
-  ) {
-    return `${pending.kind}:${pending.card.id}`
-  }
-  return null
-}
-
-function onlineDeadlineDuration(state: OnlineGameState): number {
-  return state.settings.turnDurationSeconds * 1_000
-}
-
 function requireCurrentPlayer(state: OnlineGameState, actorId: string): void {
   if (state.currentPlayerId !== actorId) {
     throw new GameCommandError('NOT_YOUR_TURN', '当前不是你的回合')
@@ -2223,18 +1935,7 @@ function requireCurrentPlayer(state: OnlineGameState, actorId: string): void {
 }
 
 function onlineActConstraints(state: OnlineGameState): PunishmentConstraints {
-  const scene =
-    state.settings.scenePreset === 'icebreaker'
-      ? GAME_CONFIG.PARTY_SCENE_PRESETS.icebreaker
-      : state.settings.scenePreset === 'hardcore'
-        ? GAME_CONFIG.PARTY_SCENE_PRESETS.hardcore
-        : state.settings.scenePreset === 'couple'
-          ? GAME_CONFIG.PARTY_SCENE_PRESETS.intimate
-          : undefined
-  return {
-    ...(MODE_POLICIES.online_party.stageConstraints[state.partySession.act] ?? {}),
-    ...(scene?.actConstraintsOverride?.[state.partySession.act] ?? {}),
-  }
+  return onlinePunishmentConstraintsFor(state.settings.scenePreset, state.partySession.act)
 }
 
 function toRulePlayers(players: readonly OnlinePlayer[]): Player[] {
@@ -2313,7 +2014,7 @@ function beginLandingResolution(
   if (!player) throw new GameCommandError('PLAYER_NOT_FOUND', '格子触发玩家不存在')
   const processed =
     effect.type === 'move' || effect.type === 'reverse' || effect.type === 'restart'
-      ? GameService.processCellEffect(toRulePlayers([player])[0] as Player, effect, state.boardSize)
+      ? resolveCellEffect(toRulePlayers([player])[0] as Player, effect, state.boardSize)
       : undefined
   return {
     ...state,
@@ -2726,144 +2427,6 @@ function completeOnlineTurn(
   }
   if (!finished && eventQueue.length > 0) return openNextEvent(completedState)
   return completedState
-}
-
-function projectPendingAction(
-  state: OnlineGameState,
-  viewerIndex: number
-): OnlineGameView['pendingAction'] {
-  const pending = state.pendingAction
-  if (!pending) return null
-  if (pending.kind === 'punishment_choice') {
-    return pending.playerIndex === viewerIndex
-      ? {
-          kind: pending.kind,
-          choices: pending.choices.map(choice => ({ description: choice.description })),
-        }
-      : { kind: pending.kind }
-  }
-  if (pending.kind === 'punishment_intervention') {
-    const option = pending.options.find(candidate => candidate.playerIndex === viewerIndex)
-    return option
-      ? {
-          kind: pending.kind,
-          actions: option.actions,
-          transferTargetPlayerIds: option.transferTargetPlayerIndices.flatMap(index =>
-            state.players[index] ? [state.players[index].id] : []
-          ),
-        }
-      : { kind: pending.kind }
-  }
-  if (pending.kind === 'punishment_count') {
-    return pending.chooserPlayerIndex === viewerIndex &&
-      pending.resolution.count.kind === 'awaiting_external_count'
-      ? {
-          kind: pending.kind,
-          minimum: pending.resolution.count.minimum,
-          maximum: pending.resolution.count.maximum,
-          step: pending.resolution.count.step,
-        }
-      : { kind: pending.kind }
-  }
-  if (pending.kind === 'punishment_variant') {
-    const isRelated =
-      pending.decisionPlayerIndex === viewerIndex ||
-      pending.resolution.targetPlayerIndex === viewerIndex
-    return isRelated
-      ? {
-          kind: pending.kind,
-          variant: pending.resolution.variant,
-          description: pending.resolution.action.description,
-        }
-      : { kind: pending.kind }
-  }
-  if (pending.kind === 'mercy_decision') {
-    const isRelated =
-      pending.requesterPlayerIndex === viewerIndex || pending.decisionPlayerIndex === viewerIndex
-    return isRelated
-      ? {
-          kind: pending.kind,
-          description: pending.resolution.action.description,
-          requesterPlayerId: state.players[pending.requesterPlayerIndex]?.id,
-        }
-      : { kind: pending.kind }
-  }
-  if (pending.kind === 'event_vote') {
-    return {
-      kind: pending.kind,
-      title: pending.card.title,
-      prompt: pending.card.effect.prompt,
-      options: pending.card.effect.options,
-      submittedCount: Object.keys(pending.votes).length,
-      hasSubmitted: pending.votes[viewerIndex] !== undefined,
-    }
-  }
-  if (pending.kind === 'event_activation') {
-    return {
-      kind: pending.kind,
-      title: pending.card.title,
-      description: pending.card.description,
-      selectionPlayerCount: pending.card.effect.kind === 'bind_players' ? 2 : 0,
-    }
-  }
-  if (pending.kind === 'event_rps') {
-    return {
-      kind: pending.kind,
-      title: pending.card.title,
-      submittedCount: Object.keys(pending.choices).length,
-      hasSubmitted: pending.choices[viewerIndex] !== undefined,
-    }
-  }
-  if (pending.kind === 'event_result') {
-    return { kind: pending.kind, title: pending.title, summary: pending.summary }
-  }
-  if (pending.kind === 'event_mini_game') {
-    return {
-      kind: pending.kind,
-      title: pending.card.title,
-      game: pending.card.effect.game,
-      actorPlayerId: state.players[pending.actorIndex]?.id ?? '',
-      goAt: pending.goAt,
-      deadline: pending.deadline,
-      sequence: pending.actorIndex === viewerIndex ? pending.sequence : undefined,
-      options: pending.actorIndex === viewerIndex ? pending.options : undefined,
-    }
-  }
-  if (pending.kind === 'tiebreak') {
-    const candidatePlayerIds = pending.state.candidatePlayerIndices.flatMap(index =>
-      state.players[index] ? [state.players[index].id] : []
-    )
-    const rolls = Object.fromEntries(
-      Object.entries(pending.state.rolls).flatMap(([index, value]) => {
-        const player = state.players[Number(index)]
-        return player ? [[player.id, value]] : []
-      })
-    )
-    const currentCandidateIndex =
-      pending.state.candidatePlayerIndices[pending.state.currentCandidateOffset]
-    return {
-      kind: pending.kind,
-      candidatePlayerIds,
-      currentPlayerId:
-        currentCandidateIndex === undefined ? '' : (state.players[currentCandidateIndex]?.id ?? ''),
-      roundNumber: pending.state.roundNumber,
-      rolls,
-    }
-  }
-  if (pending.kind === 'chain_roll') {
-    return { kind: pending.kind, chainCount: pending.chainCount }
-  }
-  if (pending.kind === 'content') {
-    return {
-      kind: pending.kind,
-      contentType: pending.contentType,
-      description: pending.description,
-      canRefuse: pending.canRefuse,
-    }
-  }
-  return pending.playerIndex === viewerIndex
-    ? { kind: pending.kind, description: pending.resolution.action.description }
-    : { kind: pending.kind }
 }
 
 function signalPartyEvent(state: OnlineGameState, signal: PartyEventSignal): OnlineGameState {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { ref, computed } from 'vue'
   import { Info, RotateCcw, Rocket, X, RotateCw } from '@lucide/vue'
-  import type { PunishmentCombination } from '../types/game'
+  import type { PunishmentCombination } from '@flying-chess/game-core/types'
   import MiniDonut from './MiniDonut.vue'
   import type { DonutSegment } from './MiniDonut.vue'
 

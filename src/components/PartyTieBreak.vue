@@ -2,12 +2,12 @@
   import { computed, ref, watch } from 'vue'
   import { Dices, Trophy } from '@lucide/vue'
   import { SecureRandom } from '../utils/secureRandom'
-  import type { Player } from '../types/game'
+  import type { Player } from '@flying-chess/game-core/types'
   import {
     createPartyTieBreakState,
     rollPartyTieBreak,
     type PartyTieBreakState,
-  } from '../services/partyMode'
+  } from '@flying-chess/game-core/party-mode'
 
   const props = defineProps<{
     visible: boolean

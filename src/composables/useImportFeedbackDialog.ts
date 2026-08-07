@@ -15,11 +15,15 @@ export function useImportFeedbackDialog() {
     importFeedbackVisible.value = true
   }
 
-  const showImportError = (error: string) => {
+  const showError = (title: string, message: string) => {
     importFeedbackType.value = 'error'
-    importFeedbackTitle.value = '配置导入失败'
-    importFeedbackMessage.value = error
+    importFeedbackTitle.value = title
+    importFeedbackMessage.value = message
     importFeedbackVisible.value = true
+  }
+
+  const showImportError = (error: string) => {
+    showError('配置导入失败', error)
   }
 
   const closeImportFeedback = () => {
@@ -33,6 +37,7 @@ export function useImportFeedbackDialog() {
     importFeedbackType,
     showImportSuccess,
     showImportError,
+    showError,
     closeImportFeedback,
   }
 }

@@ -1,6 +1,6 @@
-import type { VictoryConfig } from '../types/game'
-import { normalizeVictoryConfig } from './victorySettlement'
-import { validatePartyEventDeck, type PartyEventCard } from './partyEvents'
+import type { VictoryConfig } from '@flying-chess/game-core/types'
+import { normalizeVictoryConfig } from '@flying-chess/game-core/victory-settlement'
+import { validatePartyEventDeck, type PartyEventCard } from '@flying-chess/game-core/party-events'
 import { validatePartyStudioConfig, type PartyStudioConfig } from './partyStudio'
 
 const MAX_REMOTE_PACK_BYTES = 500_000
