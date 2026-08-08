@@ -98,10 +98,11 @@ node scripts/room-server-release-smoke.mjs \
   --ws-url wss://rooms.example \
   --expected-server-version 1.15.0 \
   --expected-protocol-version 1 \
+  --origin https://atang-sp.github.io \
   --timeout-ms 5000
 ```
 
-`--deep` 额外执行 synthetic create、join、断线、resume、私有投影检查和不兼容协议拒绝。它会改变目标服务的内存状态，因此只能显式用于本地或隔离环境，不能默认指向生产。脚本日志只输出阶段和固定错误码，不输出房间码、token 或消息 payload。
+`--origin` 为配置了浏览器 Origin allowlist 的服务显式提供握手 Origin；参数只接受无凭据、路径、查询或 fragment 的 HTTP(S) origin。`--deep` 额外执行 synthetic create、join、断线、resume、私有投影检查和不兼容协议拒绝。它会改变目标服务的内存状态，因此只能显式用于本地或隔离环境，不能默认指向生产。脚本日志只输出阶段和固定错误码，不输出房间码、token 或消息 payload。
 
 `npm run test:room-server-smoke` 会构建并启动临时 room server，运行 deep smoke，发送
 SIGTERM，确认进程正常退出且端口关闭。CI 的独立 `Room Server Operability` job 运行 room server build、targeted tests、release smoke、完整 20 房间/160 连接压测和

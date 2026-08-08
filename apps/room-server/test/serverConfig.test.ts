@@ -47,6 +47,16 @@ describe('room server environment', () => {
     expect(() => readRoomServerEnvironment({ ROOM_METRICS_TOKEN: 'too-short' })).toThrow(
       'ROOM_METRICS_TOKEN'
     )
+    expect(() =>
+      readRoomServerEnvironment({
+        ROOM_METRICS_TOKEN: ' synthetic-metrics-token-at-least-32-bytes',
+      })
+    ).toThrow('ROOM_METRICS_TOKEN')
+    expect(() =>
+      readRoomServerEnvironment({
+        ROOM_METRICS_TOKEN: 'synthetic-metrics-token-at-least-32-bytes ',
+      })
+    ).toThrow('ROOM_METRICS_TOKEN')
     expect(
       readRoomServerEnvironment({
         ROOM_METRICS_TOKEN: 'synthetic-metrics-token-at-least-32-bytes',

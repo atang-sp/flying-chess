@@ -101,6 +101,7 @@ node scripts/room-server-release-smoke.mjs \
   --ws-url wss://rooms.atang-sp.run.place \
   --expected-server-version 1.15.0 \
   --expected-protocol-version 1 \
+  --origin https://atang-sp.github.io \
   --timeout-ms 5000
 ```
 

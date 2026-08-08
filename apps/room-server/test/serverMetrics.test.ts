@@ -11,6 +11,9 @@ describe('server metrics', () => {
     metrics.increment('connectionsOpenedTotal')
     metrics.increment('roomsCreatedTotal')
     metrics.increment('roomsCreatedTotal')
+    expect(() => metrics.increment('unexpectedCounter' as never)).toThrow(
+      'Unknown server metric counter'
+    )
 
     const snapshot = metrics.snapshot(
       {

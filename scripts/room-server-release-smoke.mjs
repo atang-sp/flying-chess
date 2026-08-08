@@ -27,6 +27,7 @@ function parseArguments(arguments_) {
     index += 1
     if (argument === '--health-url') options.healthUrl = value
     else if (argument === '--ws-url') options.wsUrl = value
+    else if (argument === '--origin') options.origin = value
     else if (argument === '--expected-server-version') options.expectedServerVersion = value
     else if (argument === '--expected-protocol-version') {
       options.expectedProtocolVersion = Number(value)
@@ -48,8 +49,9 @@ function parseArguments(arguments_) {
   }
   const healthUrl = parseSafeUrl(options.healthUrl, ['http:', 'https:'], 'arguments')
   const wsUrl = parseSafeUrl(options.wsUrl, ['ws:', 'wss:'], 'arguments')
+  const origin = options.origin === undefined ? undefined : parseOrigin(options.origin)
   if (!healthUrl.pathname.endsWith('/health')) fail('arguments', 'INVALID_HEALTH_PATH')
-  return { ...options, healthUrl, wsUrl }
+  return { ...options, healthUrl, wsUrl, origin }
 }
 
 function parseSafeUrl(value, protocols, stage) {
@@ -63,6 +65,12 @@ function parseSafeUrl(value, protocols, stage) {
     fail(stage, 'UNSAFE_URL')
   }
   return url
+}
+
+function parseOrigin(value) {
+  const url = parseSafeUrl(value, ['http:', 'https:'], 'arguments')
+  if (url.pathname !== '/') fail('arguments', 'INVALID_ORIGIN')
+  return url.origin
 }
 
 function withTimeout(timeoutMs, onTimeout) {
@@ -121,9 +129,9 @@ class SmokeClient {
     })
   }
 
-  static connect(url, timeoutMs, stage) {
+  static connect(url, timeoutMs, stage, origin) {
     return new Promise((resolve, reject) => {
-      const socket = new WebSocket(url)
+      const socket = new WebSocket(url, origin === undefined ? undefined : { origin })
       const timer = withTimeout(timeoutMs, () => {
         socket.terminate()
         reject(new SmokeFailure(stage, 'CONNECT_TIMEOUT'))
@@ -206,7 +214,12 @@ async function runShallow(options) {
   }
 
   if (!options.deep) {
-    const probe = await SmokeClient.connect(options.wsUrl, options.timeoutMs, 'websocket')
+    const probe = await SmokeClient.connect(
+      options.wsUrl,
+      options.timeoutMs,
+      'websocket',
+      options.origin
+    )
     await probe.close()
   }
 }
@@ -214,7 +227,12 @@ async function runShallow(options) {
 async function runDeep(options) {
   const clients = []
   try {
-    const host = await SmokeClient.connect(options.wsUrl, options.timeoutMs, 'deep.host.connect')
+    const host = await SmokeClient.connect(
+      options.wsUrl,
+      options.timeoutMs,
+      'deep.host.connect',
+      options.origin
+    )
     clients.push(host)
     host.send(
       {
@@ -234,7 +252,12 @@ async function runDeep(options) {
       fail('deep.host.session', 'VERSION_MISMATCH')
     }
 
-    const guest = await SmokeClient.connect(options.wsUrl, options.timeoutMs, 'deep.guest.connect')
+    const guest = await SmokeClient.connect(
+      options.wsUrl,
+      options.timeoutMs,
+      'deep.guest.connect',
+      options.origin
+    )
     clients.push(guest)
     guest.send(
       {
@@ -265,7 +288,8 @@ async function runDeep(options) {
     const resumed = await SmokeClient.connect(
       options.wsUrl,
       options.timeoutMs,
-      'deep.resume.connect'
+      'deep.resume.connect',
+      options.origin
     )
     clients.push(resumed)
     resumed.send(
@@ -308,7 +332,8 @@ async function runDeep(options) {
     const incompatible = await SmokeClient.connect(
       options.wsUrl,
       options.timeoutMs,
-      'deep.protocol.connect'
+      'deep.protocol.connect',
+      options.origin
     )
     clients.push(incompatible)
     incompatible.send(
@@ -340,7 +365,7 @@ export async function runRoomServerReleaseSmoke(options) {
 
 function printUsage() {
   console.log(
-    'Usage: node scripts/room-server-release-smoke.mjs --health-url <url> --ws-url <url> --expected-server-version <version> --expected-protocol-version <integer> [--timeout-ms <ms>] [--deep]'
+    'Usage: node scripts/room-server-release-smoke.mjs --health-url <url> --ws-url <url> --expected-server-version <version> --expected-protocol-version <integer> [--origin <http-origin>] [--timeout-ms <ms>] [--deep]'
   )
 }
 

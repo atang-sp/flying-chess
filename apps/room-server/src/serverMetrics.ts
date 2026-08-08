@@ -44,6 +44,7 @@ export const SERVER_METRIC_COUNTER_NAMES = [
 export type ServerMetricCounterName = (typeof SERVER_METRIC_COUNTER_NAMES)[number]
 
 type ServerMetricCounters = Readonly<Record<ServerMetricCounterName, number>>
+const SERVER_METRIC_COUNTER_NAME_SET: ReadonlySet<string> = new Set(SERVER_METRIC_COUNTER_NAMES)
 
 export interface ServerMetricsSnapshot {
   readonly schemaVersion: 1
@@ -81,6 +82,9 @@ export class ServerMetrics {
   constructor(private readonly startedAt: number) {}
 
   increment(counter: ServerMetricCounterName): void {
+    if (!SERVER_METRIC_COUNTER_NAME_SET.has(counter)) {
+      throw new Error('Unknown server metric counter')
+    }
     this.counters[counter] += 1
   }
 

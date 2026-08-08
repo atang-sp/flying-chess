@@ -52,8 +52,7 @@ export function readRoomServerEnvironment(
     throw new Error('ROOM_DRAIN_TIMEOUT_MS must be an integer between 1 and 86400000')
   }
 
-  const metricsToken =
-    environment.ROOM_METRICS_TOKEN === undefined ? undefined : environment.ROOM_METRICS_TOKEN.trim()
+  const metricsToken = environment.ROOM_METRICS_TOKEN
   if (metricsToken !== undefined) validateMetricsToken(metricsToken)
 
   return {

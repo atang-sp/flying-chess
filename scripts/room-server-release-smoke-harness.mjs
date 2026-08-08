@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 
 const expectedServerVersion = '1.15.0-smoke'
 const expectedProtocolVersion = 1
+const allowedOrigin = 'https://smoke.example'
 
 function waitForListeningPort(child, timeoutMs = 5_000) {
   return new Promise((resolve, reject) => {
@@ -86,6 +87,7 @@ const server = spawn(process.execPath, ['apps/room-server/dist/server.mjs'], {
     ROOM_SERVER_VERSION: expectedServerVersion,
     ROOM_SERVER_BUILD_SHA: 'abcdef1234567890',
     ROOM_DRAIN_TIMEOUT_MS: '500',
+    ALLOWED_ORIGINS: allowedOrigin,
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 })
@@ -102,6 +104,8 @@ try {
     expectedServerVersion,
     '--expected-protocol-version',
     String(expectedProtocolVersion),
+    '--origin',
+    allowedOrigin,
     '--timeout-ms',
     '3000',
   ]
