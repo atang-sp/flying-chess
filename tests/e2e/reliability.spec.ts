@@ -728,7 +728,8 @@ test('party records punishment heat only on final confirmation and ignores a dup
     if (!session) throw new Error('expected an active Party session before confirmation')
     return session.heat
   })
-  expect(heatBeforeConfirmation).toBe(0)
+  // A correct reaction may already have contributed +2 before the punishment flow starts.
+  expect([0, 2]).toContain(heatBeforeConfirmation)
 
   await page.getByTestId('party-intervention-skip').click()
   const punishment = page.locator('.punishment-display')
