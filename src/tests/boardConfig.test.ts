@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { GameService } from '../services/gameService'
-import type { BoardConfig } from '../types/game'
+import type { BoardConfig } from '@flying-chess/game-core/types'
 import {
   createModeConfig,
   createStandardConfigSnapshot,

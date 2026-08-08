@@ -16,7 +16,7 @@ import {
   type PartySession,
   type PartyDirectorConfig,
   type PartyTokenAction,
-} from '../services/partyMode'
+} from '@flying-chess/game-core/party-mode'
 
 export function usePartyMode(now: () => number = () => performance.now()) {
   const session = shallowRef<PartySession | null>(null)

@@ -7,8 +7,8 @@
     type PartyPrediction,
     type PartyReaction,
     type PartyReactionDecision,
-  } from '../services/partyMode'
-  import type { Player } from '../types/game'
+  } from '@flying-chess/game-core/party-mode'
+  import type { Player } from '@flying-chess/game-core/types'
 
   const props = defineProps<{
     reaction: PartyReaction | null

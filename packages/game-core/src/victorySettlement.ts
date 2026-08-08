@@ -1,4 +1,4 @@
-import type { Player, VictoryConfig } from '../types/game'
+import type { Player, VictoryConfig } from './domainTypes'
 
 export const DEFAULT_VICTORY_CONFIG: Readonly<VictoryConfig> = Object.freeze({
   actionText: '用手掌打屁股',

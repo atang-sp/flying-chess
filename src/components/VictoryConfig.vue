@@ -1,8 +1,8 @@
 <script setup lang="ts">
   import { computed } from 'vue'
   import { Flag, TrendingDown } from '@lucide/vue'
-  import type { VictoryConfig } from '../types/game'
-  import { normalizeVictoryConfig } from '../services/victorySettlement'
+  import type { VictoryConfig } from '@flying-chess/game-core/types'
+  import { normalizeVictoryConfig } from '@flying-chess/game-core/victory-settlement'
 
   const props = defineProps<{ config: VictoryConfig; playerCount: number }>()
   const emit = defineEmits<{ (event: 'update', config: VictoryConfig): void }>()

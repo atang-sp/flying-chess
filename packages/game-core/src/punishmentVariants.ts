@@ -1,4 +1,4 @@
-import type { PunishmentVariant, ResolvedPunishmentResult } from '../types/game'
+import type { PunishmentVariant, ResolvedPunishmentResult } from './domainTypes'
 import { scaleResolvedPunishmentCount } from './ruleResolution'
 
 export interface PunishmentVariantPresentation {

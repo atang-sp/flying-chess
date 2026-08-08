@@ -13,9 +13,11 @@ import type {
   ResolvedRuleResult,
   ResolvedTrapResult,
   TurnConsequence,
-} from '../types/game'
-import { SecureRandom } from '../utils/secureRandom'
-import { createCompatiblePunishmentAction as createSharedCompatiblePunishmentAction } from '@flying-chess/game-core/config'
+} from './domainTypes'
+import {
+  createCompatiblePunishmentAction as createSharedCompatiblePunishmentAction,
+  cryptoRandomInt,
+} from './sharedConfig'
 
 export type PunishmentRuleInput =
   | {
@@ -75,15 +77,21 @@ export type RuleInput =
   | DareRuleInput
 
 export interface RuleRandomSource {
-  weightedChoice<T>(entries: readonly T[], weights: readonly number[]): T
+  /** @deprecated Weighted selection is implemented by sharedConfig. */
+  weightedChoice?<T>(entries: readonly T[], weights: readonly number[]): T
   randomInt(minimum: number, maximum: number): number
   choice<T>(entries: readonly T[]): T
+  random?(): number
 }
 
 const secureRandomSource: RuleRandomSource = {
-  weightedChoice: (entries, weights) => SecureRandom.weightedChoice([...entries], [...weights]),
-  randomInt: (minimum, maximum) => SecureRandom.randomInt(minimum, maximum),
-  choice: entries => SecureRandom.choice([...entries]),
+  randomInt: cryptoRandomInt,
+  choice: entries => {
+    const selected = entries[cryptoRandomInt(0, entries.length - 1)]
+    if (selected === undefined) throw new Error('不能从空集合中选择')
+    return selected
+  },
+  random: () => cryptoRandomInt(0, 0xffff_ffff) / 0x1_0000_0000,
 }
 
 export const createCompatiblePunishmentAction = (
@@ -96,7 +104,7 @@ export const createCompatiblePunishmentAction = (
     {
       randomInt: randomSource.randomInt,
       choice: randomSource.choice,
-      weightedChoice: randomSource.weightedChoice,
+      random: randomSource.random,
     },
     constraints
   )

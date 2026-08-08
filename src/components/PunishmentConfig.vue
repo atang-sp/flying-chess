@@ -6,7 +6,7 @@
     PunishmentTool,
     PunishmentBodyPart,
     PunishmentPosition,
-  } from '../types/game'
+  } from '@flying-chess/game-core/types'
   import { GameService } from '../services/gameService'
   import ConfigErrorModal from './ConfigErrorModal.vue'
   import RatioDistributor from './RatioDistributor.vue'

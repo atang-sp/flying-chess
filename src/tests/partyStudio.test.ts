@@ -5,7 +5,7 @@ import {
   createLayoutFromBoardConfig,
   validatePartyStudioConfig,
 } from '../services/partyStudio'
-import type { BoardCell } from '../types/game'
+import type { BoardCell } from '@flying-chess/game-core/types'
 
 describe('Party Studio 场景编辑器', () => {
   it('默认配置覆盖导演、格子比例、内容池、布局和主题且通过校验', () => {

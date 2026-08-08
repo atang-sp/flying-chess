@@ -1,4 +1,4 @@
-import type { BoardCell, BoardConfig } from '../types/game'
+import type { BoardCell, BoardConfig } from '@flying-chess/game-core/types'
 import { GAME_CONFIG } from '../config/gameConfig'
 import { GameService } from './gameService'
 import {
@@ -6,7 +6,7 @@ import {
   validatePartyDirectorConfig,
   type PartyAct,
   type PartyDirectorConfig,
-} from './partyMode'
+} from '@flying-chess/game-core/party-mode'
 
 export type PartyStudioCellKind =
   | 'punishment'

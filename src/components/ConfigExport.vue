@@ -19,7 +19,6 @@
     AlertTriangle,
   } from '@lucide/vue'
   import type { ExportOptions, ExportStats, QRCodeOptions } from '../types/export'
-  import type { BoardCell } from '../types/game'
   import {
     exportToJson,
     exportToQRCode,
@@ -33,7 +32,6 @@
   import { loadPlayerSettings, loadConfig } from '../utils/cache'
 
   interface Props {
-    currentBoard?: BoardCell[]
     visible: boolean
   }
 
@@ -41,12 +39,16 @@
     (e: 'close'): void
     (e: 'export-success', filename: string): void
     (e: 'export-error', error: string): void
+    (e: 'import-will-apply'): void
     (e: 'import-success', message: string): void
     (e: 'import-error', error: string): void
   }
 
-  const props = defineProps<Props>()
+  defineProps<Props>()
   const emit = defineEmits<Emits>()
+
+  const importSuccessMessage = (warnings?: string[]) =>
+    ['配置导入成功！', ...(warnings ?? [])].join('\n')
 
   // 当前模式：export 或 import
   const currentMode = ref<'export' | 'import'>('export')
@@ -57,7 +59,6 @@
     punishmentConfig: true,
     boardConfig: true,
     trapConfig: true,
-    boardContent: false,
   })
 
   // 导出状态
@@ -85,7 +86,6 @@
       punishmentConfig: !!config?.punishmentConfig,
       boardConfig: !!config?.boardConfig,
       trapConfig: !!config?.trapConfig,
-      boardContent: !!props.currentBoard && props.currentBoard.length > 0,
     }
   })
 
@@ -105,9 +105,6 @@
     if (!qrCapacityExceeded.value) {
       return ''
     }
-    if (exportOptions.value.boardContent) {
-      return '当前选择包含棋盘布局，二维码容量超限，请改用 JSON 导出。'
-    }
     return '当前选择的数据超过二维码容量，请减少导出项后重试。'
   })
 
@@ -115,11 +112,11 @@
 
   // 监听选项变化，更新统计信息
   watch(
-    () => [exportOptions.value, props.currentBoard],
+    () => exportOptions.value,
     () => {
       if (selectedCount.value > 0) {
         try {
-          const data = collectExportData(exportOptions.value, props.currentBoard)
+          const data = collectExportData(exportOptions.value)
           exportStats.value = calculateExportStats(data)
         } catch (error) {
           exportStats.value = null
@@ -145,7 +142,7 @@
     isExporting.value = true
 
     try {
-      const result = exportToJson(exportOptions.value, props.currentBoard)
+      const result = exportToJson(exportOptions.value)
 
       if (result.success && result.filename) {
         emit('export-success', result.filename)
@@ -167,7 +164,7 @@
     isExporting.value = true
 
     try {
-      const data = collectExportData(exportOptions.value, props.currentBoard)
+      const data = collectExportData(exportOptions.value)
       const qrCode = await generateQRCode(data, qrCodeOptions.value)
       qrCodeDataURL.value = qrCode
       showQRCode.value = true
@@ -185,11 +182,7 @@
     isExporting.value = true
 
     try {
-      const result = await exportToQRCode(
-        exportOptions.value,
-        props.currentBoard,
-        qrCodeOptions.value
-      )
+      const result = await exportToQRCode(exportOptions.value, qrCodeOptions.value)
 
       if (result.success && result.filename) {
         emit('export-success', result.filename)
@@ -216,7 +209,6 @@
         punishmentConfig: false,
         boardConfig: false,
         trapConfig: false,
-        boardContent: false,
       }
     } else {
       // 全选（只选择可用的）
@@ -225,7 +217,6 @@
         punishmentConfig: available.punishmentConfig,
         boardConfig: available.boardConfig,
         trapConfig: available.trapConfig,
-        boardContent: available.boardContent,
       }
     }
   }
@@ -242,20 +233,20 @@
       if (file.type === 'application/json' || file.name.endsWith('.json')) {
         // JSON文件导入
         const text = await file.text()
-        const result = importFromJson(text)
+        const result = importFromJson(text, {}, () => emit('import-will-apply'))
 
         if (result.success) {
-          emit('import-success', '配置导入成功！')
+          emit('import-success', importSuccessMessage(result.warnings))
           emit('close')
         } else {
           emit('import-error', result.error || '导入失败')
         }
       } else if (file.type.startsWith('image/')) {
         // 二维码图片导入
-        const result = await importFromQRCode(file)
+        const result = await importFromQRCode(file, {}, () => emit('import-will-apply'))
 
         if (result.success) {
-          emit('import-success', '配置导入成功！')
+          emit('import-success', importSuccessMessage(result.warnings))
           emit('close')
         } else {
           emit('import-error', result.error || '二维码导入失败')
@@ -281,10 +272,10 @@
     isImporting.value = true
 
     try {
-      const result = importFromJson(importJsonText.value)
+      const result = importFromJson(importJsonText.value, {}, () => emit('import-will-apply'))
 
       if (result.success) {
-        emit('import-success', '配置导入成功！')
+        emit('import-success', importSuccessMessage(result.warnings))
         showImportDialog.value = false
         emit('close')
       } else {
@@ -421,21 +412,14 @@
                 <div v-if="!availableOptions.trapConfig" class="option-status">未配置</div>
               </label>
 
-              <label class="option-item" :class="{ disabled: !availableOptions.boardContent }">
-                <input
-                  v-model="exportOptions.boardContent"
-                  type="checkbox"
-                  :disabled="!availableOptions.boardContent"
-                />
+              <div class="option-item disabled" aria-disabled="true">
                 <span class="option-icon"><Dices :size="20" /></span>
                 <div class="option-info">
                   <div class="option-title">棋盘布局</div>
-                  <div class="option-desc">
-                    当前棋盘的完整布局（包含随机种子，仅建议 JSON 导出）
-                  </div>
+                  <div class="option-desc">当前版本暂不支持可靠恢复，已停止导出该项</div>
                 </div>
-                <div v-if="!availableOptions.boardContent" class="option-status">无棋盘</div>
-              </label>
+                <div class="option-status">暂不支持</div>
+              </div>
             </div>
           </div>
 

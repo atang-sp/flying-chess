@@ -64,6 +64,24 @@ describe('联网升温局权威规则内核', () => {
     expect(settings?.traps).toEqual([customTrap])
   })
 
+  it('拒绝在联机暖场幕无法生成惩罚的房间设置', () => {
+    const settings = normalizeOnlineRoomSettings({
+      ...DEFAULT_ONLINE_ROOM_SETTINGS,
+      punishmentConfig: {
+        tools: { 过强: { name: '过强', intensity: 5, ratio: 100 } },
+        bodyParts: { 可承受: { name: '可承受', sensitivity: 5, ratio: 100 } },
+        positions: { 任意: { name: '任意', ratio: 100, compatibleBodyParts: [] } },
+        minStrikes: 5,
+        maxStrikes: 10,
+        step: 5,
+        maxTakeoffFailures: 1,
+        doublePunishmentChance: 0,
+      },
+    })
+
+    expect(settings).toBeNull()
+  })
+
   it('默认给每个需要玩家操作的阶段 60 秒', () => {
     const startedAt = 12_345
     const game = createOnlineGame(roster.slice(0, 2), DEFAULT_ONLINE_ROOM_SETTINGS, {
@@ -152,6 +170,44 @@ describe('联网升温局权威规则内核', () => {
     })
     expect(game.diceValue).toBe(1)
     expect(projectOnlineGameView(game, 'p1').allowedCommands).toContain('move')
+  })
+
+  it('无关玩家不能跳过反应者的私密预测', () => {
+    const game = createOnlineGame(roster)
+
+    expect(projectOnlineGameView(game, 'p3').allowedCommands).not.toContain('skip_action')
+    expect(() => applyOnlineGameCommand(game, 'p3', { type: 'skip_action' })).toThrowError(
+      expect.objectContaining({ code: 'NOT_AUTHORIZED' })
+    )
+    expect(game.phase).toBe('awaiting_prediction')
+    expect(game.partySession.reaction?.prediction).toBeUndefined()
+  })
+
+  it('反应者可以跳过自己的预测并采用安全默认值', () => {
+    const game = createOnlineGame(roster)
+
+    expect(projectOnlineGameView(game, 'p2').allowedCommands).toContain('skip_action')
+    const skipped = applyOnlineGameCommand(game, 'p2', { type: 'skip_action' })
+
+    expect(skipped.phase).toBe('awaiting_roll')
+    expect(skipped.partySession.reaction?.prediction).toBe('low')
+  })
+
+  it('只有带主持人权限的指令才能强制跳过他人决策', () => {
+    const game = createOnlineGame(roster)
+
+    expect(projectOnlineGameView(game, 'p1').allowedCommands).not.toContain('skip_action')
+    expect(projectOnlineGameView(game, 'p1', { authority: 'host' }).allowedCommands).toContain(
+      'skip_action'
+    )
+
+    const skipped = applyOnlineGameCommand(
+      game,
+      { actorPlayerId: 'p1', authority: 'host' },
+      { type: 'skip_action' }
+    )
+    expect(skipped.phase).toBe('awaiting_roll')
+    expect(skipped.partySession.reaction?.prediction).toBe('low')
   })
 
   it('预测结果在反应者做出决定前不得向无关玩家泄露', () => {
@@ -313,6 +369,25 @@ describe('联网升温局权威规则内核', () => {
       actions: ['amplify'],
     })
 
+    const firstHostSkip = applyOnlineGameCommand(
+      game,
+      { actorPlayerId: 'p1', authority: 'host' },
+      { type: 'skip_action' }
+    )
+    const secondHostSkip = applyOnlineGameCommand(
+      firstHostSkip,
+      { actorPlayerId: 'p1', authority: 'host' },
+      { type: 'skip_action' }
+    )
+    expect(firstHostSkip.pendingAction).toMatchObject({
+      kind: 'punishment_intervention',
+      declinedPlayerIndices: [0],
+    })
+    expect(secondHostSkip.pendingAction).toMatchObject({
+      kind: 'punishment_intervention',
+      declinedPlayerIndices: [0, 1],
+    })
+
     game = applyOnlineGameCommand(game, 'p1', { type: 'intervene', action: 'immunity' })
     expect(game.currentPlayerId).toBe('p2')
     expect(projectOnlineGameView(game, 'p1').myTokensRemaining).toBe(1)
@@ -362,10 +437,15 @@ describe('联网升温局权威规则内核', () => {
     })
     expect(JSON.stringify(playerTwoView)).not.toContain('"p1":0')
 
-    game = applyOnlineGameCommand(game, 'p2', { type: 'vote', optionIndex: 1 })
+    game = applyOnlineGameCommand(
+      game,
+      { actorPlayerId: 'p1', authority: 'host' },
+      { type: 'skip_action' }
+    )
+    expect(game.pendingAction).toMatchObject({ kind: 'event_vote', votes: { 0: 0, 1: 0 } })
     game = applyOnlineGameCommand(game, 'p3', { type: 'vote', optionIndex: 1 })
     expect(game.currentPlayerId).toBe('p2')
-    expect(game.pendingAction).toMatchObject({ kind: 'event_result', summary: '投票结果：加码' })
+    expect(game.pendingAction).toMatchObject({ kind: 'event_result', summary: '投票结果：轻松' })
     game = applyOnlineGameCommand(game, 'p2', { type: 'acknowledge_event_result' })
     expect(game.phase).toBe('awaiting_roll')
     expect(game.pendingAction).toBeNull()
@@ -409,7 +489,15 @@ describe('联网升温局权威规则内核', () => {
     })
     expect(JSON.stringify(unrelated)).not.toContain('rock')
 
-    game = applyOnlineGameCommand(game, 'p2', { type: 'rps', choice: 'paper' })
+    game = applyOnlineGameCommand(
+      game,
+      { actorPlayerId: 'p1', authority: 'host' },
+      { type: 'skip_action' }
+    )
+    expect(game.pendingAction).toMatchObject({
+      kind: 'event_rps',
+      choices: { 0: 'rock', 1: 'rock' },
+    })
     game = applyOnlineGameCommand(game, 'p3', { type: 'rps', choice: 'scissors' })
     expect(projectOnlineGameView(game, 'p1').pendingAction).toMatchObject({
       kind: 'event_result',

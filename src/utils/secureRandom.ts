@@ -1,3 +1,5 @@
+import { chooseWeighted } from '@flying-chess/game-core/config'
+
 /**
  * 🔒 密码学安全随机数生成器
  *
@@ -118,30 +120,7 @@ export class SecureRandom {
    * @param weights 对应的权重数组
    */
   static weightedChoice<T>(items: T[], weights: number[]): T {
-    if (items.length !== weights.length) {
-      throw new Error('项目数组和权重数组长度必须相同')
-    }
-    if (items.length === 0) {
-      throw new Error('不能从空数组中选择元素')
-    }
-
-    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0)
-    if (totalWeight <= 0) {
-      throw new Error('权重总和必须大于0')
-    }
-
-    const randomValue = this.random() * totalWeight
-    let currentWeight = 0
-
-    for (let i = 0; i < items.length; i++) {
-      currentWeight += weights[i]
-      if (randomValue < currentWeight) {
-        return items[i]
-      }
-    }
-
-    // 回退到最后一个元素（理论上不应该到达这里）
-    return items[items.length - 1]
+    return chooseWeighted(items, weights, () => this.random())
   }
 
   /**

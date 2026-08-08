@@ -7,8 +7,8 @@
     PunishmentVariant,
     PunishmentVariantPhase,
     ResolvedPunishmentCount,
-  } from '../types/game'
-  import { getPunishmentVariantPresentation } from '../services/punishmentVariants'
+  } from '@flying-chess/game-core/types'
+  import { getPunishmentVariantPresentation } from '@flying-chess/game-core/punishment-variants'
 
   type ExternalCountSelection = Extract<
     ResolvedPunishmentCount,

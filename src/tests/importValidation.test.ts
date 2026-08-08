@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { importFromJson, validateImportData } from '../utils/export'
+import { normalizePunishmentConfig } from '@flying-chess/game-core/config'
+import { collectExportData, importFromJson, validateImportData } from '../utils/export'
 
 const createValidImport = () => ({
   version: '1.0.0',
@@ -116,6 +117,61 @@ describe('导入配置校验', () => {
     expect(validateImportData(data).isValid).toBe(false)
   })
 
+  it('拒绝只能通过零权重条目拼出兼容关系的惩罚配置', () => {
+    const data = cloneValidImport()
+    data.data.punishmentConfig.tools = {
+      重工具: { name: '重工具', intensity: 8, ratio: 100 },
+      轻工具: { name: '轻工具', intensity: 1, ratio: 0 },
+    } as never
+    data.data.punishmentConfig.bodyParts = {
+      强部位: { name: '强部位', sensitivity: 8, ratio: 100 },
+      弱部位: { name: '弱部位', sensitivity: 1, ratio: 0 },
+    } as never
+    data.data.punishmentConfig.positions = {
+      限定姿势: {
+        name: '限定姿势',
+        ratio: 100,
+        compatibleBodyParts: ['弱部位'],
+      },
+    } as never
+
+    const result = validateImportData(data)
+
+    expect(result.isValid).toBe(false)
+    expect(result.errors.join('\n')).toContain('无法组成任何兼容的惩罚')
+  })
+
+  it('将旧配置中缺少兼容部位的自定义姿势归一化为不限制部位', () => {
+    const data = cloneValidImport()
+    const positions = data.data.punishmentConfig.positions as Record<
+      string,
+      { name: string; ratio: number; compatibleBodyParts?: string[] }
+    >
+    positions.自定义姿势 = {
+      name: '自定义姿势',
+      ratio: 10,
+    }
+
+    expect(validateImportData(data).isValid).toBe(true)
+    expect(
+      normalizePunishmentConfig(data.data.punishmentConfig).positions.自定义姿势
+        ?.compatibleBodyParts
+    ).toEqual([])
+  })
+
+  it('旧配置沿用内置姿势名时也不继承默认部位限制', () => {
+    const data = cloneValidImport()
+    const position = data.data.punishmentConfig.positions.站立 as {
+      compatibleBodyParts?: string[]
+    }
+    delete position.compatibleBodyParts
+
+    expect(validateImportData(data).isValid).toBe(true)
+    expect(
+      normalizePunishmentConfig(data.data.punishmentConfig).positions.站立?.compatibleBodyParts
+    ).toEqual([])
+  })
+
   it.each(['tools', 'bodyParts', 'positions'] as const)('拒绝所有 %s 权重均为零', field => {
     const data = cloneValidImport()
     const entries = data.data.punishmentConfig[field] as Record<string, { ratio: number }>
@@ -158,10 +214,12 @@ describe('导入配置校验', () => {
     const before = [...values.entries()]
     const data = cloneValidImport()
     data.data.boardConfig.totalCells = 19
+    const beforeApply = vi.fn()
 
-    const result = importFromJson(JSON.stringify(data))
+    const result = importFromJson(JSON.stringify(data), {}, beforeApply)
 
     expect(result.success).toBe(false)
+    expect(beforeApply).not.toHaveBeenCalled()
     expect([...values.entries()]).toEqual(before)
   })
 
@@ -184,5 +242,89 @@ describe('导入配置校验', () => {
 
     expect(result.success).toBe(false)
     expect([...values.entries()]).toEqual(before)
+  })
+
+  it('校验通过后先结束旧局，再写入新配置', () => {
+    const events: string[] = []
+    const values = new Map<string, string>()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        events.push(`persist:${key}`)
+        values.set(key, value)
+      },
+      removeItem: (key: string) => values.delete(key),
+    })
+
+    const result = importFromJson(JSON.stringify(createValidImport()), {}, () => {
+      events.push('end-active-session')
+    })
+
+    expect(result.success).toBe(true)
+    expect(events[0]).toBe('end-active-session')
+    expect(events.some(event => event.startsWith('persist:'))).toBe(true)
+  })
+
+  it('拒绝只包含不可恢复棋盘布局的空操作导入', () => {
+    const data = {
+      version: '1.0.0',
+      exportedAt: '2026-08-07T00:00:00.000Z',
+      gameTitle: '飞行棋配置',
+      data: {
+        boardContent: {
+          seed: 'legacy-snapshot',
+          generatedAt: Date.now(),
+          board: [{ id: 1, position: 1, type: 'start', players: [] }],
+        },
+      },
+    }
+
+    const result = validateImportData(data)
+
+    expect(result.isValid).toBe(false)
+    expect(result.errors).toContain('data 至少需要包含一个可导入的配置项')
+  })
+
+  it('公共导出入口忽略旧调用方请求的不可恢复棋盘布局', () => {
+    vi.stubGlobal('localStorage', {
+      getItem: () => null,
+      setItem: () => undefined,
+      removeItem: () => undefined,
+    })
+    const result = Reflect.apply(collectExportData, undefined, [
+      {
+        playerSettings: false,
+        punishmentConfig: false,
+        boardConfig: false,
+        trapConfig: false,
+        boardContent: true,
+      },
+      [{ id: 1, position: 1, type: 'start', players: [] }],
+    ])
+
+    expect(result.data).not.toHaveProperty('boardContent')
+  })
+
+  it('明确告知旧文件中的棋盘布局未被恢复', () => {
+    const values = new Map<string, string>()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    })
+    const data = cloneValidImport()
+    ;(data.data as Record<string, unknown>).boardContent = {
+      seed: 'legacy-snapshot',
+      generatedAt: Date.now(),
+      board: [{ id: 1, position: 1, type: 'start', players: [] }],
+    }
+
+    const result = importFromJson(JSON.stringify(data))
+
+    expect(result.success).toBe(true)
+    expect(result.warnings).toContain(
+      '当前版本暂不支持恢复棋盘布局，该部分已跳过；其他配置已正常导入'
+    )
+    expect(result.warnings?.join('')).not.toContain('棋盘布局数据已导入')
   })
 })

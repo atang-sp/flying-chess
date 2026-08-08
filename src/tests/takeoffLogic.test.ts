@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { GameService } from '../services/gameService'
-import type { Player, PunishmentConfig, BoardCell } from '../types/game'
+import type { Player, PunishmentConfig, BoardCell } from '@flying-chess/game-core/types'
 
 describe('起飞逻辑测试', () => {
   let player: Player

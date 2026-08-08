@@ -41,9 +41,9 @@
   import PartyStudioEditor from './PartyStudioEditor.vue'
   import type { GameMode } from '../config/modes'
   import { VERSION } from '../config/version'
-  import type { PartyScenePreset, VictoryConfig } from '../types/game'
-  import { PARTY_MIN_PLAYERS } from '../services/partyMode'
-  import type { PartyEventCard } from '../services/partyEvents'
+  import type { PartyScenePreset, VictoryConfig } from '@flying-chess/game-core/types'
+  import { PARTY_MIN_PLAYERS } from '@flying-chess/game-core/party-mode'
+  import type { PartyEventCard } from '@flying-chess/game-core/party-events'
   import type { CommunityPack } from '../services/communityPacks'
   import { validatePartyStudioConfig, type PartyStudioConfig } from '../services/partyStudio'
 

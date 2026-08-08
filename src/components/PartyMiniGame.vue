@@ -1,15 +1,15 @@
 <script setup lang="ts">
   import { computed, onBeforeUnmount, ref, watch } from 'vue'
   import { Brain, Gauge, HelpCircle, Timer } from '@lucide/vue'
-  import type { Player } from '../types/game'
-  import type { PartyMiniGameKind } from '../services/partyEvents'
+  import type { Player } from '@flying-chess/game-core/types'
+  import type { PartyMiniGameKind } from '@flying-chess/game-core/party-events'
   import {
     createMemoryChallenge,
     createReactionRace,
     recordReactionPress,
     type PartyMiniGameOutcome,
     type ReactionRaceState,
-  } from '../services/partyMiniGames'
+  } from '@flying-chess/game-core/party-mini-games'
   import { SecureRandom } from '../utils/secureRandom'
 
   const props = defineProps<{

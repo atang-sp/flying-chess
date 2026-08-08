@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { MessageCircleQuestion, Check, Zap } from '@lucide/vue'
-  import type { Player } from '../types/game'
+  import type { Player } from '@flying-chess/game-core/types'
 
   interface Props {
     show: boolean

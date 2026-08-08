@@ -1,4 +1,4 @@
-import type { ResolvedPunishmentResult } from '../types/game'
+import type { ResolvedPunishmentResult } from './domainTypes'
 import { scaleResolvedPunishmentCount } from './ruleResolution'
 
 export type PartyEventTrigger =

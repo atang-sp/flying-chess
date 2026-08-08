@@ -1,4 +1,4 @@
-import type { Player, ResolvedPunishmentResult } from '../types/game'
+import type { Player, ResolvedPunishmentResult } from './domainTypes'
 import { scaleResolvedPunishmentCount } from './ruleResolution'
 
 export interface ReactionRaceState {

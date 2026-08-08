@@ -93,6 +93,7 @@ test('扫码受邀页突出加入动作，并允许两名玩家确认后开局',
     await expect(guest.getByTestId('board-setting-label')).toHaveText('标准模式棋盘')
     await expect(guest.getByTestId('board-size-setting')).toHaveText('30 格')
     await expect(guest.getByTestId('turn-duration-setting')).toHaveText('60 秒')
+    await expect(guest.getByText('决策限时')).toBeVisible()
     await Promise.all([host, guest].map(page => page.getByTestId('confirm-settings').click()))
     await expect(host.getByTestId('start-online-game')).toBeEnabled()
     await host.getByTestId('start-online-game').click()
@@ -104,6 +105,7 @@ test('扫码受邀页突出加入动作，并允许两名玩家确认后开局',
     await expect(guest.locator('[data-testid^="board-cell-"]')).toHaveCount(30)
     await expect(guest.locator('[data-kind="punishment"]').first()).toBeVisible()
     await expect(guest.getByTestId('deadline-note')).toContainText(/(59|60) 秒/)
+    await expect(guest.getByTestId('deadline-note')).toContainText('本次决策剩余')
     await guest.getByTestId('request-pause').click()
     await expect(host.getByText('1 人请求暂停，等待主持人决定。')).toBeVisible()
     await expect(guest.getByTestId('request-pause')).toBeDisabled()
@@ -122,6 +124,7 @@ test('扫码受邀页突出加入动作，并允许两名玩家确认后开局',
 test('两套浏览器通过房间服务器完成建房、加入、刷新重连、掷骰和移动', async ({
   browser,
 }, testInfo) => {
+  test.setTimeout(60_000)
   const options = projectContextOptions(testInfo.project.name, testInfo.project.use.viewport)
   const hostContext = await browser.newContext(options)
   const guestContext = await browser.newContext(options)
@@ -152,7 +155,14 @@ test('两套浏览器通过房间服务器完成建房、加入、刷新重连�
     )
     await expect(host.getByTestId('start-online-game')).toBeEnabled()
     await host.getByTestId('start-online-game').click()
+    await expect(host.getByTestId('skip-action')).toBeVisible()
+    await expect(playerTwo.getByTestId('skip-action')).toBeVisible()
+    await expect(playerThree.getByTestId('skip-action')).toHaveCount(0)
     await playerTwo.getByTestId('predict-high').click()
+    await expect(host.getByTestId('roll-dice')).toBeVisible()
+    await expect(playerThree.getByTestId('skip-action')).toHaveText('请求主持人跳过')
+    await playerThree.getByTestId('skip-action').click()
+    await expect(host.getByText('1 人请求跳过当前核心操作，等待主持人决定。')).toBeVisible()
     await expect(host.getByTestId('roll-dice')).toBeVisible()
 
     await host.getByTestId('roll-dice').click()

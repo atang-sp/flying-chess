@@ -1,6 +1,6 @@
 {
   "name": "ludo-vue-demo",
-  "version": "1.14.1",
+  "version": "1.14.2",
   "private": true,
   "workspaces": [
     "packages/*",
@@ -28,8 +28,8 @@
     "type-check": "vue-tsc --noEmit && npm run type-check --workspaces --if-present",
     "prepare": "husky",
     "validate-config": "npm run validate-demo && npm run validate-example",
-    "validate-demo": "node scripts/validate-config.js configs/exported-config-demo.json",
-    "validate-example": "node scripts/validate-config.js configs/config-with-schema.json",
+    "validate-demo": "tsx scripts/validate-config.ts configs/exported-config-demo.json",
+    "validate-example": "tsx scripts/validate-config.ts configs/config-with-schema.json",
     "test": "vitest run",
     "test:room-server": "vitest run apps/room-server/test",
     "dev:room-server": "npm run dev --workspace @flying-chess/room-server",

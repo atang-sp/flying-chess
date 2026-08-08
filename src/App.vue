@@ -1,6 +1,6 @@
 <script setup lang="ts">
   /* eslint-disable @typescript-eslint/ban-ts-comment */
-  import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+  import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
   import { GameService } from './services/gameService'
   import { gameTelemetry } from './services/gameTelemetry'
   import {
@@ -11,13 +11,13 @@
     pickPunishmentVariant,
     resolveRule,
     scaleResolvedPunishmentCount,
-  } from './services/ruleResolution'
+  } from '@flying-chess/game-core/rule-resolution'
   import {
     createDeferredPunishment,
     createEncorePunishmentReturn,
     createMutualPunishmentReturn,
     resolveConditionalPunishment,
-  } from './services/punishmentVariants'
+  } from '@flying-chess/game-core/punishment-variants'
   import { GAME_CONFIG } from './config/gameConfig'
   import {
     ArrowLeft,
@@ -35,7 +35,6 @@
     Pause,
   } from '@lucide/vue'
   import type {
-    GameState,
     Player,
     BoardCell,
     PunishmentConfig,
@@ -49,7 +48,7 @@
     PartyScenePreset,
     PunishmentConstraints,
     VictoryConfig,
-  } from './types/game'
+  } from '@flying-chess/game-core/types'
   import IntroPage from './components/IntroPage.vue'
   import PartyReactionOverlay from './components/PartyReactionOverlay.vue'
   import PartyDiceDecision from './components/PartyDiceDecision.vue'
@@ -105,8 +104,13 @@
   import { useImportFeedbackDialog } from './composables/useImportFeedbackDialog'
   import { usePartyMode } from './composables/usePartyMode'
   import { useMultiDeviceHost } from './composables/useMultiDeviceHost'
+  import { useLocalGameSession } from './composables/useLocalGameSession'
   import { type GameMode } from './config/modes'
-  import { createModeConfig, createStandardConfigSnapshot } from '@flying-chess/game-core/config'
+  import {
+    createModeConfig,
+    createStandardConfigSnapshot,
+    validateConfigSnapshot,
+  } from '@flying-chess/game-core/config'
   import {
     createPartyPunishmentChoices,
     getActConstraints,
@@ -115,14 +119,14 @@
     type PartyAct,
     type PartyPrediction,
     type PartyReactionDecision,
-  } from './services/partyMode'
+  } from '@flying-chess/game-core/party-mode'
   import {
     applyPartyPunishmentIntervention,
     getPartyPunishmentInterventionOptions,
     projectSharedScreenInterventionOptions,
     type PartyPunishmentIntervention as PartyPunishmentInterventionDecision,
     type PartyPunishmentInterventionOption,
-  } from './services/partyPunishmentInterventions'
+  } from '@flying-chess/game-core/party-interventions'
   import { driver as createDriver } from 'driver.js'
   import {
     activatePartyEvent,
@@ -134,11 +138,11 @@
     type PartyEventSignal,
     type PartyEventState,
     type PartyMiniGameKind,
-  } from './services/partyEvents'
+  } from '@flying-chess/game-core/party-events'
   import {
     consumePartyMiniGameModifier,
     type PartyMiniGameOutcome,
-  } from './services/partyMiniGames'
+  } from '@flying-chess/game-core/party-mini-games'
   import {
     getUnlockedPartyContent,
     recordLocalProgress,
@@ -146,26 +150,19 @@
   } from './services/localProgress'
   import { applyPartyBoardLayout, type PartyStudioConfig } from './services/partyStudio'
 
-  // 游戏状态
-  const gameState = reactive<GameState>({
-    players: [],
-    currentPlayerIndex: 0,
-    diceValue: null,
-    gameStatus: 'intro', // 从开始页面开始
-    winner: null,
-    board: [],
-    punishmentConfig: GameService.createPunishmentConfig(),
-    boardConfig: GameService.createBoardConfig(),
-    pendingEffect: null,
+  const localGameSession = useLocalGameSession({
+    selectedMode: loadGameMode(),
+    victoryConfig: loadVictoryConfig(),
   })
-
-  // 游戏控制状态
-  const gameStarted = ref(false)
-  const gameFinished = ref(false)
-  const sessionPaused = ref(false)
-  const selectedMode = ref<GameMode>(loadGameMode())
-  const activeMode = ref<GameMode | null>(null)
-  const victoryConfig = ref<VictoryConfig>(loadVictoryConfig())
+  const {
+    gameState,
+    gameStarted,
+    gameFinished,
+    sessionPaused,
+    selectedMode,
+    activeMode,
+    victoryConfig,
+  } = localGameSession
   const partyMode = usePartyMode()
   const isPartyGame = computed(() => activeMode.value === 'party' && partyMode.isActive.value)
   const partySession = computed(() => partyMode.session.value)
@@ -206,7 +203,18 @@
   const currentPartyMiniGameSource = ref<'event' | 'trap' | null>(null)
   const localProgress = ref(loadLocalProgress())
   const activePartyStudioConfig = ref<PartyStudioConfig | null>(null)
+  interface PartyStartConfig {
+    count: number
+    names: string[]
+    mode: 'party'
+    scenePreset?: PartyScenePreset | 'default'
+    eventDeck?: readonly PartyEventCard[]
+    studioConfig?: PartyStudioConfig
+    multiDevice?: boolean
+  }
+  const activePartyStartConfig = ref<PartyStartConfig | null>(null)
   const partyTieCandidates = ref<readonly number[]>([])
+  const partyTieBreakRef = ref<{ roll: () => void } | null>(null)
   const classicConfigSnapshot = ref<{
     boardConfig: BoardConfig
     punishmentConfig: PunishmentConfig
@@ -327,6 +335,7 @@
     importFeedbackType,
     showImportSuccess,
     showImportError,
+    showError,
     closeImportFeedback,
   } = useImportFeedbackDialog()
 
@@ -1155,55 +1164,13 @@
 
   // 页面导航
   const showIntro = () => {
-    gameState.gameStatus = 'intro'
+    localGameSession.showIntro()
   }
 
-  // 全局错误恢复函数
-  const resetGameStateOnError = () => {
-    console.warn('检测到游戏状态异常，正在重置状态...')
-
-    // 重置游戏状态
-    gameState.gameStatus = 'waiting'
-    gameState.diceValue = null
-    gameState.pendingEffect = null
-
-    // 清除所有玩家移动状态
-    gameState.players.forEach(player => {
-      player.isMoving = false
-    })
-
-    // 清除其他状态
-    currentPunishment.value = null
-    currentPunishmentTarget.value = null
-    pendingRuleResolution.value = null
-    partyPunishmentInterventionResolution.value = null
-    partyPunishmentInterventionOptions.value = []
-    deferredPartyPunishments.value = []
-    displayedPunishmentResumesTurn.value = false
-    boundPartyPunishments.value = []
-    displayedBoundPunishment.value = false
-    partyEventQueue.value = []
-    currentPartyEvent.value = null
-    partyTurnHadPunishment.value = false
-    currentPartyMiniGameKind.value = null
-    currentPartyMiniGameSource.value = null
-    showTakeoffPunishmentDisplay.value = false
-    currentTakeoffPunishment.value = null
-    effectFromPosition.value = undefined
-    effectToPosition.value = undefined
-    isDoublePunishment.value = false
-    isChainPunishment.value = false
-    showDoublePunishmentReveal.value = false
-    showChainPunishmentRoll.value = false
-    pendingDoublePunishment.value = null
-    showMercyDecision.value = false
-    mercyRequested.value = false
-    mercyExecutorPlayer.value = null
-    mercyTargetPlayer.value = null
-    sessionPaused.value = false
-    resetEffectChainCount()
-
-    devLog('游戏状态已重置')
+  const recoverStalledMovement = () => {
+    console.warn('检测到移动状态异常，正在恢复当前对局...')
+    localGameSession.recoverStalledMovement()
+    devLog('卡住的移动状态已恢复')
   }
 
   const healthCheckIntervalId = ref<number | null>(null)
@@ -1232,6 +1199,7 @@
       chainPunishmentRoll: showChainPunishmentRoll.value,
       mercyDecision: showMercyDecision.value,
       sessionPaused: sessionPaused.value,
+      partyInteraction: partyInteractionBlocking.value,
     }
 
     // 检查是否卡在 moving 状态超过 5 秒
@@ -1247,7 +1215,7 @@
       ) {
         console.warn('检测到游戏卡在moving状态超过5秒，正在重置...')
         movingStateEnteredAt.value = null
-        resetGameStateOnError()
+        recoverStalledMovement()
       }
     } else {
       movingStateEnteredAt.value = null
@@ -1278,12 +1246,10 @@
 
   const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
     console.error('未处理的Promise错误:', event.reason)
-    resetGameStateOnError()
   }
 
   const handleGlobalError = (event: ErrorEvent) => {
     console.error('全局错误:', event.error)
-    resetGameStateOnError()
   }
 
   // 添加全局错误监听
@@ -1387,6 +1353,7 @@
         selectedMode: typeof selectedMode
         activeMode: typeof activeMode
         partyMode: typeof partyMode
+        partyEventQueue: typeof partyEventQueue
         finishGameWithPlayer: typeof finishGameWithPlayer
         completePartyTurnForPlayer: typeof completePartyTurnForPlayer
         resolveNaturalVictory: typeof resolveNaturalVictory
@@ -1418,6 +1385,7 @@
       debugWindow.selectedMode = selectedMode
       debugWindow.activeMode = activeMode
       debugWindow.partyMode = partyMode
+      debugWindow.partyEventQueue = partyEventQueue
       debugWindow.finishGameWithPlayer = finishGameWithPlayer
       debugWindow.completePartyTurnForPlayer = completePartyTurnForPlayer
       debugWindow.resolveNaturalVictory = resolveNaturalVictory
@@ -1497,6 +1465,7 @@
     sessionPaused.value = false
     activeMode.value = null
     activePartyStudioConfig.value = null
+    activePartyStartConfig.value = null
     classicConfigSnapshot.value = null
     partyMode.clear()
     partyDiceDecisionVisible.value = false
@@ -1560,82 +1529,78 @@
 
   const cloneConfig = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
-  const startPartyGame = (playerConfig: {
-    count: number
-    names: string[]
-    mode: 'party'
-    scenePreset?: PartyScenePreset | 'default'
-    eventDeck?: readonly PartyEventCard[]
-    studioConfig?: PartyStudioConfig
-  }) => {
+  const startPartyGame = (playerConfig: PartyStartConfig): boolean => {
     const standardSnapshot = createStandardConfigSnapshot({
       boardConfig: cloneConfig(gameState.boardConfig),
       punishmentConfig: cloneConfig(gameState.punishmentConfig),
       traps: cloneConfig(trapConfig.value),
     })
     const partySnapshot = createModeConfig('party', standardSnapshot)
-    classicConfigSnapshot.value = {
+    const nextClassicSnapshot = {
       boardConfig: cloneConfig(standardSnapshot.boardConfig),
       punishmentConfig: cloneConfig(standardSnapshot.punishmentConfig),
       trapConfig: cloneConfig(standardSnapshot.traps),
     }
-    activeMode.value = 'party'
-    selectedPartyScene.value = playerConfig.scenePreset ?? 'default'
-    gameState.players = GameService.createCustomPlayers(playerConfig.count, playerConfig.names)
-    gameState.currentPlayerIndex = 0
-    gameState.diceValue = null
-    gameState.winner = null
-    gameState.pendingEffect = null
-    gameState.punishmentConfig = cloneConfig(partySnapshot.punishmentConfig)
-
-    const sceneKey = selectedPartyScene.value
+    const sceneKey = playerConfig.scenePreset ?? 'default'
     const scene = sceneKey !== 'default' ? GAME_CONFIG.PARTY_SCENE_PRESETS[sceneKey] : undefined
     const studio = playerConfig.studioConfig?.enabled ? playerConfig.studioConfig : undefined
-    activePartyStudioConfig.value = studio ?? null
-    gameState.boardConfig = {
+    const nextBoardConfig = {
       ...(studio?.boardConfig ?? scene?.boardConfig ?? partySnapshot.boardConfig),
     } as BoardConfig
+    const nextPunishmentConfig = cloneConfig(partySnapshot.punishmentConfig)
 
     const unlockedPartyContent = getUnlockedPartyContent(localProgress.value)
     const partyTraps =
       sceneKey === 'intimate'
         ? partySnapshot.traps.filter(trap => trap.trapVariant !== 'all_players')
         : [...partySnapshot.traps]
-    trapConfig.value = partyTraps.filter(
+    const nextTraps = partyTraps.filter(
       trap =>
         !trap.trapVariant?.startsWith('mini_game_') ||
         unlockedPartyContent.miniGameTraps.includes(trap.trapVariant)
     )
 
-    const warmupConstraints = getCurrentPartyActConstraints('warmup')
+    const constraintsFor = (act: PartyAct): PunishmentConstraints => ({
+      ...getActConstraints(act),
+      ...(scene?.actConstraintsOverride?.[act] ?? {}),
+    })
+    const warmupConstraints = constraintsFor('warmup')
     if (warmupConstraints.doublePunishmentChance !== undefined) {
-      gameState.punishmentConfig.doublePunishmentChance = warmupConstraints.doublePunishmentChance
+      nextPunishmentConfig.doublePunishmentChance = warmupConstraints.doublePunishmentChance
     }
 
     const partyBoardConfig = createModeConfig(
       'party',
       createStandardConfigSnapshot({
-        boardConfig: cloneConfig(gameState.boardConfig),
-        punishmentConfig: cloneConfig(gameState.punishmentConfig),
-        traps: cloneConfig(trapConfig.value),
+        boardConfig: cloneConfig(nextBoardConfig),
+        punishmentConfig: cloneConfig(nextPunishmentConfig),
+        traps: cloneConfig(nextTraps),
         qaQuestions: studio ? Object.values(studio.qaQuestions).flat() : undefined,
         dareInstructions: studio ? Object.values(studio.dareInstructions).flat() : undefined,
       })
     )
-    partyBoardConfig.boardConfig = cloneConfig(gameState.boardConfig)
-    partyBoardConfig.punishmentConfig = cloneConfig(gameState.punishmentConfig)
-    partyBoardConfig.traps = cloneConfig(trapConfig.value)
+    partyBoardConfig.boardConfig = cloneConfig(nextBoardConfig)
+    partyBoardConfig.punishmentConfig = cloneConfig(nextPunishmentConfig)
+    partyBoardConfig.traps = cloneConfig(nextTraps)
     partyBoardConfig.punishmentConstraints = { ...warmupConstraints }
     partyBoardConfig.stageConstraints = {
       warmup: { ...warmupConstraints },
-      heating: { ...getCurrentPartyActConstraints('heating') },
-      finale: { ...getCurrentPartyActConstraints('finale') },
+      heating: { ...constraintsFor('heating') },
+      finale: { ...constraintsFor('finale') },
+    }
+
+    if (!validateConfigSnapshot(partyBoardConfig)) {
+      showError(
+        '升温局配置无效',
+        '当前惩罚配置无法满足升温局的暖场、升温或终局阶段约束。请调整工具强度、兼容部位或惩罚次数后重试。'
+      )
+      return false
     }
 
     const generatedBoard = GameService.createBoard(
-      gameState.punishmentConfig,
-      gameState.boardConfig,
-      trapConfig.value,
+      nextPunishmentConfig,
+      nextBoardConfig,
+      nextTraps,
       studio
         ? {
             qaQuestions: Object.values(studio.qaQuestions).flat(),
@@ -1645,6 +1610,20 @@
       undefined,
       partyBoardConfig
     )
+
+    activePartyStartConfig.value = cloneConfig(playerConfig)
+    classicConfigSnapshot.value = nextClassicSnapshot
+    activeMode.value = 'party'
+    selectedPartyScene.value = sceneKey
+    activePartyStudioConfig.value = studio ?? null
+    gameState.players = GameService.createCustomPlayers(playerConfig.count, playerConfig.names)
+    gameState.currentPlayerIndex = 0
+    gameState.diceValue = null
+    gameState.winner = null
+    gameState.pendingEffect = null
+    gameState.punishmentConfig = nextPunishmentConfig
+    gameState.boardConfig = nextBoardConfig
+    trapConfig.value = nextTraps
     gameState.board = studio
       ? applyPartyBoardLayout(generatedBoard, studio.cellLayout)
       : generatedBoard
@@ -1660,6 +1639,7 @@
     turnCount.value = 1
     gameFinished.value = false
     gameStarted.value = true
+    return true
   }
 
   // 开始游戏
@@ -1770,6 +1750,7 @@
     currentPartyMiniGameKind.value = null
     currentPartyMiniGameSource.value = null
     partyTieCandidates.value = []
+    activePartyStartConfig.value = null
     activeMode.value = null
     multiDevice.stopHost()
 
@@ -1966,6 +1947,21 @@
       partyTieCandidates.value = leaders
     }
     return 'ended'
+  }
+
+  const requestPartyTieBreakRoll = (playerIndex: number) => {
+    partyTieCandidates.value.forEach(candidateIndex => {
+      multiDevice.clearPendingAction(candidateIndex)
+    })
+    multiDevice.requestAction(playerIndex, { type: 'tiebreak_roll' })
+  }
+
+  const finishPartyTieBreak = (winnerPlayerIndex: number) => {
+    partyTieCandidates.value.forEach(candidateIndex => {
+      multiDevice.clearPendingAction(candidateIndex)
+    })
+    multiDevice.broadcastStateToAll()
+    finishGameWithPlayer(winnerPlayerIndex)
   }
 
   const resolveNaturalVictory = (playerIndex: number, preserveClassicVictoryAudio = true): void => {
@@ -2747,11 +2743,12 @@
     victoryConfig.value = { ...playerConfig.victoryConfig }
 
     if (playerConfig.mode === 'party') {
-      startPartyGame({
+      const started = startPartyGame({
         ...playerConfig,
         mode: 'party',
         scenePreset: playerConfig.scenePreset ?? 'default',
       })
+      if (!started) return
       if (playerConfig.multiDevice) {
         try {
           await multiDevice.startHost()
@@ -2929,21 +2926,26 @@
 
   // 处理胜利结算画面的"再来一局"按钮
   const handleVictoryPlayAgain = async () => {
-    const playerCount = gameState.players.length
-    const playerNames = gameState.players.map(player => player.name)
     const completedMode = activeMode.value
+    const partyReplayConfig = activePartyStartConfig.value
+      ? cloneConfig(activePartyStartConfig.value)
+      : null
+    const playerCount = gameState.players.length
     gameTelemetry.playAgain()
     showVictoryScreen.value = false
     resetGame()
 
-    if (completedMode === 'party') {
+    if (completedMode === 'party' && partyReplayConfig) {
       await nextTick()
-      startPartyGame({
-        count: playerCount,
-        names: playerNames,
-        mode: 'party',
-        scenePreset: selectedPartyScene.value,
-      })
+      const started = startPartyGame(partyReplayConfig)
+      if (!started) return
+      if (partyReplayConfig.multiDevice) {
+        try {
+          await multiDevice.startHost()
+        } catch (error) {
+          devLog('多设备模式重启失败:', error)
+        }
+      }
       return
     }
 
@@ -3010,6 +3012,7 @@
       handleBounceConfirm: () => confirmBounce(),
       handleTakeoffPunishmentDismiss: handleTakeoffPunishmentDisplay,
       handleTakeoffReliefDismiss: () => confirmTakeoffRelief(),
+      handlePartyTieBreakRoll: () => partyTieBreakRef.value?.roll(),
     },
   })
   const lanPairingAnswerInput = ref('')
@@ -3338,11 +3341,8 @@
     }
   }
 
-  // 切换自动引导开关
-  const toggleAutoGuide = () => {
-    autoGuideEnabled.value = !autoGuideEnabled.value
-    devLog(`自动引导开关切换为: ${autoGuideEnabled.value}`)
-    // 保存到localStorage
+  const persistAutoGuideSetting = () => {
+    devLog(`自动引导开关设置为: ${autoGuideEnabled.value}`)
     localStorage.setItem('autoGuideEnabled', autoGuideEnabled.value.toString())
   }
 
@@ -3372,11 +3372,18 @@
     // 可以在这里添加错误提示
   }
 
-  const handleImportSuccess = async (message: string) => {
-    devLog(`配置导入成功: ${message}`)
+  const prepareForConfigImport = () => {
+    const importedDuringActiveSession = gameStarted.value || activeMode.value !== null
     if (gameStarted.value) {
       gameTelemetry.finishGame('config_import', turnCount.value)
     }
+    if (importedDuringActiveSession) {
+      resetGame()
+    }
+  }
+
+  const handleImportSuccess = async (message: string) => {
+    devLog(`配置导入成功: ${message}`)
 
     // 重新加载玩家设置
     const playerSettings = loadPlayerSettings()
@@ -3979,10 +3986,12 @@
     />
 
     <PartyTieBreak
+      ref="partyTieBreakRef"
       :visible="partyTieCandidates.length > 1"
       :players="gameState.players"
       :candidate-indices="partyTieCandidates"
-      @winner="finishGameWithPlayer"
+      @turn="requestPartyTieBreakRoll"
+      @winner="finishPartyTieBreak"
     />
 
     <!-- 胜利结算画面 -->
@@ -4121,7 +4130,7 @@
                 v-model="autoGuideEnabled"
                 type="checkbox"
                 class="setting-checkbox"
-                @change="toggleAutoGuide"
+                @change="persistAutoGuideSetting"
               />
               <span class="checkbox-text">自动显示引导</span>
             </label>
@@ -4144,10 +4153,10 @@
     <!-- 配置导出对话框 -->
     <ConfigExport
       :visible="showConfigExport"
-      :current-board="gameState.board"
       @close="closeConfigExport"
       @export-success="handleExportSuccess"
       @export-error="handleExportError"
+      @import-will-apply="prepareForConfigImport"
       @import-success="handleImportSuccess"
       @import-error="handleImportError"
     />

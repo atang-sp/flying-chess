@@ -379,7 +379,10 @@ export class ControllerNetworkManager {
       const data = typeof event.data === 'string' ? event.data : JSON.stringify(event.data)
       if (data === '"ping"' || data === 'ping') {
         this.lastPing = Date.now()
-        if (channel.readyState === 'open') channel.send('"pong"')
+        if (channel.readyState === 'open') {
+          if (this._status === 'reconnecting') this.setStatus('connected')
+          channel.send('"pong"')
+        }
         return
       }
       try {

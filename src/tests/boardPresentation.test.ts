@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { BoardCell } from '../types/game'
+import type { BoardCell } from '@flying-chess/game-core/types'
 import { getBoardCellPresentation, getSnakeGridPosition } from '../utils/boardPresentation'
 
 const cell = (overrides: Partial<BoardCell> = {}): BoardCell => ({

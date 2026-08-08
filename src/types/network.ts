@@ -1,4 +1,8 @@
-import type { PartyAct, PartyPrediction, PartyReactionDecision } from '../services/partyMode'
+import type {
+  PartyAct,
+  PartyPrediction,
+  PartyReactionDecision,
+} from '@flying-chess/game-core/party-mode'
 
 /** Public player info safe to broadcast to all controllers */
 export interface PublicPlayerInfo {

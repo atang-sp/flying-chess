@@ -10,6 +10,7 @@ const noBlockingOverlay = {
   chainPunishmentRoll: false,
   mercyDecision: false,
   sessionPaused: false,
+  partyInteraction: false,
 }
 
 describe('游戏移动状态健康检查', () => {
@@ -28,6 +29,7 @@ describe('游戏移动状态健康检查', () => {
     'chainPunishmentRoll',
     'mercyDecision',
     'sessionPaused',
+    'partyInteraction',
   ] as const)('%s 覆盖层显示期间不恢复移动状态', overlay => {
     expect(
       shouldRecoverMovingState('moving', 5001, {

@@ -81,7 +81,8 @@
 
 ### 游戏参数
 
-- 所有参数集中在 `src/config/gameConfig.ts`，可自定义：
+- 共享配置契约与默认值位于 `packages/game-core/src/sharedConfig.ts`，
+  `src/config/gameConfig.ts` 作为浏览器端兼容入口，可自定义：
   - 棋盘格数、布局
   - 惩罚工具（如手掌、尺子、藤条等，强度1-10）
   - 身体部位（如屁股、手心、大腿等，敏感度1-10）
@@ -218,7 +219,8 @@ npm install primevue primeicons
 
 ## 📚 相关文档
 
-- 游戏参数与惩罚机制详见 `src/config/gameConfig.ts`
+- 共享游戏参数与惩罚规则详见 `packages/game-core/src/sharedConfig.ts` 和
+  `packages/game-core/src/ruleResolution.ts`；浏览器端兼容入口见 `src/config/gameConfig.ts`
 - 匿名统计事件契约与隐私边界见 `src/services/gameTelemetry.ts`
 - 版本号注入逻辑见 `vite-plugin-version.ts`
 - 详细开发路线、更新日志请见 [ROADMAP.md] 和 [RELEASE_NOTES.md]（如有）

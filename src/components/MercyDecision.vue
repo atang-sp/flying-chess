@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { HandHeart, Check, X } from '@lucide/vue'
-  import type { PunishmentAction, Player } from '../types/game'
+  import type { PunishmentAction, Player } from '@flying-chess/game-core/types'
 
   interface Props {
     visible: boolean

@@ -2,12 +2,11 @@
 
 ## 概述
 
-本目录包含飞行棋游戏配置导出格式的 JSON Schema 标准定义。通过这个标准，开发者可以：
+本目录保留飞行棋游戏配置导出格式的历史 JSON Schema，主要用于说明和编辑器提示。它不是导入校验的权威来源；权威 contract 是 `src/utils/configImportContract.ts`，浏览器和 CLI 都通过该 module 验证。
 
-- 验证配置文件的格式正确性
 - 了解每个字段的含义和约束
 - 自动生成配置文件的文档
-- 在 IDE 中获得智能提示和验证
+- 在 IDE 中获得基础提示
 
 ## 文件说明
 
@@ -28,7 +27,7 @@
     "punishmentConfig": {...},  // 惩罚配置
     "boardConfig": {...},       // 棋盘配置
     "trapConfig": [...],        // 陷阱配置（可选）
-    "boardContent": {...}       // 棋盘内容
+    "boardContent": {...}       // 仅兼容旧文件；当前版本不导出或恢复
   }
 }
 ```
@@ -62,6 +61,7 @@
 
 #### 4. 棋盘内容 (BoardContent)
 
+- 历史字段；只有文件同时包含其他可应用配置时才接受，并会明确提示跳过
 - `seed`: 棋盘生成种子
 - `board`: 棋盘格子列表
 
@@ -69,25 +69,11 @@
 
 ### 1. 验证配置文件
 
-使用支持 JSON Schema 的工具验证配置文件：
+使用与浏览器导入相同的运行时 contract 验证配置文件：
 
 ```bash
-# 使用 ajv-cli 验证
-npm install -g ajv-cli
-ajv validate -s schemas/game-config.schema.json -d configs/exported-config-demo.json
-
-# 使用 jsonschema 验证 (Python)
-pip install jsonschema
-python -c "
-import json
-import jsonschema
-with open('schemas/game-config.schema.json') as f:
-    schema = json.load(f)
-with open('configs/exported-config-demo.json') as f:
-    data = json.load(f)
-jsonschema.validate(data, schema)
-print('配置文件验证通过！')
-"
+npm run validate-config
+npx tsx scripts/validate-config.ts configs/exported-config-demo.json
 ```
 
 ### 2. IDE 集成

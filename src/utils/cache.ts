@@ -1,17 +1,22 @@
-import type { BoardConfig, PunishmentConfig, TrapAction, VictoryConfig } from '../types/game'
+import type {
+  BoardConfig,
+  PunishmentConfig,
+  TrapAction,
+  VictoryConfig,
+} from '@flying-chess/game-core/types'
 import {
   DEFAULT_GAME_MODE,
   GAME_MODES,
   RULESET_VERSION_BY_MODE,
   type GameMode,
 } from '../config/modes'
-import { normalizeVictoryConfig } from '../services/victorySettlement'
+import { normalizeVictoryConfig } from '@flying-chess/game-core/victory-settlement'
 import { normalizeConfigSnapshot } from '@flying-chess/game-core/config'
 import {
   DEFAULT_PARTY_EVENT_DECK,
   validatePartyEventDeck,
   type PartyEventCard,
-} from '../services/partyEvents'
+} from '@flying-chess/game-core/party-events'
 import {
   createLocalProgress,
   validateLocalProgress,

@@ -5,7 +5,7 @@
     DEFAULT_PARTY_EVENT_DECK,
     validatePartyEventDeck,
     type PartyEventCard,
-  } from '../services/partyEvents'
+  } from '@flying-chess/game-core/party-events'
 
   const props = defineProps<{ deck: readonly PartyEventCard[] }>()
   const emit = defineEmits<{ (event: 'update', deck: readonly PartyEventCard[]): void }>()

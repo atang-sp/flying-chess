@@ -1,4 +1,4 @@
-import type { PunishmentVariant, TrapVariant } from '../types/game'
+import type { PunishmentVariant, TrapVariant } from '@flying-chess/game-core/types'
 
 export interface LocalProgressTotals {
   readonly completedGames: number

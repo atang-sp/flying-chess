@@ -2,20 +2,21 @@
 
 ## 概述
 
-本文档介绍了飞行棋游戏配置导出格式的标准化实现方案。通过 JSON Schema 标准，我们为游戏配置格式提供了完整的规范定义、验证工具和使用指南。
+本文档介绍飞行棋配置导出格式。运行时唯一校验 contract 位于 `src/utils/configImportContract.ts`，浏览器导入和命令行工具必须共用它；JSON Schema 仅用于历史文件说明和编辑器提示，不能替代运行时校验。
 
 ## 标准化成果
 
 ### 1. 核心文件
 
-- **`schemas/game-config.schema.json`** - 主要的 JSON Schema 定义文件
+- **`src/utils/configImportContract.ts`** - 浏览器与 CLI 共用的校验入口
+- **`schemas/game-config.schema.json`** - 历史 JSON Schema 参考文件
 - **`schemas/README.md`** - 详细的使用说明文档
-- **`scripts/validate-config.js`** - 配置文件验证脚本
-- **`examples/config-with-schema.json`** - 带 Schema 引用的示例配置
+- **`scripts/validate-config.ts`** - 调用运行时 contract 的配置验证脚本
+- **`configs/config-with-schema.json`** - 带 Schema 引用的示例配置
 
 ### 2. 标准化特性
 
-#### ✅ 完整的数据验证
+#### ✅ 与运行时一致的数据验证
 - 字段类型验证（字符串、整数、数组、对象）
 - 数值范围约束（最小值、最大值）
 - 字符串长度限制
@@ -49,10 +50,12 @@
     "punishmentConfig": {...},  // 惩罚配置
     "boardConfig": {...},       // 棋盘配置
     "trapConfig": [...],        // 陷阱配置（可选）
-    "boardContent": {...}       // 棋盘内容
+    "boardContent": {...}       // 仅兼容旧文件；当前版本不导出或恢复
   }
 }
 ```
+
+`data` 必须至少包含一项可实际应用的配置；仅包含旧 `boardContent` 的文件会被拒绝。
 
 ### 关键约束规则
 
@@ -63,7 +66,7 @@
 
 #### 数值范围
 - **强度/敏感度等级**: 1-10
-- **概率权重**: 1-100
+- **概率权重**: 0-100 的有限数，支持小数；0 表示禁用该项，每个分类至少一项为正权重
 - **玩家数量**: 1-8
 
 #### 字符串长度
@@ -79,8 +82,8 @@
 # 使用 npm 脚本验证
 npm run validate-demo              # 验证演示配置
 npm run validate-example           # 验证示例配置
-npm run validate-config <文件路径> # 验证指定文件
+npm run validate-config            # 验证仓库中的演示与示例配置
 
 # 直接使用脚本
-node scripts/validate-config.js configs/exported-config-demo.json
+npx tsx scripts/validate-config.ts configs/exported-config-demo.json
 ```

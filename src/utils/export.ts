@@ -3,14 +3,11 @@ import type {
   ExportData,
   ExportResult,
   ImportResult,
-  BoardContent,
   ExportStats,
   QRCodeOptions,
   ImportOptions,
-  ValidationResult,
 } from '../types/export'
 import { EXPORT_VERSION } from '../types/export'
-import type { BoardCell } from '../types/game'
 import {
   loadPlayerSettings,
   loadConfig,
@@ -19,9 +16,8 @@ import {
   CONFIG_BACKUP_STORAGE_KEY,
   type CachedConfig,
 } from './cache'
-import { SecureRandom } from './secureRandom'
 import { devLog } from './logger'
-import { validateImportedConfigData } from './importValidation'
+import { validateImportData } from './configImportContract'
 import type { QRCodeToDataURLOptions } from 'qrcode'
 import QRCode from 'qrcode'
 import jsQR from 'jsqr'
@@ -88,11 +84,6 @@ async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
   return response.blob()
 }
 
-// 生成随机种子
-function generateSeed(): string {
-  return SecureRandom.randomId(26)
-}
-
 // 使用 jsQR 库解析二维码图片
 async function parseQRCodeFromImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -140,17 +131,8 @@ async function parseQRCodeFromImage(file: File): Promise<string> {
   })
 }
 
-// 创建棋盘内容快照
-export function createBoardSnapshot(board: BoardCell[]): BoardContent {
-  return {
-    seed: generateSeed(),
-    board: JSON.parse(JSON.stringify(board)), // 深拷贝
-    generatedAt: Date.now(),
-  }
-}
-
 // 收集导出数据
-export function collectExportData(options: ExportOptions, currentBoard?: BoardCell[]): ExportData {
+export function collectExportData(options: ExportOptions): ExportData {
   const data: ExportData['data'] = {}
 
   // 玩家设置
@@ -175,11 +157,6 @@ export function collectExportData(options: ExportOptions, currentBoard?: BoardCe
     }
   }
 
-  // 棋盘内容
-  if (options.boardContent && currentBoard) {
-    data.boardContent = createBoardSnapshot(currentBoard)
-  }
-
   return {
     version: EXPORT_VERSION,
     exportedAt: new Date().toISOString(),
@@ -198,8 +175,6 @@ export function generateExportFilename(options: ExportOptions): string {
   if (options.punishmentConfig) parts.push('惩罚')
   if (options.boardConfig) parts.push('棋盘')
   if (options.trapConfig) parts.push('机关')
-  if (options.boardContent) parts.push('布局')
-
   const configType = parts.length > 0 ? parts.join('-') : '配置'
   return `飞行棋-${configType}-${timestamp}.json`
 }
@@ -292,9 +267,9 @@ export async function generateQRCode(
 }
 
 // 导出为JSON文件
-export function exportToJson(options: ExportOptions, currentBoard?: BoardCell[]): ExportResult {
+export function exportToJson(options: ExportOptions): ExportResult {
   try {
-    const data = collectExportData(options, currentBoard)
+    const data = collectExportData(options)
     const filename = generateExportFilename(options)
 
     // 通过 file-saver 统一处理浏览器下载兼容性
@@ -318,11 +293,10 @@ export function exportToJson(options: ExportOptions, currentBoard?: BoardCell[])
 // 导出为二维码图片
 export async function exportToQRCode(
   options: ExportOptions,
-  currentBoard?: BoardCell[],
   qrOptions: Partial<QRCodeOptions> = {}
 ): Promise<ExportResult> {
   try {
-    const data = collectExportData(options, currentBoard)
+    const data = collectExportData(options)
     const qrCodeDataURL = await generateQRCode(data, qrOptions)
     const imageBlob = await dataUrlToBlob(qrCodeDataURL)
 
@@ -345,45 +319,7 @@ export async function exportToQRCode(
   }
 }
 
-// 验证导入数据
-export function validateImportData(data: unknown): ValidationResult {
-  const errors: string[] = []
-  const warnings: string[] = []
-  const suggestions: string[] = []
-
-  // 检查基本结构
-  if (!data || typeof data !== 'object') {
-    errors.push('无效的数据格式')
-    return { isValid: false, errors, warnings, suggestions }
-  }
-  const obj = data as Record<string, unknown>
-
-  // 检查版本
-  const version = obj.version
-  if (typeof version !== 'string') {
-    warnings.push('缺少版本信息')
-  } else if (version !== EXPORT_VERSION) {
-    warnings.push(`版本不匹配，当前支持版本: ${EXPORT_VERSION}，文件版本: ${version}`)
-  }
-
-  // 检查数据字段
-  const rawConfigData = obj.data
-  if (!rawConfigData || typeof rawConfigData !== 'object') {
-    errors.push('缺少配置数据')
-    return { isValid: false, errors, warnings, suggestions }
-  }
-
-  const configData = rawConfigData as Record<string, unknown>
-
-  errors.push(...validateImportedConfigData(configData))
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-    warnings,
-    suggestions,
-  }
-}
+export { validateImportData } from './configImportContract'
 
 // 默认导入选项
 export const DEFAULT_IMPORT_OPTIONS: ImportOptions = {
@@ -402,16 +338,12 @@ function performImport(data: ExportData, options: Partial<ImportOptions> = {}): 
       const currentPlayerSettings = loadPlayerSettings()
       const currentConfig = loadConfig()
       if (currentPlayerSettings || currentConfig) {
-        const backupData = collectExportData(
-          {
-            playerSettings: !!currentPlayerSettings,
-            punishmentConfig: !!currentConfig?.punishmentConfig,
-            boardConfig: !!currentConfig?.boardConfig,
-            trapConfig: !!currentConfig?.trapConfig,
-            boardContent: false,
-          },
-          undefined
-        )
+        const backupData = collectExportData({
+          playerSettings: !!currentPlayerSettings,
+          punishmentConfig: !!currentConfig?.punishmentConfig,
+          boardConfig: !!currentConfig?.boardConfig,
+          trapConfig: !!currentConfig?.trapConfig,
+        })
         localStorage.setItem(CONFIG_BACKUP_STORAGE_KEY, JSON.stringify(backupData))
       }
     }
@@ -458,7 +390,7 @@ function performImport(data: ExportData, options: Partial<ImportOptions> = {}): 
     }
 
     if (configData.boardContent) {
-      warnings.push('棋盘布局数据已导入，但需要重新生成棋盘才能应用')
+      warnings.push('当前版本暂不支持恢复棋盘布局，该部分已跳过；其他配置已正常导入')
     }
 
     return {
@@ -477,7 +409,8 @@ function performImport(data: ExportData, options: Partial<ImportOptions> = {}): 
 // 从JSON文件导入配置
 export function importFromJson(
   jsonString: string,
-  options: Partial<ImportOptions> = {}
+  options: Partial<ImportOptions> = {},
+  beforeApply?: (data: ExportData) => void
 ): ImportResult {
   try {
     // 解析JSON
@@ -492,8 +425,9 @@ export function importFromJson(
       }
     }
 
-    // 使用通用导入函数
-    return performImport(data, options)
+    const validatedData = data as ExportData
+    beforeApply?.(validatedData)
+    return performImport(validatedData, options)
   } catch (error) {
     return {
       success: false,
@@ -505,7 +439,8 @@ export function importFromJson(
 // 从二维码图片导入配置
 export async function importFromQRCode(
   imageFile: File,
-  options: Partial<ImportOptions> = {}
+  options: Partial<ImportOptions> = {},
+  beforeApply?: (data: ExportData) => void
 ): Promise<ImportResult> {
   devLog('开始二维码图片导入，文件信息:', {
     name: imageFile.name,
@@ -555,6 +490,7 @@ export async function importFromQRCode(
     }
 
     devLog('数据验证通过，开始执行导入...')
+    beforeApply?.(parsedData as ExportData)
     // 执行导入
     const result = performImport(parsedData as ExportData, options)
     devLog('导入完成，结果:', result)

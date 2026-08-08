@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { computed, ref } from 'vue'
   import { GripVertical, Palette, SlidersHorizontal } from '@lucide/vue'
-  import type { BoardConfig } from '../types/game'
+  import type { BoardConfig } from '@flying-chess/game-core/types'
   import {
     createLayoutFromBoardConfig,
     validatePartyStudioConfig,
@@ -9,7 +9,7 @@
     type PartyStudioConfig,
     type PartyStudioTheme,
   } from '../services/partyStudio'
-  import type { PartyAct, PartyDirectorConfig } from '../services/partyMode'
+  import type { PartyAct, PartyDirectorConfig } from '@flying-chess/game-core/party-mode'
 
   const props = defineProps<{ config: PartyStudioConfig }>()
   const emit = defineEmits<{ (event: 'update', config: PartyStudioConfig): void }>()

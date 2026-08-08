@@ -1,4 +1,4 @@
-import type { GameState } from '../types/game'
+import type { GameState } from '@flying-chess/game-core/types'
 
 export interface BlockingOverlayState {
   takeoffPunishment: boolean
@@ -9,6 +9,7 @@ export interface BlockingOverlayState {
   chainPunishmentRoll: boolean
   mercyDecision: boolean
   sessionPaused: boolean
+  partyInteraction: boolean
 }
 
 export const hasBlockingOverlay = (overlays: BlockingOverlayState): boolean =>

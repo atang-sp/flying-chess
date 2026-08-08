@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { computed } from 'vue'
   import { Gamepad2, Trophy } from '@lucide/vue'
-  import type { Player } from '../types/game'
+  import type { Player } from '@flying-chess/game-core/types'
 
   interface Props {
     gameStarted: boolean

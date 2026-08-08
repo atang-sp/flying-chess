@@ -1,4 +1,9 @@
-import type { BoardConfig, PunishmentConfig, TrapAction, BoardCell } from './game'
+import type {
+  BoardConfig,
+  PunishmentConfig,
+  TrapAction,
+  BoardCell,
+} from '@flying-chess/game-core/types'
 import type { PlayerSettings } from '../utils/cache'
 
 // 导出数据版本
@@ -10,7 +15,6 @@ export interface ExportOptions {
   punishmentConfig: boolean
   boardConfig: boolean
   trapConfig: boolean
-  boardContent: boolean
 }
 
 // 棋盘内容（包含随机种子）

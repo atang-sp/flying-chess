@@ -104,13 +104,13 @@
       "maxTakeoffFailures": 2
     },
     "boardConfig": {
-      "punishmentCells": 90,
+      "punishmentCells": 68,
       "bonusCells": 3,
       "reverseCells": 6,
       "restCells": 3,
       "restartCells": 12,
       "trapCells": 6,
-      "totalCells": 120
+      "totalCells": 100
     },
     "trapConfig": [
       {
