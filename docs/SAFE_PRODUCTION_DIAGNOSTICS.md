@@ -18,7 +18,8 @@ schema v1 JSON。它用于替代复制 launcher 启动行、完整进程参数�
 
 - `systemctl show` 只读取 room service 的 `ActiveState`；
 - Docker 只通过 `inspect --format` 读取 running、health、image 和 memory limit；
-- `curl` 只访问固定 health/readiness 地址并提取 HTTP 状态及 health 的公开字段；
+- `curl` 只访问固定的 Docker 网桥 health/readiness 地址
+  `http://172.17.0.1:8787/{health,ready}`，并提取 HTTP 状态及 health 的公开字段；
 - migration 检查只输出非负整数；
 - `df` 和 `/proc/vmstat` 检查只输出非负整数。
 
