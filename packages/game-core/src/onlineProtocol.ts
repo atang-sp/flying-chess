@@ -7,12 +7,14 @@ export type OnlineClientMessage =
   | Readonly<{
       type: 'create_room'
       requestId: string
+      protocolVersion: number
       nickname: string
       color: string
     }>
   | Readonly<{
       type: 'join_room'
       requestId: string
+      protocolVersion: number
       roomCode: string
       nickname: string
       color: string
@@ -20,6 +22,7 @@ export type OnlineClientMessage =
   | Readonly<{
       type: 'resume_room'
       requestId: string
+      protocolVersion: number
       roomCode: string
       playerId: string
       resumeToken: string
@@ -121,6 +124,9 @@ export type OnlineServerMessage =
   | Readonly<{
       type: 'session'
       requestId: string
+      protocolVersion: number
+      serverVersion: string
+      serverBuildSha: string
       roomCode: string
       playerId: string
       resumeToken: string

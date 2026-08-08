@@ -6,15 +6,18 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-Environment=ROOM_IMAGE=flying-chess-room:1.14.2
-EnvironmentFile=-/etc/flying-chess-room.env
+Environment=ROOM_IMAGE=flying-chess-room:1.15.0
+Environment=ROOM_SERVER_VERSION=1.15.0
+Environment=ROOM_SERVER_BUILD_SHA=unknown
+Environment=ROOM_DRAIN_TIMEOUT_MS=1800000
+EnvironmentFile=/etc/flying-chess-room.env
 ExecStartPre=-/usr/bin/docker rm -f flying-chess-room
-ExecStart=/usr/bin/docker run --rm --name flying-chess-room --network host --read-only --tmpfs /tmp:rw,noexec,nosuid,size=8m --cap-drop ALL --security-opt no-new-privileges --pids-limit 128 --cpus 1 --memory 128m --memory-swap 192m --health-cmd "wget -qO- http://172.17.0.1:8787/ready >/dev/null || exit 1" --health-interval 30s --health-timeout 3s --health-start-period 5s --health-retries 3 --log-driver journald -e NODE_ENV=production -e HOST=172.17.0.1 -e PORT=8787 -e ALLOWED_ORIGINS=https://atang-sp.github.io -e ACHIEVEMENT_CLAIM_SECRET -e ACHIEVEMENT_CLAIM_URL ${ROOM_IMAGE}
-ExecStop=/usr/bin/docker stop --timeout 10 flying-chess-room
+ExecStart=/usr/bin/docker run --rm --name flying-chess-room --network host --read-only --tmpfs /tmp:rw,noexec,nosuid,size=8m --cap-drop ALL --security-opt no-new-privileges --pids-limit 128 --cpus 1 --memory 128m --memory-swap 192m --stop-timeout 1860 --health-cmd "wget -qO- http://172.17.0.1:8787/health >/dev/null || exit 1" --health-interval 30s --health-timeout 3s --health-start-period 5s --health-retries 3 --log-driver journald -e NODE_ENV=production -e HOST=172.17.0.1 -e PORT=8787 -e ALLOWED_ORIGINS=https://atang-sp.github.io -e ROOM_SERVER_VERSION -e ROOM_SERVER_BUILD_SHA -e ROOM_DRAIN_TIMEOUT_MS -e ROOM_METRICS_TOKEN -e ACHIEVEMENT_CLAIM_SECRET -e ACHIEVEMENT_CLAIM_URL ${ROOM_IMAGE}
+ExecStop=/usr/bin/docker stop --timeout 1860 flying-chess-room
 Restart=always
 RestartSec=3
 TimeoutStartSec=30
-TimeoutStopSec=20
+TimeoutStopSec=1900
 
 [Install]
 WantedBy=multi-user.target

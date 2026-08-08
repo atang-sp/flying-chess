@@ -67,4 +67,42 @@ describe('OnlineRoomClient', () => {
     expect(statuses.at(-1)).toBe('connected')
     expect(vi.getTimerCount()).toBe(0)
   })
+
+  it('收到协议不兼容错误后停止重连并保留可操作提示', async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('WebSocket', FakeWebSocket)
+    vi.stubGlobal('window', {
+      setTimeout: globalThis.setTimeout,
+      clearTimeout: globalThis.clearTimeout,
+    })
+    const messages: unknown[] = []
+    const client = new OnlineRoomClient('ws://example.test', {
+      onStatus: () => undefined,
+      onMessage: message => messages.push(message),
+    })
+
+    const connection = client.connect()
+    const socket = FakeWebSocket.instances[0]
+    if (!socket) throw new Error('expected socket')
+    socket.emit('open')
+    await connection
+    socket.emit(
+      'message',
+      JSON.stringify({
+        type: 'error',
+        code: 'INCOMPATIBLE_PROTOCOL',
+        message: '联机协议版本不兼容，请刷新页面或关闭后重新打开。',
+      })
+    )
+    socket.emit('close')
+
+    expect(messages).toEqual([
+      {
+        type: 'error',
+        code: 'INCOMPATIBLE_PROTOCOL',
+        message: '联机协议版本不兼容，请刷新页面或关闭后重新打开。',
+      },
+    ])
+    expect(vi.getTimerCount()).toBe(0)
+  })
 })
