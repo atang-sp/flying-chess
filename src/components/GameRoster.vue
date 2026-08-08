@@ -10,6 +10,7 @@
     totalCells: number
     partyActLabel?: string
     partyRound?: number
+    partyRulesetVersion?: string
     tokensRemaining?: readonly number[]
   }
 
@@ -33,7 +34,10 @@
       <Flame :size="17" aria-hidden="true" />
       <span>
         <strong>升温局 · {{ partyActLabel }}</strong>
-        <small>第 {{ partyRound }} 轮</small>
+        <small>
+          第 {{ partyRound }} 轮
+          <span v-if="partyRulesetVersion">· {{ partyRulesetVersion }}</span>
+        </small>
       </span>
     </div>
 

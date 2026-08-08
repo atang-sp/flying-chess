@@ -1,3 +1,5 @@
+import type { ResolvedPunishmentResult } from './domainTypes'
+
 export const PARTY_HEAT_MAX = 100
 export const PARTY_HEATING_THRESHOLD = 30
 export const PARTY_FINALE_THRESHOLD = 70
@@ -24,6 +26,17 @@ export interface PartyMomentumState {
   readonly heatContributionByPlayer: readonly number[]
   readonly heatLimitPending: boolean
   readonly tokensRemaining: readonly number[]
+}
+
+type CompletedPartyPunishment = Pick<ResolvedPunishmentResult, 'count'> &
+  Readonly<{
+    count: Extract<ResolvedPunishmentResult['count'], { kind: 'fixed' }>
+  }>
+
+export function isPartyPunishmentCompleted(
+  resolution: Pick<ResolvedPunishmentResult, 'count'>
+): resolution is CompletedPartyPunishment {
+  return resolution.count.kind === 'fixed' && resolution.count.value > 0
 }
 
 function assertMomentumState(state: PartyMomentumState): void {

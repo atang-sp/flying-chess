@@ -1106,4 +1106,184 @@ describe('联网升温局权威规则内核', () => {
       tokensRemaining: [1, 1, 0],
     })
   })
+
+  it('小游戏免罚结算为零次时不记录惩罚完成热度', () => {
+    const board: BoardCell[] = Array.from({ length: 40 }, (_, index) => ({
+      id: index + 1,
+      position: index + 1,
+      type: 'bonus',
+      effect: { type: 'move', value: 0, description: '普通格子' },
+    }))
+    board[6] = {
+      id: 7,
+      position: 7,
+      type: 'punishment',
+      effect: {
+        type: 'punishment',
+        value: 0,
+        description: '免罚测试',
+        punishment: {
+          tool: { name: '测试工具', intensity: 1, ratio: 100 },
+          bodyPart: { name: '测试部位', sensitivity: 1, ratio: 100 },
+          position: { name: '测试姿势', ratio: 100, compatibleBodyParts: [] },
+          strikes: 5,
+          description: '免罚测试 5 下',
+        },
+      },
+    }
+    let game = createOnlineGame(roster, DEFAULT_ONLINE_ROOM_SETTINGS, {
+      board,
+      eventDeck: quietEventDeck,
+    })
+    game = {
+      ...game,
+      players: game.players.map((player, index) => ({
+        ...player,
+        position: 1,
+        hasTakenOff: true,
+        pendingMiniGameImmunity: index === 0,
+      })),
+      partySession: { ...game.partySession, tokensRemaining: [0, 0, 0] },
+    }
+    game = applyOnlineGameCommand(game, 'p2', { type: 'submit_prediction', prediction: 'low' })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'roll_dice' }, { rollDice: () => 6 })
+    game = applyOnlineGameCommand(
+      game,
+      'p1',
+      { type: 'move' },
+      { rollDice: () => 1, randomInt: (_minimum, maximum) => maximum }
+    )
+
+    expect(game.players[0]?.pendingMiniGameImmunity).toBeUndefined()
+    expect(game.pendingAction).toMatchObject({
+      kind: 'acknowledgement',
+      resolution: { count: { kind: 'fixed', value: 0 } },
+    })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'acknowledge' })
+
+    expect(game.currentPlayerId).toBe('p2')
+    expect(game.partySession).toMatchObject({
+      heat: 0,
+      heatContributionByPlayer: [0, 0, 0],
+      tokensRemaining: [0, 0, 0],
+    })
+  })
+
+  it('双向惩罚保留原受罚者的绑定上下文并统一归因三名参与者', () => {
+    const board: BoardCell[] = Array.from({ length: 40 }, (_, index) => ({
+      id: index + 1,
+      position: index + 1,
+      type: 'bonus',
+      effect: { type: 'move', value: 0, description: '普通格子' },
+    }))
+    board[6] = {
+      id: 7,
+      position: 7,
+      type: 'punishment',
+      effect: {
+        type: 'punishment',
+        value: 0,
+        description: '双向绑定测试',
+        punishment: {
+          tool: { name: '测试工具', intensity: 1, ratio: 100 },
+          bodyPart: { name: '测试部位', sensitivity: 1, ratio: 100 },
+          position: { name: '测试姿势', ratio: 100, compatibleBodyParts: [] },
+          strikes: 5,
+          description: '双向绑定测试 5 下',
+        },
+      },
+    }
+    let game = createOnlineGame(roster, DEFAULT_ONLINE_ROOM_SETTINGS, {
+      board,
+      eventDeck: quietEventDeck,
+    })
+    game = {
+      ...game,
+      players: game.players.map(player => ({ ...player, position: 1, hasTakenOff: true })),
+      partySession: { ...game.partySession, tokensRemaining: [0, 0, 0] },
+      eventState: {
+        ...game.eventState,
+        activeBinding: { playerIndices: [0, 2], remainingTurns: 2 },
+      },
+    }
+    game = applyOnlineGameCommand(game, 'p2', { type: 'submit_prediction', prediction: 'low' })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'roll_dice' }, { rollDice: () => 6 })
+    game = applyOnlineGameCommand(
+      game,
+      'p1',
+      { type: 'move' },
+      {
+        rollDice: () => 1,
+        randomInt: (_minimum, maximum) => maximum,
+        choice: entries => entries[0] as (typeof entries)[number],
+      }
+    )
+    if (game.pendingAction?.kind !== 'acknowledgement') throw new Error('expected punishment')
+    game = {
+      ...game,
+      pendingAction: {
+        ...game.pendingAction,
+        resolution: { ...game.pendingAction.resolution, variant: 'mutual' },
+      },
+    }
+
+    game = applyOnlineGameCommand(game, 'p1', { type: 'acknowledge' })
+    expect(game.pendingAction).toMatchObject({ kind: 'acknowledgement', playerIndex: 1 })
+    game = applyOnlineGameCommand(game, 'p2', { type: 'acknowledge' })
+    expect(game.pendingAction).toMatchObject({
+      kind: 'acknowledgement',
+      playerIndex: 2,
+      resolution: { executorIndex: 0 },
+    })
+    game = applyOnlineGameCommand(game, 'p3', { type: 'acknowledge' })
+
+    expect(game.partySession).toMatchObject({
+      heat: 7,
+      heatContributionByPlayer: [3, 2, 2],
+      tokensRemaining: [1, 1, 1],
+    })
+  })
+
+  it('heat 100 后自然到达终点也等待全员完成本轮', () => {
+    const board: BoardCell[] = Array.from({ length: 40 }, (_, index) => ({
+      id: index + 1,
+      position: index + 1,
+      type: 'bonus',
+      effect: { type: 'move', value: 0, description: '普通格子' },
+    }))
+    let game = createOnlineGame(roster.slice(0, 2), DEFAULT_ONLINE_ROOM_SETTINGS, {
+      board,
+      eventDeck: quietEventDeck,
+    })
+    game = {
+      ...game,
+      players: game.players.map((player, index) => ({
+        ...player,
+        position: index === 0 ? 39 : 12,
+        hasTakenOff: true,
+      })),
+      partySession: {
+        ...game.partySession,
+        heat: 100,
+        heatContributionByPlayer: [100, 0],
+        heatLimitPending: true,
+      },
+    }
+    game = applyOnlineGameCommand(game, 'p2', { type: 'submit_prediction', prediction: 'low' })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'roll_dice' }, { rollDice: () => 1 })
+    game = applyOnlineGameCommand(game, 'p2', { type: 'decide_reaction', decision: 'keep' })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'move' })
+
+    expect(game).toMatchObject({
+      status: 'playing',
+      currentPlayerId: 'p2',
+      winnerPlayerId: null,
+      partySession: { completedTurns: 1, heatLimitPending: true, shouldEnd: false },
+    })
+    expect(game.players[0]?.isWinner).toBe(false)
+
+    game = applyOnlineGameCommand(game, 'p2', { type: 'roll_dice' }, { rollDice: () => 1 })
+    game = applyOnlineGameCommand(game, 'p2', { type: 'move' })
+    expect(game).toMatchObject({ status: 'finished', winnerPlayerId: 'p1' })
+  })
 })

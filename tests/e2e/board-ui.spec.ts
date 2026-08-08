@@ -91,6 +91,7 @@ test('升温局把幕、轮次、筹码和玩家进度合并到统一 HUD', asyn
   const hud = page.getByTestId('party-status')
   await expect(hud).toHaveClass(/game-roster/)
   await expect(hud).toContainText('暖场')
+  await expect(hud).toContainText('party_v3')
   await expect(hud).toContainText('第 1 轮')
   await expect(hud).toContainText('玩家1 1 枚')
   await expect(page.getByTestId('roster-player-0')).toHaveClass(/is-current/)

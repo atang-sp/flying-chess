@@ -106,7 +106,7 @@
   import { usePartyMode } from './composables/usePartyMode'
   import { useMultiDeviceHost } from './composables/useMultiDeviceHost'
   import { useLocalGameSession } from './composables/useLocalGameSession'
-  import { type GameMode } from './config/modes'
+  import { RULESET_VERSION_BY_MODE, type GameMode } from './config/modes'
   import {
     createModeConfig,
     createStandardConfigSnapshot,
@@ -144,6 +144,7 @@
     consumePartyMiniGameModifier,
     type PartyMiniGameOutcome,
   } from '@flying-chess/game-core/party-mini-games'
+  import { isPartyPunishmentCompleted } from '@flying-chess/game-core/party-momentum'
   import {
     getUnlockedPartyContent,
     recordLocalProgress,
@@ -470,7 +471,7 @@
   }
 
   const recordCompletedPunishment = (resolution: ResolvedPunishmentResult) => {
-    if (resolution.count.kind !== 'fixed') return
+    if (!isPartyPunishmentCompleted(resolution)) return
     recordProgress({
       kind: 'punishment_completed',
       playerName: gameState.players[resolution.targetPlayerIndex]?.name ?? '未命名玩家',
@@ -499,8 +500,8 @@
     }, 3_500)
   }
 
-  const recordPartyPunishmentMomentum = () => {
-    if (!isPartyGame.value || !partySession.value) {
+  const recordPartyPunishmentMomentum = (resolution: ResolvedPunishmentResult) => {
+    if (!isPartyGame.value || !partySession.value || !isPartyPunishmentCompleted(resolution)) {
       localPartyMomentum.cancel()
       return
     }
@@ -559,7 +560,13 @@
   }
 
   const queueBoundPunishmentIfNeeded = (resolution: ResolvedPunishmentResult) => {
-    if (!isPartyGame.value || resolution.variant === 'deferred') return
+    if (
+      !isPartyGame.value ||
+      (resolution.count.kind === 'fixed' && !isPartyPunishmentCompleted(resolution)) ||
+      resolution.variant === 'deferred'
+    ) {
+      return
+    }
     const partnerIndex = getBoundPartnerPlayerIndex(
       partyEventState.value,
       resolution.targetPlayerIndex
@@ -1446,6 +1453,7 @@
         finishGameWithPlayer: typeof finishGameWithPlayer
         completePartyTurnForPlayer: typeof completePartyTurnForPlayer
         resolveNaturalVictory: typeof resolveNaturalVictory
+        offerPartyPunishmentInterventionOrPresent: typeof offerPartyPunishmentInterventionOrPresent
       }
 
       debugWindow.gameState = gameState
@@ -1478,6 +1486,8 @@
       debugWindow.finishGameWithPlayer = finishGameWithPlayer
       debugWindow.completePartyTurnForPlayer = completePartyTurnForPlayer
       debugWindow.resolveNaturalVictory = resolveNaturalVictory
+      debugWindow.offerPartyPunishmentInterventionOrPresent =
+        offerPartyPunishmentInterventionOrPresent
     }
 
     // 从localStorage恢复设置
@@ -1932,7 +1942,7 @@
     resetEffectChainCount()
   }
 
-  type PartyTurnCompletion = 'continue' | 'time_limit_pending' | 'ended'
+  type PartyTurnCompletion = 'continue' | 'limit_pending' | 'ended'
 
   const openNextPartyEvent = (): boolean => {
     if (
@@ -2032,7 +2042,9 @@
     })
     partyTurnHadPunishment.value = false
     if (!completedSession.shouldEnd) {
-      return completedSession.timeLimitPending ? 'time_limit_pending' : 'continue'
+      return completedSession.timeLimitPending || completedSession.heatLimitPending
+        ? 'limit_pending'
+        : 'continue'
     }
 
     const leaders = getPartyTimeLimitLeaders(gameState.players.map(player => player.position))
@@ -2063,7 +2075,7 @@
   const resolveNaturalVictory = (playerIndex: number, preserveClassicVictoryAudio = true): void => {
     const completion = completePartyTurnForPlayer(playerIndex)
     if (completion === 'ended') return
-    if (completion === 'time_limit_pending') {
+    if (completion === 'limit_pending') {
       advanceToNextPlayablePlayer(true)
       return
     }
@@ -2518,6 +2530,7 @@
 
       if (
         punishmentResolution?.kind === 'punishment' &&
+        isPartyPunishmentCompleted(punishmentResolution) &&
         punishmentResolution.variant === 'mutual' &&
         punishmentResolution.variantPhase === undefined
       ) {
@@ -2534,6 +2547,7 @@
 
       if (
         punishmentResolution?.kind === 'punishment' &&
+        isPartyPunishmentCompleted(punishmentResolution) &&
         punishmentResolution.variant === 'encore' &&
         punishmentResolution.variantPhase === undefined
       ) {
@@ -2553,7 +2567,7 @@
 
       // 连锁惩罚：确认后进入连锁掷骰阶段
       if (isChainPunishment.value) {
-        recordPartyPunishmentMomentum()
+        recordPartyPunishmentMomentum(punishmentResolution)
         currentPunishment.value = null
         showChainPunishmentRoll.value = true
         return
@@ -2564,6 +2578,7 @@
         !isDoublePunishment.value &&
         currentPunishment.value &&
         punishmentResolution?.kind === 'punishment' &&
+        isPartyPunishmentCompleted(punishmentResolution) &&
         punishmentResolution.variant !== 'mutual' &&
         punishmentResolution.variant !== 'encore'
       ) {
@@ -2581,7 +2596,7 @@
       }
 
       // 正常结束惩罚
-      recordPartyPunishmentMomentum()
+      recordPartyPunishmentMomentum(punishmentResolution)
       isDoublePunishment.value = false
       currentPunishment.value = null
       currentPunishmentExecutor.value = null
@@ -2813,6 +2828,7 @@
       recordCompletedPunishment(punishmentResolution)
 
       if (
+        isPartyPunishmentCompleted(punishmentResolution) &&
         punishmentResolution.variant === 'mutual' &&
         punishmentResolution.variantPhase === undefined
       ) {
@@ -2828,6 +2844,7 @@
       }
 
       if (
+        isPartyPunishmentCompleted(punishmentResolution) &&
         punishmentResolution.variant === 'encore' &&
         punishmentResolution.variantPhase === undefined
       ) {
@@ -2845,7 +2862,7 @@
       if (presentNextBoundPunishment()) return
       if (displayedBoundPunishment.value) displayedBoundPunishment.value = false
 
-      recordPartyPunishmentMomentum()
+      recordPartyPunishmentMomentum(punishmentResolution)
       showTakeoffPunishmentDisplay.value = false
       currentTakeoffPunishment.value = null
       currentTakeoffTarget.value = null
@@ -3868,6 +3885,7 @@
             :total-cells="gameState.board.length"
             :party-act-label="isPartyGame ? partyActLabel : undefined"
             :party-round="isPartyGame ? partySession?.roundNumber : undefined"
+            :party-ruleset-version="isPartyGame ? RULESET_VERSION_BY_MODE.party : undefined"
             :tokens-remaining="
               isPartyGame && !multiDeviceEnabled ? partySession?.tokensRemaining : undefined
             "

@@ -64,53 +64,74 @@ async function startPartyGame(page: Page) {
 
 type PartyPunishmentVariant = 'blindbox' | 'conditional' | 'deferred' | 'mutual' | 'encore'
 
-async function showInjectedPartyPunishment(page: Page, variant: PartyPunishmentVariant) {
+async function showInjectedPartyPunishment(
+  page: Page,
+  variant: PartyPunishmentVariant | undefined,
+  pendingMiniGameImmunity = false
+) {
   await startPartyGame(page)
-  await page.evaluate(selectedVariant => {
-    const debugWindow = window as typeof window & {
-      gameState: {
-        gameStatus: string
-        currentPlayerIndex: number
-        players: Array<{
-          name: string
-          color: string
-          hasTakenOff?: boolean
-        }>
+  await page.evaluate(
+    ({ selectedVariant, pendingImmunity }) => {
+      const debugWindow = window as typeof window & {
+        gameState: {
+          gameStatus: string
+          currentPlayerIndex: number
+          players: Array<{
+            name: string
+            color: string
+            hasTakenOff?: boolean
+            pendingMiniGameImmunity?: boolean
+          }>
+        }
+        partyMode: {
+          session: { value: (Record<string, unknown> & { playerCount: number }) | null }
+        }
+        offerPartyPunishmentInterventionOrPresent: (
+          resolution: Record<string, unknown>,
+          triggeringPlayer: Record<string, unknown>,
+          diceValue?: number
+        ) => void
       }
-      currentPunishment: { value: Record<string, unknown> | null }
-      currentPunishmentExecutor: { value: unknown }
-      currentPunishmentTarget: { value: unknown }
-      pendingRuleResolution: { value: Record<string, unknown> | null }
-    }
-    const action = {
-      tool: { name: '手掌', intensity: 1, ratio: 100 },
-      bodyPart: { name: '手心', sensitivity: 2, ratio: 100 },
-      position: { name: '站立', ratio: 100, compatibleBodyParts: ['手心'] },
-      strikes: 10,
-      description: '用手掌打手心10下，姿势：站立',
-    }
-    const [target, executor] = debugWindow.gameState.players
-    if (!target || !executor) throw new Error('party punishment test requires two players')
-    target.hasTakenOff = true
-    debugWindow.gameState.currentPlayerIndex = 0
-    debugWindow.gameState.gameStatus = 'configuring'
-    debugWindow.pendingRuleResolution.value = {
-      kind: 'punishment',
-      source: 'board_punishment',
-      actorIndex: 0,
-      targetPlayerIndex: 0,
-      executorIndex: 1,
-      action,
-      count: { kind: 'fixed', value: 10 },
-      turnConsequence: { kind: 'none' },
-      variant: selectedVariant,
-    }
-    debugWindow.currentPunishment.value = action
-    debugWindow.currentPunishmentTarget.value = target
-    debugWindow.currentPunishmentExecutor.value = executor
-  }, variant)
+      const action = {
+        tool: { name: '手掌', intensity: 1, ratio: 100 },
+        bodyPart: { name: '手心', sensitivity: 2, ratio: 100 },
+        position: { name: '站立', ratio: 100, compatibleBodyParts: ['手心'] },
+        strikes: 10,
+        description: '用手掌打手心10下，姿势：站立',
+      }
+      const [target, executor] = debugWindow.gameState.players
+      if (!target || !executor) throw new Error('party punishment test requires two players')
+      target.hasTakenOff = true
+      target.pendingMiniGameImmunity = pendingImmunity
+      debugWindow.gameState.currentPlayerIndex = 0
+      debugWindow.gameState.gameStatus = 'configuring'
+      const session = debugWindow.partyMode.session.value
+      if (!session) throw new Error('party session missing')
+      debugWindow.partyMode.session.value = {
+        ...session,
+        tokensRemaining: Array.from({ length: session.playerCount }, () => 0),
+      }
+      debugWindow.offerPartyPunishmentInterventionOrPresent(
+        {
+          kind: 'punishment',
+          source: 'board_punishment',
+          actorIndex: 0,
+          targetPlayerIndex: 0,
+          executorIndex: 1,
+          action,
+          count: { kind: 'fixed', value: 10 },
+          turnConsequence: { kind: 'none' },
+          variant: selectedVariant,
+        },
+        target,
+        1
+      )
+    },
+    { selectedVariant: variant, pendingImmunity: pendingMiniGameImmunity }
+  )
 
-  await expect(page.getByTestId('punishment-variant')).toBeVisible()
+  if (variant) await expect(page.getByTestId('punishment-variant')).toBeVisible()
+  await expect(page.locator('.punishment-display')).toBeVisible()
 }
 
 async function reachPartyPunishmentIntervention(page: Page) {
@@ -707,6 +728,7 @@ test('party records punishment heat only on final confirmation and ignores a dup
     if (!session) throw new Error('expected an active Party session before confirmation')
     return session.heat
   })
+  expect(heatBeforeConfirmation).toBe(0)
 
   await page.getByTestId('party-intervention-skip').click()
   const punishment = page.locator('.punishment-display')
@@ -725,6 +747,33 @@ test('party records punishment heat only on final confirmation and ignores a dup
   await expect(page.getByRole('progressbar', { name: 'Party 全局热度进度' })).toHaveAttribute(
     'aria-valuenow',
     String(heatBeforeConfirmation + 5)
+  )
+})
+
+test('party mini-game immunity consumes the punishment without adding completion heat', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await showInjectedPartyPunishment(page, 'mutual', true)
+  const heatBeforeConfirmation = await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      partyMode: { session: { value: { heat: number } | null } }
+    }
+    const session = debugWindow.partyMode.session.value
+    if (!session) throw new Error('expected an active Party session')
+    return session.heat
+  })
+  expect(heatBeforeConfirmation).toBe(0)
+
+  const punishment = page.locator('.punishment-display')
+  await expect(punishment.locator('.strikes')).toHaveText('0 下')
+  await punishment.getByRole('button', { name: '确认执行' }).click()
+
+  await expect(punishment).toBeHidden()
+  await expect(page.getByRole('progressbar', { name: 'Party 全局热度进度' })).toHaveAttribute(
+    'aria-valuenow',
+    String(heatBeforeConfirmation)
   )
 })
 
@@ -814,8 +863,21 @@ test('party deferred punishment returns before the target player rolls again', a
   test.skip(testInfo.project.name !== 'desktop-chrome')
 
   await showInjectedPartyPunishment(page, 'deferred')
+  const heatBeforeQueue = await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      partyMode: { session: { value: { heat: number } | null } }
+    }
+    const session = debugWindow.partyMode.session.value
+    if (!session) throw new Error('expected an active Party session')
+    return session.heat
+  })
+  expect(heatBeforeQueue).toBe(0)
   await page.getByTestId('defer-punishment').click()
   await expect(page.locator('.punishment-display')).toBeHidden()
+  await expect(page.getByRole('progressbar', { name: 'Party 全局热度进度' })).toHaveAttribute(
+    'aria-valuenow',
+    String(heatBeforeQueue)
+  )
 
   await page.evaluate(() => {
     const debugWindow = window as typeof window & {
@@ -832,6 +894,11 @@ test('party deferred punishment returns before the target player rolls again', a
   await expect(
     page.locator('.punishment-display').getByRole('button', { name: '确认执行' })
   ).toBeEnabled()
+  await page.locator('.punishment-display').getByRole('button', { name: '确认执行' }).click()
+  await expect(page.getByRole('progressbar', { name: 'Party 全局热度进度' })).toHaveAttribute(
+    'aria-valuenow',
+    String(heatBeforeQueue + 5)
+  )
 })
 
 test('party mutual and encore punishments complete their required second phases', async ({
@@ -1372,6 +1439,60 @@ test('party defers a natural finish reached after the time limit until round end
 
   await expect(page.getByTestId('party-highlight-card')).toBeHidden()
   await expect(page.getByTestId('party-status')).toBeVisible()
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            window as typeof window & {
+              gameState: { currentPlayerIndex: number }
+            }
+          ).gameState.currentPlayerIndex
+      )
+    )
+    .toBe(1)
+
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      completePartyTurnForPlayer: (playerIndex: number) => string
+    }
+    debugWindow.completePartyTurnForPlayer(1)
+  })
+  await expect(page.getByTestId('party-highlight-card')).toBeVisible()
+})
+
+test('party defers a natural finish after heat reaches 100 until every seat completes the round', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await startPartyGame(page)
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      gameState: {
+        players: Array<{ position: number }>
+      }
+      partyMode: {
+        session: {
+          value: Record<string, unknown> | null
+        }
+      }
+      resolveNaturalVictory: (playerIndex: number) => void
+    }
+    debugWindow.gameState.players[0].position = 40
+    debugWindow.gameState.players[1].position = 12
+    const session = debugWindow.partyMode.session.value
+    if (!session) throw new Error('party session missing')
+    debugWindow.partyMode.session.value = {
+      ...session,
+      heat: 100,
+      heatContributionByPlayer: [100, 0],
+      heatLimitPending: true,
+    }
+    debugWindow.resolveNaturalVictory(0)
+  })
+
+  await expect(page.getByTestId('party-highlight-card')).toBeHidden()
   await expect
     .poll(() =>
       page.evaluate(

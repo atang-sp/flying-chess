@@ -10,11 +10,28 @@ import {
 } from './partyMode'
 import {
   PARTY_STARTING_TOKENS,
+  isPartyPunishmentCompleted,
   recordPartyMomentum,
   removePartyMomentumPlayer,
 } from './partyMomentum'
 
 describe('Party Momentum', () => {
+  it('only treats a positive fixed punishment count as an actual completion', () => {
+    expect(isPartyPunishmentCompleted({ count: { kind: 'fixed', value: 1 } })).toBe(true)
+    expect(isPartyPunishmentCompleted({ count: { kind: 'fixed', value: 0 } })).toBe(false)
+    expect(
+      isPartyPunishmentCompleted({
+        count: {
+          kind: 'awaiting_external_count',
+          minimum: 1,
+          maximum: 10,
+          step: 1,
+          eligibleChooserIndices: [1],
+        },
+      })
+    ).toBe(false)
+  })
+
   it('starts every player at zero contribution and one renewable token', () => {
     const session = createPartySession({ playerCount: 3, startedAt: 0 })
 
