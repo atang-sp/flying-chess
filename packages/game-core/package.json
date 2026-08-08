@@ -12,6 +12,7 @@
     "./player-rules": "./src/playerRules.ts",
     "./rule-resolution": "./src/ruleResolution.ts",
     "./party-mode": "./src/partyMode.ts",
+    "./party-momentum": "./src/partyMomentum.ts",
     "./party-interventions": "./src/partyPunishmentInterventions.ts",
     "./party-events": "./src/partyEvents.ts",
     "./party-mini-games": "./src/partyMiniGames.ts",

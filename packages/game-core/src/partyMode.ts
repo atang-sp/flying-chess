@@ -1,4 +1,10 @@
 import type { PunishmentAction, PunishmentConfig, PunishmentConstraints } from './domainTypes'
+import {
+  PARTY_FINALE_THRESHOLD,
+  PARTY_HEATING_THRESHOLD,
+  PARTY_STARTING_TOKENS,
+  recordPartyMomentum,
+} from './partyMomentum'
 import { MODE_POLICIES } from './sharedConfig'
 import { createCompatiblePunishmentAction, type RuleRandomSource } from './ruleResolution'
 
@@ -38,6 +44,9 @@ export interface PartyReaction {
 
 export interface PartySession {
   readonly playerCount: number
+  readonly heat: number
+  readonly heatContributionByPlayer: readonly number[]
+  readonly heatLimitPending: boolean
   readonly startedAt: number
   readonly completedTurns: number
   readonly completedRounds: number
@@ -198,6 +207,17 @@ function actForRoundBoundary(
   return 'warmup'
 }
 
+function actForHeat(heat: number): PartyAct {
+  if (heat >= PARTY_FINALE_THRESHOLD) return 'finale'
+  if (heat >= PARTY_HEATING_THRESHOLD) return 'heating'
+  return 'warmup'
+}
+
+function laterPartyAct(left: PartyAct, right: PartyAct): PartyAct {
+  const rank: Readonly<Record<PartyAct, number>> = { warmup: 0, heating: 1, finale: 2 }
+  return rank[left] >= rank[right] ? left : right
+}
+
 export function isPartyPunishmentChoiceEligible({
   source,
   cellType,
@@ -249,6 +269,9 @@ export function createPartySession({
 
   return Object.freeze({
     playerCount,
+    heat: 0,
+    heatContributionByPlayer: Object.freeze(Array.from({ length: playerCount }, () => 0)),
+    heatLimitPending: false,
     startedAt,
     completedTurns: 0,
     completedRounds: 0,
@@ -258,7 +281,9 @@ export function createPartySession({
     timeLimitPending: false,
     shouldEnd: false,
     pausedDurationMs: 0,
-    tokensRemaining: Object.freeze(Array.from({ length: playerCount }, () => 2)),
+    tokensRemaining: Object.freeze(
+      Array.from({ length: playerCount }, () => PARTY_STARTING_TOKENS)
+    ),
     reactionTargetPlayerIndex: 0,
     reactionUsedThisRound: false,
     diceChangedThisTurn: false,
@@ -368,7 +393,7 @@ export function decidePartyReaction(
   }
 
   const finalDiceValue = decision === 'mirror' ? 7 - reaction.rolledValue : reaction.rolledValue
-  return Object.freeze({
+  const resolvedSession = Object.freeze({
     ...session,
     reaction: Object.freeze({
       ...reaction,
@@ -378,6 +403,10 @@ export function decidePartyReaction(
     }),
     diceChangedThisTurn: decision === 'mirror',
     successfulReactionCount: session.successfulReactionCount + 1,
+  })
+  return recordPartyMomentum(resolvedSession, {
+    type: 'successful_reaction',
+    playerIndex,
   })
 }
 
@@ -563,6 +592,15 @@ export function completePartyTurn(
   const preferredReactionTarget = completedRounds % session.playerCount
   const timeLimitPending =
     session.timeLimitPending || activeElapsedMs >= session.directorConfig.endAfterMinutes * 60_000
+  const nextAct = reachedRoundBoundary
+    ? laterPartyAct(
+        session.act,
+        laterPartyAct(
+          actForRoundBoundary(completedRounds, activeElapsedMs, session.directorConfig),
+          actForHeat(session.heat)
+        )
+      )
+    : session.act
 
   return Object.freeze({
     ...session,
@@ -573,12 +611,11 @@ export function completePartyTurn(
     completedTurns,
     completedRounds,
     roundNumber: completedRounds + 1,
-    act: reachedRoundBoundary
-      ? actForRoundBoundary(completedRounds, activeElapsedMs, session.directorConfig)
-      : session.act,
+    act: nextAct,
     activeElapsedMs,
     timeLimitPending,
-    shouldEnd: session.shouldEnd || (reachedRoundBoundary && timeLimitPending),
+    shouldEnd:
+      session.shouldEnd || (reachedRoundBoundary && (timeLimitPending || session.heatLimitPending)),
     reactionTargetPlayerIndex: reachedRoundBoundary
       ? nextEligibleReactionTarget(
           preferredReactionTarget,
