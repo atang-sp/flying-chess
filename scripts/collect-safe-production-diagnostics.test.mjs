@@ -242,6 +242,13 @@ describe('safe production diagnostics', () => {
     expect(dockerInspect?.args.join(' ')).not.toContain('.Config.Env')
     expect(dockerInspect?.args.join(' ')).not.toContain('.Path')
     expect(dockerInspect?.args.join(' ')).not.toContain('.Args')
+    const curlTargets = commands
+      .filter(command => command.file === 'curl')
+      .map(command => command.args.at(-1))
+    expect(curlTargets).toContain('http://172.17.0.1:8787/health')
+    expect(curlTargets).toContain('http://172.17.0.1:8787/ready')
+    expect(curlTargets).not.toContain('http://127.0.0.1:8787/health')
+    expect(curlTargets).not.toContain('http://127.0.0.1:8787/ready')
     expect(JSON.stringify(source).includes('FAKE_')).toBe(false)
     expect(report).toMatchObject({
       roomServer: { healthStatus: 200, readyStatus: 200, containerHealthy: true },

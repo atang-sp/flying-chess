@@ -23,6 +23,7 @@ const SOURCE_ERROR_CODES = [
   ['kernelOomEvents', 'OOM_CHECK_FAILED'],
 ]
 const SAFE_ERROR_CODES = new Set(SOURCE_ERROR_CODES.map(([, errorCode]) => errorCode))
+const ROOM_SERVER_INTERNAL_ORIGIN = 'http://172.17.0.1:8787'
 const REPORT_KEYS = ['schemaVersion', 'capturedAt', 'roomServer', 'discourse', 'host', 'errors']
 const ROOM_SERVER_KEYS = [
   'serviceActive',
@@ -268,8 +269,8 @@ export async function collectProductionDiagnosticSources({
       '{{.State.Running}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}|{{.Config.Image}}|{{.HostConfig.Memory}}',
       'flying-chess-room',
     ]),
-    roomHealth: httpCommand('http://127.0.0.1:8787/health'),
-    roomReady: httpCommand('http://127.0.0.1:8787/ready'),
+    roomHealth: httpCommand(`${ROOM_SERVER_INTERNAL_ORIGIN}/health`),
+    roomReady: httpCommand(`${ROOM_SERVER_INTERNAL_ORIGIN}/ready`),
     discourseHealth: httpCommand('https://atang-sp.run.place/srv/status'),
     pendingMigrations: command('docker', [
       'exec',
