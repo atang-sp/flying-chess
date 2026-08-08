@@ -36,6 +36,7 @@
     "build:room-server": "npm run build --workspace @flying-chess/room-server",
     "test:room-server-load": "npm run build:room-server && node scripts/room-server-load-test.mjs",
     "test:room-server-smoke": "npm run build:room-server && node scripts/room-server-release-smoke-harness.mjs",
+    "test:safe-diagnostics": "vitest run scripts/collect-safe-production-diagnostics.test.mjs",
     "verify:online-acceptance": "node scripts/online-acceptance-evidence.mjs",
     "test:e2e": "playwright test tests/e2e"
   },

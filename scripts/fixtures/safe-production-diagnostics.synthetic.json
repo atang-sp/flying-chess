@@ -1,0 +1,57 @@
+{
+  "capturedAt": "2026-08-08T00:00:00.000Z",
+  "roomService": {
+    "exitCode": 0,
+    "stdout": "active",
+    "stderr": "SMTP_PASSWORD=FAKE_SMTP_PASSWORD_FOR_REDACTION_TEST_ONLY"
+  },
+  "container": {
+    "exitCode": 0,
+    "stdout": "true|healthy|flying-chess-room:1.15.0|134217728",
+    "environment": [
+      "ROOM_METRICS_TOKEN=FAKE_METRICS_TOKEN_FOR_REDACTION_TEST_ONLY",
+      "SMTP_PASSWORD=FAKE_SMTP_PASSWORD_FOR_REDACTION_TEST_ONLY"
+    ],
+    "launcherCommand": "launcher start --smtp-password FAKE_SMTP_PASSWORD_FOR_REDACTION_TEST_ONLY"
+  },
+  "roomHealth": {
+    "exitCode": 0,
+    "httpStatus": 200,
+    "body": {
+      "status": "ok",
+      "version": "1.15.0",
+      "protocolVersion": 1,
+      "buildSha": "df974cf9cbc003fc8624629983c068aa3573ed22",
+      "roomCode": "FAKE23",
+      "resumeToken": "FAKE_RESUME_TOKEN_FOR_REDACTION_TEST_ONLY"
+    },
+    "stderr": "Authorization: Bearer FAKE_BEARER_TOKEN_FOR_REDACTION_TEST_ONLY"
+  },
+  "roomReady": {
+    "exitCode": 0,
+    "httpStatus": 200,
+    "body": {
+      "status": "ready",
+      "acceptingNewRooms": true,
+      "draining": false
+    }
+  },
+  "discourseHealth": {
+    "exitCode": 0,
+    "httpStatus": 200,
+    "stderr": "https://fake-user:FAKE_URI_PASSWORD_FOR_REDACTION_TEST_ONLY@example.test"
+  },
+  "pendingMigrations": {
+    "exitCode": 0,
+    "stdout": "0",
+    "appYmlStyle": "DISCOURSE_SMTP_PASSWORD: FAKE_SMTP_PASSWORD_FOR_REDACTION_TEST_ONLY"
+  },
+  "diskAvailable": {
+    "exitCode": 0,
+    "stdout": "123456789"
+  },
+  "kernelOomEvents": {
+    "exitCode": 0,
+    "stdout": "0"
+  }
+}
