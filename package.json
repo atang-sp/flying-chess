@@ -1,6 +1,6 @@
 {
   "name": "ludo-vue-demo",
-  "version": "1.14.2",
+  "version": "1.15.0",
   "private": true,
   "workspaces": [
     "packages/*",
@@ -35,6 +35,7 @@
     "dev:room-server": "npm run dev --workspace @flying-chess/room-server",
     "build:room-server": "npm run build --workspace @flying-chess/room-server",
     "test:room-server-load": "npm run build:room-server && node scripts/room-server-load-test.mjs",
+    "test:room-server-smoke": "npm run build:room-server && node scripts/room-server-release-smoke-harness.mjs",
     "verify:online-acceptance": "node scripts/online-acceptance-evidence.mjs",
     "test:e2e": "playwright test tests/e2e"
   },
@@ -61,7 +62,8 @@
     "vue": "^3.5.13"
   },
   "overrides": {
-    "brace-expansion": "5.0.9"
+    "brace-expansion": "5.0.9",
+    "nanoid": "3.3.17"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",

@@ -83,3 +83,38 @@ jobs:
           path: test-results
           if-no-files-found: ignore
           retention-days: 7
+
+  room-server-operability:
+    name: Room Server Operability
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build room server
+        run: npm run build:room-server
+
+      - name: Run room server tests
+        run: npm run test:room-server
+
+      - name: Run ephemeral release smoke
+        run: npm run test:room-server-smoke
+
+      - name: Run 20-room and 160-connection load test
+        run: npm run test:room-server-load
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Verify tests leave the checkout unchanged
+        run: git diff --exit-code
