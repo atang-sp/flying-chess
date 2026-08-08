@@ -184,7 +184,8 @@ npm install primevue primeicons
   猜拳和小游戏答案按玩家投影。刷新或短暂断网会自动恢复原席位，主持人只能在 90 秒保护期后、
   新回合安全节点移除离场玩家。
 - **房间服务**：构建、128 MiB 容量限制、Discourse Nginx/WSS 反代、监控和回滚步骤见
-  `deploy/room-server/README.md`。房间只在内存中保存，最长 2 小时；服务重启会结束房间。
+  `deploy/room-server/README.md`。协议版本、health/readiness、graceful drain、私有指标与
+  release smoke 合同见 [docs/ONLINE_OPERABILITY.md](docs/ONLINE_OPERABILITY.md)。房间只在内存中保存，最长 2 小时；服务重启会结束房间。
 - **Umami Cloud**：生产网站名为 `flying-chess-production`，域名为
   `atang-sp.github.io`；Replays、Heatmaps、Performance 与公开 Share URL 必须保持关闭。
 - **Vercel/Netlify**：直接连接仓库，构建命令 `npm run build`，输出目录 `dist`
@@ -222,6 +223,8 @@ npm install primevue primeicons
 - 共享游戏参数与惩罚规则详见 `packages/game-core/src/sharedConfig.ts` 和
   `packages/game-core/src/ruleResolution.ts`；浏览器端兼容入口见 `src/config/gameConfig.ts`
 - 匿名统计事件契约与隐私边界见 `src/services/gameTelemetry.ts`
+- 联机协议、运维、发布顺序与回滚合同见
+  [docs/ONLINE_OPERABILITY.md](docs/ONLINE_OPERABILITY.md)
 - 版本号注入逻辑见 `vite-plugin-version.ts`
 - 详细开发路线、更新日志请见 [ROADMAP.md] 和 [RELEASE_NOTES.md]（如有）
 
