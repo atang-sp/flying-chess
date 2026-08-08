@@ -4,6 +4,7 @@
   import {
     ONLINE_TURN_DURATION_OPTIONS,
     ONLINE_PLAYER_COLORS,
+    CURRENT_ONLINE_PROTOCOL_VERSION,
     cloneOnlineRoomSettings,
     createOnlineBoardConfig,
     type BoardCell,
@@ -96,6 +97,7 @@
         client.send({
           type: 'resume_room',
           requestId: requestId('resume'),
+          protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
           ...storedSession,
         })
       }
@@ -291,6 +293,7 @@
     send({
       type: 'create_room',
       requestId: requestId('create'),
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
       nickname: nickname.value,
       color: color.value,
     })
@@ -300,6 +303,7 @@
     send({
       type: 'join_room',
       requestId: requestId('join'),
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
       roomCode: roomCodeInput.value.trim().toUpperCase(),
       nickname: nickname.value,
       color: color.value,

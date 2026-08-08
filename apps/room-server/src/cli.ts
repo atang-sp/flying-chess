@@ -1,4 +1,5 @@
 import { createRoomServer } from './server'
+import { readRoomServerEnvironment } from './serverConfig'
 import type { PartyEventCard } from '@flying-chess/game-core'
 
 const port = Number.parseInt(process.env.PORT ?? '8787', 10)
@@ -35,6 +36,7 @@ const quietTestEventDeck: readonly PartyEventCard[] | undefined =
     : undefined
 
 async function main(): Promise<void> {
+  const environment = readRoomServerEnvironment()
   const server = await createRoomServer({
     port,
     host,
@@ -49,16 +51,29 @@ async function main(): Promise<void> {
       process.env.NODE_ENV === 'test' && testReconnectGraceMs > 0
         ? testReconnectGraceMs
         : undefined,
+    version: environment.version,
+    buildSha: environment.buildSha,
+    drainTimeoutMs: environment.drainTimeoutMs,
+    metricsToken: environment.metricsToken,
   })
   console.info(`room server listening on port ${server.port}`)
 
-  async function shutdown(): Promise<void> {
-    await server.close()
-    process.exit(0)
+  let shutdownPromise: Promise<void> | undefined
+  function shutdown(): Promise<void> {
+    shutdownPromise ??= server
+      .beginDrain()
+      .then(() => {
+        process.exitCode = 0
+      })
+      .catch(() => {
+        console.error('room server failed to shut down cleanly')
+        process.exitCode = 1
+      })
+    return shutdownPromise
   }
 
-  process.once('SIGINT', () => void shutdown())
-  process.once('SIGTERM', () => void shutdown())
+  process.on('SIGINT', () => void shutdown())
+  process.on('SIGTERM', () => void shutdown())
 }
 
 void main().catch(() => {

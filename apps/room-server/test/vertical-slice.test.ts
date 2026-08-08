@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import WebSocket from 'ws'
-import { DEFAULT_ONLINE_ROOM_SETTINGS, type OnlineRoomSettings } from '@flying-chess/game-core'
+import {
+  CURRENT_ONLINE_PROTOCOL_VERSION,
+  DEFAULT_ONLINE_ROOM_SETTINGS,
+  type OnlineRoomSettings,
+} from '@flying-chess/game-core'
 import { createRoomServer, type RunningRoomServer } from '../src/server'
 import { verifyGameCompletionClaim } from '../src/gameCompletionClaims'
 import type { ServerMessage } from '../src/protocol'
@@ -88,6 +92,130 @@ describe('联网升温局服务器权威纵向切片', () => {
       status: 'ok',
       rooms: 0,
       connections: 1,
+    })
+  })
+
+  it('使用当前协议建房并在私有 session 中返回协议与服务版本', async () => {
+    server = await createRoomServer({ port: 0, version: '1.15.0', buildSha: 'abc1234' })
+    const host = await TestClient.connect(server.wsUrl)
+    clients.push(host)
+
+    host.send({
+      type: 'create_room',
+      requestId: 'versioned-create',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      nickname: '协议测试玩家',
+      color: '#ff6b6b',
+    })
+
+    await expect(host.next(message => message.type === 'session')).resolves.toMatchObject({
+      type: 'session',
+      requestId: 'versioned-create',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      serverVersion: '1.15.0',
+      serverBuildSha: 'abc1234',
+    })
+  })
+
+  it('使用当前协议加入和恢复原席位，且不会向其他玩家投影私有 session 字段', async () => {
+    server = await createRoomServer({ port: 0, version: '1.15.0' })
+    const host = await TestClient.connect(server.wsUrl)
+    const guest = await TestClient.connect(server.wsUrl)
+    clients.push(host, guest)
+
+    host.send({
+      type: 'create_room',
+      requestId: 'protocol-create-host',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      nickname: '协议主持人',
+      color: '#ff6b6b',
+    })
+    const created = await host.next(message => message.type === 'session')
+    if (created.type !== 'session') throw new Error('expected host session')
+
+    guest.send({
+      type: 'join_room',
+      requestId: 'protocol-join-guest',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      roomCode: created.roomCode,
+      nickname: '协议加入者',
+      color: '#4ecdc4',
+    })
+    const joined = await guest.next(message => message.type === 'session')
+    if (joined.type !== 'session') throw new Error('expected guest session')
+    expect(joined.protocolVersion).toBe(CURRENT_ONLINE_PROTOCOL_VERSION)
+    const hostProjection = await host.next(
+      message => message.type === 'room_state' && message.room.players.length === 2
+    )
+    expect(JSON.stringify(hostProjection)).not.toContain(joined.resumeToken)
+
+    await guest.disconnect()
+    const resumed = await TestClient.connect(server.wsUrl)
+    clients.push(resumed)
+    resumed.send({
+      type: 'resume_room',
+      requestId: 'protocol-resume-guest',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      roomCode: joined.roomCode,
+      playerId: joined.playerId,
+      resumeToken: joined.resumeToken,
+    })
+
+    await expect(resumed.next(message => message.type === 'session')).resolves.toMatchObject({
+      type: 'session',
+      requestId: 'protocol-resume-guest',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      serverVersion: '1.15.0',
+      playerId: joined.playerId,
+    })
+  })
+
+  it('临时兼容缺少协议字段的旧客户端', async () => {
+    server = await createRoomServer({ port: 0 })
+    const legacy = await TestClient.connect(server.wsUrl)
+    clients.push(legacy)
+
+    legacy.send({
+      type: 'create_room',
+      requestId: 'legacy-create',
+      nickname: '旧页面玩家',
+      color: '#ff6b6b',
+    })
+
+    await expect(legacy.next(message => message.type === 'session')).resolves.toMatchObject({
+      type: 'session',
+      requestId: 'legacy-create',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+    })
+  })
+
+  it.each([
+    ['too old', 0],
+    ['too new', CURRENT_ONLINE_PROTOCOL_VERSION + 1],
+    ['string', '1'],
+    ['fraction', 1.5],
+    ['negative', -1],
+    ['NaN', Number.NaN],
+    ['extremely large', Number.MAX_VALUE],
+  ])('拒绝 %s 的显式协议版本', async (_label, protocolVersion) => {
+    server = await createRoomServer({ port: 0 })
+    const client = await TestClient.connect(server.wsUrl)
+    clients.push(client)
+    client.send({
+      type: 'create_room',
+      requestId: 'incompatible-create',
+      protocolVersion,
+      nickname: '不兼容页面',
+      color: '#ff6b6b',
+    })
+
+    await expect(
+      client.next(message => message.type === 'error' && message.code === 'INCOMPATIBLE_PROTOCOL')
+    ).resolves.toMatchObject({
+      type: 'error',
+      requestId: 'incompatible-create',
+      code: 'INCOMPATIBLE_PROTOCOL',
+      message: '联机协议版本不兼容，请刷新页面或关闭后重新打开。',
     })
   })
 
@@ -288,6 +416,7 @@ describe('联网升温局服务器权威纵向切片', () => {
 
   it('终局后只向各自席位签发私有、可验证的论坛认领凭证', async () => {
     const claimSecret = 'room-server-integration-secret-with-at-least-32-bytes'
+    const metricsToken = 'claim-test-metrics-token-at-least-32-bytes'
     const diceValues = [6, 6, 6, 6, 6, 6, 6, 6, 1]
     server = await createRoomServer({
       port: 0,
@@ -297,6 +426,7 @@ describe('联网升温局服务器权威纵向切片', () => {
         secret: claimSecret,
         claimUrl: 'https://forum.example/where-is-my-friends/flying-chess/claim',
       },
+      metricsToken,
     })
     const host = await TestClient.connect(server.wsUrl)
     const guest = await TestClient.connect(server.wsUrl)
@@ -466,6 +596,13 @@ describe('联网升温局服务器权威纵向切片', () => {
     expect(guestClaim.game_id).toBe(hostClaim.game_id)
     expect(guestClaim.jti).not.toBe(hostClaim.jti)
     expect(guestUrl.toString()).not.toBe(hostUrl.toString())
+    const metricsResponse = await fetch(
+      `${server.wsUrl.replace('ws://', 'http://')}/internal/metrics`,
+      { headers: { authorization: `Bearer ${metricsToken}` } }
+    )
+    await expect(metricsResponse.json()).resolves.toMatchObject({
+      counters: { gamesStartedTotal: 1, gamesFinishedTotal: 1 },
+    })
   })
 
   it('设置变更会清空全员确认，未重新全员确认时服务器拒绝开局', async () => {
@@ -666,7 +803,8 @@ describe('联网升温局服务器权威纵向切片', () => {
   })
 
   it('主持人可以把管理角色转交给另一名玩家，权限立即随角色移动', async () => {
-    server = await createRoomServer({ port: 0 })
+    const metricsToken = 'transfer-test-metrics-token-at-least-32-bytes'
+    server = await createRoomServer({ port: 0, metricsToken })
     const host = await TestClient.connect(server.wsUrl)
     const successor = await TestClient.connect(server.wsUrl)
     clients.push(host, successor)
@@ -725,6 +863,13 @@ describe('联网升温局服务器权威纵向切片', () => {
           message.type === 'room_state' && message.room.settings.scenePreset === 'icebreaker'
       )
     ).resolves.toMatchObject({ type: 'room_state' })
+    const metricsResponse = await fetch(
+      `${server.wsUrl.replace('ws://', 'http://')}/internal/metrics`,
+      { headers: { authorization: `Bearer ${metricsToken}` } }
+    )
+    await expect(metricsResponse.json()).resolves.toMatchObject({
+      counters: { hostTransfersTotal: 1 },
+    })
   })
 
   it('不允许把主持权转交给离线玩家', async () => {
@@ -840,10 +985,12 @@ describe('联网升温局服务器权威纵向切片', () => {
   })
 
   it('单连接消息洪泛会被限速并断开', async () => {
+    const metricsToken = 'rate-test-metrics-token-at-least-32-bytes'
     server = await createRoomServer({
       port: 0,
       messagesPerSecond: 1,
       messageBurst: 2,
+      metricsToken,
     })
     const client = await TestClient.connect(server.wsUrl)
     clients.push(client)
@@ -860,6 +1007,13 @@ describe('联网升温局服务器权威纵向切片', () => {
     await expect(
       client.next(message => message.type === 'error' && message.code === 'RATE_LIMITED')
     ).resolves.toMatchObject({ type: 'error' })
+    const metricsResponse = await fetch(
+      `${server.wsUrl.replace('ws://', 'http://')}/internal/metrics`,
+      { headers: { authorization: `Bearer ${metricsToken}` } }
+    )
+    await expect(metricsResponse.json()).resolves.toMatchObject({
+      counters: { rateLimitedMessagesTotal: 1 },
+    })
   })
 
   it('八名玩家可在 60 秒门槛内加入并全员确认，第九名被容量门禁拒绝', async () => {
@@ -937,7 +1091,13 @@ describe('联网升温局服务器权威纵向切片', () => {
 
   it('房间寿命从创建时硬性计算，活跃消息不能把两小时上限续期', async () => {
     let now = 1_000
-    server = await createRoomServer({ port: 0, now: () => now, roomTtlMs: 40 })
+    const metricsToken = 'expiry-test-metrics-token-at-least-32-bytes'
+    server = await createRoomServer({
+      port: 0,
+      now: () => now,
+      roomTtlMs: 40,
+      metricsToken,
+    })
     const host = await TestClient.connect(server.wsUrl)
     clients.push(host)
     host.send({
@@ -958,6 +1118,14 @@ describe('联网升温局服务器权威纵向切片', () => {
     await expect(
       host.next(message => message.type === 'error' && message.code === 'ROOM_EXPIRED')
     ).resolves.toMatchObject({ type: 'error', code: 'ROOM_EXPIRED' })
+    const metricsResponse = await fetch(
+      `${server.wsUrl.replace('ws://', 'http://')}/internal/metrics`,
+      { headers: { authorization: `Bearer ${metricsToken}` } }
+    )
+    await expect(metricsResponse.json()).resolves.toMatchObject({
+      counters: { roomsExpiredTotal: 1 },
+      gauges: { rooms: 0, drainBlockingRooms: 0 },
+    })
   })
 
   it('主持人断线超过保护期后自动把管理角色交给在线玩家', async () => {

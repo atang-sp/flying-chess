@@ -29,7 +29,14 @@ export class OnlineRoomClient {
     socket.addEventListener('message', event => {
       if (typeof event.data !== 'string') return
       try {
-        this.callbacks.onMessage(JSON.parse(event.data) as OnlineServerMessage)
+        const message = JSON.parse(event.data) as OnlineServerMessage
+        if (message.type === 'error' && message.code === 'INCOMPATIBLE_PROTOCOL') {
+          this.stopReconnecting()
+        }
+        this.callbacks.onMessage(message)
+        if (message.type === 'error' && message.code === 'INCOMPATIBLE_PROTOCOL') {
+          socket.close(1008, 'incompatible protocol')
+        }
       } catch {
         // A malformed server frame is ignored; the next authoritative state can still recover the UI.
       }
@@ -69,11 +76,15 @@ export class OnlineRoomClient {
   }
 
   close(): void {
+    this.stopReconnecting()
+    this.socket?.close()
+    this.socket = null
+  }
+
+  private stopReconnecting(): void {
     this.manuallyClosed = true
     if (this.reconnectTimer !== null) window.clearTimeout(this.reconnectTimer)
     this.reconnectTimer = null
-    this.socket?.close()
-    this.socket = null
   }
 
   private scheduleReconnect(): void {

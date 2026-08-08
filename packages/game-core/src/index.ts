@@ -35,6 +35,11 @@ import {
 } from './playerRules'
 import { canPlayerSkipOwnOnlineAction } from './onlineCommandPolicy'
 import { scheduleOnlineDeadline, timeoutDecisionPlayerId } from './onlineDeadline'
+export {
+  CURRENT_ONLINE_PROTOCOL_VERSION,
+  MIN_SUPPORTED_ONLINE_PROTOCOL_VERSION,
+  resolveOnlineProtocolVersion,
+} from './onlineProtocolVersion'
 import {
   createBoardConfig as createSharedBoardConfig,
   createModeConfig,

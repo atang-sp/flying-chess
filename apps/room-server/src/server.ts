@@ -4,6 +4,7 @@ import {
   applyOnlineGameCommand,
   applyOnlineGameTimeout,
   cloneOnlineRoomSettings,
+  CURRENT_ONLINE_PROTOCOL_VERSION,
   createOnlineGame,
   DEFAULT_ONLINE_ROOM_SETTINGS,
   GameCommandError,
@@ -13,6 +14,7 @@ import {
   projectOnlineRoomSettings,
   projectOnlineGameView,
   removeOnlinePlayerAtSafeNode,
+  resolveOnlineProtocolVersion,
   type GameCommandDependencies,
   type OnlineGameCommand,
   type OnlineGameState,
@@ -27,6 +29,14 @@ import {
   validateGameCompletionClaimConfiguration,
   type GameCompletionClaimOptions,
 } from './gameCompletionClaims'
+import { createHealthResponse, createReadinessResponse } from './serverHealth'
+import { validateRoomServerBuildSha, validateRoomServerVersion } from './serverConfig'
+import {
+  isRoomDrainBlocking,
+  RoomServerLifecycle,
+  type RoomServerOperationalSnapshot,
+} from './serverLifecycle'
+import { isMetricsRequestAuthorized, ServerMetrics, validateMetricsToken } from './serverMetrics'
 
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const DEFAULT_ROOM_TTL_MS = 2 * 60 * 60 * 1_000
@@ -39,6 +49,8 @@ const NICKNAME_MAX_LENGTH = 20
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/
 const DEFAULT_MESSAGES_PER_SECOND = 30
 const DEFAULT_MESSAGE_BURST = 60
+const DEFAULT_DRAIN_TIMEOUT_MS = 30 * 60 * 1_000
+const MAX_DRAIN_TIMEOUT_MS = 24 * 60 * 60 * 1_000
 
 interface RoomPlayer {
   readonly id: string
@@ -83,11 +95,18 @@ export interface RoomServerOptions {
   readonly messagesPerSecond?: number
   readonly messageBurst?: number
   readonly achievementClaims?: GameCompletionClaimOptions & Readonly<{ claimUrl: string }>
+  readonly version?: string
+  readonly buildSha?: string
+  readonly drainTimeoutMs?: number
+  readonly metricsToken?: string
 }
 
 export interface RunningRoomServer {
   readonly port: number
   readonly wsUrl: string
+  beginDrain(): Promise<void>
+  isDraining(): boolean
+  getOperationalSnapshot(): RoomServerOperationalSnapshot
   close(): Promise<void>
 }
 
@@ -107,6 +126,7 @@ export async function createRoomServer(
   if (options.achievementClaims) {
     validateGameCompletionClaimConfiguration(options.achievementClaims)
   }
+  if (options.metricsToken !== undefined) validateMetricsToken(options.metricsToken)
   const now = options.now ?? Date.now
   const maxRooms = options.maxRooms ?? DEFAULT_MAX_ROOMS
   const roomTtlMs = options.roomTtlMs ?? DEFAULT_ROOM_TTL_MS
@@ -115,6 +135,19 @@ export async function createRoomServer(
   const messagesPerSecond = Math.max(1, options.messagesPerSecond ?? DEFAULT_MESSAGES_PER_SECOND)
   const messageBurst = Math.max(1, options.messageBurst ?? DEFAULT_MESSAGE_BURST)
   const startedAt = Date.now()
+  const metrics = new ServerMetrics(startedAt)
+  const serverVersion = options.version ?? 'dev'
+  const serverBuildSha = options.buildSha ?? 'unknown'
+  validateRoomServerVersion(serverVersion)
+  validateRoomServerBuildSha(serverBuildSha)
+  const drainTimeoutMs = options.drainTimeoutMs ?? DEFAULT_DRAIN_TIMEOUT_MS
+  if (
+    !Number.isSafeInteger(drainTimeoutMs) ||
+    drainTimeoutMs < 1 ||
+    drainTimeoutMs > MAX_DRAIN_TIMEOUT_MS
+  ) {
+    throw new Error('drainTimeoutMs must be an integer between 1 and 86400000')
+  }
   const gameDependencies: GameCommandDependencies = {
     rollDice: options.rollDice ?? (() => randomInt(1, 7)),
     randomInt: (minimum, maximum) => randomInt(minimum, maximum + 1),
@@ -123,18 +156,64 @@ export async function createRoomServer(
   const rooms = new Map<string, Room>()
   const sessions = new Map<WebSocket, ConnectionSession>()
   let connectionCount = 0
+  const getOperationalSnapshot = (): RoomServerOperationalSnapshot => {
+    let activeGames = 0
+    let drainBlockingRooms = 0
+    for (const room of rooms.values()) {
+      if (room.game?.status === 'playing') activeGames += 1
+      const connectedSessions = room.players.filter(
+        player => player.socket?.readyState === WebSocket.OPEN
+      ).length
+      if (isRoomDrainBlocking(room.game?.status ?? 'lobby', connectedSessions)) {
+        drainBlockingRooms += 1
+      }
+    }
+    return {
+      rooms: rooms.size,
+      activeGames,
+      connections: connectionCount,
+      drainBlockingRooms,
+    }
+  }
   const httpServer = createServer((request, response) => {
-    if (request.method === 'GET' && (request.url === '/health' || request.url === '/ready')) {
+    if (request.method === 'GET' && request.url === '/internal/metrics') {
+      if (options.metricsToken === undefined) {
+        response.writeHead(404).end()
+        return
+      }
+      if (!isMetricsRequestAuthorized(request.headers.authorization, options.metricsToken)) {
+        response.writeHead(401, { 'www-authenticate': 'Bearer' }).end()
+        return
+      }
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
       response.end(
-        JSON.stringify({
-          status: 'ok',
-          rooms: rooms.size,
-          connections: connectionCount,
-          uptimeSeconds: Math.floor((Date.now() - startedAt) / 1_000),
-          rssBytes: process.memoryUsage().rss,
-        })
+        JSON.stringify(metrics.snapshot(getOperationalSnapshot(), lifecycle.isDraining()))
       )
+      return
+    }
+    if (request.method === 'GET' && request.url === '/health') {
+      response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
+      response.end(
+        JSON.stringify(
+          createHealthResponse(
+            {
+              version: serverVersion,
+              buildSha: serverBuildSha,
+              protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+              startedAt,
+            },
+            getOperationalSnapshot()
+          )
+        )
+      )
+      return
+    }
+    if (request.method === 'GET' && request.url === '/ready') {
+      const draining = lifecycle.isDraining()
+      response.writeHead(draining ? 503 : 200, {
+        'content-type': 'application/json; charset=utf-8',
+      })
+      response.end(JSON.stringify(createReadinessResponse(draining)))
       return
     }
     response.writeHead(404).end()
@@ -157,6 +236,8 @@ export async function createRoomServer(
           player.socket?.close(1001, 'room expired')
         }
         rooms.delete(code)
+        metrics.increment('roomsExpiredTotal')
+        lifecycle.notifyStateChanged()
       }
     },
     Math.min(roomTtlMs, 60_000)
@@ -192,8 +273,22 @@ export async function createRoomServer(
   }, 30_000)
   heartbeatTimer.unref()
 
+  const lifecycle = new RoomServerLifecycle({
+    drainTimeoutMs,
+    getSnapshot: getOperationalSnapshot,
+    closeResources: async () => {
+      clearInterval(cleanupTimer)
+      clearInterval(gameTimer)
+      clearInterval(heartbeatTimer)
+      for (const socket of webSocketServer.clients) socket.terminate()
+      await closeWebSocketServer(webSocketServer)
+      await closeHttpServer(httpServer)
+    },
+  })
+
   webSocketServer.on('connection', socket => {
     connectionCount += 1
+    metrics.increment('connectionsOpenedTotal')
     let availableMessageTokens = messageBurst
     let lastMessageRefillAt = Date.now()
     lastPongAt.set(socket, Date.now())
@@ -206,6 +301,7 @@ export async function createRoomServer(
       )
       lastMessageRefillAt = receivedAt
       if (availableMessageTokens < 1) {
+        metrics.increment('rateLimitedMessagesTotal')
         send(socket, {
           type: 'error',
           code: 'RATE_LIMITED',
@@ -222,6 +318,9 @@ export async function createRoomServer(
         handleMessage(socket, message)
       } catch (error) {
         const protocolError = normalizeError(error, requestId)
+        if (protocolError.code === 'INCOMPATIBLE_PROTOCOL') {
+          metrics.increment('protocolRejectedTotal')
+        }
         send(socket, {
           type: 'error',
           requestId: protocolError.requestId,
@@ -232,19 +331,31 @@ export async function createRoomServer(
     })
     socket.on('close', () => {
       connectionCount = Math.max(0, connectionCount - 1)
+      metrics.increment('connectionsClosedTotal')
       const session = sessions.get(socket)
       sessions.delete(socket)
-      if (!session || session.player.socket !== socket) return
+      if (!session || session.player.socket !== socket) {
+        lifecycle.notifyStateChanged()
+        return
+      }
       session.player.socket = null
       session.player.disconnectedAt = now()
       session.room.skipRequestedPlayerIds.delete(session.player.id)
       session.room.pauseRequestedPlayerIds.delete(session.player.id)
       if (rooms.get(session.room.code) === session.room) broadcastRoom(session.room)
+      lifecycle.notifyStateChanged()
     })
   })
 
   function handleMessage(socket: WebSocket, message: ClientMessage): void {
     if (message.type === 'create_room') {
+      if (lifecycle.isDraining()) {
+        throw new ProtocolError(
+          'SERVER_DRAINING',
+          '房间服务正在更新，暂时不能创建新房间；已有房间可继续。',
+          message.requestId
+        )
+      }
       if (sessions.has(socket))
         throw new ProtocolError('ALREADY_JOINED', '当前连接已经加入房间', message.requestId)
       if (rooms.size >= maxRooms)
@@ -266,8 +377,9 @@ export async function createRoomServer(
         achievementClaimUrls: new Map(),
       }
       rooms.set(code, room)
+      metrics.increment('roomsCreatedTotal')
       sessions.set(socket, { room, player })
-      sendSession(socket, room, player, message.requestId)
+      sendSession(socket, room, player, message.requestId, serverVersion, serverBuildSha)
       broadcastRoom(room)
       return
     }
@@ -293,9 +405,10 @@ export async function createRoomServer(
         player = { ...player, color: availableColor }
       }
       room.players.push(player)
+      metrics.increment('roomJoinsTotal')
       room.confirmedPlayerIds.clear()
       sessions.set(socket, { room, player })
-      sendSession(socket, room, player, message.requestId)
+      sendSession(socket, room, player, message.requestId, serverVersion, serverBuildSha)
       broadcastRoom(room)
       return
     }
@@ -318,7 +431,8 @@ export async function createRoomServer(
       player.disconnectedAt = null
       player.resumeToken = randomBytes(24).toString('base64url')
       sessions.set(socket, { room, player })
-      sendSession(socket, room, player, message.requestId)
+      metrics.increment('roomResumesTotal')
+      sendSession(socket, room, player, message.requestId, serverVersion, serverBuildSha)
       broadcastRoom(room)
       return
     }
@@ -342,6 +456,7 @@ export async function createRoomServer(
           message.requestId
         )
       }
+      if (room.hostPlayerId !== message.playerId) metrics.increment('hostTransfersTotal')
       room.hostPlayerId = message.playerId
       room.skipRequestedPlayerIds.clear()
       room.pauseRequestedPlayerIds.clear()
@@ -449,6 +564,7 @@ export async function createRoomServer(
         { startedAt: now(), eventDeck: options.eventDeck }
       )
       room.gameId = randomUUID()
+      metrics.increment('gamesStartedTotal')
       room.gameCompletedAt = null
       room.achievementClaimUrls.clear()
       broadcastRoom(room)
@@ -525,11 +641,13 @@ export async function createRoomServer(
     const wasFinished = room.game?.status === 'finished'
     room.game = nextGame
     if (!wasFinished && nextGame.status === 'finished') completeRoomGame(room)
+    lifecycle.notifyStateChanged()
   }
 
   function completeRoomGame(room: Room): void {
     if (!room.game || room.game.status !== 'finished' || room.gameCompletedAt !== null) return
     const completedAt = now()
+    metrics.increment('gamesFinishedTotal')
     room.gameCompletedAt = completedAt
     const claims = options.achievementClaims
     if (!claims || !room.gameId) return
@@ -567,6 +685,7 @@ export async function createRoomServer(
     )
     if (!successor) return false
     room.hostPlayerId = successor.id
+    metrics.increment('hostTransfersTotal')
     room.skipRequestedPlayerIds.clear()
     room.pauseRequestedPlayerIds.clear()
     return true
@@ -594,14 +713,10 @@ export async function createRoomServer(
   return {
     port: address.port,
     wsUrl: `ws://${host}:${address.port}`,
-    close: async () => {
-      clearInterval(cleanupTimer)
-      clearInterval(gameTimer)
-      clearInterval(heartbeatTimer)
-      for (const socket of webSocketServer.clients) socket.terminate()
-      await closeWebSocketServer(webSocketServer)
-      await closeHttpServer(httpServer)
-    },
+    beginDrain: () => lifecycle.beginDrain(),
+    isDraining: () => lifecycle.isDraining(),
+    getOperationalSnapshot,
+    close: () => lifecycle.close(),
   }
 }
 
@@ -686,10 +801,20 @@ function colorsMatch(left: string, right: string): boolean {
   return left.toLowerCase() === right.toLowerCase()
 }
 
-function sendSession(socket: WebSocket, room: Room, player: RoomPlayer, requestId: string): void {
+function sendSession(
+  socket: WebSocket,
+  room: Room,
+  player: RoomPlayer,
+  requestId: string,
+  serverVersion: string,
+  serverBuildSha: string
+): void {
   send(socket, {
     type: 'session',
     requestId,
+    protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+    serverVersion,
+    serverBuildSha,
     roomCode: room.code,
     playerId: player.id,
     resumeToken: player.resumeToken,
@@ -716,6 +841,7 @@ function parseClientMessage(raw: string): ClientMessage {
     throw new ProtocolError('INVALID_MESSAGE', 'requestId 无效')
   }
   if (message.type === 'create_room' || message.type === 'join_room') {
+    const protocolVersion = parseOnlineProtocolVersion(message.protocolVersion, requestId)
     if (typeof message.nickname !== 'string' || typeof message.color !== 'string') {
       throw new ProtocolError('INVALID_MESSAGE', '玩家资料无效', requestId)
     }
@@ -726,14 +852,22 @@ function parseClientMessage(raw: string): ClientMessage {
       return {
         type: 'join_room',
         requestId,
+        protocolVersion,
         roomCode: message.roomCode,
         nickname: message.nickname,
         color: message.color,
       }
     }
-    return { type: 'create_room', requestId, nickname: message.nickname, color: message.color }
+    return {
+      type: 'create_room',
+      requestId,
+      protocolVersion,
+      nickname: message.nickname,
+      color: message.color,
+    }
   }
   if (message.type === 'resume_room') {
+    const protocolVersion = parseOnlineProtocolVersion(message.protocolVersion, requestId)
     if (
       typeof message.roomCode !== 'string' ||
       !/^[A-Z2-9]{6}$/i.test(message.roomCode) ||
@@ -747,6 +881,7 @@ function parseClientMessage(raw: string): ClientMessage {
     return {
       type: 'resume_room',
       requestId,
+      protocolVersion,
       roomCode: message.roomCode,
       playerId: message.playerId,
       resumeToken: message.resumeToken,
@@ -902,6 +1037,18 @@ function parseClientMessage(raw: string): ClientMessage {
     return { type: message.type, requestId }
   }
   throw new ProtocolError('INVALID_MESSAGE', '未知消息类型', requestId)
+}
+
+function parseOnlineProtocolVersion(value: unknown, requestId: string): number {
+  const protocolVersion = resolveOnlineProtocolVersion(value)
+  if (protocolVersion === null) {
+    throw new ProtocolError(
+      'INCOMPATIBLE_PROTOCOL',
+      '联机协议版本不兼容，请刷新页面或关闭后重新打开。',
+      requestId
+    )
+  }
+  return protocolVersion
 }
 
 function createUniqueRoomCode(rooms: ReadonlyMap<string, Room>): string {
