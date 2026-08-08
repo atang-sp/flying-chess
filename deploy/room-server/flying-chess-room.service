@@ -6,8 +6,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-Environment=ROOM_IMAGE=flying-chess-room:1.15.0
-Environment=ROOM_SERVER_VERSION=1.15.0
+Environment=ROOM_IMAGE=flying-chess-room:1.16.0
+Environment=ROOM_SERVER_VERSION=1.16.0
 Environment=ROOM_SERVER_BUILD_SHA=unknown
 Environment=ROOM_DRAIN_TIMEOUT_MS=1800000
 EnvironmentFile=/etc/flying-chess-room.env
