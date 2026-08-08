@@ -1,6 +1,6 @@
 # 联机协议与可运维合同
 
-目标版本：`1.15.0`
+目标版本：`1.16.0`
 
 工程状态：自动化门槛由 CI 验证；真机与 4/6/8 人现场门槛保持
 `PENDING_MANUAL_ACCEPTANCE`。
@@ -115,7 +115,7 @@ Shallow smoke 只读 health/readiness 并完成一次 WebSocket 连接，不创�
 node scripts/room-server-release-smoke.mjs \
   --health-url https://rooms.example/health \
   --ws-url wss://rooms.example \
-  --expected-server-version 1.15.0 \
+  --expected-server-version 1.16.0 \
   --expected-protocol-version 1 \
   --origin https://atang-sp.github.io \
   --timeout-ms 5000
@@ -136,7 +136,7 @@ Automated WebKit coverage does not replace real iOS Safari acceptance.
 
 ## 发布顺序
 
-本轮只实现并验证流程，不执行生产发布：
+版本发布必须按以下顺序执行，并分别保留 room server 与 Pages 的核验结论：
 
 1. 从同一个 commit 构建前端与 room server，并注入 release version 与公开 build SHA；
 2. 先部署仍兼容缺字段旧页面的新 room server；

@@ -51,7 +51,7 @@ node scripts/collect-safe-production-diagnostics.mjs \
   --output /tmp/flying-chess-safe-diagnostics.json
 ```
 
-第二条命令要求目标目录已存在。本轮工程迭代只执行 fixture/dry-run 测试，不运行真实生产采集。
+第二条命令要求目标目录已存在。常规本地验证只执行 fixture/dry-run；生产采集必须有明确的发布或核验授权。
 
 未来经授权进行生产核验时才可省略 `--fixture`，并且仍必须指定 `--output`。报告只能用于聚合状态
 核验，不能证明真人验收或 SMTP credential 已轮换。

@@ -3,17 +3,17 @@
 生产拓扑：GitHub Pages 前端连接 `wss://rooms.atang-sp.run.place`；Discourse 容器内的 Nginx 终止 TLS，并反代到 Docker 网桥 `172.17.0.1:8787`。房间容器使用 host 网络并只监听该网桥地址，避免 Docker 发布端口在同机容器间被防火墙阻断，也不会把 `8787` 暴露到公网。房间服务不写磁盘，容器限制为 128 MiB 内存、1 CPU、只读根文件系统。
 
 完整协议、health/readiness、drain blocker、metrics、smoke、发布和回滚合同见
-[`docs/ONLINE_OPERABILITY.md`](../../docs/ONLINE_OPERABILITY.md)。本文件只记录生产操作形状；本轮 PR 不执行这些操作。
+[`docs/ONLINE_OPERABILITY.md`](../../docs/ONLINE_OPERABILITY.md)。本文件只记录生产操作形状；仓库变更本身不代表生产已经部署，必须以目标版本的发布核验为准。
 
 ## 构建与版本注入
 
-在已检出不可变 `v1.15.0` 标签的仓库根目录构建同一 commit。`ROOM_SERVER_BUILD_SHA` 只能是公开 Git commit 标识：
+在已检出不可变 `v1.16.0` 标签的仓库根目录构建同一 commit。`ROOM_SERVER_BUILD_SHA` 只能是公开 Git commit 标识：
 
 ```bash
 docker build -f apps/room-server/Dockerfile \
-  --build-arg ROOM_SERVER_VERSION=1.15.0 \
+  --build-arg ROOM_SERVER_VERSION=1.16.0 \
   --build-arg ROOM_SERVER_BUILD_SHA=<公开完整 commit SHA> \
-  -t flying-chess-room:1.15.0 .
+  -t flying-chess-room:1.16.0 .
 ```
 
 不要把 metrics、achievement 或其他 secret 作为 build arg；它们不得进入镜像层。
@@ -22,7 +22,7 @@ docker build -f apps/room-server/Dockerfile \
 `0600`。至少写入：
 
 ```dotenv
-ROOM_SERVER_VERSION=1.15.0
+ROOM_SERVER_VERSION=1.16.0
 ROOM_SERVER_BUILD_SHA=<公开完整 commit SHA>
 ROOM_DRAIN_TIMEOUT_MS=1800000
 ```
@@ -99,7 +99,7 @@ health 中的 `version`、`buildSha` 和 `protocolVersion` 必须与同一发布
 node scripts/room-server-release-smoke.mjs \
   --health-url https://rooms.atang-sp.run.place/health \
   --ws-url wss://rooms.atang-sp.run.place \
-  --expected-server-version 1.15.0 \
+  --expected-server-version 1.16.0 \
   --expected-protocol-version 1 \
   --origin https://atang-sp.github.io \
   --timeout-ms 5000
