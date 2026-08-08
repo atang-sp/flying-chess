@@ -225,6 +225,8 @@ npm install primevue primeicons
 - 匿名统计事件契约与隐私边界见 `src/services/gameTelemetry.ts`
 - 联机协议、运维、发布顺序与回滚合同见
   [docs/ONLINE_OPERABILITY.md](docs/ONLINE_OPERABILITY.md)
+- 生产核验时的固定 allowlist 报告与禁止采集项见
+  [docs/SAFE_PRODUCTION_DIAGNOSTICS.md](docs/SAFE_PRODUCTION_DIAGNOSTICS.md)
 - 版本号注入逻辑见 `vite-plugin-version.ts`
 - 详细开发路线、更新日志请见 [ROADMAP.md] 和 [RELEASE_NOTES.md]（如有）
 

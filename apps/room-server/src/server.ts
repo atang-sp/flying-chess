@@ -51,6 +51,13 @@ const DEFAULT_MESSAGES_PER_SECOND = 30
 const DEFAULT_MESSAGE_BURST = 60
 const DEFAULT_DRAIN_TIMEOUT_MS = 30 * 60 * 1_000
 const MAX_DRAIN_TIMEOUT_MS = 24 * 60 * 60 * 1_000
+const MAX_TRACKED_REQUEST_IDS = 1_024
+const PROTOCOL_ACCEPTANCE = Symbol('protocolAcceptance')
+
+type ProtocolAcceptance = 'legacy' | 'explicit'
+type ParsedClientMessage = ClientMessage & {
+  readonly [PROTOCOL_ACCEPTANCE]?: ProtocolAcceptance
+}
 
 interface RoomPlayer {
   readonly id: string
@@ -59,6 +66,7 @@ interface RoomPlayer {
   readonly color: string
   socket: WebSocket | null
   disconnectedAt: number | null
+  readonly acceptedRequestIds: Set<string>
 }
 
 interface Room {
@@ -99,6 +107,8 @@ export interface RoomServerOptions {
   readonly buildSha?: string
   readonly drainTimeoutMs?: number
   readonly metricsToken?: string
+  readonly scheduleGameMaintenance?: (callback: () => void) => () => void
+  readonly scheduleClientMessageHandling?: (callback: () => void) => void
 }
 
 export interface RunningRoomServer {
@@ -244,7 +254,7 @@ export async function createRoomServer(
   )
   cleanupTimer.unref()
 
-  const gameTimer = setInterval(() => {
+  const runGameMaintenance = () => {
     const timestamp = now()
     for (const room of rooms.values()) {
       let changed = transferExpiredHost(room, timestamp)
@@ -257,8 +267,14 @@ export async function createRoomServer(
       }
       if (changed) broadcastRoom(room)
     }
-  }, 100)
-  gameTimer.unref()
+  }
+  const stopGameMaintenance = options.scheduleGameMaintenance
+    ? options.scheduleGameMaintenance(runGameMaintenance)
+    : (() => {
+        const timer = setInterval(runGameMaintenance, 100)
+        timer.unref()
+        return () => clearInterval(timer)
+      })()
 
   const lastPongAt = new WeakMap<WebSocket, number>()
   const heartbeatTimer = setInterval(() => {
@@ -278,7 +294,7 @@ export async function createRoomServer(
     getSnapshot: getOperationalSnapshot,
     closeResources: async () => {
       clearInterval(cleanupTimer)
-      clearInterval(gameTimer)
+      stopGameMaintenance()
       clearInterval(heartbeatTimer)
       for (const socket of webSocketServer.clients) socket.terminate()
       await closeWebSocketServer(webSocketServer)
@@ -291,6 +307,7 @@ export async function createRoomServer(
     metrics.increment('connectionsOpenedTotal')
     let availableMessageTokens = messageBurst
     let lastMessageRefillAt = Date.now()
+    const acceptedInitialRequestIds = new Set<string>()
     lastPongAt.set(socket, Date.now())
     socket.on('pong', () => lastPongAt.set(socket, Date.now()))
     socket.on('message', raw => {
@@ -311,22 +328,47 @@ export async function createRoomServer(
         return
       }
       availableMessageTokens -= 1
-      let requestId: string | undefined
-      try {
-        const message = parseClientMessage(raw.toString())
-        requestId = message.requestId
-        handleMessage(socket, message)
-      } catch (error) {
-        const protocolError = normalizeError(error, requestId)
-        if (protocolError.code === 'INCOMPATIBLE_PROTOCOL') {
-          metrics.increment('protocolRejectedTotal')
+      const handleAcceptedFrame = () => {
+        let requestId: string | undefined
+        try {
+          const message = parseClientMessage(raw.toString())
+          requestId = message.requestId
+          const protocolAcceptance = message[PROTOCOL_ACCEPTANCE]
+          const playerForRequestTracking = protocolAcceptance
+            ? undefined
+            : sessions.get(socket)?.player
+          if (protocolAcceptance) {
+            acceptTrackedRequestId(acceptedInitialRequestIds, message.requestId)
+            metrics.increment(
+              protocolAcceptance === 'legacy'
+                ? 'legacyProtocolAcceptedTotal'
+                : 'explicitProtocolAcceptedTotal'
+            )
+          } else if (playerForRequestTracking) {
+            assertRequestIdCanBeAccepted(
+              playerForRequestTracking.acceptedRequestIds,
+              message.requestId
+            )
+          }
+          handleMessage(socket, message)
+          playerForRequestTracking?.acceptedRequestIds.add(message.requestId)
+        } catch (error) {
+          const protocolError = normalizeError(error, requestId)
+          if (protocolError.code === 'INCOMPATIBLE_PROTOCOL') {
+            metrics.increment('protocolRejectedTotal')
+          }
+          send(socket, {
+            type: 'error',
+            requestId: protocolError.requestId,
+            code: protocolError.code,
+            message: protocolError.message,
+          })
         }
-        send(socket, {
-          type: 'error',
-          requestId: protocolError.requestId,
-          code: protocolError.code,
-          message: protocolError.message,
-        })
+      }
+      if (options.scheduleClientMessageHandling) {
+        options.scheduleClientMessageHandling(handleAcceptedFrame)
+      } else {
+        handleAcceptedFrame()
       }
     })
     socket.on('close', () => {
@@ -414,33 +456,39 @@ export async function createRoomServer(
     }
 
     if (message.type === 'resume_room') {
-      if (sessions.has(socket)) {
-        throw new ProtocolError('ALREADY_JOINED', '当前连接已经加入房间', message.requestId)
+      metrics.increment('roomResumeAttemptsTotal')
+      try {
+        if (sessions.has(socket)) {
+          throw new ProtocolError('ALREADY_JOINED', '当前连接已经加入房间', message.requestId)
+        }
+        const room = rooms.get(message.roomCode.toUpperCase())
+        if (!room) throw new ProtocolError('ROOM_NOT_FOUND', '房间不存在', message.requestId)
+        const player = room.players.find(candidate => candidate.id === message.playerId)
+        if (!player || player.resumeToken !== message.resumeToken) {
+          throw new ProtocolError('INVALID_RESUME_TOKEN', '恢复凭证无效', message.requestId)
+        }
+        if (player.socket) {
+          sessions.delete(player.socket)
+          player.socket.close(4001, 'session resumed elsewhere')
+        }
+        player.socket = socket
+        player.disconnectedAt = null
+        player.resumeToken = randomBytes(24).toString('base64url')
+        sessions.set(socket, { room, player })
+        metrics.increment('roomResumesTotal')
+        sendSession(socket, room, player, message.requestId, serverVersion, serverBuildSha)
+        metrics.increment('roomResumeSucceededTotal')
+        broadcastRoom(room)
+        return
+      } catch (error) {
+        if (error instanceof ProtocolError) metrics.increment('roomResumeRejectedTotal')
+        throw error
       }
-      const room = rooms.get(message.roomCode.toUpperCase())
-      if (!room) throw new ProtocolError('ROOM_NOT_FOUND', '房间不存在', message.requestId)
-      const player = room.players.find(candidate => candidate.id === message.playerId)
-      if (!player || player.resumeToken !== message.resumeToken) {
-        throw new ProtocolError('INVALID_RESUME_TOKEN', '恢复凭证无效', message.requestId)
-      }
-      if (player.socket) {
-        sessions.delete(player.socket)
-        player.socket.close(4001, 'session resumed elsewhere')
-      }
-      player.socket = socket
-      player.disconnectedAt = null
-      player.resumeToken = randomBytes(24).toString('base64url')
-      sessions.set(socket, { room, player })
-      metrics.increment('roomResumesTotal')
-      sendSession(socket, room, player, message.requestId, serverVersion, serverBuildSha)
-      broadcastRoom(room)
-      return
     }
 
     const session = sessions.get(socket)
     if (!session) throw new ProtocolError('NOT_IN_ROOM', '请先创建或加入房间', message.requestId)
     const { room, player } = session
-
     if (message.type === 'transfer_host') {
       if (room.hostPlayerId !== player.id) {
         throw new ProtocolError('HOST_ONLY', '只有主持人可以转交管理角色', message.requestId)
@@ -794,7 +842,26 @@ function createPlayer(
     color,
     socket,
     disconnectedAt: null,
+    acceptedRequestIds: new Set(),
   }
+}
+
+function assertRequestIdCanBeAccepted(requestIds: ReadonlySet<string>, requestId: string): void {
+  if (requestIds.has(requestId)) {
+    throw new ProtocolError('DUPLICATE_REQUEST', '该请求已经处理，不会重复修改房间状态', requestId)
+  }
+  if (requestIds.size >= MAX_TRACKED_REQUEST_IDS) {
+    throw new ProtocolError(
+      'REQUEST_TRACKING_LIMIT_REACHED',
+      '请求追踪容量已满，已拒绝新请求',
+      requestId
+    )
+  }
+}
+
+function acceptTrackedRequestId(requestIds: Set<string>, requestId: string): void {
+  assertRequestIdCanBeAccepted(requestIds, requestId)
+  requestIds.add(requestId)
 }
 
 function colorsMatch(left: string, right: string): boolean {
@@ -826,7 +893,7 @@ function send(socket: WebSocket | null, message: ServerMessage): void {
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message))
 }
 
-function parseClientMessage(raw: string): ClientMessage {
+function parseClientMessage(raw: string): ParsedClientMessage {
   let value: unknown
   try {
     value = JSON.parse(raw)
@@ -841,7 +908,10 @@ function parseClientMessage(raw: string): ClientMessage {
     throw new ProtocolError('INVALID_MESSAGE', 'requestId 无效')
   }
   if (message.type === 'create_room' || message.type === 'join_room') {
-    const protocolVersion = parseOnlineProtocolVersion(message.protocolVersion, requestId)
+    const { protocolVersion, protocolAcceptance } = parseOnlineProtocolVersion(
+      message.protocolVersion,
+      requestId
+    )
     if (typeof message.nickname !== 'string' || typeof message.color !== 'string') {
       throw new ProtocolError('INVALID_MESSAGE', '玩家资料无效', requestId)
     }
@@ -856,6 +926,7 @@ function parseClientMessage(raw: string): ClientMessage {
         roomCode: message.roomCode,
         nickname: message.nickname,
         color: message.color,
+        [PROTOCOL_ACCEPTANCE]: protocolAcceptance,
       }
     }
     return {
@@ -864,10 +935,14 @@ function parseClientMessage(raw: string): ClientMessage {
       protocolVersion,
       nickname: message.nickname,
       color: message.color,
+      [PROTOCOL_ACCEPTANCE]: protocolAcceptance,
     }
   }
   if (message.type === 'resume_room') {
-    const protocolVersion = parseOnlineProtocolVersion(message.protocolVersion, requestId)
+    const { protocolVersion, protocolAcceptance } = parseOnlineProtocolVersion(
+      message.protocolVersion,
+      requestId
+    )
     if (
       typeof message.roomCode !== 'string' ||
       !/^[A-Z2-9]{6}$/i.test(message.roomCode) ||
@@ -885,6 +960,7 @@ function parseClientMessage(raw: string): ClientMessage {
       roomCode: message.roomCode,
       playerId: message.playerId,
       resumeToken: message.resumeToken,
+      [PROTOCOL_ACCEPTANCE]: protocolAcceptance,
     }
   }
   if (message.type === 'update_settings') {
@@ -1039,7 +1115,10 @@ function parseClientMessage(raw: string): ClientMessage {
   throw new ProtocolError('INVALID_MESSAGE', '未知消息类型', requestId)
 }
 
-function parseOnlineProtocolVersion(value: unknown, requestId: string): number {
+function parseOnlineProtocolVersion(
+  value: unknown,
+  requestId: string
+): Readonly<{ protocolVersion: number; protocolAcceptance: ProtocolAcceptance }> {
   const protocolVersion = resolveOnlineProtocolVersion(value)
   if (protocolVersion === null) {
     throw new ProtocolError(
@@ -1048,7 +1127,10 @@ function parseOnlineProtocolVersion(value: unknown, requestId: string): number {
       requestId
     )
   }
-  return protocolVersion
+  return {
+    protocolVersion,
+    protocolAcceptance: value === undefined ? 'legacy' : 'explicit',
+  }
 }
 
 function createUniqueRoomCode(rooms: ReadonlyMap<string, Room>): string {
