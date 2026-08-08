@@ -52,6 +52,13 @@ test('iPhone WebKit completes create, join, start, disconnect, resume, and refre
   let guest = await guestContext.newPage()
   observePage(host, consoleErrors, hostFrames)
   observePage(guest, consoleErrors, guestFrames)
+  await host.addInitScript(() => {
+    localStorage.setItem('autoGuideEnabled', 'false')
+    localStorage.setItem(
+      'hasShownGuide',
+      JSON.stringify(['intro', 'board_settings', 'settings', 'game'])
+    )
+  })
 
   try {
     await host.goto('/flying-chess/')
