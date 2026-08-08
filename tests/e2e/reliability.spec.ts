@@ -258,16 +258,16 @@ test('selects and starts party mode with anonymous mode telemetry', async ({ pag
   const events = await getTelemetryEvents(page)
   expect(events[1].data).toMatchObject({
     mode_id: 'party',
-    ruleset_version: 'party_v2',
+    ruleset_version: 'party_v3',
   })
   expect(events[2].data).toMatchObject({
     mode_id: 'party',
     previous_mode_id: 'classic',
-    ruleset_version: 'party_v2',
+    ruleset_version: 'party_v3',
   })
   expect(events[4].data).toMatchObject({
     mode_id: 'party',
-    ruleset_version: 'party_v2',
+    ruleset_version: 'party_v3',
     player_count_bucket: '2',
   })
   for (const event of events) {
@@ -278,7 +278,49 @@ test('selects and starts party mode with anonymous mode telemetry', async ({ pag
   }
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('flying-chess-game-mode')))
-    .toBe(JSON.stringify({ mode: 'party', rulesetVersion: 'party_v2' }))
+    .toBe(JSON.stringify({ mode: 'party', rulesetVersion: 'party_v3' }))
+})
+
+test('Party heat meter is Party-only and reacts to the shared Momentum state', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  await expect(page.getByRole('region', { name: 'Party 全局热度' })).toHaveCount(0)
+  await startPartyGame(page)
+
+  const meter = page.getByRole('region', { name: 'Party 全局热度' })
+  await expect(meter).toContainText('0 / 100')
+  await expect(meter.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0')
+  await expect(meter).toContainText('30')
+  await expect(meter).toContainText('70')
+  await expect(meter).toContainText('100')
+
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      partyMode: {
+        recordMomentum: (event: {
+          type: 'punishment_completed'
+          participantPlayerIndices: number[]
+          amplified: boolean
+          chain: boolean
+          mutual: boolean
+        }) => void
+      }
+    }
+    debugWindow.partyMode.recordMomentum({
+      type: 'punishment_completed',
+      participantPlayerIndices: [0],
+      amplified: false,
+      chain: false,
+      mutual: false,
+    })
+  })
+
+  await expect(meter).toContainText('5 / 100')
+  await expect(meter.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '5')
+  await expect(meter).toContainText('当前玩家贡献 5')
 })
 
 test('native WebRTC pairs two phone controllers without cloud signalling', async ({
@@ -446,7 +488,7 @@ test('party reaction resolves before the active player may spend one reroll toke
   await expect(page.getByTestId('party-dice-decision')).toBeVisible()
   await expect(page.getByTestId('party-reroll')).toBeEnabled()
   await page.getByTestId('party-reroll').click()
-  await expect(page.getByTestId('party-status')).toContainText('玩家1 1 枚')
+  await expect(page.getByTestId('party-status')).toContainText('玩家1 0 枚')
 })
 
 test('pausing party mode freezes an active decision countdown', async ({ page }, testInfo) => {
@@ -532,7 +574,7 @@ test('party punishment choice spends one token before existing punishment resolu
   await expect(page.getByTestId('party-punishment-choice')).toBeVisible()
   await page.getByTestId('party-choice-0').click()
 
-  await expect(page.getByTestId('party-status')).toContainText('玩家1 1 枚')
+  await expect(page.getByTestId('party-status')).toContainText('玩家1 0 枚')
   await expect(page.locator('.punishment-display')).toBeVisible()
 })
 
@@ -599,7 +641,7 @@ test('party punishment intervention transfers the resolved punishment and spends
   await expect(punishment).toBeVisible()
   await expect(punishment).toContainText('受罚玩家')
   await expect(punishment).toContainText('玩家2')
-  await expect(page.getByTestId('party-status')).toContainText('玩家1 1 枚')
+  await expect(page.getByTestId('party-status')).toContainText('玩家1 0 枚')
 })
 
 test('party punishment intervention lets the target consume immunity', async ({
@@ -612,7 +654,7 @@ test('party punishment intervention lets the target consume immunity', async ({
 
   await expect(page.getByTestId('party-intervention')).toBeHidden()
   await expect(page.locator('.punishment-display')).toBeHidden()
-  await expect(page.getByTestId('party-status')).toContainText('玩家1 1 枚')
+  await expect(page.getByTestId('party-status')).toContainText('玩家1 0 枚')
 })
 
 test('party punishment intervention lets another player amplify the count', async ({
@@ -633,12 +675,57 @@ test('party punishment intervention lets another player amplify the count', asyn
     }
     return count.value
   })
+  const playerTwoTokensBefore = await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      partyMode: { session: { value: { tokensRemaining: readonly number[] } | null } }
+    }
+    const session = debugWindow.partyMode.session.value
+    if (!session) throw new Error('expected an active Party session before amplification')
+    return session.tokensRemaining[1] ?? 0
+  })
   await page.getByRole('button', { name: '加码为 2 倍' }).click()
 
   const punishment = page.locator('.punishment-display')
   await expect(punishment).toBeVisible()
   await expect(punishment.locator('.strikes')).toHaveText(`${originalCount * 2} 下`)
-  await expect(page.getByTestId('party-status')).toContainText('玩家2 1 枚')
+  await expect(page.getByTestId('party-status')).toContainText(
+    `玩家2 ${playerTwoTokensBefore - 1} 枚`
+  )
+})
+
+test('party records punishment heat only on final confirmation and ignores a duplicate click', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await reachPartyPunishmentIntervention(page)
+  const heatBeforeConfirmation = await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      partyMode: { session: { value: { heat: number } | null } }
+    }
+    const session = debugWindow.partyMode.session.value
+    if (!session) throw new Error('expected an active Party session before confirmation')
+    return session.heat
+  })
+
+  await page.getByTestId('party-intervention-skip').click()
+  const punishment = page.locator('.punishment-display')
+  await expect(punishment).toBeVisible()
+  await expect(page.getByRole('progressbar', { name: 'Party 全局热度进度' })).toHaveAttribute(
+    'aria-valuenow',
+    String(heatBeforeConfirmation)
+  )
+
+  await page.getByRole('button', { name: '确认执行' }).evaluate(button => {
+    const confirmation = button as HTMLButtonElement
+    confirmation.click()
+    confirmation.click()
+  })
+
+  await expect(page.getByRole('progressbar', { name: 'Party 全局热度进度' })).toHaveAttribute(
+    'aria-valuenow',
+    String(heatBeforeConfirmation + 5)
+  )
 })
 
 test('party blindbox variant conceals punishment details until the explicit reveal', async ({
@@ -1442,7 +1529,7 @@ test('in-game configuration import ends the old party session before applying a 
   await page.getByTestId('mode-party').click()
   await page.getByTestId('start-game').click()
 
-  await expect(page.getByLabel('丙剩余2枚干预筹码')).toBeVisible()
+  await expect(page.getByLabel('丙剩余1枚干预筹码')).toBeVisible()
 })
 
 test('telemetry transport failures do not block setup, play, dice, or completion', async ({

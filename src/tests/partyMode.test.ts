@@ -122,13 +122,13 @@ describe('升温局阶段导演', () => {
     expect(session.shouldEnd).toBe(true)
   })
 
-  it('每名玩家持有两枚通用筹码且每回合最多使用一枚', () => {
+  it('每名玩家开局持有一枚通用筹码且每回合最多使用一枚', () => {
     let session = createPartySession({ playerCount: 2, startedAt: 0 })
 
     session = beginPartyTurn(session, 0)
     session = spendPartyToken(session, { playerIndex: 0, action: 'reroll' })
 
-    expect(session.tokensRemaining).toEqual([1, 2])
+    expect(session.tokensRemaining).toEqual([0, 1])
     expect(() => spendPartyToken(session, { playerIndex: 0, action: 'punishment_choice' })).toThrow(
       '每回合最多使用一枚干预筹码'
     )
@@ -136,17 +136,6 @@ describe('升温局阶段导演', () => {
     session = completePartyTurn(session, { playerIndex: 0, now: 1 })
     session = beginPartyTurn(session, 1)
     session = completePartyTurn(session, { playerIndex: 1, now: 2 })
-    session = beginPartyTurn(session, 0)
-    session = spendPartyToken(session, {
-      playerIndex: 0,
-      action: 'punishment_choice',
-    })
-
-    expect(session.tokensRemaining).toEqual([0, 2])
-
-    session = completePartyTurn(session, { playerIndex: 0, now: 3 })
-    session = beginPartyTurn(session, 1)
-    session = completePartyTurn(session, { playerIndex: 1, now: 4 })
     session = beginPartyTurn(session, 0)
 
     expect(() => spendPartyToken(session, { playerIndex: 0, action: 'reroll' })).toThrow(
@@ -164,7 +153,7 @@ describe('升温局阶段导演', () => {
 
     session = spendPartyToken(session, { playerIndex: 1, action: 'amplify' })
 
-    expect(session.tokensRemaining).toEqual([2, 1, 2])
+    expect(session.tokensRemaining).toEqual([1, 0, 1])
     expect(session.interventionUsedThisTurn).toBe('amplify')
     expect(() => spendPartyToken(session, { playerIndex: 0, action: 'immunity' })).toThrow(
       '每回合最多使用一枚干预筹码'

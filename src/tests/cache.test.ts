@@ -63,7 +63,7 @@ describe('本地游戏数据清理', () => {
     saveGameMode('party', storage)
     expect(JSON.parse(values.get(GAME_MODE_STORAGE_KEY) ?? '')).toEqual({
       mode: 'party',
-      rulesetVersion: 'party_v2',
+      rulesetVersion: 'party_v3',
     })
     expect(loadGameMode(storage)).toBe('party')
 
@@ -71,6 +71,9 @@ describe('本地游戏数据清理', () => {
     expect(loadGameMode(storage)).toBe('classic')
 
     values.set(GAME_MODE_STORAGE_KEY, JSON.stringify({ mode: 'party', rulesetVersion: 'party_v1' }))
+    expect(loadGameMode(storage)).toBe('classic')
+
+    values.set(GAME_MODE_STORAGE_KEY, JSON.stringify({ mode: 'party', rulesetVersion: 'party_v2' }))
     expect(loadGameMode(storage)).toBe('classic')
 
     values.set(GAME_MODE_STORAGE_KEY, 'classic')

@@ -54,6 +54,7 @@ test('扫码受邀页突出加入动作，并允许两名玩家确认后开局',
 
   try {
     await host.goto('/flying-chess/online.html')
+    await expect(host.getByText(/规则集 party_v3/)).toBeVisible()
     await host.getByTestId('nickname').fill('主持人')
     await host.getByTestId('create-room').click()
     const roomCode = (await host.getByTestId('room-code').textContent())?.trim()
@@ -100,6 +101,9 @@ test('扫码受邀页突出加入动作，并允许两名玩家确认后开局',
     await expect(host.getByTestId('host-role')).toHaveText('你是主持人')
     await expect(guest.getByTestId('host-role')).toHaveCount(0)
     await expect(guest.getByTestId('act-label')).toHaveText('热身阶段')
+    const heatMeter = guest.getByRole('region', { name: 'Party 全局热度' })
+    await expect(heatMeter).toContainText('0 / 100')
+    await expect(heatMeter.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0')
     await expect(guest.getByRole('region', { name: '飞行棋赛道' })).toBeVisible()
     await expect(guest.getByTestId('board-cell-30')).toBeVisible()
     await expect(guest.locator('[data-testid^="board-cell-"]')).toHaveCount(30)
