@@ -173,7 +173,7 @@ export function loadGameMode(storage: GameModeStorageReader = localStorage): Gam
   if (!raw) return DEFAULT_GAME_MODE
 
   // classic_v1 从未改变，旧的纯字符串缓存可安全保留；旧 party 缓存没有
-  // 规则集版本，必须回退并让玩家重新显式选择，避免静默升级到 party_v2。
+  // 规则集版本，必须回退并让玩家重新显式选择，避免静默升级到 party_v3。
   if (raw === 'classic') return 'classic'
   try {
     const stored: unknown = JSON.parse(raw)

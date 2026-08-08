@@ -95,6 +95,7 @@ export interface RoomServerOptions {
   readonly maxRooms?: number
   readonly roomTtlMs?: number
   readonly rollDice?: () => number
+  readonly randomInt?: (minimum: number, maximum: number) => number
   readonly now?: () => number
   readonly eventDeck?: readonly PartyEventCard[]
   readonly reconnectGraceMs?: number
@@ -160,7 +161,7 @@ export async function createRoomServer(
   }
   const gameDependencies: GameCommandDependencies = {
     rollDice: options.rollDice ?? (() => randomInt(1, 7)),
-    randomInt: (minimum, maximum) => randomInt(minimum, maximum + 1),
+    randomInt: options.randomInt ?? ((minimum, maximum) => randomInt(minimum, maximum + 1)),
     now,
   }
   const rooms = new Map<string, Room>()

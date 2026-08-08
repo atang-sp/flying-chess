@@ -260,6 +260,11 @@
   grid-template-columns: minmax(230px, 0.7fr) minmax(360px, 1.5fr);
 }
 
+.online-heat-meter {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .positions-card {
   grid-column: 1 / -1;
 }
