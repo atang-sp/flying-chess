@@ -28,6 +28,7 @@ describe('server metrics', () => {
     )
 
     expect(Object.keys(snapshot)).toEqual(['schemaVersion', 'counters', 'gauges'])
+    expect(snapshot.schemaVersion).toBe(2)
     expect(Object.keys(snapshot.counters)).toEqual([
       'connectionsOpenedTotal',
       'connectionsClosedTotal',
@@ -40,11 +41,21 @@ describe('server metrics', () => {
       'roomsExpiredTotal',
       'protocolRejectedTotal',
       'rateLimitedMessagesTotal',
+      'legacyProtocolAcceptedTotal',
+      'explicitProtocolAcceptedTotal',
+      'roomResumeAttemptsTotal',
+      'roomResumeSucceededTotal',
+      'roomResumeRejectedTotal',
     ])
     expect(snapshot.counters).toMatchObject({
       connectionsOpenedTotal: 1,
       roomsCreatedTotal: 2,
       protocolRejectedTotal: 0,
+      legacyProtocolAcceptedTotal: 0,
+      explicitProtocolAcceptedTotal: 0,
+      roomResumeAttemptsTotal: 0,
+      roomResumeSucceededTotal: 0,
+      roomResumeRejectedTotal: 0,
     })
     expect(snapshot.gauges).toEqual({
       rooms: 2,

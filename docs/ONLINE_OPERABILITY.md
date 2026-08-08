@@ -76,17 +76,36 @@ Drain blocker 定义如下：
 `ROOM_METRICS_TOKEN`：必须为 32–512 字节、不得含空白；请求使用
 `Authorization: Bearer <token>`。服务端比较固定长度 SHA-256 摘要并调用恒定时间比较，错误或缺失 token 返回 `401`。token 不写入镜像层、日志、health、测试快照或 PR。
 
-响应只有三个顶层字段：`schemaVersion`、`counters`、`gauges`。计数器 allowlist 为：
+响应 schema version 为 `2`，只有三个顶层字段：`schemaVersion`、`counters`、`gauges`。
+计数器 allowlist 为：
 
 - `connectionsOpenedTotal`、`connectionsClosedTotal`
 - `roomsCreatedTotal`、`roomJoinsTotal`、`roomResumesTotal`
 - `gamesStartedTotal`、`gamesFinishedTotal`、`hostTransfersTotal`、`roomsExpiredTotal`
 - `protocolRejectedTotal`、`rateLimitedMessagesTotal`
+- `legacyProtocolAcceptedTotal`、`explicitProtocolAcceptedTotal`
+- `roomResumeAttemptsTotal`、`roomResumeSucceededTotal`、`roomResumeRejectedTotal`
 
 仪表 allowlist 为 `rooms`、`activeGames`、`connections`、`drainBlockingRooms`、
 `draining`、`rssBytes`、`uptimeSeconds`。没有动态 label；未知错误不生成字段。响应不得包含昵称、房间码、player ID、resume/achievement token、request ID、设置、惩罚、消息正文或 URL fragment。
 
 公开 Nginx 配置对 `/internal/metrics` 固定返回 `404`，即使应用层启用了 token 也不得转发。内部采集器只能从受控主机直连监听地址，并从 root-only 配置读取 Bearer token。
+
+协议迁移与恢复计数的语义固定如下：
+
+- `legacyProtocolAcceptedTotal`：create/join/resume 缺少 `protocolVersion`，且经临时兼容分支按
+  v1 解析成功；同一连接上的同一初始 `requestId` 最多计一次。
+- `explicitProtocolAcceptedTotal`：create/join/resume 显式携带受支持的整数协议版本并通过版本
+  校验；业务层随后拒绝（例如房间不存在）仍代表一次已识别协议使用，但重复 `requestId` 不重计。
+- `roomResumeAttemptsTotal`：协议解析成功、去重后进入 resume 业务分支时增加；协议不兼容请求
+  不计入。
+- `roomResumeSucceededTotal`：服务端成功轮换恢复凭证并向该席位返回新的私有 `session` 后增加。
+- `roomResumeRejectedTotal`：进入 resume 业务分支后因房间/玩家不存在、凭证错误、连接已占用或
+  其他固定业务拒绝而增加。
+
+这些 counter 没有 label，拒绝原因不会动态进入字段名。暂时不能删除缺字段 compatibility：只有
+内部指标在连续观察窗口内确认 `legacyProtocolAcceptedTotal` 不再增长，并且旧 PWA/静态页面缓存
+窗口已经结束，后续版本才可移除。schema v2 只提供观测能力，本 PR 不移除兼容分支。
 
 ## Release smoke 与 CI
 
@@ -107,6 +126,13 @@ node scripts/room-server-release-smoke.mjs \
 `npm run test:room-server-smoke` 会构建并启动临时 room server，运行 deep smoke，发送
 SIGTERM，确认进程正常退出且端口关闭。CI 的独立 `Room Server Operability` job 运行 room server build、targeted tests、release smoke、完整 20 房间/160 连接压测和
 `git diff --exit-code`。该压测在本轮基线约 0.7 秒，因此保留在 PR required 路径，不降级到较小样本。
+
+CI 另有独立 `Mobile WebKit Smoke` job，使用 Playwright 内置 `iPhone 13` 配置和真实 WebKit
+engine 验证首页/version、联机建房加入、开局、断线恢复、私有 session 投影、联机页刷新及不兼容
+协议停止重连。现有 Chrome Browser E2E job 保持不变，WebKit failure trace 保留 7 天，测试只访问
+本地 Vite 与临时 room server。
+
+Automated WebKit coverage does not replace real iOS Safari acceptance.
 
 ## 发布顺序
 

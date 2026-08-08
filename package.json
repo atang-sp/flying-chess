@@ -38,7 +38,8 @@
     "test:room-server-smoke": "npm run build:room-server && node scripts/room-server-release-smoke-harness.mjs",
     "test:safe-diagnostics": "vitest run scripts/collect-safe-production-diagnostics.test.mjs",
     "verify:online-acceptance": "node scripts/online-acceptance-evidence.mjs",
-    "test:e2e": "playwright test tests/e2e"
+    "test:e2e": "playwright test tests/e2e",
+    "test:e2e:webkit-smoke": "playwright test --config=playwright.webkit.config.ts"
   },
   "lint-staged": {
     "*.{js,ts,vue}": [

@@ -328,6 +328,7 @@ describe('room server operability', () => {
     expect(response.status).toBe(200)
     const metrics = (await response.json()) as Record<string, unknown>
     expect(Object.keys(metrics)).toEqual(['schemaVersion', 'counters', 'gauges'])
+    expect(metrics.schemaVersion).toBe(2)
     expect(Object.keys(metrics.counters as object)).toEqual([
       'connectionsOpenedTotal',
       'connectionsClosedTotal',
@@ -340,6 +341,11 @@ describe('room server operability', () => {
       'roomsExpiredTotal',
       'protocolRejectedTotal',
       'rateLimitedMessagesTotal',
+      'legacyProtocolAcceptedTotal',
+      'explicitProtocolAcceptedTotal',
+      'roomResumeAttemptsTotal',
+      'roomResumeSucceededTotal',
+      'roomResumeRejectedTotal',
     ])
     expect(Object.keys(metrics.gauges as object)).toEqual([
       'rooms',
@@ -376,5 +382,246 @@ describe('room server operability', () => {
     const response = await fetch(`${httpBase(server)}/internal/metrics`)
 
     expect(response.status).toBe(404)
+  })
+
+  it('counts legacy and explicit protocol acceptance once per initial request', async () => {
+    const metricsToken = 'FAKE_METRICS_TOKEN_FOR_PROTOCOL_COUNT_TEST_ONLY_32_BYTES'
+    server = await createRoomServer({ port: 0, metricsToken })
+    const legacyHost = await OperabilityClient.connect(server.wsUrl)
+    const explicitGuest = await OperabilityClient.connect(server.wsUrl)
+    const explicitHost = await OperabilityClient.connect(server.wsUrl)
+    const incompatible = await OperabilityClient.connect(server.wsUrl)
+    clients.push(legacyHost, explicitGuest, explicitHost, incompatible)
+
+    legacyHost.send({
+      type: 'create_room',
+      requestId: 'metrics-legacy-create',
+      nickname: '旧协议主持人',
+      color: '#ff6b6b',
+    })
+    const legacySession = await legacyHost.next(message => message.type === 'session')
+    if (legacySession.type !== 'session') throw new Error('expected legacy session')
+    explicitGuest.send({
+      type: 'join_room',
+      requestId: 'metrics-explicit-join',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      roomCode: legacySession.roomCode,
+      nickname: '显式协议加入者',
+      color: '#4ecdc4',
+    })
+    await explicitGuest.next(message => message.type === 'session')
+    explicitHost.send({
+      type: 'create_room',
+      requestId: 'metrics-explicit-create',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      nickname: '显式协议主持人',
+      color: '#45b7d1',
+    })
+    await explicitHost.next(message => message.type === 'session')
+    explicitHost.send({
+      type: 'create_room',
+      requestId: 'metrics-explicit-create',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      nickname: '显式协议主持人',
+      color: '#45b7d1',
+    })
+    await expect(
+      explicitHost.next(
+        message =>
+          message.type === 'error' &&
+          message.requestId === 'metrics-explicit-create' &&
+          message.code === 'DUPLICATE_REQUEST'
+      )
+    ).resolves.toMatchObject({ type: 'error', code: 'DUPLICATE_REQUEST' })
+    incompatible.send({
+      type: 'create_room',
+      requestId: 'metrics-incompatible-create',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION + 1,
+      nickname: '不兼容协议',
+      color: '#96ceb4',
+    })
+    await incompatible.next(
+      message => message.type === 'error' && message.code === 'INCOMPATIBLE_PROTOCOL'
+    )
+
+    const response = await fetch(`${httpBase(server)}/internal/metrics`, {
+      headers: { authorization: `Bearer ${metricsToken}` },
+    })
+    await expect(response.json()).resolves.toMatchObject({
+      schemaVersion: 2,
+      counters: {
+        legacyProtocolAcceptedTotal: 1,
+        explicitProtocolAcceptedTotal: 2,
+        protocolRejectedTotal: 1,
+        roomsCreatedTotal: 2,
+        roomJoinsTotal: 1,
+      },
+    })
+  })
+
+  it('counts resume attempts, successes, and business rejections without incompatible or duplicate inflation', async () => {
+    const metricsToken = 'FAKE_METRICS_TOKEN_FOR_RESUME_COUNT_TEST_ONLY_32_BYTES'
+    server = await createRoomServer({ port: 0, metricsToken })
+    const host = await OperabilityClient.connect(server.wsUrl)
+    const guest = await OperabilityClient.connect(server.wsUrl)
+    clients.push(host, guest)
+    host.send({
+      type: 'create_room',
+      requestId: 'resume-metrics-create',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      nickname: '恢复指标主持人',
+      color: '#ff6b6b',
+    })
+    const hostSession = await host.next(message => message.type === 'session')
+    if (hostSession.type !== 'session') throw new Error('expected metrics host session')
+    guest.send({
+      type: 'join_room',
+      requestId: 'resume-metrics-legacy-join',
+      roomCode: hostSession.roomCode,
+      nickname: '恢复指标玩家',
+      color: '#4ecdc4',
+    })
+    const guestSession = await guest.next(message => message.type === 'session')
+    if (guestSession.type !== 'session') throw new Error('expected metrics guest session')
+    await guest.disconnect()
+
+    const resumed = await OperabilityClient.connect(server.wsUrl)
+    clients.push(resumed)
+    const successfulResume = {
+      type: 'resume_room',
+      requestId: 'resume-metrics-success',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      roomCode: guestSession.roomCode,
+      playerId: guestSession.playerId,
+      resumeToken: guestSession.resumeToken,
+    }
+    resumed.send(successfulResume)
+    await resumed.next(message => message.type === 'session')
+    resumed.send(successfulResume)
+    await expect(
+      resumed.next(
+        message =>
+          message.type === 'error' &&
+          message.requestId === 'resume-metrics-success' &&
+          message.code === 'DUPLICATE_REQUEST'
+      )
+    ).resolves.toMatchObject({ type: 'error', code: 'DUPLICATE_REQUEST' })
+
+    const invalidToken = await OperabilityClient.connect(server.wsUrl)
+    clients.push(invalidToken)
+    invalidToken.send({
+      type: 'resume_room',
+      requestId: 'resume-metrics-invalid-token',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      roomCode: guestSession.roomCode,
+      playerId: guestSession.playerId,
+      resumeToken: 'FAKE_INVALID_RESUME_TOKEN_FOR_METRICS_TEST_ONLY',
+    })
+    await invalidToken.next(
+      message => message.type === 'error' && message.code === 'INVALID_RESUME_TOKEN'
+    )
+
+    const missingRoom = await OperabilityClient.connect(server.wsUrl)
+    clients.push(missingRoom)
+    missingRoom.send({
+      type: 'resume_room',
+      requestId: 'resume-metrics-missing-room',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      roomCode: 'ZZZ999',
+      playerId: guestSession.playerId,
+      resumeToken: 'FAKE_RESUME_TOKEN_FOR_MISSING_ROOM_TEST_ONLY',
+    })
+    await missingRoom.next(message => message.type === 'error' && message.code === 'ROOM_NOT_FOUND')
+
+    const incompatible = await OperabilityClient.connect(server.wsUrl)
+    clients.push(incompatible)
+    incompatible.send({
+      type: 'resume_room',
+      requestId: 'resume-metrics-incompatible',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION + 1,
+      roomCode: guestSession.roomCode,
+      playerId: guestSession.playerId,
+      resumeToken: 'FAKE_RESUME_TOKEN_FOR_INCOMPATIBLE_TEST_ONLY',
+    })
+    await incompatible.next(
+      message => message.type === 'error' && message.code === 'INCOMPATIBLE_PROTOCOL'
+    )
+
+    const response = await fetch(`${httpBase(server)}/internal/metrics`, {
+      headers: { authorization: `Bearer ${metricsToken}` },
+    })
+    await expect(response.json()).resolves.toMatchObject({
+      schemaVersion: 2,
+      counters: {
+        legacyProtocolAcceptedTotal: 1,
+        explicitProtocolAcceptedTotal: 4,
+        roomResumeAttemptsTotal: 3,
+        roomResumeSucceededTotal: 1,
+        roomResumeRejectedTotal: 2,
+        roomResumesTotal: 1,
+        protocolRejectedTotal: 1,
+      },
+    })
+  })
+
+  it('fails closed at initial request tracking capacity without recounting an evicted ID', async () => {
+    const metricsToken = 'FAKE_METRICS_TOKEN_FOR_CAPACITY_TEST_ONLY_32_BYTES'
+    server = await createRoomServer({
+      port: 0,
+      metricsToken,
+      messagesPerSecond: 2_048,
+      messageBurst: 2_048,
+    })
+    const client = await OperabilityClient.connect(server.wsUrl)
+    clients.push(client)
+    const initialRequest = (requestId: string) => ({
+      type: 'join_room',
+      requestId,
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      roomCode: 'ZZZ999',
+      nickname: '容量测试玩家',
+      color: '#ff6b6b',
+    })
+
+    for (let index = 0; index < 1_024; index += 1) {
+      client.send(initialRequest(`protocol-capacity-${index}`))
+    }
+    await client.next(
+      message =>
+        message.type === 'error' &&
+        message.requestId === 'protocol-capacity-1023' &&
+        message.code === 'ROOM_NOT_FOUND'
+    )
+
+    client.send(initialRequest('protocol-capacity-0'))
+    await expect(
+      client.next(
+        message =>
+          message.type === 'error' &&
+          message.requestId === 'protocol-capacity-0' &&
+          message.code === 'DUPLICATE_REQUEST'
+      )
+    ).resolves.toMatchObject({ type: 'error', code: 'DUPLICATE_REQUEST' })
+
+    client.send(initialRequest('protocol-capacity-overflow'))
+    await expect(
+      client.next(
+        message =>
+          message.type === 'error' &&
+          message.requestId === 'protocol-capacity-overflow' &&
+          message.code === 'REQUEST_TRACKING_LIMIT_REACHED'
+      )
+    ).resolves.toMatchObject({ type: 'error', code: 'REQUEST_TRACKING_LIMIT_REACHED' })
+
+    const response = await fetch(`${httpBase(server)}/internal/metrics`, {
+      headers: { authorization: `Bearer ${metricsToken}` },
+    })
+    await expect(response.json()).resolves.toMatchObject({
+      schemaVersion: 2,
+      counters: {
+        explicitProtocolAcceptedTotal: 1_024,
+        roomJoinsTotal: 0,
+      },
+    })
   })
 })

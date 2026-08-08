@@ -39,6 +39,11 @@ export const SERVER_METRIC_COUNTER_NAMES = [
   'roomsExpiredTotal',
   'protocolRejectedTotal',
   'rateLimitedMessagesTotal',
+  'legacyProtocolAcceptedTotal',
+  'explicitProtocolAcceptedTotal',
+  'roomResumeAttemptsTotal',
+  'roomResumeSucceededTotal',
+  'roomResumeRejectedTotal',
 ] as const
 
 export type ServerMetricCounterName = (typeof SERVER_METRIC_COUNTER_NAMES)[number]
@@ -47,7 +52,7 @@ type ServerMetricCounters = Readonly<Record<ServerMetricCounterName, number>>
 const SERVER_METRIC_COUNTER_NAME_SET: ReadonlySet<string> = new Set(SERVER_METRIC_COUNTER_NAMES)
 
 export interface ServerMetricsSnapshot {
-  readonly schemaVersion: 1
+  readonly schemaVersion: 2
   readonly counters: ServerMetricCounters
   readonly gauges: Readonly<{
     rooms: number
@@ -73,6 +78,11 @@ function createEmptyCounters(): Record<ServerMetricCounterName, number> {
     roomsExpiredTotal: 0,
     protocolRejectedTotal: 0,
     rateLimitedMessagesTotal: 0,
+    legacyProtocolAcceptedTotal: 0,
+    explicitProtocolAcceptedTotal: 0,
+    roomResumeAttemptsTotal: 0,
+    roomResumeSucceededTotal: 0,
+    roomResumeRejectedTotal: 0,
   }
 }
 
@@ -95,7 +105,7 @@ export class ServerMetrics {
     rssBytes = process.memoryUsage().rss
   ): ServerMetricsSnapshot {
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       counters: { ...this.counters },
       gauges: {
         rooms: operational.rooms,
