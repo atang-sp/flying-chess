@@ -17,6 +17,10 @@ import {
   type PartyDirectorConfig,
   type PartyTokenAction,
 } from '@flying-chess/game-core/party-mode'
+import {
+  recordPartyMomentum,
+  type PartyMomentumEvent,
+} from '@flying-chess/game-core/party-momentum'
 
 export function usePartyMode(now: () => number = () => performance.now()) {
   const session = shallowRef<PartySession | null>(null)
@@ -78,6 +82,9 @@ export function usePartyMode(now: () => number = () => performance.now()) {
     },
     recordChain(chainLength: number): PartySession {
       return replace(recordPartyChain(requireSession(), chainLength))
+    },
+    recordMomentum(event: PartyMomentumEvent): PartySession {
+      return replace(recordPartyMomentum(requireSession(), event))
     },
   }
 }

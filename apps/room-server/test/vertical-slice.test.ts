@@ -170,22 +170,62 @@ describe('联网升温局服务器权威纵向切片', () => {
     })
   })
 
-  it('临时兼容缺少协议字段的旧客户端', async () => {
+  it('协议 1 继续兼容缺少协议字段的旧客户端建房、加入、操作和恢复', async () => {
     server = await createRoomServer({ port: 0 })
-    const legacy = await TestClient.connect(server.wsUrl)
-    clients.push(legacy)
+    const legacyHost = await TestClient.connect(server.wsUrl)
+    const legacyGuest = await TestClient.connect(server.wsUrl)
+    clients.push(legacyHost, legacyGuest)
 
-    legacy.send({
+    legacyHost.send({
       type: 'create_room',
       requestId: 'legacy-create',
       nickname: '旧页面玩家',
       color: '#ff6b6b',
     })
 
-    await expect(legacy.next(message => message.type === 'session')).resolves.toMatchObject({
+    const created = await legacyHost.next(message => message.type === 'session')
+    expect(created).toMatchObject({
       type: 'session',
       requestId: 'legacy-create',
       protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+    })
+    if (created.type !== 'session') throw new Error('expected legacy host session')
+
+    legacyGuest.send({
+      type: 'join_room',
+      requestId: 'legacy-join',
+      roomCode: created.roomCode,
+      nickname: '旧页面加入者',
+      color: '#4ecdc4',
+    })
+    const joined = await legacyGuest.next(message => message.type === 'session')
+    if (joined.type !== 'session') throw new Error('expected legacy guest session')
+
+    legacyHost.send({ type: 'confirm_settings', requestId: 'legacy-confirm-host' })
+    legacyGuest.send({ type: 'confirm_settings', requestId: 'legacy-confirm-guest' })
+    await legacyHost.next(
+      message => message.type === 'room_state' && message.room.confirmedPlayerIds.length === 2
+    )
+    legacyHost.send({ type: 'start_game', requestId: 'legacy-start' })
+    await legacyHost.next(
+      message => message.type === 'room_state' && message.room.game?.rulesetVersion === 'party_v3'
+    )
+
+    await legacyGuest.disconnect()
+    const resumedGuest = await TestClient.connect(server.wsUrl)
+    clients.push(resumedGuest)
+    resumedGuest.send({
+      type: 'resume_room',
+      requestId: 'legacy-resume',
+      roomCode: joined.roomCode,
+      playerId: joined.playerId,
+      resumeToken: joined.resumeToken,
+    })
+    await expect(resumedGuest.next(message => message.type === 'session')).resolves.toMatchObject({
+      type: 'session',
+      requestId: 'legacy-resume',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      playerId: joined.playerId,
     })
   })
 
@@ -333,6 +373,373 @@ describe('联网升温局服务器权威纵向切片', () => {
     })
     if (playerTwoView.type !== 'room_state') throw new Error('expected room state')
     expect(playerTwoView.room.game?.allowedCommands).toContain('roll_dice')
+  })
+
+  it('权威完成只增加一次 Momentum，并在去重、转交、暂停和断线恢复后完整保留', async () => {
+    server = await createRoomServer({
+      port: 0,
+      rollDice: () => 1,
+      randomInt: (_minimum, maximum) => maximum,
+      eventDeck: quietEventDeck,
+    })
+    const host = await TestClient.connect(server.wsUrl)
+    const guest = await TestClient.connect(server.wsUrl)
+    clients.push(host, guest)
+
+    host.send({
+      type: 'create_room',
+      requestId: 'momentum-create',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      nickname: 'Momentum 主持人',
+      color: '#ff6b6b',
+    })
+    const hostSession = await host.next(message => message.type === 'session')
+    if (hostSession.type !== 'session') throw new Error('expected host session')
+    guest.send({
+      type: 'join_room',
+      requestId: 'momentum-join',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      roomCode: hostSession.roomCode,
+      nickname: 'Momentum 玩家二',
+      color: '#4ecdc4',
+    })
+    const guestSession = await guest.next(message => message.type === 'session')
+    if (guestSession.type !== 'session') throw new Error('expected guest session')
+
+    host.send({ type: 'confirm_settings', requestId: 'momentum-confirm-host' })
+    guest.send({ type: 'confirm_settings', requestId: 'momentum-confirm-guest' })
+    await host.next(
+      message => message.type === 'room_state' && message.room.confirmedPlayerIds.length === 2
+    )
+    host.send({ type: 'start_game', requestId: 'momentum-start' })
+    const started = await host.next(
+      message => message.type === 'room_state' && message.room.game?.status === 'playing'
+    )
+    expect(started).toMatchObject({
+      type: 'room_state',
+      room: {
+        game: {
+          rulesetVersion: 'party_v3',
+          heat: 0,
+          heatContributionByPlayer: [0, 0],
+          heatLimitPending: false,
+          myTokensRemaining: 1,
+        },
+      },
+    })
+
+    guest.send({
+      type: 'submit_prediction',
+      requestId: 'momentum-predict',
+      prediction: 'high',
+    })
+    await host.next(
+      message => message.type === 'room_state' && message.room.game?.phase === 'awaiting_roll'
+    )
+    host.send({ type: 'roll_dice', requestId: 'momentum-roll' })
+    await host.next(
+      message => message.type === 'room_state' && message.room.game?.phase === 'awaiting_move'
+    )
+    host.send({ type: 'move', requestId: 'momentum-move' })
+    const offered = await host.next(
+      message =>
+        message.type === 'room_state' &&
+        message.room.game?.phase === 'awaiting_punishment_intervention'
+    )
+    expect(offered).toMatchObject({ type: 'room_state', room: { game: { heat: 0 } } })
+
+    host.send({ type: 'decline_intervention', requestId: 'momentum-decline-host' })
+    guest.send({ type: 'decline_intervention', requestId: 'momentum-decline-guest' })
+    await host.next(
+      message =>
+        message.type === 'room_state' && message.room.game?.phase === 'awaiting_acknowledgement'
+    )
+
+    host.send({ type: 'acknowledge', requestId: 'momentum-ack' })
+    const [hostCompleted, guestCompleted] = await Promise.all(
+      [host, guest].map(client =>
+        client.next(message => message.type === 'room_state' && message.room.game?.heat === 5)
+      )
+    )
+    for (const completed of [hostCompleted, guestCompleted]) {
+      expect(completed).toMatchObject({
+        type: 'room_state',
+        room: {
+          game: {
+            heat: 5,
+            heatContributionByPlayer: [5, 0],
+            heatLimitPending: false,
+            myTokensRemaining: 1,
+          },
+        },
+      })
+    }
+
+    host.send({ type: 'acknowledge', requestId: 'momentum-ack' })
+    await expect(
+      host.next(
+        message =>
+          message.type === 'error' &&
+          message.requestId === 'momentum-ack' &&
+          message.code === 'DUPLICATE_REQUEST'
+      )
+    ).resolves.toMatchObject({ type: 'error', code: 'DUPLICATE_REQUEST' })
+
+    host.send({
+      type: 'transfer_host',
+      requestId: 'momentum-transfer-host',
+      playerId: guestSession.playerId,
+    })
+    const transferred = await guest.next(
+      message =>
+        message.type === 'room_state' && message.room.hostPlayerId === guestSession.playerId
+    )
+    expect(transferred).toMatchObject({ type: 'room_state', room: { game: { heat: 5 } } })
+
+    guest.send({ type: 'pause_game', requestId: 'momentum-pause' })
+    await expect(
+      host.next(message => message.type === 'room_state' && message.room.game?.paused === true)
+    ).resolves.toMatchObject({ type: 'room_state', room: { game: { heat: 5 } } })
+    guest.send({ type: 'resume_game', requestId: 'momentum-resume-game' })
+    await expect(
+      host.next(
+        message =>
+          message.type === 'room_state' &&
+          message.room.hostPlayerId === guestSession.playerId &&
+          message.room.game?.paused === false &&
+          message.room.game.heat === 5
+      )
+    ).resolves.toMatchObject({ type: 'room_state', room: { game: { heat: 5 } } })
+
+    await guest.disconnect()
+    await host.next(
+      message =>
+        message.type === 'room_state' &&
+        message.room.players.some(
+          player => player.id === guestSession.playerId && !player.connected
+        )
+    )
+    const resumedGuest = await TestClient.connect(server.wsUrl)
+    clients.push(resumedGuest)
+    resumedGuest.send({
+      type: 'resume_room',
+      requestId: 'momentum-resume-room',
+      protocolVersion: CURRENT_ONLINE_PROTOCOL_VERSION,
+      roomCode: guestSession.roomCode,
+      playerId: guestSession.playerId,
+      resumeToken: guestSession.resumeToken,
+    })
+    await expect(resumedGuest.next(message => message.type === 'session')).resolves.toMatchObject({
+      type: 'session',
+      requestId: 'momentum-resume-room',
+      playerId: guestSession.playerId,
+      isHost: true,
+    })
+    const recovered = await resumedGuest.next(
+      message => message.type === 'room_state' && message.room.game?.heat === 5
+    )
+    expect(recovered).toMatchObject({
+      type: 'room_state',
+      room: {
+        game: {
+          heat: 5,
+          heatContributionByPlayer: [5, 0],
+          myTokensRemaining: 1,
+        },
+      },
+    })
+    if (recovered.type !== 'room_state' || !recovered.room.game) {
+      throw new Error('expected recovered room game')
+    }
+    const serializedGame = JSON.stringify(recovered.room.game)
+    expect(serializedGame).not.toContain('tokensRemaining')
+    expect(serializedGame).not.toContain('resumeToken')
+    expect(serializedGame).not.toContain('deferredPunishments')
+    expect(serializedGame).not.toContain('eventQueue')
+  })
+
+  it('heat 100 先保留同轮后续玩家回合，再在完整轮边界进入现有结算', async () => {
+    server = await createRoomServer({
+      port: 0,
+      rollDice: () => 1,
+      randomInt: (_minimum, maximum) => maximum,
+      eventDeck: quietEventDeck,
+      messagesPerSecond: 10_000,
+      messageBurst: 10_000,
+    })
+    const host = await TestClient.connect(server.wsUrl)
+    const guest = await TestClient.connect(server.wsUrl)
+    clients.push(host, guest)
+
+    host.send({
+      type: 'create_room',
+      requestId: 'limit-create',
+      nickname: '热度主持人',
+      color: '#ff6b6b',
+    })
+    const hostSession = await host.next(message => message.type === 'session')
+    if (hostSession.type !== 'session') throw new Error('expected host session')
+    host.send({
+      type: 'update_settings',
+      requestId: 'limit-settings',
+      settings: {
+        ...DEFAULT_ONLINE_ROOM_SETTINGS,
+        boardConfig: {
+          punishmentCells: 38,
+          chainPunishmentCells: 0,
+          bonusCells: 0,
+          reverseCells: 0,
+          restCells: 0,
+          restartCells: 0,
+          trapCells: 0,
+          qaCells: 0,
+          dareCells: 0,
+          totalCells: 40,
+        },
+        punishmentConfig: {
+          ...DEFAULT_ONLINE_ROOM_SETTINGS.punishmentConfig,
+          maxTakeoffFailures: 10,
+          doublePunishmentChance: 0,
+        },
+      },
+    })
+    await host.next(
+      message =>
+        message.type === 'room_state' && message.room.settings.boardConfig.punishmentCells === 38
+    )
+    guest.send({
+      type: 'join_room',
+      requestId: 'limit-join',
+      roomCode: hostSession.roomCode,
+      nickname: '热度玩家二',
+      color: '#4ecdc4',
+    })
+    const guestSession = await guest.next(message => message.type === 'session')
+    if (guestSession.type !== 'session') throw new Error('expected guest session')
+    const clientByPlayerId = new Map([
+      [hostSession.playerId, host],
+      [guestSession.playerId, guest],
+    ])
+
+    host.send({ type: 'confirm_settings', requestId: 'limit-confirm-host' })
+    guest.send({ type: 'confirm_settings', requestId: 'limit-confirm-guest' })
+    await host.next(
+      message => message.type === 'room_state' && message.room.confirmedPlayerIds.length === 2
+    )
+    host.send({ type: 'start_game', requestId: 'limit-start' })
+    const started = await host.next(
+      message => message.type === 'room_state' && message.room.game?.status === 'playing'
+    )
+    if (started.type !== 'room_state' || !started.room.game) {
+      throw new Error('expected started game')
+    }
+    let state = started.room.game
+    const currentPhase = () => state.phase
+    let sequence = 0
+    const nextState = async () => {
+      const previousRevision = state.revision
+      const update = await host.next(
+        message =>
+          message.type === 'room_state' &&
+          Boolean(message.room.game && message.room.game.revision > previousRevision)
+      )
+      if (update.type !== 'room_state' || !update.room.game) {
+        throw new Error('expected game update')
+      }
+      state = update.room.game
+    }
+    const sendAs = (playerId: string, message: object) => {
+      const client = clientByPlayerId.get(playerId)
+      if (!client) throw new Error('expected connected test player')
+      client.send(message)
+    }
+    const completePunishmentTurn = async () => {
+      if (state.phase === 'awaiting_prediction') {
+        const reactorId = state.reaction?.reactorPlayerId
+        if (!reactorId) throw new Error('expected reaction player')
+        sendAs(reactorId, {
+          type: 'submit_prediction',
+          requestId: `limit-predict-${sequence++}`,
+          prediction: state.roundNumber <= 4 ? 'low' : 'high',
+        })
+        await nextState()
+      }
+
+      const actorId = state.currentPlayerId
+      sendAs(actorId, { type: 'roll_dice', requestId: `limit-roll-${sequence++}` })
+      await nextState()
+      if (state.phase === 'awaiting_reaction') {
+        const reactorId = state.reaction?.reactorPlayerId
+        if (!reactorId) throw new Error('expected successful reaction player')
+        sendAs(reactorId, {
+          type: 'decide_reaction',
+          requestId: `limit-reaction-${sequence++}`,
+          decision: 'keep',
+        })
+        await nextState()
+      }
+      expect(state.phase).toBe('awaiting_move')
+
+      sendAs(actorId, { type: 'move', requestId: `limit-move-${sequence++}` })
+      await nextState()
+      if (state.phase === 'awaiting_punishment_choice') {
+        sendAs(actorId, {
+          type: 'choose_punishment',
+          requestId: `limit-choice-${sequence++}`,
+          selectedIndex: null,
+        })
+        await nextState()
+      }
+      if (state.phase !== 'awaiting_punishment_intervention') {
+        expect(['awaiting_prediction', 'awaiting_roll']).toContain(state.phase)
+        return
+      }
+      expect(state.phase).toBe('awaiting_punishment_intervention')
+
+      sendAs(actorId, {
+        type: 'decline_intervention',
+        requestId: `limit-decline-actor-${sequence++}`,
+      })
+      await nextState()
+      const otherPlayerId =
+        actorId === hostSession.playerId ? guestSession.playerId : hostSession.playerId
+      sendAs(otherPlayerId, {
+        type: 'decline_intervention',
+        requestId: `limit-decline-other-${sequence++}`,
+      })
+      await nextState()
+      while (
+        currentPhase() === 'awaiting_punishment_count' ||
+        currentPhase() === 'awaiting_punishment_variant'
+      ) {
+        host.send({ type: 'skip_action', requestId: `limit-resolve-${sequence++}` })
+        await nextState()
+      }
+      expect(state.phase).toBe('awaiting_acknowledgement')
+
+      while (currentPhase() === 'awaiting_acknowledgement') {
+        host.send({ type: 'skip_action', requestId: `limit-ack-${sequence++}` })
+        await nextState()
+      }
+    }
+
+    while (state.heat < 100) await completePunishmentTurn()
+
+    expect(state).toMatchObject({
+      status: 'playing',
+      heat: 100,
+      heatLimitPending: true,
+      currentPlayerId: guestSession.playerId,
+    })
+    expect(state.heatContributionByPlayer.reduce((total, value) => total + value, 0)).toBe(100)
+
+    await completePunishmentTurn()
+    expect(state).toMatchObject({
+      status: 'playing',
+      heat: 100,
+      heatLimitPending: true,
+      phase: 'awaiting_tiebreak',
+    })
   })
 
   it('服务器拒绝无关玩家跳过他人的私密预测', async () => {
@@ -594,6 +1001,8 @@ describe('联网升温局服务器权威纵向切片', () => {
       winner: false,
     })
     expect(guestClaim.game_id).toBe(hostClaim.game_id)
+    expect(hostClaim.ruleset_version).toBe('party_v3')
+    expect(guestClaim.ruleset_version).toBe('party_v3')
     expect(guestClaim.jti).not.toBe(hostClaim.jti)
     expect(guestUrl.toString()).not.toBe(hostUrl.toString())
     const metricsResponse = await fetch(

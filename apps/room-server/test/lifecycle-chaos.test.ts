@@ -219,7 +219,7 @@ describe('deterministic room lifecycle and chaos handling', () => {
       message =>
         message.type === 'room_state' &&
         message.room.game?.phase === 'awaiting_move' &&
-        message.room.game.myTokensRemaining === 1
+        message.room.game.myTokensRemaining === 0
     )
     host.send({ type: 'reroll', requestId: 'same-reroll-request' })
     await expect(
@@ -232,7 +232,7 @@ describe('deterministic room lifecycle and chaos handling', () => {
     ).resolves.toMatchObject({ type: 'error', code: 'DUPLICATE_REQUEST' })
 
     if (rerolled.type !== 'room_state') throw new Error('expected rerolled room state')
-    expect(rerolled.room.game?.myTokensRemaining).toBe(1)
+    expect(rerolled.room.game?.myTokensRemaining).toBe(0)
     expectValidPlayingProjection(rerolled.room)
   })
 

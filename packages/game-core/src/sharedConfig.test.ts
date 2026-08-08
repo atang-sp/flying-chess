@@ -311,7 +311,7 @@ describe('shared game configuration contract', () => {
     expect(JSON.parse(encoded)).toEqual(snapshot)
     expect(publicConfig).toMatchObject({
       modeId: 'online_party',
-      rulesetVersion: 'party_v2',
+      rulesetVersion: 'party_v3',
       boardConfig: snapshot.boardConfig,
     })
     expect(publicConfig).not.toHaveProperty('punishmentConfig')
@@ -331,8 +331,8 @@ describe('shared game configuration contract', () => {
     expect(JSON.stringify(standard)).toBe(before)
     expect(modeSnapshots.map(snapshot => snapshot.rulesetVersion)).toEqual([
       'classic_v1',
-      'party_v2',
-      'party_v2',
+      'party_v3',
+      'party_v3',
     ])
     expect(MODE_POLICIES.party.stageConstraints.warmup).toMatchObject({
       maxToolIntensity: 3,

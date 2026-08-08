@@ -23,6 +23,7 @@
   import PunishmentConfigPanel from '../components/PunishmentConfig.vue'
   import TrapConfigPanel from '../components/TrapConfig.vue'
   import GameBoard from '../components/GameBoard.vue'
+  import PartyHeatMeter from '../components/PartyHeatMeter.vue'
   import { OnlineRoomClient, type OnlineConnectionStatus } from './roomClient'
 
   const serverUrl = import.meta.env.VITE_ROOM_SERVER_URL ?? 'wss://rooms.atang-sp.run.place'
@@ -46,9 +47,11 @@
   const memoryAnswer = ref<string[]>([])
   const eventSelectedPlayerIds = ref<string[]>([])
   const hostTransferNotice = ref('')
+  const momentumRewardNotice = ref('')
   const currentTime = ref(Date.now())
   let requestSequence = 0
   let clockTimer: number | undefined
+  let momentumRewardNoticeTimer: number | undefined
 
   interface StoredSession {
     readonly roomCode: string
@@ -151,6 +154,13 @@
       (game.value?.players ?? []).findIndex(player => player.id === game.value?.currentPlayerId)
     )
   )
+  const ownPlayerIndex = computed(() =>
+    (game.value?.players ?? []).findIndex(player => player.id === session.value?.playerId)
+  )
+  const ownHeatContribution = computed(() => {
+    const playerIndex = ownPlayerIndex.value
+    return playerIndex < 0 ? 0 : (game.value?.heatContributionByPlayer[playerIndex] ?? 0)
+  })
   const currentPlayer = computed(() =>
     game.value?.players.find(player => player.id === game.value?.currentPlayerId)
   )
@@ -395,6 +405,27 @@
   )
 
   watch(
+    () => game.value?.myTokensRemaining,
+    (nextTokens, previousTokens) => {
+      if (
+        nextTokens === undefined ||
+        previousTokens === undefined ||
+        nextTokens <= previousTokens
+      ) {
+        return
+      }
+      momentumRewardNotice.value = `你获得 1 枚气势筹码（${nextTokens}/3）`
+      if (momentumRewardNoticeTimer !== undefined) {
+        window.clearTimeout(momentumRewardNoticeTimer)
+      }
+      momentumRewardNoticeTimer = window.setTimeout(() => {
+        momentumRewardNotice.value = ''
+        momentumRewardNoticeTimer = undefined
+      }, 3_500)
+    }
+  )
+
+  watch(
     () => `${game.value?.revision ?? 0}:${pendingAction.value?.kind ?? 'none'}`,
     () => {
       eventSelectedPlayerIds.value = []
@@ -415,6 +446,7 @@
 
   onUnmounted(() => {
     if (clockTimer !== undefined) window.clearInterval(clockTimer)
+    if (momentumRewardNoticeTimer !== undefined) window.clearTimeout(momentumRewardNoticeTimer)
     client.close()
   })
 </script>
@@ -423,7 +455,7 @@
   <main class="online-shell">
     <header class="online-header">
       <a :href="localGameUrl" class="back-link">← 返回本地玩法</a>
-      <p class="eyebrow">应用 v{{ applicationVersion }} · 规则集 party_v2 · 联机升温局</p>
+      <p class="eyebrow">应用 v{{ applicationVersion }} · 规则集 party_v3 · 联机升温局</p>
       <h1>每人一部手机，同步完成一局</h1>
       <p>服务器只在内存中保留房间；服务重启后房间结束。</p>
       <span class="connection-pill" :data-status="status">
@@ -679,6 +711,14 @@
       </section>
 
       <section v-else-if="game" class="game-layout">
+        <PartyHeatMeter
+          class="online-heat-meter"
+          :heat="game.heat"
+          :act="game.currentAct"
+          :heat-limit-pending="game.heatLimitPending"
+          :current-player-contribution="ownHeatContribution"
+          :reward-notice="momentumRewardNotice"
+        />
         <div class="online-card game-status-card">
           <p class="eyebrow">第 {{ game.revision }} 次状态更新</p>
           <h2 v-if="game.status === 'finished'">对局结束</h2>

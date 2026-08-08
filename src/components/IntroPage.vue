@@ -401,7 +401,7 @@
               <strong>升温局</strong>
               <span>实验玩法 · 约 20 分钟 · 三幕、筹码与同场反应</span>
             </span>
-            <span class="mode-card__badge mode-card__badge--party">party_v2</span>
+            <span class="mode-card__badge mode-card__badge--party">party_v3</span>
           </button>
         </div>
 
@@ -435,7 +435,7 @@
             <span>2–8 人扫码加入，由房间服务器同步局面</span>
           </span>
           <span class="mode-card__badge mode-card__badge--party">
-            应用 v{{ applicationVersion }} · party_v2
+            应用 v{{ applicationVersion }} · party_v3
           </span>
         </a>
       </section>

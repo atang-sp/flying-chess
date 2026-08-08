@@ -7,7 +7,7 @@
  */
 
 export type ModeId = 'classic' | 'party' | 'online_party'
-export type RulesetVersion = 'classic_v1' | 'party_v2'
+export type RulesetVersion = 'classic_v1' | 'party_v2' | 'party_v3'
 
 export interface PunishmentTool {
   name: string
@@ -274,7 +274,7 @@ export const MODE_POLICIES: Readonly<Record<ModeId, ModePolicy>> = {
   },
   party: {
     modeId: 'party',
-    rulesetVersion: 'party_v2',
+    rulesetVersion: 'party_v3',
     authority: 'local',
     boardOverlay: PARTY_BOARD_OVERLAY,
     contentOverlay: 'party',
@@ -285,7 +285,7 @@ export const MODE_POLICIES: Readonly<Record<ModeId, ModePolicy>> = {
   },
   online_party: {
     modeId: 'online_party',
-    rulesetVersion: 'party_v2',
+    rulesetVersion: 'party_v3',
     authority: 'server',
     boardOverlay: PARTY_BOARD_OVERLAY,
     contentOverlay: 'party',
@@ -1314,7 +1314,7 @@ export function normalizeConfigSnapshot(value: unknown): ConfigSnapshot {
   const standard = createStandardConfigSnapshot()
   const modeId: ModeId =
     source.modeId === 'party' || source.modeId === 'online_party' ? source.modeId : 'classic'
-  const rulesetVersion: RulesetVersion = modeId === 'classic' ? 'classic_v1' : 'party_v2'
+  const rulesetVersion = MODE_POLICIES[modeId].rulesetVersion
   const defaultStageConstraints = MODE_POLICIES[modeId].stageConstraints
   const sourceStageConstraints = isRecord(source.stageConstraints) ? source.stageConstraints : {}
   const stageConstraints = Object.fromEntries(
@@ -1412,7 +1412,7 @@ export function validateConfigSnapshot(value: unknown): value is ConfigSnapshot 
   return (
     ((value.modeId === 'classic' && value.rulesetVersion === 'classic_v1') ||
       ((value.modeId === 'party' || value.modeId === 'online_party') &&
-        value.rulesetVersion === 'party_v2')) &&
+        value.rulesetVersion === 'party_v3')) &&
     validateBoardConfig(value.boardConfig) &&
     punishmentConfigValid &&
     validateTrapConfig(value.traps) &&

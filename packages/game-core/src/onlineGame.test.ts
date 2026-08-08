@@ -123,6 +123,7 @@ describe('联网升温局权威规则内核', () => {
 
     expect(game.players).toHaveLength(2)
     expect(game.status).toBe('playing')
+    expect(game.rulesetVersion).toBe('party_v3')
     expect(game.settings.boardPreset).toBe('standard')
     expect(game.board.filter(cell => cell.type === 'qa')).toHaveLength(
       game.settings.boardConfig.qaCells ?? 0
@@ -140,11 +141,198 @@ describe('联网升温局权威规则内核', () => {
     ).toBe(false)
   })
 
-  it('安全节点允许三人局移除至两人，但不允许只剩一人', () => {
-    const twoPlayerGame = removeOnlinePlayerAtSafeNode(createOnlineGame(roster), 'p3')
+  it('only records punishment momentum at the authoritative completion acknowledgement', () => {
+    let game = createOnlineGame(roster.slice(0, 2), DEFAULT_ONLINE_ROOM_SETTINGS, {
+      eventDeck: quietEventDeck,
+    })
+    game = { ...game, partySession: { ...game.partySession, tokensRemaining: [0, 0] } }
+    game = applyOnlineGameCommand(game, 'p2', {
+      type: 'submit_prediction',
+      prediction: 'high',
+    })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'roll_dice' }, { rollDice: () => 1 })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'move' })
 
-    expect(twoPlayerGame.players.map(player => player.id)).toEqual(['p1', 'p2'])
-    expect(() => removeOnlinePlayerAtSafeNode(twoPlayerGame, 'p2')).toThrow(
+    expect(game.phase).toBe('awaiting_acknowledgement')
+    expect(game.partySession.heat).toBe(0)
+    if (game.pendingAction?.kind !== 'acknowledgement') {
+      throw new Error('expected authoritative punishment acknowledgement')
+    }
+    const participantIndex = game.pendingAction.playerIndex
+    const participant = game.players[participantIndex]
+    if (!participant) throw new Error('expected punishment participant')
+
+    game = applyOnlineGameCommand(game, participant.id, { type: 'acknowledge' })
+
+    expect(game.partySession.heat).toBe(5)
+    expect(game.partySession.heatContributionByPlayer[participantIndex]).toBe(5)
+    expect(projectOnlineGameView(game, 'p2')).toMatchObject({
+      heat: 5,
+      heatContributionByPlayer: game.partySession.heatContributionByPlayer,
+      heatLimitPending: false,
+    })
+  })
+
+  it('records token amplification as strengthened completion and rewards the actual participant', () => {
+    let game = createOnlineGame(roster.slice(0, 2), DEFAULT_ONLINE_ROOM_SETTINGS, {
+      eventDeck: quietEventDeck,
+    })
+    game = applyOnlineGameCommand(game, 'p2', {
+      type: 'submit_prediction',
+      prediction: 'low',
+    })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'roll_dice' }, { rollDice: () => 1 })
+    game = applyOnlineGameCommand(game, 'p2', { type: 'decide_reaction', decision: 'keep' })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'move' })
+    expect(game.pendingAction).toMatchObject({ kind: 'punishment_intervention' })
+
+    game = applyOnlineGameCommand(game, 'p2', { type: 'intervene', action: 'amplify' })
+    expect(game.pendingAction).toMatchObject({ kind: 'acknowledgement', playerIndex: 0 })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'acknowledge' })
+
+    expect(game.partySession).toMatchObject({
+      heat: 10,
+      heatContributionByPlayer: [8, 2],
+      tokensRemaining: [2, 1],
+    })
+  })
+
+  it('keeps deferred punishment momentum neutral until the future authoritative completion', () => {
+    let game = createOnlineGame(roster.slice(0, 2), DEFAULT_ONLINE_ROOM_SETTINGS, {
+      eventDeck: quietEventDeck,
+    })
+    game = { ...game, partySession: { ...game.partySession, tokensRemaining: [0, 0] } }
+    game = applyOnlineGameCommand(game, 'p2', { type: 'submit_prediction', prediction: 'high' })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'roll_dice' }, { rollDice: () => 1 })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'move' })
+    if (game.pendingAction?.kind !== 'acknowledgement') {
+      throw new Error('expected punishment acknowledgement before deferred conversion')
+    }
+    const resolution = { ...game.pendingAction.resolution, variant: 'deferred' as const }
+    const decisionPlayerIndex = resolution.executorIndex ?? resolution.targetPlayerIndex
+    game = {
+      ...game,
+      phase: 'awaiting_punishment_variant',
+      pendingAction: {
+        kind: 'punishment_variant',
+        resolution,
+        decisionPlayerIndex,
+        chainActive: false,
+        amplified: true,
+        resumeTurnAfter: false,
+      },
+    }
+
+    game = applyOnlineGameCommand(game, game.players[decisionPlayerIndex]?.id ?? '', {
+      type: 'defer_punishment',
+      defer: true,
+    })
+    expect(game.partySession.heat).toBe(0)
+    expect(game.deferredPunishments).toHaveLength(1)
+    expect(game.deferredPunishments[0]).toMatchObject({ amplified: true, chainActive: false })
+
+    game = applyOnlineGameCommand(game, 'p2', { type: 'roll_dice' }, { rollDice: () => 6 })
+    game = applyOnlineGameCommand(game, 'p2', { type: 'move' })
+    expect(game.pendingAction).toMatchObject({ kind: 'acknowledgement', playerIndex: 0 })
+    expect(game.partySession.heat).toBe(0)
+
+    game = applyOnlineGameCommand(game, 'p1', { type: 'acknowledge' })
+    expect(game.partySession).toMatchObject({
+      heat: 8,
+      heatContributionByPlayer: [8, 0],
+      tokensRemaining: [1, 0],
+    })
+  })
+
+  it('records each actually completed chain punishment only after acknowledgement', () => {
+    let game = createOnlineGame(roster.slice(0, 2), DEFAULT_ONLINE_ROOM_SETTINGS, {
+      eventDeck: quietEventDeck,
+    })
+    game = { ...game, partySession: { ...game.partySession, tokensRemaining: [0, 0] } }
+    game = applyOnlineGameCommand(game, 'p2', { type: 'submit_prediction', prediction: 'high' })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'roll_dice' }, { rollDice: () => 1 })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'move' })
+    if (game.pendingAction?.kind !== 'acknowledgement') {
+      throw new Error('expected punishment acknowledgement')
+    }
+    game = {
+      ...game,
+      pendingAction: { ...game.pendingAction, chainActive: true },
+    }
+
+    expect(game.partySession.heat).toBe(0)
+    game = applyOnlineGameCommand(game, 'p1', { type: 'acknowledge' })
+
+    expect(game.partySession).toMatchObject({
+      heat: 7,
+      heatContributionByPlayer: [7, 0],
+      tokensRemaining: [1, 0],
+    })
+    expect(game.phase).toBe('awaiting_chain_roll')
+  })
+
+  it('reaches heat 100 mid-round but enters settlement only at the complete round boundary', () => {
+    let game = createOnlineGame(roster.slice(0, 2), DEFAULT_ONLINE_ROOM_SETTINGS, {
+      eventDeck: quietEventDeck,
+    })
+    game = {
+      ...game,
+      partySession: {
+        ...game.partySession,
+        heat: 93,
+        heatContributionByPlayer: [93, 0],
+        tokensRemaining: [0, 0],
+      },
+    }
+    game = applyOnlineGameCommand(game, 'p2', { type: 'submit_prediction', prediction: 'high' })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'roll_dice' }, { rollDice: () => 1 })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'move' })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'acknowledge' })
+
+    expect(game.partySession).toMatchObject({
+      heat: 98,
+      heatLimitPending: false,
+      shouldEnd: false,
+    })
+    expect(game.currentPlayerId).toBe('p2')
+
+    game = applyOnlineGameCommand(game, 'p2', { type: 'roll_dice' }, { rollDice: () => 1 })
+    game = applyOnlineGameCommand(game, 'p2', { type: 'move' })
+    expect(game.partySession.heat).toBe(98)
+    game = applyOnlineGameCommand(game, 'p2', { type: 'acknowledge' })
+
+    expect(game.partySession).toMatchObject({
+      heat: 100,
+      heatContributionByPlayer: [98, 2],
+      heatLimitPending: true,
+      shouldEnd: true,
+      act: 'finale',
+    })
+    expect(game.phase).toBe('awaiting_tiebreak')
+  })
+
+  it('安全节点允许三人局移除至两人，但不允许只剩一人', () => {
+    const initial = createOnlineGame(roster)
+    const twoPlayerGame = removeOnlinePlayerAtSafeNode(
+      {
+        ...initial,
+        partySession: {
+          ...initial.partySession,
+          heat: 9,
+          heatContributionByPlayer: [2, 3, 4],
+          tokensRemaining: [1, 2, 3],
+        },
+      },
+      'p2'
+    )
+
+    expect(twoPlayerGame.players.map(player => player.id)).toEqual(['p1', 'p3'])
+    expect(twoPlayerGame.partySession).toMatchObject({
+      heat: 9,
+      heatContributionByPlayer: [2, 7],
+      tokensRemaining: [1, 3],
+    })
+    expect(() => removeOnlinePlayerAtSafeNode(twoPlayerGame, 'p3')).toThrow(
       '联网升温局至少保留两名玩家'
     )
   })
@@ -248,6 +436,8 @@ describe('联网升温局权威规则内核', () => {
     expect(serializedView).not.toContain('pendingMiniGameImmunity')
     expect(serializedView).not.toContain('pendingMiniGameMultiplier')
     expect(serializedView).not.toContain('pendingMercyMultiplier')
+    expect(serializedView).not.toContain('tokensRemaining')
+    expect(projectOnlineGameView(stateWithPrivateModifier, 'p2').myTokensRemaining).toBe(1)
   })
 
   it('老友加码场景会应用暖场幕的最低惩罚强度', () => {
@@ -390,7 +580,7 @@ describe('联网升温局权威规则内核', () => {
 
     game = applyOnlineGameCommand(game, 'p1', { type: 'intervene', action: 'immunity' })
     expect(game.currentPlayerId).toBe('p2')
-    expect(projectOnlineGameView(game, 'p1').myTokensRemaining).toBe(1)
+    expect(projectOnlineGameView(game, 'p1').myTokensRemaining).toBe(0)
   })
 
   it('事件投票保持逐玩家私密，收齐后统一结算并恢复下一回合', () => {
@@ -880,6 +1070,7 @@ describe('联网升温局权威规则内核', () => {
     game = applyOnlineGameCommand(game, 'p2', { type: 'submit_prediction', prediction: 'high' })
     game = applyOnlineGameCommand(game, 'p1', { type: 'roll_dice' }, { rollDice: () => 6 })
     game = applyOnlineGameCommand(game, 'p2', { type: 'decide_reaction', decision: 'keep' })
+    game = { ...game, partySession: { ...game.partySession, tokensRemaining: [0, 0, 0] } }
     game = applyOnlineGameCommand(
       game,
       'p1',
@@ -909,5 +1100,190 @@ describe('联网升温局权威规则内核', () => {
     expect(projectOnlineGameView(game, 'p3').pendingAction).toEqual({ kind: 'acknowledgement' })
     game = applyOnlineGameCommand(game, 'p2', { type: 'acknowledge' })
     expect(game.currentPlayerId).toBe('p2')
+    expect(game.partySession).toMatchObject({
+      heat: 12,
+      heatContributionByPlayer: [5, 7, 0],
+      tokensRemaining: [1, 1, 0],
+    })
+  })
+
+  it('小游戏免罚结算为零次时不记录惩罚完成热度', () => {
+    const board: BoardCell[] = Array.from({ length: 40 }, (_, index) => ({
+      id: index + 1,
+      position: index + 1,
+      type: 'bonus',
+      effect: { type: 'move', value: 0, description: '普通格子' },
+    }))
+    board[6] = {
+      id: 7,
+      position: 7,
+      type: 'punishment',
+      effect: {
+        type: 'punishment',
+        value: 0,
+        description: '免罚测试',
+        punishment: {
+          tool: { name: '测试工具', intensity: 1, ratio: 100 },
+          bodyPart: { name: '测试部位', sensitivity: 1, ratio: 100 },
+          position: { name: '测试姿势', ratio: 100, compatibleBodyParts: [] },
+          strikes: 5,
+          description: '免罚测试 5 下',
+        },
+      },
+    }
+    let game = createOnlineGame(roster, DEFAULT_ONLINE_ROOM_SETTINGS, {
+      board,
+      eventDeck: quietEventDeck,
+    })
+    game = {
+      ...game,
+      players: game.players.map((player, index) => ({
+        ...player,
+        position: 1,
+        hasTakenOff: true,
+        pendingMiniGameImmunity: index === 0,
+      })),
+      partySession: { ...game.partySession, tokensRemaining: [0, 0, 0] },
+    }
+    game = applyOnlineGameCommand(game, 'p2', { type: 'submit_prediction', prediction: 'low' })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'roll_dice' }, { rollDice: () => 6 })
+    game = applyOnlineGameCommand(
+      game,
+      'p1',
+      { type: 'move' },
+      { rollDice: () => 1, randomInt: (_minimum, maximum) => maximum }
+    )
+
+    expect(game.players[0]?.pendingMiniGameImmunity).toBeUndefined()
+    expect(game.pendingAction).toMatchObject({
+      kind: 'acknowledgement',
+      resolution: { count: { kind: 'fixed', value: 0 } },
+    })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'acknowledge' })
+
+    expect(game.currentPlayerId).toBe('p2')
+    expect(game.partySession).toMatchObject({
+      heat: 0,
+      heatContributionByPlayer: [0, 0, 0],
+      tokensRemaining: [0, 0, 0],
+    })
+  })
+
+  it('双向惩罚保留原受罚者的绑定上下文并统一归因三名参与者', () => {
+    const board: BoardCell[] = Array.from({ length: 40 }, (_, index) => ({
+      id: index + 1,
+      position: index + 1,
+      type: 'bonus',
+      effect: { type: 'move', value: 0, description: '普通格子' },
+    }))
+    board[6] = {
+      id: 7,
+      position: 7,
+      type: 'punishment',
+      effect: {
+        type: 'punishment',
+        value: 0,
+        description: '双向绑定测试',
+        punishment: {
+          tool: { name: '测试工具', intensity: 1, ratio: 100 },
+          bodyPart: { name: '测试部位', sensitivity: 1, ratio: 100 },
+          position: { name: '测试姿势', ratio: 100, compatibleBodyParts: [] },
+          strikes: 5,
+          description: '双向绑定测试 5 下',
+        },
+      },
+    }
+    let game = createOnlineGame(roster, DEFAULT_ONLINE_ROOM_SETTINGS, {
+      board,
+      eventDeck: quietEventDeck,
+    })
+    game = {
+      ...game,
+      players: game.players.map(player => ({ ...player, position: 1, hasTakenOff: true })),
+      partySession: { ...game.partySession, tokensRemaining: [0, 0, 0] },
+      eventState: {
+        ...game.eventState,
+        activeBinding: { playerIndices: [0, 2], remainingTurns: 2 },
+      },
+    }
+    game = applyOnlineGameCommand(game, 'p2', { type: 'submit_prediction', prediction: 'low' })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'roll_dice' }, { rollDice: () => 6 })
+    game = applyOnlineGameCommand(
+      game,
+      'p1',
+      { type: 'move' },
+      {
+        rollDice: () => 1,
+        randomInt: (_minimum, maximum) => maximum,
+        choice: entries => entries[0] as (typeof entries)[number],
+      }
+    )
+    if (game.pendingAction?.kind !== 'acknowledgement') throw new Error('expected punishment')
+    game = {
+      ...game,
+      pendingAction: {
+        ...game.pendingAction,
+        resolution: { ...game.pendingAction.resolution, variant: 'mutual' },
+      },
+    }
+
+    game = applyOnlineGameCommand(game, 'p1', { type: 'acknowledge' })
+    expect(game.pendingAction).toMatchObject({ kind: 'acknowledgement', playerIndex: 1 })
+    game = applyOnlineGameCommand(game, 'p2', { type: 'acknowledge' })
+    expect(game.pendingAction).toMatchObject({
+      kind: 'acknowledgement',
+      playerIndex: 2,
+      resolution: { executorIndex: 0 },
+    })
+    game = applyOnlineGameCommand(game, 'p3', { type: 'acknowledge' })
+
+    expect(game.partySession).toMatchObject({
+      heat: 7,
+      heatContributionByPlayer: [3, 2, 2],
+      tokensRemaining: [1, 1, 1],
+    })
+  })
+
+  it('heat 100 后自然到达终点也等待全员完成本轮', () => {
+    const board: BoardCell[] = Array.from({ length: 40 }, (_, index) => ({
+      id: index + 1,
+      position: index + 1,
+      type: 'bonus',
+      effect: { type: 'move', value: 0, description: '普通格子' },
+    }))
+    let game = createOnlineGame(roster.slice(0, 2), DEFAULT_ONLINE_ROOM_SETTINGS, {
+      board,
+      eventDeck: quietEventDeck,
+    })
+    game = {
+      ...game,
+      players: game.players.map((player, index) => ({
+        ...player,
+        position: index === 0 ? 39 : 12,
+        hasTakenOff: true,
+      })),
+      partySession: {
+        ...game.partySession,
+        heat: 100,
+        heatContributionByPlayer: [100, 0],
+        heatLimitPending: true,
+      },
+    }
+    game = applyOnlineGameCommand(game, 'p2', { type: 'submit_prediction', prediction: 'low' })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'roll_dice' }, { rollDice: () => 1 })
+    game = applyOnlineGameCommand(game, 'p2', { type: 'decide_reaction', decision: 'keep' })
+    game = applyOnlineGameCommand(game, 'p1', { type: 'move' })
+
+    expect(game).toMatchObject({
+      status: 'playing',
+      currentPlayerId: 'p2',
+      winnerPlayerId: null,
+      partySession: { completedTurns: 1, heatLimitPending: true, shouldEnd: false },
+    })
+    expect(game.players[0]?.isWinner).toBe(false)
+
+    game = applyOnlineGameCommand(game, 'p2', { type: 'roll_dice' }, { rollDice: () => 1 })
+    game = applyOnlineGameCommand(game, 'p2', { type: 'move' })
+    expect(game).toMatchObject({ status: 'finished', winnerPlayerId: 'p1' })
   })
 })

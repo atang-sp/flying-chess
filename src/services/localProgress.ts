@@ -174,7 +174,7 @@ export function getLocalAchievements(progress: LocalProgress): readonly LocalAch
 }
 
 export function getUnlockedPartyContent(progress: LocalProgress): UnlockedPartyContent {
-  // party_v2 的四种核心变体始终可用；跨局进度额外解锁返场变体，避免削弱 A1 基线。
+  // Party 的四种核心变体始终可用；跨局进度额外解锁返场变体，避免削弱既有基线。
   const punishmentVariants: PunishmentVariant[] = ['blindbox', 'conditional', 'deferred', 'mutual']
   if (progress.totals.completedGames >= 2) punishmentVariants.push('encore')
 

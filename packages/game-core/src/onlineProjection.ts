@@ -150,6 +150,9 @@ export function projectOnlineGameView(
     },
     currentAct: state.partySession.act,
     roundNumber: state.partySession.roundNumber,
+    heat: state.partySession.heat,
+    heatContributionByPlayer: [...state.partySession.heatContributionByPlayer],
+    heatLimitPending: state.partySession.heatLimitPending,
     myTokensRemaining: state.partySession.tokensRemaining[viewerIndex] ?? 0,
     reaction: reaction
       ? {

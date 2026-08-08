@@ -19,6 +19,11 @@ import {
   type PartySession,
   type PartyTieBreakState,
 } from './partyMode'
+import {
+  isPartyPunishmentCompleted,
+  recordPartyMomentum,
+  removePartyMomentumPlayer,
+} from './partyMomentum'
 import { resolveCellEffect, resolvePlayerMovement } from './movement'
 import {
   createAutoBoardConfig,
@@ -95,6 +100,7 @@ import {
   pickPunishmentVariant,
   resolveRule,
   scaleResolvedPunishmentCount,
+  type RuleRandomSource,
 } from './ruleResolution'
 import {
   applyPartyEventPunishmentRules,
@@ -142,6 +148,17 @@ export type {
 } from './domainTypes'
 export type { PartyEventCard, PartyEventState } from './partyEvents'
 export {
+  PARTY_FINALE_THRESHOLD,
+  PARTY_HEATING_THRESHOLD,
+  PARTY_HEAT_MAX,
+  PARTY_MAX_TOKENS,
+  PARTY_STARTING_TOKENS,
+  isPartyPunishmentCompleted,
+  recordPartyMomentum,
+  removePartyMomentumPlayer,
+} from './partyMomentum'
+export type { PartyMomentumEvent, PartyMomentumState } from './partyMomentum'
+export {
   createAutoBoardConfig,
   createPlayerRoster,
   DEFAULT_PLAYER_COLORS,
@@ -153,7 +170,7 @@ export {
   nextPlayerIndex,
 }
 
-export const ONLINE_RULESET_VERSION = 'party_v2' as const
+export const ONLINE_RULESET_VERSION = 'party_v3' as const
 
 export const ONLINE_PLAYER_COLORS = DEFAULT_PLAYER_COLORS
 
@@ -360,6 +377,7 @@ interface PendingPunishmentIntervention {
   readonly options: readonly PartyPunishmentInterventionOption[]
   readonly declinedPlayerIndices: readonly number[]
   readonly chainActive: boolean
+  readonly amplified: boolean
 }
 
 interface PendingPunishmentCount {
@@ -367,6 +385,7 @@ interface PendingPunishmentCount {
   readonly resolution: ResolvedPunishmentResult
   readonly chooserPlayerIndex: number
   readonly chainActive: boolean
+  readonly amplified: boolean
   readonly resumeTurnAfter: boolean
 }
 
@@ -375,6 +394,7 @@ interface PendingPunishmentVariant {
   readonly resolution: ResolvedPunishmentResult
   readonly decisionPlayerIndex: number
   readonly chainActive: boolean
+  readonly amplified: boolean
   readonly resumeTurnAfter: boolean
 }
 
@@ -383,10 +403,13 @@ interface PendingAcknowledgement {
   readonly playerIndex: number
   readonly resolution: ResolvedPunishmentResult
   readonly chainActive: boolean
+  readonly amplified: boolean
   readonly isBoundCopy: boolean
   readonly resumeTurnAfter: boolean
   readonly mercyAvailable: boolean
   readonly doubled: boolean
+  readonly participantPlayerIndices: readonly number[]
+  readonly bindingSourcePlayerIndex: number
 }
 
 interface PendingMercyDecision {
@@ -395,9 +418,12 @@ interface PendingMercyDecision {
   readonly requesterPlayerIndex: number
   readonly decisionPlayerIndex: number
   readonly chainActive: boolean
+  readonly amplified: boolean
   readonly isBoundCopy: boolean
   readonly resumeTurnAfter: boolean
   readonly doubled: boolean
+  readonly participantPlayerIndices: readonly number[]
+  readonly bindingSourcePlayerIndex: number
 }
 
 interface PendingChainRoll {
@@ -485,6 +511,12 @@ export interface OnlineVictorySettlementEntry {
   readonly count: number
 }
 
+export interface OnlineDeferredPunishment {
+  readonly resolution: ResolvedPunishmentResult
+  readonly amplified: boolean
+  readonly chainActive: boolean
+}
+
 export interface OnlineGamePlayerView {
   readonly id: string
   readonly nickname: string
@@ -509,7 +541,7 @@ export interface OnlineGameState {
   readonly pendingAction: OnlinePendingAction | null
   readonly eventState: PartyEventState
   readonly eventQueue: readonly PartyEventCard[]
-  readonly deferredPunishments: readonly ResolvedPunishmentResult[]
+  readonly deferredPunishments: readonly OnlineDeferredPunishment[]
   readonly turnHadPunishment: boolean
   readonly victoryConfig: VictoryConfig
   readonly winnerPlayerId: string | null
@@ -579,6 +611,9 @@ export interface OnlineGameView {
   readonly settings: OnlineRoomSettingsView
   readonly currentAct: PartyAct
   readonly roundNumber: number
+  readonly heat: number
+  readonly heatContributionByPlayer: readonly number[]
+  readonly heatLimitPending: boolean
   readonly myTokensRemaining: number
   readonly reaction: Readonly<{
     status: NonNullable<PartySession['reaction']>['status']
@@ -742,6 +777,21 @@ const ONLINE_BASELINE_PUNISHMENT_VARIANTS: readonly PunishmentVariant[] = [
 
 const DEFAULT_DEPENDENCIES: GameCommandDependencies = {
   rollDice: () => cryptoRandomInt(1, 6),
+}
+
+function ruleRandomSourceFor(dependencies: GameCommandDependencies): RuleRandomSource | undefined {
+  if (!dependencies.randomInt && !dependencies.choice) return undefined
+  const randomInt = dependencies.randomInt ?? cryptoRandomInt
+  return {
+    randomInt,
+    choice:
+      dependencies.choice ??
+      (entries => {
+        const selected = entries[randomInt(0, entries.length - 1)]
+        if (selected === undefined) throw new Error('不能从空集合中选择')
+        return selected
+      }),
+  }
 }
 
 export function createOnlineGame(
@@ -984,7 +1034,8 @@ function applyOnlineGameCommandInternal(
     return beginPunishmentResolution(
       { ...state, partySession, pendingAction: null },
       pending,
-      selectedAction
+      selectedAction,
+      dependencies
     )
   }
 
@@ -1003,6 +1054,7 @@ function applyOnlineGameCommandInternal(
       if (pending.options.every(candidate => declined.includes(candidate.playerIndex))) {
         return preparePunishmentDecision(state, pending.resolution, {
           chainActive: pending.chainActive,
+          amplified: pending.amplified,
         })
       }
       return {
@@ -1049,7 +1101,10 @@ function applyOnlineGameCommandInternal(
     return preparePunishmentDecision(
       { ...state, partySession, pendingAction: null },
       outcome.resolution,
-      { chainActive: pending.chainActive }
+      {
+        chainActive: pending.chainActive,
+        amplified: pending.amplified || outcome.action === 'amplify',
+      }
     )
   }
 
@@ -1064,6 +1119,7 @@ function applyOnlineGameCommandInternal(
     const resolution = finalizePunishmentCount(pending.resolution, command.count)
     return preparePunishmentDecision({ ...state, pendingAction: null }, resolution, {
       chainActive: pending.chainActive,
+      amplified: pending.amplified,
       resumeTurnAfter: pending.resumeTurnAfter,
     })
   }
@@ -1094,9 +1150,12 @@ function applyOnlineGameCommandInternal(
         requesterPlayerIndex: actorIndex,
         decisionPlayerIndex,
         chainActive: pending.chainActive,
+        amplified: pending.amplified,
         isBoundCopy: pending.isBoundCopy,
         resumeTurnAfter: pending.resumeTurnAfter,
         doubled: pending.doubled,
+        participantPlayerIndices: pending.participantPlayerIndices,
+        bindingSourcePlayerIndex: pending.bindingSourcePlayerIndex,
       },
     }
   }
@@ -1121,10 +1180,13 @@ function applyOnlineGameCommandInternal(
       : state.players
     return awaitPunishmentAcknowledgement({ ...state, players, pendingAction: null }, resolution, {
       chainActive: pending.chainActive,
+      amplified: pending.amplified,
       isBoundCopy: pending.isBoundCopy,
       resumeTurnAfter: pending.resumeTurnAfter,
       mercyAvailable: false,
       doubled: pending.doubled,
+      participantPlayerIndices: pending.participantPlayerIndices,
+      bindingSourcePlayerIndex: pending.bindingSourcePlayerIndex,
     })
   }
 
@@ -1145,6 +1207,7 @@ function applyOnlineGameCommandInternal(
         resolveConditionalPunishment(pending.resolution, command.conditionMet),
         {
           chainActive: pending.chainActive,
+          amplified: pending.amplified,
           resumeTurnAfter: pending.resumeTurnAfter,
         }
       )
@@ -1155,6 +1218,7 @@ function applyOnlineGameCommandInternal(
     if (!command.defer) {
       return awaitPunishmentAcknowledgement({ ...state, pendingAction: null }, pending.resolution, {
         chainActive: pending.chainActive,
+        amplified: pending.amplified,
         resumeTurnAfter: pending.resumeTurnAfter,
       })
     }
@@ -1163,7 +1227,14 @@ function applyOnlineGameCommandInternal(
       ...state,
       revision: state.revision + 1,
       pendingAction: null,
-      deferredPunishments: [...state.deferredPunishments, deferred],
+      deferredPunishments: [
+        ...state.deferredPunishments,
+        {
+          resolution: deferred,
+          amplified: pending.amplified,
+          chainActive: pending.chainActive,
+        },
+      ],
     }
     return pending.chainActive
       ? awaitChainRoll(queued, pending.resolution.actorIndex, 1)
@@ -1225,6 +1296,7 @@ function applyOnlineGameCommandInternal(
         diceValue: value,
       },
       action,
+      dependencies,
       pending.chainCount + 1
     )
   }
@@ -1257,7 +1329,8 @@ function applyOnlineGameCommandInternal(
           choices: [action, action],
           diceValue: state.diceValue ?? 1,
         },
-        action
+        action,
+        dependencies
       )
     }
     const players = state.players.map((player, index) =>
@@ -1520,10 +1593,10 @@ function applyOnlineGameCommandInternal(
     position: movement.newPosition,
     hasTakenOff: movement.playerState.hasTakenOff,
     failedTakeoffAttempts: movement.playerState.failedTakeoffAttempts,
-    isWinner: movement.newPosition === state.boardSize,
+    isWinner: false,
   }
   const players = state.players.map((player, index) => (index === actorIndex ? moved : player))
-  const finished = moved.isWinner
+  const finished = movement.newPosition === state.boardSize
   const movedState: OnlineGameState = {
     ...state,
     revision: state.revision + 1,
@@ -1581,7 +1654,7 @@ function applyOnlineGameCommandInternal(
       choices: [fallback, fallback],
       diceValue: state.diceValue,
     }
-    return beginPunishmentResolution(movedState, pending, fallback)
+    return beginPunishmentResolution(movedState, pending, fallback, dependencies)
   }
 
   if (movement.cellEffect) {
@@ -1679,9 +1752,11 @@ export function removeOnlinePlayerAtSafeNode(
   }
   const reactionTargetPlayerIndex =
     remapIndex(state.partySession.reactionTargetPlayerIndex) ?? currentIndex
+  const momentumSession = removePartyMomentumPlayer(state.partySession, removedIndex)
   const binding = state.eventState.activeBinding
   const remappedBinding = binding ? binding.playerIndices.map(remapIndex) : undefined
-  const deferredPunishments = state.deferredPunishments.flatMap(resolution => {
+  const deferredPunishments = state.deferredPunishments.flatMap(deferred => {
+    const { resolution } = deferred
     const targetPlayerIndex = remapIndex(resolution.targetPlayerIndex)
     if (targetPlayerIndex === undefined) return []
     const actorPlayerIndex = remapIndex(resolution.actorIndex) ?? currentIndex
@@ -1699,11 +1774,14 @@ export function removeOnlinePlayerAtSafeNode(
         : resolution.count
     return [
       {
-        ...resolution,
-        actorIndex: actorPlayerIndex,
-        targetPlayerIndex,
-        executorIndex: executorPlayerIndex,
-        count,
+        ...deferred,
+        resolution: {
+          ...resolution,
+          actorIndex: actorPlayerIndex,
+          targetPlayerIndex,
+          executorIndex: executorPlayerIndex,
+          count,
+        },
       },
     ]
   })
@@ -1716,14 +1794,11 @@ export function removeOnlinePlayerAtSafeNode(
     deadlineAt: null,
     deferredPunishments,
     partySession: {
-      ...state.partySession,
+      ...momentumSession,
       playerCount: players.length,
       completedTurns: completedRounds * players.length + currentIndex,
       completedRounds,
       roundNumber: completedRounds + 1,
-      tokensRemaining: state.partySession.tokensRemaining.filter(
-        (_, index) => index !== removedIndex
-      ),
       activeTurnPlayerIndex: currentIndex,
       reactionTargetPlayerIndex,
       reactionUsedThisRound: true,
@@ -1986,7 +2061,8 @@ function beginLandingResolution(
         choices: [action, action],
         diceValue: state.diceValue ?? 1,
       },
-      action
+      action,
+      dependencies
     )
   }
   if (
@@ -2054,14 +2130,16 @@ function beginPunishmentResolution(
   state: OnlineGameState,
   pending: PendingPunishmentChoice,
   action: PunishmentAction,
+  dependencies: GameCommandDependencies = DEFAULT_DEPENDENCIES,
   chainCount = pending.cellType === 'chain_punishment' ? 1 : 0
 ): OnlineGameState {
   const rulePlayers = toRulePlayers(state.players)
+  const randomSource = ruleRandomSourceFor(dependencies)
   const punishmentVariant =
     pending.source === 'board_punishment'
       ? pickPunishmentVariant(
           state.partySession.act,
-          undefined,
+          randomSource,
           ONLINE_BASELINE_PUNISHMENT_VARIANTS
         )
       : undefined
@@ -2074,6 +2152,7 @@ function beginPunishmentResolution(
           punishmentConfig: state.punishmentConfig,
           boardAction: action,
           diceValue: pending.diceValue,
+          randomSource,
           punishmentVariant,
         })
       : resolveRule({
@@ -2083,8 +2162,12 @@ function beginPunishmentResolution(
           punishmentConfig: state.punishmentConfig,
           punishmentAction: action,
           diceValue: pending.diceValue,
+          randomSource,
           punishmentVariant,
         })
+  const amplifiedByModifier =
+    (rulePlayers[resolution.targetPlayerIndex]?.pendingMiniGameMultiplier ?? 0) >= 2 ||
+    (state.eventState.activePunishmentMultiplier?.multiplier ?? 0) >= 2
   const miniGameModified = consumePartyMiniGameModifier(
     resolution,
     rulePlayers[resolution.targetPlayerIndex]
@@ -2114,6 +2197,7 @@ function beginPunishmentResolution(
   if (options.length === 0) {
     return preparePunishmentDecision(punishmentState, resolution, {
       chainActive: chainCount > 0,
+      amplified: amplifiedByModifier,
     })
   }
   return {
@@ -2126,16 +2210,26 @@ function beginPunishmentResolution(
       options,
       declinedPlayerIndices: [],
       chainActive: chainCount > 0,
+      amplified: amplifiedByModifier,
     },
   }
 }
 
 interface PunishmentDecisionOptions {
   readonly chainActive?: boolean
+  readonly amplified?: boolean
   readonly isBoundCopy?: boolean
   readonly resumeTurnAfter?: boolean
   readonly mercyAvailable?: boolean
   readonly doubled?: boolean
+  readonly participantPlayerIndices?: readonly number[]
+  readonly bindingSourcePlayerIndex?: number
+}
+
+function mergePunishmentParticipants(
+  ...participantGroups: (readonly number[])[]
+): readonly number[] {
+  return Object.freeze([...new Set(participantGroups.flat())].sort((left, right) => left - right))
 }
 
 function preparePunishmentDecision(
@@ -2157,6 +2251,7 @@ function preparePunishmentDecision(
         resolution,
         chooserPlayerIndex,
         chainActive: options.chainActive ?? false,
+        amplified: options.amplified ?? false,
         resumeTurnAfter: options.resumeTurnAfter ?? false,
       },
     }
@@ -2174,6 +2269,7 @@ function preparePunishmentDecision(
         resolution,
         decisionPlayerIndex: resolution.executorIndex ?? resolution.targetPlayerIndex,
         chainActive: options.chainActive ?? false,
+        amplified: options.amplified ?? false,
         resumeTurnAfter: options.resumeTurnAfter ?? false,
       },
     }
@@ -2195,6 +2291,7 @@ function awaitPunishmentAcknowledgement(
       playerIndex: resolution.targetPlayerIndex,
       resolution,
       chainActive: options.chainActive ?? false,
+      amplified: options.amplified ?? false,
       isBoundCopy: options.isBoundCopy ?? false,
       resumeTurnAfter: options.resumeTurnAfter ?? false,
       mercyAvailable:
@@ -2203,6 +2300,10 @@ function awaitPunishmentAcknowledgement(
           resolution.count.kind === 'fixed' &&
           resolution.count.value > 1),
       doubled: options.doubled ?? false,
+      participantPlayerIndices: mergePunishmentParticipants(
+        options.participantPlayerIndices ?? [resolution.targetPlayerIndex]
+      ),
+      bindingSourcePlayerIndex: options.bindingSourcePlayerIndex ?? resolution.targetPlayerIndex,
     },
   }
 }
@@ -2227,34 +2328,62 @@ function continueAfterPunishmentAcknowledgement(
 ): OnlineGameState {
   const resolution = pending.resolution
   const cleared = { ...state, pendingAction: null }
-  if (resolution.variant === 'mutual' && resolution.variantPhase === undefined) {
+  const punishmentCompleted = isPartyPunishmentCompleted(resolution)
+  if (
+    punishmentCompleted &&
+    resolution.variant === 'mutual' &&
+    resolution.variantPhase === undefined
+  ) {
     return awaitPunishmentAcknowledgement(cleared, createMutualPunishmentReturn(resolution), {
       chainActive: pending.chainActive,
+      amplified: pending.amplified,
+      isBoundCopy: pending.isBoundCopy,
       resumeTurnAfter: pending.resumeTurnAfter,
+      participantPlayerIndices: mergePunishmentParticipants(
+        pending.participantPlayerIndices,
+        [resolution.targetPlayerIndex],
+        resolution.executorIndex === undefined ? [] : [resolution.executorIndex]
+      ),
+      bindingSourcePlayerIndex: pending.bindingSourcePlayerIndex,
     })
   }
-  if (resolution.variant === 'encore' && resolution.variantPhase === undefined) {
+  if (
+    punishmentCompleted &&
+    resolution.variant === 'encore' &&
+    resolution.variantPhase === undefined
+  ) {
     return awaitPunishmentAcknowledgement(cleared, createEncorePunishmentReturn(resolution), {
       chainActive: pending.chainActive,
+      amplified: pending.amplified,
+      isBoundCopy: pending.isBoundCopy,
       resumeTurnAfter: pending.resumeTurnAfter,
+      participantPlayerIndices: pending.participantPlayerIndices,
+      bindingSourcePlayerIndex: pending.bindingSourcePlayerIndex,
     })
   }
-  if (!pending.isBoundCopy && resolution.variant !== 'deferred') {
-    const partnerIndex = getBoundPartnerPlayerIndex(state.eventState, resolution.targetPlayerIndex)
+  if (punishmentCompleted && !pending.isBoundCopy && resolution.variant !== 'deferred') {
+    const bindingSourcePlayerIndex = pending.bindingSourcePlayerIndex
+    const partnerIndex = getBoundPartnerPlayerIndex(state.eventState, bindingSourcePlayerIndex)
     if (partnerIndex !== undefined) {
       return awaitPunishmentAcknowledgement(
         cleared,
         {
           ...resolution,
           targetPlayerIndex: partnerIndex,
-          executorIndex: resolution.targetPlayerIndex,
+          executorIndex: bindingSourcePlayerIndex,
           variant: undefined,
           variantPhase: undefined,
         },
         {
           chainActive: pending.chainActive,
+          amplified: pending.amplified,
           isBoundCopy: true,
           resumeTurnAfter: pending.resumeTurnAfter,
+          participantPlayerIndices: mergePunishmentParticipants(pending.participantPlayerIndices, [
+            bindingSourcePlayerIndex,
+            partnerIndex,
+          ]),
+          bindingSourcePlayerIndex,
         }
       )
     }
@@ -2265,22 +2394,38 @@ function continueAfterPunishmentAcknowledgement(
     !pending.doubled &&
     resolution.variant !== 'mutual' &&
     resolution.variant !== 'encore' &&
-    resolution.count.kind === 'fixed' &&
-    resolution.count.value > 0 &&
+    punishmentCompleted &&
     doubleChance > 0 &&
     doubleRoll <= doubleChance
   ) {
     return awaitPunishmentAcknowledgement(cleared, resolution, {
       chainActive: pending.chainActive,
+      amplified: true,
       isBoundCopy: pending.isBoundCopy,
       resumeTurnAfter: pending.resumeTurnAfter,
       mercyAvailable: false,
       doubled: true,
+      participantPlayerIndices: pending.participantPlayerIndices,
+      bindingSourcePlayerIndex: pending.bindingSourcePlayerIndex,
     })
   }
+  const participantPlayerIndices = pending.participantPlayerIndices
+  const mutual = participantPlayerIndices.length > 1
+  const completed = punishmentCompleted
+    ? {
+        ...cleared,
+        partySession: recordPartyMomentum(state.partySession, {
+          type: 'punishment_completed',
+          participantPlayerIndices,
+          amplified: pending.amplified || pending.doubled,
+          chain: pending.chainActive,
+          mutual,
+        }),
+      }
+    : cleared
   if (pending.resumeTurnAfter) {
     return {
-      ...cleared,
+      ...completed,
       revision: state.revision + 1,
       phase:
         state.partySession.reaction?.status === 'awaiting_prediction'
@@ -2290,13 +2435,13 @@ function continueAfterPunishmentAcknowledgement(
   }
   if (pending.chainActive) {
     return awaitChainRoll(
-      cleared,
+      completed,
       state.players.findIndex(player => player.id === state.currentPlayerId),
       1
     )
   }
   return completeOnlineTurn(
-    cleared,
+    completed,
     state.players,
     state.players.findIndex(player => player.id === state.currentPlayerId),
     false,
@@ -2315,7 +2460,11 @@ function completeOnlineTurn(
     playerIndex: actorIndex,
     now,
   })
-  if (finished) {
+  if (
+    finished &&
+    !completedPartySession.timeLimitPending &&
+    !completedPartySession.heatLimitPending
+  ) {
     return finishOnlineGame({ ...state, partySession: completedPartySession }, actorIndex)
   }
   if (completedPartySession.shouldEnd) {
@@ -2339,7 +2488,7 @@ function completeOnlineTurn(
       turnHadPunishment: false,
     }
   }
-  let nextIndex = finished ? actorIndex : (actorIndex + 1) % players.length
+  let nextIndex = (actorIndex + 1) % players.length
   let advancedPlayers = [...players]
   let advancedSession = completedPartySession
   let eventResult = processPartyEventSignal(state.eventState, {
@@ -2415,7 +2564,7 @@ function completeOnlineTurn(
     turnHadPunishment: false,
   }
   const deferredIndex = completedState.deferredPunishments.findIndex(
-    resolution => resolution.targetPlayerIndex === nextIndex
+    deferred => deferred.resolution.targetPlayerIndex === nextIndex
   )
   const deferred = completedState.deferredPunishments[deferredIndex]
   if (deferred) {
@@ -2426,11 +2575,15 @@ function completeOnlineTurn(
           (_, index) => index !== deferredIndex
         ),
       },
-      deferred,
-      { resumeTurnAfter: true }
+      deferred.resolution,
+      {
+        amplified: deferred.amplified,
+        chainActive: deferred.chainActive,
+        resumeTurnAfter: true,
+      }
     )
   }
-  if (!finished && eventQueue.length > 0) return openNextEvent(completedState)
+  if (eventQueue.length > 0) return openNextEvent(completedState)
   return completedState
 }
 

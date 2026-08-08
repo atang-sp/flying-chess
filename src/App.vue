@@ -57,6 +57,7 @@
   import PartyEventCardOverlay from './components/PartyEventCardOverlay.vue'
   import PartyMiniGame from './components/PartyMiniGame.vue'
   import PartyTieBreak from './components/PartyTieBreak.vue'
+  import PartyHeatMeter from './components/PartyHeatMeter.vue'
   import GameBoard from './components/GameBoard.vue'
   import CellInspector from './components/CellInspector.vue'
   import GameRoster from './components/GameRoster.vue'
@@ -105,7 +106,7 @@
   import { usePartyMode } from './composables/usePartyMode'
   import { useMultiDeviceHost } from './composables/useMultiDeviceHost'
   import { useLocalGameSession } from './composables/useLocalGameSession'
-  import { type GameMode } from './config/modes'
+  import { RULESET_VERSION_BY_MODE, type GameMode } from './config/modes'
   import {
     createModeConfig,
     createStandardConfigSnapshot,
@@ -143,12 +144,17 @@
     consumePartyMiniGameModifier,
     type PartyMiniGameOutcome,
   } from '@flying-chess/game-core/party-mini-games'
+  import { isPartyPunishmentCompleted } from '@flying-chess/game-core/party-momentum'
   import {
     getUnlockedPartyContent,
     recordLocalProgress,
     type LocalProgressEvent,
   } from './services/localProgress'
   import { applyPartyBoardLayout, type PartyStudioConfig } from './services/partyStudio'
+  import {
+    createLocalPartyMomentumCompletion,
+    type LocalPartyPunishmentMomentumContext,
+  } from './services/localPartyMomentum'
 
   const localGameSession = useLocalGameSession({
     selectedMode: loadGameMode(),
@@ -164,6 +170,7 @@
     victoryConfig,
   } = localGameSession
   const partyMode = usePartyMode()
+  const localPartyMomentum = createLocalPartyMomentumCompletion()
   const isPartyGame = computed(() => activeMode.value === 'party' && partyMode.isActive.value)
   const partySession = computed(() => partyMode.session.value)
   const partyReaction = computed(() => partySession.value?.reaction ?? null)
@@ -181,6 +188,11 @@
   const currentPartyTokens = computed(
     () => partySession.value?.tokensRemaining[gameState.currentPlayerIndex] ?? 0
   )
+  const currentPartyHeatContribution = computed(
+    () => partySession.value?.heatContributionByPlayer[gameState.currentPlayerIndex] ?? 0
+  )
+  const partyRewardNotice = ref('')
+  let partyRewardNoticeTimer: ReturnType<typeof setTimeout> | null = null
   const canCurrentPlayerReroll = computed(
     () =>
       currentPartyTokens.value > 0 &&
@@ -191,10 +203,15 @@
   const partyPunishmentChoices = ref<readonly PunishmentAction[]>([])
   const partyPunishmentInterventionResolution = ref<ResolvedPunishmentResult | null>(null)
   const partyPunishmentInterventionOptions = ref<readonly PartyPunishmentInterventionOption[]>([])
-  const deferredPartyPunishments = ref<ResolvedPunishmentResult[]>([])
+  interface DeferredPartyPunishment {
+    readonly resolution: ResolvedPunishmentResult
+    readonly momentum: LocalPartyPunishmentMomentumContext | null
+  }
+  const deferredPartyPunishments = ref<DeferredPartyPunishment[]>([])
   const displayedPunishmentResumesTurn = ref(false)
   const boundPartyPunishments = ref<ResolvedPunishmentResult[]>([])
   const displayedBoundPunishment = ref(false)
+  const punishmentConfirmationInFlight = ref(false)
   const partyEventState = ref<PartyEventState>(createPartyEventState(loadPartyEventDeck()))
   const partyEventQueue = ref<PartyEventCard[]>([])
   const currentPartyEvent = ref<PartyEventCard | null>(null)
@@ -454,13 +471,49 @@
   }
 
   const recordCompletedPunishment = (resolution: ResolvedPunishmentResult) => {
-    if (resolution.count.kind !== 'fixed') return
+    if (!isPartyPunishmentCompleted(resolution)) return
     recordProgress({
       kind: 'punishment_completed',
       playerName: gameState.players[resolution.targetPlayerIndex]?.name ?? '未命名玩家',
       count: resolution.count.value,
       variant: resolution.variant,
     })
+  }
+
+  const announcePartyTokenRewards = (
+    previousTokens: readonly number[],
+    nextTokens: readonly number[],
+    participantPlayerIndices: readonly number[]
+  ) => {
+    const rewarded = participantPlayerIndices.flatMap(playerIndex => {
+      const previous = previousTokens[playerIndex] ?? 0
+      const next = nextTokens[playerIndex] ?? 0
+      if (next <= previous) return []
+      return [`${gameState.players[playerIndex]?.name ?? '玩家'} 获得 1 枚气势筹码（${next}/3）`]
+    })
+    if (rewarded.length === 0) return
+    partyRewardNotice.value = rewarded.join('；')
+    if (partyRewardNoticeTimer) clearTimeout(partyRewardNoticeTimer)
+    partyRewardNoticeTimer = setTimeout(() => {
+      partyRewardNotice.value = ''
+      partyRewardNoticeTimer = null
+    }, 3_500)
+  }
+
+  const recordPartyPunishmentMomentum = (resolution: ResolvedPunishmentResult) => {
+    if (!isPartyGame.value || !partySession.value || !isPartyPunishmentCompleted(resolution)) {
+      localPartyMomentum.cancel()
+      return
+    }
+    const event = localPartyMomentum.complete()
+    if (!event) return
+    const previousTokens = partySession.value.tokensRemaining
+    const nextSession = partyMode.recordMomentum(event)
+    announcePartyTokenRewards(
+      previousTokens,
+      nextSession.tokensRemaining,
+      event.participantPlayerIndices
+    )
   }
 
   const presentResolvedPunishment = (
@@ -507,12 +560,19 @@
   }
 
   const queueBoundPunishmentIfNeeded = (resolution: ResolvedPunishmentResult) => {
-    if (!isPartyGame.value || resolution.variant === 'deferred') return
+    if (
+      !isPartyGame.value ||
+      (resolution.count.kind === 'fixed' && !isPartyPunishmentCompleted(resolution)) ||
+      resolution.variant === 'deferred'
+    ) {
+      return
+    }
     const partnerIndex = getBoundPartnerPlayerIndex(
       partyEventState.value,
       resolution.targetPlayerIndex
     )
     if (partnerIndex === undefined) return
+    localPartyMomentum.includeParticipants([resolution.targetPlayerIndex, partnerIndex])
     boundPartyPunishments.value.push(
       Object.freeze({
         ...resolution,
@@ -546,14 +606,33 @@
     if (isPartyGame.value) {
       const targetIndex = resolvedPunishment.targetPlayerIndex
       const targetPlayer = gameState.players[targetIndex]
+      const amplifiedByModifier =
+        (targetPlayer?.pendingMiniGameMultiplier ?? 0) >= 2 ||
+        (partyEventState.value.activePunishmentMultiplier?.multiplier ?? 0) >= 2
       const miniGameModified = consumePartyMiniGameModifier(resolvedPunishment, targetPlayer)
       gameState.players[targetIndex] = miniGameModified.player
       resolvedPunishment = applyPartyEventPunishmentRules(
         partyEventState.value,
         miniGameModified.resolution
       )
+      localPartyMomentum.begin({
+        participantPlayerIndices: [resolvedPunishment.targetPlayerIndex],
+        amplified: amplifiedByModifier,
+        chain: isChainPunishment.value,
+      })
+      if (
+        resolvedPunishment.variant === 'mutual' &&
+        resolvedPunishment.executorIndex !== undefined
+      ) {
+        localPartyMomentum.includeParticipants([
+          resolvedPunishment.targetPlayerIndex,
+          resolvedPunishment.executorIndex,
+        ])
+      }
       partyTurnHadPunishment.value = true
       recordPartyEventSignal({ kind: 'punishment_resolved' })
+    } else {
+      localPartyMomentum.cancel()
     }
     const partySessionSnapshot = partySession.value
     if (isPartyGame.value && partySessionSnapshot) {
@@ -1004,6 +1083,7 @@
       const playerName = gameState.players[outcome.spentByPlayerIndex]?.name ?? '玩家'
 
       if (!outcome.resolution) {
+        localPartyMomentum.cancel()
         lastEffect.value = `${playerName} 使用免疫，取消了本次惩罚`
         pendingRuleResolution.value = null
         gameState.gameStatus = 'waiting'
@@ -1011,6 +1091,17 @@
         return
       }
 
+      if (outcome.action === 'amplify') localPartyMomentum.markAmplified()
+      localPartyMomentum.setParticipants([outcome.resolution.targetPlayerIndex])
+      if (
+        outcome.resolution.variant === 'mutual' &&
+        outcome.resolution.executorIndex !== undefined
+      ) {
+        localPartyMomentum.includeParticipants([
+          outcome.resolution.targetPlayerIndex,
+          outcome.resolution.executorIndex,
+        ])
+      }
       const resolvedTarget = gameState.players[outcome.resolution.targetPlayerIndex]
       lastEffect.value =
         outcome.action === 'transfer'
@@ -1056,7 +1147,10 @@
       fixedResolution = finalizePunishmentCount(fixedResolution, action.selectedCount)
     }
     const deferredResolution = createDeferredPunishment(fixedResolution)
-    deferredPartyPunishments.value.push(deferredResolution)
+    deferredPartyPunishments.value.push({
+      resolution: deferredResolution,
+      momentum: localPartyMomentum.defer(),
+    })
     const targetName = gameState.players[deferredResolution.targetPlayerIndex]?.name ?? '受罚玩家'
     lastEffect.value = `${targetName} 的惩罚已延迟到其下一个回合开始前`
     await skipPunishment()
@@ -1064,12 +1158,14 @@
 
   const presentNextDeferredPunishment = (): boolean => {
     const queueIndex = deferredPartyPunishments.value.findIndex(
-      resolution => resolution.targetPlayerIndex === gameState.currentPlayerIndex
+      deferred => deferred.resolution.targetPlayerIndex === gameState.currentPlayerIndex
     )
     if (queueIndex < 0) return false
 
-    const [resolution] = deferredPartyPunishments.value.splice(queueIndex, 1)
-    if (!resolution) return false
+    const [deferred] = deferredPartyPunishments.value.splice(queueIndex, 1)
+    if (!deferred) return false
+    const { resolution, momentum } = deferred
+    if (momentum) localPartyMomentum.resume(momentum)
     displayedPunishmentResumesTurn.value = true
     const triggeringPlayer = gameState.players[resolution.actorIndex]
     presentResolvedPunishment(resolution, triggeringPlayer, gameState.diceValue ?? undefined)
@@ -1357,6 +1453,7 @@
         finishGameWithPlayer: typeof finishGameWithPlayer
         completePartyTurnForPlayer: typeof completePartyTurnForPlayer
         resolveNaturalVictory: typeof resolveNaturalVictory
+        offerPartyPunishmentInterventionOrPresent: typeof offerPartyPunishmentInterventionOrPresent
       }
 
       debugWindow.gameState = gameState
@@ -1389,6 +1486,8 @@
       debugWindow.finishGameWithPlayer = finishGameWithPlayer
       debugWindow.completePartyTurnForPlayer = completePartyTurnForPlayer
       debugWindow.resolveNaturalVictory = resolveNaturalVictory
+      debugWindow.offerPartyPunishmentInterventionOrPresent =
+        offerPartyPunishmentInterventionOrPresent
     }
 
     // 从localStorage恢复设置
@@ -1439,6 +1538,7 @@
       healthCheckIntervalId.value = null
     }
     clearAllPlayerMovingTimeouts()
+    if (partyRewardNoticeTimer) clearTimeout(partyRewardNoticeTimer)
   })
 
   // 初始化游戏
@@ -1468,6 +1568,8 @@
     activePartyStartConfig.value = null
     classicConfigSnapshot.value = null
     partyMode.clear()
+    localPartyMomentum.cancel()
+    partyRewardNotice.value = ''
     partyDiceDecisionVisible.value = false
     partyPunishmentChoices.value = []
     partyPunishmentInterventionResolution.value = null
@@ -1630,6 +1732,8 @@
     gameState.gameStatus = 'waiting'
     gameTelemetry.setMode('party')
     partyMode.start(gameState.players.length, studio?.director)
+    localPartyMomentum.cancel()
+    partyRewardNotice.value = ''
     partyEventState.value = createPartyEventState(playerConfig.eventDeck ?? loadPartyEventDeck())
     partyEventQueue.value = []
     currentPartyEvent.value = null
@@ -1735,6 +1839,8 @@
     pendingRuleResolution.value = null
     sessionPaused.value = false
     partyMode.clear()
+    localPartyMomentum.cancel()
+    partyRewardNotice.value = ''
     partyDiceDecisionVisible.value = false
     partyPunishmentChoices.value = []
     partyPunishmentInterventionResolution.value = null
@@ -1836,7 +1942,7 @@
     resetEffectChainCount()
   }
 
-  type PartyTurnCompletion = 'continue' | 'time_limit_pending' | 'ended'
+  type PartyTurnCompletion = 'continue' | 'limit_pending' | 'ended'
 
   const openNextPartyEvent = (): boolean => {
     if (
@@ -1936,7 +2042,9 @@
     })
     partyTurnHadPunishment.value = false
     if (!completedSession.shouldEnd) {
-      return completedSession.timeLimitPending ? 'time_limit_pending' : 'continue'
+      return completedSession.timeLimitPending || completedSession.heatLimitPending
+        ? 'limit_pending'
+        : 'continue'
     }
 
     const leaders = getPartyTimeLimitLeaders(gameState.players.map(player => player.position))
@@ -1967,7 +2075,7 @@
   const resolveNaturalVictory = (playerIndex: number, preserveClassicVictoryAudio = true): void => {
     const completion = completePartyTurnForPlayer(playerIndex)
     if (completion === 'ended') return
-    if (completion === 'time_limit_pending') {
+    if (completion === 'limit_pending') {
       advanceToNextPlayablePlayer(true)
       return
     }
@@ -2038,7 +2146,9 @@
   const handlePartyReactionDecision = async (decision: PartyReactionDecision) => {
     const reactorPlayerIndex = partyReaction.value?.reactorPlayerIndex
     if (reactorPlayerIndex === undefined) return
+    const previousTokens = partySession.value?.tokensRemaining ?? []
     const resolvedSession = partyMode.decideReaction(reactorPlayerIndex, decision)
+    announcePartyTokenRewards(previousTokens, resolvedSession.tokensRemaining, [reactorPlayerIndex])
     gameState.diceValue = resolvedSession.reaction?.finalDiceValue ?? gameState.diceValue
     partyDiceDecisionVisible.value = true
   }
@@ -2392,6 +2502,13 @@
 
   // 确认惩罚
   const confirmPunishment = async (selectedCount?: number) => {
+    if (
+      punishmentConfirmationInFlight.value ||
+      pendingRuleResolution.value?.kind !== 'punishment'
+    ) {
+      return
+    }
+    punishmentConfirmationInFlight.value = true
     try {
       let punishmentResolution = pendingRuleResolution.value
       if (
@@ -2413,6 +2530,7 @@
 
       if (
         punishmentResolution?.kind === 'punishment' &&
+        isPartyPunishmentCompleted(punishmentResolution) &&
         punishmentResolution.variant === 'mutual' &&
         punishmentResolution.variantPhase === undefined
       ) {
@@ -2429,6 +2547,7 @@
 
       if (
         punishmentResolution?.kind === 'punishment' &&
+        isPartyPunishmentCompleted(punishmentResolution) &&
         punishmentResolution.variant === 'encore' &&
         punishmentResolution.variantPhase === undefined
       ) {
@@ -2448,6 +2567,7 @@
 
       // 连锁惩罚：确认后进入连锁掷骰阶段
       if (isChainPunishment.value) {
+        recordPartyPunishmentMomentum(punishmentResolution)
         currentPunishment.value = null
         showChainPunishmentRoll.value = true
         return
@@ -2458,6 +2578,7 @@
         !isDoublePunishment.value &&
         currentPunishment.value &&
         punishmentResolution?.kind === 'punishment' &&
+        isPartyPunishmentCompleted(punishmentResolution) &&
         punishmentResolution.variant !== 'mutual' &&
         punishmentResolution.variant !== 'encore'
       ) {
@@ -2466,6 +2587,7 @@
               .doublePunishmentChance ?? 0)
           : (gameState.punishmentConfig.doublePunishmentChance ?? 0)
         if (chance > 0 && SecureRandom.randomInt(1, 100) <= chance) {
+          localPartyMomentum.markAmplified()
           pendingDoublePunishment.value = { ...currentPunishment.value }
           currentPunishment.value = null
           showDoublePunishmentReveal.value = true
@@ -2474,6 +2596,7 @@
       }
 
       // 正常结束惩罚
+      recordPartyPunishmentMomentum(punishmentResolution)
       isDoublePunishment.value = false
       currentPunishment.value = null
       currentPunishmentExecutor.value = null
@@ -2491,6 +2614,7 @@
       await continueAfterPunishment()
     } catch (error) {
       console.error('确认惩罚时发生错误:', error)
+      localPartyMomentum.cancel()
       gameState.gameStatus = 'waiting'
       currentPunishment.value = null
       currentPunishmentExecutor.value = null
@@ -2498,6 +2622,8 @@
       pendingRuleResolution.value = null
       isDoublePunishment.value = false
       isChainPunishment.value = false
+    } finally {
+      punishmentConfirmationInFlight.value = false
     }
   }
 
@@ -2561,6 +2687,7 @@
   // 跳过惩罚
   const skipPunishment = async () => {
     try {
+      localPartyMomentum.cancel()
       if (presentNextBoundPunishment()) return
       if (displayedBoundPunishment.value) displayedBoundPunishment.value = false
 
@@ -2589,6 +2716,7 @@
       await continueAfterPunishment()
     } catch (error) {
       console.error('跳过惩罚时发生错误:', error)
+      localPartyMomentum.cancel()
       gameState.gameStatus = 'waiting'
       currentPunishment.value = null
       currentPunishmentExecutor.value = null
@@ -2693,18 +2821,60 @@
 
   // 确认起飞惩罚
   const confirmTakeoffPunishment = async () => {
-    if (pendingRuleResolution.value?.kind === 'punishment') {
-      recordCompletedPunishment(pendingRuleResolution.value)
-    }
-    showTakeoffPunishmentDisplay.value = false
-    currentTakeoffPunishment.value = null
-    currentTakeoffTarget.value = null
-    currentTakeoffTriggeringPlayer.value = null
-    pendingRuleResolution.value = null
-    gameState.gameStatus = 'waiting'
+    const punishmentResolution = pendingRuleResolution.value
+    if (punishmentConfirmationInFlight.value || punishmentResolution?.kind !== 'punishment') return
+    punishmentConfirmationInFlight.value = true
+    try {
+      recordCompletedPunishment(punishmentResolution)
 
-    // 继续游戏流程
-    await continueAfterPunishment()
+      if (
+        isPartyPunishmentCompleted(punishmentResolution) &&
+        punishmentResolution.variant === 'mutual' &&
+        punishmentResolution.variantPhase === undefined
+      ) {
+        const returnedResolution = createMutualPunishmentReturn(punishmentResolution)
+        mercyRequested.value = true
+        lastEffect.value = '双向惩罚第一次已完成，现在交换角色执行第二次'
+        presentResolvedPunishment(
+          returnedResolution,
+          gameState.players[returnedResolution.actorIndex],
+          gameState.diceValue ?? undefined
+        )
+        return
+      }
+
+      if (
+        isPartyPunishmentCompleted(punishmentResolution) &&
+        punishmentResolution.variant === 'encore' &&
+        punishmentResolution.variantPhase === undefined
+      ) {
+        const returnedResolution = createEncorePunishmentReturn(punishmentResolution)
+        mercyRequested.value = true
+        lastEffect.value = '返场惩罚第一次已完成，现在由同一玩家执行减半后的第二次'
+        presentResolvedPunishment(
+          returnedResolution,
+          gameState.players[returnedResolution.actorIndex],
+          gameState.diceValue ?? undefined
+        )
+        return
+      }
+
+      if (presentNextBoundPunishment()) return
+      if (displayedBoundPunishment.value) displayedBoundPunishment.value = false
+
+      recordPartyPunishmentMomentum(punishmentResolution)
+      showTakeoffPunishmentDisplay.value = false
+      currentTakeoffPunishment.value = null
+      currentTakeoffTarget.value = null
+      currentTakeoffTriggeringPlayer.value = null
+      pendingRuleResolution.value = null
+      gameState.gameStatus = 'waiting'
+
+      // 继续游戏流程
+      await continueAfterPunishment()
+    } finally {
+      punishmentConfirmationInFlight.value = false
+    }
   }
 
   // 处理起飞惩罚显示逻辑
@@ -2762,6 +2932,8 @@
     activeMode.value = 'classic'
     activePartyStudioConfig.value = null
     partyMode.clear()
+    localPartyMomentum.cancel()
+    partyRewardNotice.value = ''
     startGame(playerConfig)
   }
 
@@ -3713,6 +3885,7 @@
             :total-cells="gameState.board.length"
             :party-act-label="isPartyGame ? partyActLabel : undefined"
             :party-round="isPartyGame ? partySession?.roundNumber : undefined"
+            :party-ruleset-version="isPartyGame ? RULESET_VERSION_BY_MODE.party : undefined"
             :tokens-remaining="
               isPartyGame && !multiDeviceEnabled ? partySession?.tokensRemaining : undefined
             "
@@ -3754,6 +3927,14 @@
       </header>
 
       <main class="game-main">
+        <PartyHeatMeter
+          v-if="isPartyGame && partySession"
+          :heat="partySession.heat"
+          :act="partySession.act"
+          :heat-limit-pending="partySession.heatLimitPending"
+          :current-player-contribution="currentPartyHeatContribution"
+          :reward-notice="partyRewardNotice"
+        />
         <div class="game-cockpit">
           <div class="board-section">
             <GameBoard
