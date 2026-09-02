@@ -37,7 +37,7 @@ export function createPlayerRoster({ count, names, colors }: PlayerRosterInput):
   }))
 }
 
-export function hasPlayerWon(player: Pick<Player, 'position'>, boardSize = 40): boolean {
+export function hasPlayerWon(player: Pick<Player, 'position'>, boardSize: number): boolean {
   return player.position >= boardSize
 }
 

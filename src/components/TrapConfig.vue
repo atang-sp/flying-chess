@@ -17,12 +17,14 @@
   const emit = defineEmits<Emits>()
 
   // 本地机关状态
-  const localTraps = ref<TrapAction[]>([...props.traps])
+  const cloneTraps = (traps: readonly TrapAction[]): TrapAction[] =>
+    traps.map(trap => ({ ...trap }))
+  const localTraps = ref<TrapAction[]>(cloneTraps(props.traps))
 
   watch(
     () => props.traps,
     newTraps => {
-      localTraps.value = [...newTraps]
+      localTraps.value = cloneTraps(newTraps)
     },
     { deep: true }
   )
@@ -45,7 +47,7 @@
 
   // 更新机关
   const updateTraps = () => {
-    emit('update', [...localTraps.value])
+    emit('update', cloneTraps(localTraps.value))
   }
 
   // 重置为默认值

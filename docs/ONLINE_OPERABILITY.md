@@ -1,6 +1,6 @@
 # 联机协议与可运维合同
 
-目标版本：`1.16.0`
+目标版本：`1.17.0`
 
 工程状态：自动化门槛由 CI 验证；真机与 4/6/8 人现场门槛保持
 `PENDING_MANUAL_ACCEPTANCE`。
@@ -115,7 +115,7 @@ Shallow smoke 只读 health/readiness 并完成一次 WebSocket 连接，不创�
 node scripts/room-server-release-smoke.mjs \
   --health-url https://rooms.example/health \
   --ws-url wss://rooms.example \
-  --expected-server-version 1.16.0 \
+  --expected-server-version 1.17.0 \
   --expected-protocol-version 1 \
   --origin https://atang-sp.github.io \
   --timeout-ms 5000

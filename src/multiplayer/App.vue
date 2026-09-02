@@ -7,6 +7,7 @@
     CURRENT_ONLINE_PROTOCOL_VERSION,
     cloneOnlineRoomSettings,
     createOnlineBoardConfig,
+    isValidOnlineRoomSettings,
     type BoardCell,
     type BoardConfig,
     type OnlineClientMessage,
@@ -128,6 +129,7 @@
       !!room.value &&
       settingsSignature(settingsDraft.value) !== settingsSignature(room.value.settings)
   )
+  const settingsDraftValid = computed(() => isValidOnlineRoomSettings(settingsDraft.value))
   const game = computed(() => room.value?.game ?? null)
   const sharedBoard = computed<BoardCell[]>(() =>
     (game.value?.board ?? []).map(cell => ({
@@ -248,11 +250,14 @@
   }
 
   function handlePunishmentConfigUpdate(punishmentConfig: PunishmentConfig): void {
-    settingsDraft.value = { ...settingsDraft.value, punishmentConfig }
+    settingsDraft.value = {
+      ...settingsDraft.value,
+      punishmentConfig: structuredClone(punishmentConfig),
+    }
   }
 
   function handleTrapConfigUpdate(traps: TrapAction[]): void {
-    settingsDraft.value = { ...settingsDraft.value, traps }
+    settingsDraft.value = { ...settingsDraft.value, traps: traps.map(trap => ({ ...trap })) }
   }
 
   function handleMessage(message: OnlineServerMessage): void {
@@ -643,7 +648,7 @@
               <button
                 class="btn btn-secondary"
                 data-testid="save-settings"
-                :disabled="!hasUnsavedSettings"
+                :disabled="!hasUnsavedSettings || !settingsDraftValid"
                 @click="
                   send({
                     type: 'update_settings',
@@ -654,6 +659,9 @@
               >
                 保存设置（会清空确认）
               </button>
+              <p v-if="!settingsDraftValid" class="hint error-hint">
+                当前配置无效，请修正标红或留空的设置后再保存。
+              </p>
             </template>
             <dl v-else class="settings-summary">
               <div>
@@ -686,10 +694,16 @@
             v-if="!isConfirmed"
             class="btn btn-secondary"
             data-testid="confirm-settings"
-            :disabled="isHost && hasUnsavedSettings"
+            :disabled="isHost && (hasUnsavedSettings || !settingsDraftValid)"
             @click="send({ type: 'confirm_settings', requestId: requestId('confirm') })"
           >
-            {{ isHost && hasUnsavedSettings ? '请先保存设置' : '我已查看并确认设置' }}
+            {{
+              isHost && !settingsDraftValid
+                ? '请先修正设置'
+                : isHost && hasUnsavedSettings
+                  ? '请先保存设置'
+                  : '我已查看并确认设置'
+            }}
           </button>
           <p v-else class="confirmed-note">✓ 你已确认；设置变化后需重新确认。</p>
           <button

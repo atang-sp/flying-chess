@@ -1272,9 +1272,16 @@ test('community catalog one-click load and Party Studio custom theme stay opt-in
 
   await page.getByText('Party Studio 场景编辑器').click()
   await page.getByLabel('本局使用自定义场景').check()
+  const studioTotalCells = page
+    .locator('.board-fields .field', { hasText: '总格数' })
+    .locator('input')
+  await studioTotalCells.fill('20')
+  await studioTotalCells.blur()
   await page.getByLabel('主题强调色').fill('#ff0000')
   await page.getByTestId('start-game').click()
   await expect(page.locator('.app')).toHaveClass(/app--party-studio/)
+  await expect(page.locator('.board-title')).toContainText('20 格赛道')
+  await expect(page.getByTestId('board-cell-20')).toBeAttached()
   await expect
     .poll(() =>
       page.evaluate(() => {
@@ -1901,16 +1908,18 @@ test('mobile punishment actions stay visible without a competing pause button', 
   await expect(page.getByRole('button', { name: '暂停本局' })).toBeHidden()
 })
 
-test('total cell changes update the generated board', async ({ page }, testInfo) => {
+test('100 total cells updates the generated board without falling back to 40', async ({
+  page,
+}, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chrome')
 
   await page.goto('/flying-chess/')
   await page.locator('.start-btn').click()
 
   const totalCellsInput = page.locator('.config-item', { hasText: '总格子数' }).locator('input')
-  await totalCellsInput.fill('80')
+  await totalCellsInput.fill('100')
 
-  await expect(totalCellsInput).toHaveValue('80')
+  await expect(totalCellsInput).toHaveValue('100')
 
   const state = await page.evaluate(() => {
     const gameState = (
@@ -1925,7 +1934,145 @@ test('total cell changes update the generated board', async ({ page }, testInfo)
     }
   })
 
-  expect(state).toEqual({ configuredTotalCells: 80, boardLength: 80 })
+  expect(state).toEqual({ configuredTotalCells: 100, boardLength: 100 })
+})
+
+test('board edits stay synchronized when counts overflow or the board shrinks', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await enterDefaultSettings(page)
+  const punishmentInput = page.getByTestId('board-punishment-cells')
+  await punishmentInput.fill('38')
+
+  const overflowAdjusted = await page.evaluate(() => {
+    const config = (
+      window as typeof window & {
+        gameState: { boardConfig: Record<string, number> }
+      }
+    ).gameState.boardConfig
+    return { ...config }
+  })
+  expect(overflowAdjusted).toMatchObject({ punishmentCells: 38, totalCells: 40 })
+  expect(
+    Object.entries(overflowAdjusted)
+      .filter(([field]) => field !== 'totalCells' && field !== 'punishmentCells')
+      .reduce((sum, [, count]) => sum + count, 0)
+  ).toBe(0)
+
+  const totalCellsInput = page.getByTestId('board-total-cells')
+  await totalCellsInput.fill('100')
+  await page.getByRole('button', { name: /自动分配/ }).click()
+  await totalCellsInput.fill('40')
+
+  await expect(totalCellsInput).toHaveValue('40')
+  await expect(page.getByText('剩余可用格子：0 格')).toBeVisible()
+  const resized = await page.evaluate(() => {
+    const gameState = (
+      window as typeof window & {
+        gameState: { boardConfig: Record<string, number>; board: unknown[] }
+      }
+    ).gameState
+    return {
+      totalCells: gameState.boardConfig.totalCells,
+      boardLength: gameState.board.length,
+    }
+  })
+  expect(resized).toEqual({ totalCells: 40, boardLength: 40 })
+})
+
+test('failed punishment edits roll back without mutating the active config', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await enterDefaultSettings(page)
+  await page.evaluate(() => {
+    const gameState = (
+      window as typeof window & {
+        gameState: { punishmentConfig: Record<string, unknown> }
+      }
+    ).gameState
+    gameState.punishmentConfig = {
+      tools: { 单一工具: { name: '单一工具', intensity: 2, ratio: 100 } },
+      bodyParts: { 单一部位: { name: '单一部位', sensitivity: 3, ratio: 100 } },
+      positions: {
+        单一姿势: {
+          name: '单一姿势',
+          ratio: 100,
+          compatibleBodyParts: ['单一部位'],
+        },
+      },
+      minStrikes: 5,
+      maxStrikes: 30,
+      step: 1,
+      maxTakeoffFailures: 5,
+      doublePunishmentChance: 50,
+    }
+  })
+  await page.getByRole('button', { name: /惩罚/ }).click()
+
+  const minCell = page.locator('.quantity-cell', { hasText: '最小次数' })
+  await minCell.locator('button').first().click()
+  await expect(minCell.locator('.quantity-value')).toHaveText('4')
+  const doubleChanceCell = page.locator('.quantity-cell', { hasText: '翻倍概率' })
+  await doubleChanceCell.locator('button').nth(1).click()
+  await expect(doubleChanceCell.locator('.quantity-value')).toHaveText('55%')
+
+  const toolSection = page.locator('.ratio-distributor').first()
+  await toolSection.locator('.rd-segment').click()
+  await toolSection.locator('.rd-btn-remove').click()
+  await expect(page.locator('.config-error-modal')).toBeVisible()
+
+  const tools = await page.evaluate(() => {
+    const config = (
+      window as typeof window & {
+        gameState: { punishmentConfig: { tools: Record<string, unknown> } }
+      }
+    ).gameState.punishmentConfig
+    return Object.keys(config.tools)
+  })
+  expect(tools).toEqual(['单一工具'])
+})
+
+test('invalid custom traps cannot proceed to punishment generation', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await enterDefaultSettings(page)
+  await page.getByRole('button', { name: /陷阱/ }).click()
+  await page.locator('.trap-item input').first().fill('')
+
+  await expect(page.getByRole('button', { name: /生成惩罚组合/ })).toBeDisabled()
+})
+
+test('built-in party scenes preserve a configured 100-cell board', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+
+  await page.goto('/flying-chess/')
+  await page.locator('.start-btn').click()
+  const totalCellsInput = page.locator('.config-item', { hasText: '总格子数' }).locator('input')
+  await totalCellsInput.fill('100')
+  await page.getByRole('button', { name: /返回首页/ }).click()
+
+  await page.getByTestId('mode-party').click()
+  await page.getByRole('button', { name: /初见破冰/ }).click()
+  await page.getByTestId('start-game').click()
+
+  await expect(page.locator('.board-title')).toContainText('100 格赛道')
+  await expect(page.getByTestId('board-cell-100')).toBeAttached()
+  const state = await page.evaluate(() => {
+    const gameState = (
+      window as typeof window & {
+        gameState: { boardConfig: { totalCells: number }; board: unknown[] }
+      }
+    ).gameState
+    return {
+      configuredTotalCells: gameState.boardConfig.totalCells,
+      boardLength: gameState.board.length,
+    }
+  })
+  expect(state).toEqual({ configuredTotalCells: 100, boardLength: 100 })
 })
 
 test('automatic board distribution reserves start and finish', async ({ page }, testInfo) => {
@@ -1934,7 +2081,7 @@ test('automatic board distribution reserves start and finish', async ({ page }, 
   await page.goto('/flying-chess/')
   await page.locator('.start-btn').click()
   const totalCellsInput = page.locator('.config-item', { hasText: '总格子数' }).locator('input')
-  await totalCellsInput.fill('80')
+  await totalCellsInput.fill('100')
   await page.getByRole('button', { name: /自动分配/ }).click()
 
   const boardConfig = await page.evaluate(() => {
@@ -1955,14 +2102,14 @@ test('automatic board distribution reserves start and finish', async ({ page }, 
     ).gameState.boardConfig
   })
   expect(boardConfig).toEqual({
-    punishmentCells: 53,
-    chainPunishmentCells: 5,
+    punishmentCells: 67,
+    chainPunishmentCells: 7,
     bonusCells: 2,
-    reverseCells: 4,
+    reverseCells: 5,
     restCells: 2,
-    restartCells: 8,
-    trapCells: 4,
-    totalCells: 80,
+    restartCells: 10,
+    trapCells: 5,
+    totalCells: 100,
   })
 })
 

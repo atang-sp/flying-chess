@@ -24,12 +24,27 @@
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
 
-  const localConfig = ref<PunishmentConfig>({ ...props.config })
+  const cloneConfig = (config: PunishmentConfig): PunishmentConfig => ({
+    ...config,
+    tools: Object.fromEntries(
+      Object.entries(config.tools).map(([name, tool]) => [name, { ...tool }])
+    ),
+    bodyParts: Object.fromEntries(
+      Object.entries(config.bodyParts).map(([name, bodyPart]) => [name, { ...bodyPart }])
+    ),
+    positions: Object.fromEntries(
+      Object.entries(config.positions).map(([name, position]) => [
+        name,
+        { ...position, compatibleBodyParts: [...position.compatibleBodyParts] },
+      ])
+    ),
+  })
+  const localConfig = ref<PunishmentConfig>(cloneConfig(props.config))
 
   watch(
     () => props.config,
     newConfig => {
-      localConfig.value = { ...newConfig }
+      localConfig.value = cloneConfig(newConfig)
     },
     { deep: true, immediate: true }
   )
@@ -108,7 +123,7 @@
   function validateAndEmit(originalConfig: PunishmentConfig): boolean {
     const validation = GameService.validatePunishmentConfig(localConfig.value)
     if (validation.isValid) {
-      emit('update', localConfig.value)
+      emit('update', cloneConfig(localConfig.value))
       return true
     } else {
       localConfig.value = originalConfig
@@ -119,7 +134,7 @@
 
   // --- Tool handlers ---
   const onToolRatioUpdate = (idx: number, value: number) => {
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const originalConfig = cloneConfig(localConfig.value)
     const toolsArray = Object.values(localConfig.value.tools)
     autoDistributeRatio(toolsArray, idx, value)
     validateAndEmit(originalConfig)
@@ -133,7 +148,7 @@
 
       const validation = GameService.validatePunishmentConfig(localConfig.value)
       if (validation.isValid) {
-        emit('update', localConfig.value)
+        emit('update', cloneConfig(localConfig.value))
       } else {
         tool.intensity = originalIntensity
         showError(validation)
@@ -142,7 +157,7 @@
   }
 
   const removeTool = async (toolName: string) => {
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const originalConfig = cloneConfig(localConfig.value)
     if (toolName in localConfig.value.tools) {
       delete localConfig.value.tools[toolName]
 
@@ -153,7 +168,7 @@
 
       const validation = GameService.validatePunishmentConfig(localConfig.value)
       if (validation.isValid) {
-        emit('update', localConfig.value)
+        emit('update', cloneConfig(localConfig.value))
       } else {
         await nextTick()
         localConfig.value = originalConfig
@@ -167,7 +182,7 @@
       const toolName = newToolName.value.trim()
       if (toolName in localConfig.value.tools) return
 
-      const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+      const originalConfig = cloneConfig(localConfig.value)
       const toolsArray = Object.values(localConfig.value.tools)
       const n = toolsArray.length + 1
       const ratio = 100 / n
@@ -191,7 +206,7 @@
   }
 
   const equalDistributeTools = () => {
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const originalConfig = cloneConfig(localConfig.value)
     const toolsArray = Object.values(localConfig.value.tools)
     const ratio = Math.floor(100 / toolsArray.length)
     const remainder = 100 - ratio * toolsArray.length
@@ -203,7 +218,7 @@
 
   // --- Body part handlers ---
   const onBodyPartRatioUpdate = (idx: number, value: number) => {
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const originalConfig = cloneConfig(localConfig.value)
     const bodyPartsArray = Object.values(localConfig.value.bodyParts)
     autoDistributeRatio(bodyPartsArray, idx, value)
     validateAndEmit(originalConfig)
@@ -217,7 +232,7 @@
 
       const validation = GameService.validatePunishmentConfig(localConfig.value)
       if (validation.isValid) {
-        emit('update', localConfig.value)
+        emit('update', cloneConfig(localConfig.value))
       } else {
         bodyPart.sensitivity = originalSensitivity
         showError(validation)
@@ -226,7 +241,7 @@
   }
 
   const removeBodyPart = async (bodyPartName: string) => {
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const originalConfig = cloneConfig(localConfig.value)
     if (bodyPartName in localConfig.value.bodyParts) {
       delete localConfig.value.bodyParts[bodyPartName]
 
@@ -237,7 +252,7 @@
 
       const validation = GameService.validatePunishmentConfig(localConfig.value)
       if (validation.isValid) {
-        emit('update', localConfig.value)
+        emit('update', cloneConfig(localConfig.value))
       } else {
         await nextTick()
         localConfig.value = originalConfig
@@ -251,7 +266,7 @@
       const bodyPartName = newBodyPartName.value.trim()
       if (bodyPartName in localConfig.value.bodyParts) return
 
-      const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+      const originalConfig = cloneConfig(localConfig.value)
       const bodyPartsArray = Object.values(localConfig.value.bodyParts)
       const n = bodyPartsArray.length + 1
       const ratio = 100 / n
@@ -275,7 +290,7 @@
   }
 
   const equalDistributeBodyParts = () => {
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const originalConfig = cloneConfig(localConfig.value)
     const arr = Object.values(localConfig.value.bodyParts)
     const ratio = Math.floor(100 / arr.length)
     const remainder = 100 - ratio * arr.length
@@ -287,14 +302,14 @@
 
   // --- Position handlers ---
   const onPositionRatioUpdate = (idx: number, value: number) => {
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const originalConfig = cloneConfig(localConfig.value)
     const positionsArray = Object.values(localConfig.value.positions)
     autoDistributeRatio(positionsArray, idx, value)
     validateAndEmit(originalConfig)
   }
 
   const removePosition = async (positionName: string) => {
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const originalConfig = cloneConfig(localConfig.value)
     if (positionName in localConfig.value.positions) {
       delete localConfig.value.positions[positionName]
 
@@ -305,7 +320,7 @@
 
       const validation = GameService.validatePunishmentConfig(localConfig.value)
       if (validation.isValid) {
-        emit('update', localConfig.value)
+        emit('update', cloneConfig(localConfig.value))
       } else {
         await nextTick()
         localConfig.value = originalConfig
@@ -319,7 +334,7 @@
       const positionName = newPositionName.value.trim()
       if (positionName in localConfig.value.positions) return
 
-      const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+      const originalConfig = cloneConfig(localConfig.value)
       const positionsArray = Object.values(localConfig.value.positions)
       const n = positionsArray.length + 1
       const ratio = 100 / n
@@ -342,7 +357,7 @@
   }
 
   const equalDistributePositions = () => {
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const originalConfig = cloneConfig(localConfig.value)
     const arr = Object.values(localConfig.value.positions)
     const ratio = Math.floor(100 / arr.length)
     const remainder = 100 - ratio * arr.length
@@ -363,7 +378,7 @@
     const position = localConfig.value.positions[positionName]
     if (!position) return
 
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const originalConfig = cloneConfig(localConfig.value)
 
     if (!position.compatibleBodyParts || position.compatibleBodyParts.length === 0) {
       const allNames = Object.values(localConfig.value.bodyParts).map(bp => bp.name)
@@ -379,7 +394,7 @@
 
     const validation = GameService.validatePunishmentConfig(localConfig.value)
     if (validation.isValid) {
-      emit('update', localConfig.value)
+      emit('update', cloneConfig(localConfig.value))
     } else {
       localConfig.value = originalConfig
       showError(validation)
@@ -388,8 +403,8 @@
 
   // --- Quantity handlers ---
   const updateMinStrikes = (newValue: number) => {
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
-    localConfig.value.minStrikes = Math.max(5, newValue)
+    const originalConfig = cloneConfig(localConfig.value)
+    localConfig.value.minStrikes = Math.max(1, newValue)
     if (localConfig.value.minStrikes > localConfig.value.maxStrikes) {
       localConfig.value.maxStrikes = localConfig.value.minStrikes
     }
@@ -397,24 +412,24 @@
   }
 
   const updateMaxStrikes = (newValue: number) => {
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const originalConfig = cloneConfig(localConfig.value)
     localConfig.value.maxStrikes = Math.max(localConfig.value.minStrikes, newValue)
     validateAndEmit(originalConfig)
   }
 
   const updateMaxTakeoffFailures = (newValue: number) => {
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const originalConfig = cloneConfig(localConfig.value)
     localConfig.value.maxTakeoffFailures = Math.max(1, newValue)
     validateAndEmit(originalConfig)
   }
 
   const updateDoublePunishmentChance = (newValue: number) => {
-    localConfig.value.doublePunishmentChance = Math.max(0, Math.min(50, newValue))
-    emit('update', localConfig.value)
+    localConfig.value.doublePunishmentChance = Math.max(0, Math.min(100, newValue))
+    emit('update', cloneConfig(localConfig.value))
   }
 
   const resetToDefault = async () => {
-    const originalConfig = JSON.parse(JSON.stringify(localConfig.value))
+    const originalConfig = cloneConfig(localConfig.value)
     const defaultConfig = GameService.createPunishmentConfig()
     localConfig.value = defaultConfig
     validateAndEmit(originalConfig)
@@ -606,9 +621,9 @@
             <span class="quantity-label">最小次数</span>
             <div class="quantity-controls">
               <button
-                :disabled="localConfig.minStrikes <= 5"
+                :disabled="localConfig.minStrikes <= 1"
                 class="btn-stat"
-                @click="updateMinStrikes(localConfig.minStrikes - 5)"
+                @click="updateMinStrikes(localConfig.minStrikes - 1)"
               >
                 <Minus :size="14" />
               </button>
@@ -616,7 +631,7 @@
               <button
                 :disabled="localConfig.minStrikes >= localConfig.maxStrikes"
                 class="btn-stat"
-                @click="updateMinStrikes(localConfig.minStrikes + 5)"
+                @click="updateMinStrikes(localConfig.minStrikes + 1)"
               >
                 <Plus :size="14" />
               </button>
@@ -629,7 +644,7 @@
               <button
                 :disabled="localConfig.maxStrikes <= localConfig.minStrikes"
                 class="btn-stat"
-                @click="updateMaxStrikes(localConfig.maxStrikes - 5)"
+                @click="updateMaxStrikes(localConfig.maxStrikes - 1)"
               >
                 <Minus :size="14" />
               </button>
@@ -637,7 +652,7 @@
               <button
                 :disabled="localConfig.maxStrikes >= 100"
                 class="btn-stat"
-                @click="updateMaxStrikes(localConfig.maxStrikes + 5)"
+                @click="updateMaxStrikes(localConfig.maxStrikes + 1)"
               >
                 <Plus :size="14" />
               </button>
@@ -677,7 +692,7 @@
               </button>
               <span class="quantity-value">{{ localConfig.doublePunishmentChance ?? 0 }}%</span>
               <button
-                :disabled="(localConfig.doublePunishmentChance ?? 0) >= 50"
+                :disabled="(localConfig.doublePunishmentChance ?? 0) >= 100"
                 class="btn-stat"
                 @click="updateDoublePunishmentChance((localConfig.doublePunishmentChance ?? 0) + 5)"
               >

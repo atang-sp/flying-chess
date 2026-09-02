@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
+  applyBoardConfigOverlay,
   createCompatiblePunishmentAction,
   createModeConfig,
   cryptoRandomInt,
   createSharedBoard,
   createStandardConfigSnapshot,
+  GAME_CONFIG,
   MODE_POLICIES,
   normalizeConfigSnapshot,
   inspectPunishmentConfig,
   projectPublicConfig,
   serializeConfigSnapshot,
+  validateBoardConfig,
   validatePunishmentConfig,
   validateConfigSnapshot,
   type BoardRandomSource,
@@ -175,6 +178,44 @@ describe('shared game configuration contract', () => {
     local.boardConfig.totalCells = 60
     expect(standardHand.ratio).toBeGreaterThan(0)
     expect(standard.boardConfig.totalCells).toBe(40)
+  })
+
+  it('内置场景覆盖格子构成时保留用户选择的 100 格棋盘', () => {
+    const base = {
+      ...createStandardConfigSnapshot().boardConfig,
+      totalCells: 100,
+    }
+    const scene = applyBoardConfigOverlay(base, {
+      ...GAME_CONFIG.PARTY_SCENE_PRESETS.icebreaker.boardConfig,
+      totalCells: base.totalCells,
+    })
+
+    expect(scene.totalCells).toBe(100)
+    expect(validateBoardConfig(scene)).toBe(true)
+    expect(createSharedBoard({ ...createModeConfig('party'), boardConfig: scene })).toHaveLength(
+      100
+    )
+  })
+
+  it('缩小棋盘时按容量压缩格子且不凭空添加可选字段', () => {
+    const resized = applyBoardConfigOverlay(createStandardConfigSnapshot().boardConfig, {
+      totalCells: 20,
+    })
+    const assigned = [
+      resized.punishmentCells,
+      resized.chainPunishmentCells,
+      resized.bonusCells,
+      resized.reverseCells,
+      resized.restCells,
+      resized.restartCells,
+      resized.trapCells,
+    ].reduce((sum, count) => sum + count, 0)
+
+    expect(resized.totalCells).toBe(20)
+    expect(assigned).toBe(18)
+    expect(resized).not.toHaveProperty('qaCells')
+    expect(resized).not.toHaveProperty('dareCells')
+    expect(validateBoardConfig(resized)).toBe(true)
   })
 
   it('完整惩罚分类覆盖会保留自定义条目且不重新混入默认条目', () => {

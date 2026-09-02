@@ -14,6 +14,7 @@
     X,
   } from '@lucide/vue'
   import type { BoardConfig } from '@flying-chess/game-core/types'
+  import { applyBoardConfigOverlay } from '@flying-chess/game-core/config'
   import { GameService } from '../services/gameService'
 
   interface Props {
@@ -69,6 +70,9 @@
   // 处理输入变化，自动调整后面格子
   const handleCellInput = (field: keyof BoardConfig) => {
     if (field === 'totalCells') {
+      localConfig.value = applyBoardConfigOverlay(localConfig.value, {
+        totalCells: localConfig.value.totalCells,
+      })
       updateConfig()
       return
     }
@@ -86,25 +90,24 @@
     ]
     const idx = order.indexOf(field)
     if (idx === -1) return
-    // 计算当前已用
-    let used = 0
-    for (let i = 0; i <= idx; i++) {
-      used += Number(localConfig.value[order[i]] ?? 0)
-    }
-    // 如果超出总格子数，依次减少后面项
+    // 如果超出总格子数，优先从当前字段后面的配置腾出空间；
+    // 后续字段不足时再收缩当前字段，保证界面值与已提交配置始终一致。
     const assignableCells = localConfig.value.totalCells - 2
+    const used = order.reduce(
+      (total, currentField) => total + Number(localConfig.value[currentField] ?? 0),
+      0
+    )
     if (used > assignableCells) {
       let remain = used - assignableCells
       for (let i = idx + 1; i < order.length; i++) {
         const v = Number(localConfig.value[order[i]] ?? 0)
-        if (v >= remain) {
-          localConfig.value[order[i]] = v - remain
-          remain = 0
-          break
-        } else {
-          localConfig.value[order[i]] = 0
-          remain -= v
-        }
+        const reduction = Math.min(v, remain)
+        localConfig.value[order[i]] = v - reduction
+        remain -= reduction
+        if (remain === 0) break
+      }
+      if (remain > 0) {
+        localConfig.value[field] = Math.max(0, Number(localConfig.value[field] ?? 0) - remain)
       }
     }
     updateConfig()
@@ -169,6 +172,7 @@
           <div class="input-group">
             <input
               v-model.number="localConfig.punishmentCells"
+              data-testid="board-punishment-cells"
               type="number"
               min="0"
               :max="localConfig.totalCells"

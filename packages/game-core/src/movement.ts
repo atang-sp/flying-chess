@@ -183,7 +183,7 @@ export function resolvePlayerMovement(input: PlayerMovementInput): PlayerMovemen
 export function resolveCellEffect(
   player: Readonly<Pick<Player, 'position'>>,
   cellEffect: BoardCell['effect'],
-  boardSize = 40
+  boardSize: number
 ): { newPosition: number; effect: string; fromPosition: number; toPosition: number } {
   const fromPosition = player.position
   if (!cellEffect) {

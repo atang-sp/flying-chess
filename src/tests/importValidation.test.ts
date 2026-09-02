@@ -64,6 +64,13 @@ describe('导入配置校验', () => {
     expect(validateImportData(createValidImport()).isValid).toBe(true)
   })
 
+  it('兼容旧棋盘字段时不修改调用方传入的数据', () => {
+    const data = cloneValidImport()
+
+    expect(validateImportData(data).isValid).toBe(true)
+    expect(data.data.boardConfig).not.toHaveProperty('chainPunishmentCells')
+  })
+
   it('接受受支持的旧数组格式', () => {
     const data = cloneValidImport()
     data.data.punishmentConfig.tools = [{ name: '手掌', intensity: 2, ratio: 100 }] as never
@@ -101,6 +108,30 @@ describe('导入配置校验', () => {
     data.data.trapConfig = []
 
     expect(validateImportData(data).isValid).toBe(false)
+  })
+
+  it('拒绝未知机关类型，且在应用前不触碰本地状态', () => {
+    const values = new Map<string, string>([['ludo_game_config', 'existing-config']])
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    })
+    const data = cloneValidImport()
+    data.data.trapConfig = [
+      {
+        name: '未知机关',
+        description: '不应通过校验',
+        trapVariant: 'unknown',
+      },
+    ] as never
+    const beforeApply = vi.fn()
+
+    const result = importFromJson(JSON.stringify(data), {}, beforeApply)
+
+    expect(result.success).toBe(false)
+    expect(beforeApply).not.toHaveBeenCalled()
+    expect(values.get('ludo_game_config')).toBe('existing-config')
   })
 
   it.each(invalidPunishmentMutations)('拒绝超出范围的%s', (_label, mutate) => {
@@ -263,6 +294,29 @@ describe('导入配置校验', () => {
     expect(result.success).toBe(true)
     expect(events[0]).toBe('end-active-session')
     expect(events.some(event => event.startsWith('persist:'))).toBe(true)
+  })
+
+  it('首次使用时只导入棋盘配置也会补齐默认项并成功落盘', () => {
+    const values = new Map<string, string>()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    })
+    const source = cloneValidImport()
+    source.data.boardConfig.totalCells = 100
+    const data = {
+      ...source,
+      data: { boardConfig: source.data.boardConfig },
+    }
+
+    const result = importFromJson(JSON.stringify(data))
+    const stored = JSON.parse(values.get('ludo_game_config') ?? 'null') as Record<string, unknown>
+
+    expect(result.success).toBe(true)
+    expect(stored.boardConfig).toMatchObject({ totalCells: 100, chainPunishmentCells: 0 })
+    expect(stored.punishmentConfig).toBeTruthy()
+    expect(stored.trapConfig).toBeTruthy()
   })
 
   it('拒绝只包含不可恢复棋盘布局的空操作导入', () => {

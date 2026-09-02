@@ -7,13 +7,13 @@
 
 ## 构建与版本注入
 
-在已检出不可变 `v1.16.0` 标签的仓库根目录构建同一 commit。`ROOM_SERVER_BUILD_SHA` 只能是公开 Git commit 标识：
+在已检出不可变 `v1.17.0` 标签的仓库根目录构建同一 commit。`ROOM_SERVER_BUILD_SHA` 只能是公开 Git commit 标识：
 
 ```bash
 docker build -f apps/room-server/Dockerfile \
-  --build-arg ROOM_SERVER_VERSION=1.16.0 \
+  --build-arg ROOM_SERVER_VERSION=1.17.0 \
   --build-arg ROOM_SERVER_BUILD_SHA=<公开完整 commit SHA> \
-  -t flying-chess-room:1.16.0 .
+  -t flying-chess-room:1.17.0 .
 ```
 
 不要把 metrics、achievement 或其他 secret 作为 build arg；它们不得进入镜像层。
@@ -22,7 +22,7 @@ docker build -f apps/room-server/Dockerfile \
 `0600`。至少写入：
 
 ```dotenv
-ROOM_SERVER_VERSION=1.16.0
+ROOM_SERVER_VERSION=1.17.0
 ROOM_SERVER_BUILD_SHA=<公开完整 commit SHA>
 ROOM_DRAIN_TIMEOUT_MS=1800000
 ```
@@ -99,7 +99,7 @@ health 中的 `version`、`buildSha` 和 `protocolVersion` 必须与同一发布
 node scripts/room-server-release-smoke.mjs \
   --health-url https://rooms.atang-sp.run.place/health \
   --ws-url wss://rooms.atang-sp.run.place \
-  --expected-server-version 1.16.0 \
+  --expected-server-version 1.17.0 \
   --expected-protocol-version 1 \
   --origin https://atang-sp.github.io \
   --timeout-ms 5000

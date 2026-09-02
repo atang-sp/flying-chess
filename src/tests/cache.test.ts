@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   clearAllLocalGameData,
   GAME_MODE_STORAGE_KEY,
@@ -6,6 +6,8 @@ import {
   PARTY_EVENT_DECK_STORAGE_KEY,
   LOCAL_PROGRESS_STORAGE_KEY,
   PLAYER_SETTINGS_STORAGE_KEY,
+  GAME_CONFIG_STORAGE_KEY,
+  loadConfig,
   loadGameMode,
   loadPlayerSettings,
   loadPartyEventDeck,
@@ -16,11 +18,69 @@ import {
   saveVictoryConfig,
   savePartyEventDeck,
   saveLocalProgress,
+  saveConfig,
 } from '../utils/cache'
+import { normalizeConfigSnapshot } from '@flying-chess/game-core/config'
 import { DEFAULT_PARTY_EVENT_DECK } from '@flying-chess/game-core/party-events'
 import { recordLocalProgress } from '../services/localProgress'
 
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
 describe('本地游戏数据清理', () => {
+  it('损坏的惩罚和机关缓存回退默认值，同时保留合法的 100 格棋盘', () => {
+    const defaults = normalizeConfigSnapshot(undefined)
+    const customBoard = { ...defaults.boardConfig, totalCells: 100 }
+    const values = new Map<string, string>([
+      [
+        GAME_CONFIG_STORAGE_KEY,
+        JSON.stringify({
+          boardConfig: customBoard,
+          punishmentConfig: { ...defaults.punishmentConfig, tools: {} },
+          trapConfig: [
+            {
+              name: '损坏机关',
+              description: '未知类型不应被静默当作普通机关',
+              trapVariant: 'unknown',
+            },
+          ],
+          savedAt: Date.now(),
+        }),
+      ],
+    ])
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    })
+
+    const loaded = loadConfig()
+
+    expect(loaded?.boardConfig).toEqual(customBoard)
+    expect(loaded?.punishmentConfig).toEqual(defaults.punishmentConfig)
+    expect(loaded?.trapConfig).toEqual(defaults.traps)
+  })
+
+  it('拒绝保存无效配置并保留原有缓存', () => {
+    const defaults = normalizeConfigSnapshot(undefined)
+    const values = new Map<string, string>([[GAME_CONFIG_STORAGE_KEY, 'existing-config']])
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    })
+
+    const saved = saveConfig({
+      boardConfig: defaults.boardConfig,
+      punishmentConfig: { ...defaults.punishmentConfig, tools: {} },
+      trapConfig: defaults.traps,
+    })
+
+    expect(saved).toBe(false)
+    expect(values.get(GAME_CONFIG_STORAGE_KEY)).toBe('existing-config')
+  })
+
   it('损坏的玩家设置不会作为可信数组进入启动流程', () => {
     const values = new Map<string, string>([
       [PLAYER_SETTINGS_STORAGE_KEY, JSON.stringify({ playerCount: 2, playerNames: null })],
