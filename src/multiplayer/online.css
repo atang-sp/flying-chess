@@ -246,6 +246,10 @@
   font-size: 0.84rem;
 }
 
+.error-hint {
+  color: var(--color-danger);
+}
+
 .text-button {
   padding: 0.25rem 0.45rem;
   border: 0;

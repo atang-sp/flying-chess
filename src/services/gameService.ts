@@ -45,6 +45,7 @@ import {
   inspectPunishmentConfig,
   normalizeBoardConfig,
   validateBoardConfig,
+  validateTrapConfig,
   type BoardRandomSource,
   type ConfigSnapshot,
   normalizeConfigSnapshot,
@@ -85,6 +86,12 @@ export class GameService {
 
     if (!this.validateBoardConfig(boardConf)) {
       throw new Error('棋盘配置无效：格子数量必须为整数，且需要为起点和终点预留两个格子')
+    }
+    if (!inspectPunishmentConfig(config).isValid) {
+      throw new Error('惩罚配置无效：无法生成兼容的惩罚组合')
+    }
+    if (!validateTrapConfig(traps)) {
+      throw new Error('机关配置无效：至少需要一个名称和描述均不为空的机关')
     }
 
     // 始终使用随机分配逻辑，确保所有格子都严格按照棋盘配置来生成
@@ -220,11 +227,11 @@ export class GameService {
   static processCellEffect(
     player: Player,
     cellEffect: BoardCell['effect'],
-    boardSize: number = 40
+    boardSize: number
   ): { newPosition: number; effect: string; fromPosition: number; toPosition: number } {
     return resolveCellEffect(player, cellEffect, boardSize)
   }
-  static checkWinner(player: Player, boardSize: number = 40): boolean {
+  static checkWinner(player: Player, boardSize: number): boolean {
     return hasPlayerWon(player, boardSize)
   }
 

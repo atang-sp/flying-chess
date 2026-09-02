@@ -711,7 +711,7 @@ const cloneConfig = (config: ConfigSnapshot): ConfigSnapshot => ({
   authority: config.authority,
 })
 
-const fitBoardOverlayToCapacity = (
+export const applyBoardConfigOverlay = (
   base: BoardConfig,
   overlay: Partial<BoardConfig>
 ): BoardConfig => {
@@ -719,9 +719,11 @@ const fitBoardOverlayToCapacity = (
   const isCandidateValid = Boolean(validateBoardConfig(candidate))
   if (isCandidateValid) return candidate
 
-  const fields = numericBoardFields.filter(field => field !== 'totalCells') as Array<
-    Exclude<(typeof numericBoardFields)[number], 'totalCells'>
-  >
+  const fields = numericBoardFields.filter(
+    field =>
+      field !== 'totalCells' &&
+      (field !== 'qaCells' && field !== 'dareCells' ? true : candidate[field] !== undefined)
+  ) as Array<Exclude<(typeof numericBoardFields)[number], 'totalCells'>>
   const capacity = Math.max(0, candidate.totalCells - 2)
   const desired = fields.map(field => Math.max(0, Number(candidate[field] ?? 0)))
   const totalDesired = desired.reduce((sum, count) => sum + count, 0)
@@ -891,7 +893,7 @@ export function createModeConfig(
     ...base,
     modeId: policy.modeId,
     rulesetVersion: policy.rulesetVersion,
-    boardConfig: fitBoardOverlayToCapacity(base.boardConfig, policy.boardOverlay),
+    boardConfig: applyBoardConfigOverlay(base.boardConfig, policy.boardOverlay),
     punishmentConfig: clonePunishmentConfig(base.punishmentConfig),
     traps: cloneTraps(PARTY_TRAPS),
     qaQuestions: [

@@ -68,7 +68,9 @@ describe('room server CLI lifecycle', () => {
           NODE_ENV: 'test',
           HOST: '127.0.0.1',
           PORT: '0',
-          ROOM_DRAIN_TIMEOUT_MS: '100',
+          // Keep a deterministic readiness window before the bounded close. A 100 ms window
+          // flakes when process startup or loopback fetches contend with the full test suite.
+          ROOM_DRAIN_TIMEOUT_MS: '500',
           ROOM_SERVER_VERSION: '1.15.0-test',
           ROOM_SERVER_BUILD_SHA: 'abc1234',
         },

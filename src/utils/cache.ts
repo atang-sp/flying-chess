@@ -11,7 +11,12 @@ import {
   type GameMode,
 } from '../config/modes'
 import { normalizeVictoryConfig } from '@flying-chess/game-core/victory-settlement'
-import { normalizeConfigSnapshot } from '@flying-chess/game-core/config'
+import {
+  normalizeConfigSnapshot,
+  validateBoardConfig,
+  validatePunishmentConfig,
+  validateTrapConfig,
+} from '@flying-chess/game-core/config'
 import {
   DEFAULT_PARTY_EVENT_DECK,
   validatePartyEventDeck,
@@ -62,7 +67,14 @@ export interface CachedConfig {
 /**
  * 保存配置到 localStorage
  */
-export function saveConfig(data: Omit<CachedConfig, 'savedAt'>) {
+export function saveConfig(data: Omit<CachedConfig, 'savedAt'>): boolean {
+  if (
+    !validateBoardConfig(data.boardConfig) ||
+    !validatePunishmentConfig(data.punishmentConfig) ||
+    !validateTrapConfig(data.trapConfig)
+  ) {
+    return false
+  }
   const normalized = normalizeConfigSnapshot({
     boardConfig: data.boardConfig,
     punishmentConfig: data.punishmentConfig,
@@ -76,8 +88,10 @@ export function saveConfig(data: Omit<CachedConfig, 'savedAt'>) {
   }
   try {
     localStorage.setItem(GAME_CONFIG_STORAGE_KEY, JSON.stringify(payload))
+    return true
   } catch (err) {
     console.warn('保存配置到 localStorage 失败:', err)
+    return false
   }
 }
 
@@ -90,17 +104,32 @@ export function loadConfig(ttl: number = DEFAULT_TTL): CachedConfig | null {
   const raw = localStorage.getItem(GAME_CONFIG_STORAGE_KEY)
   if (!raw) return null
   try {
-    const cached: CachedConfig = JSON.parse(raw)
+    const parsed: unknown = JSON.parse(raw)
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      Array.isArray(parsed) ||
+      typeof (parsed as Record<string, unknown>).savedAt !== 'number' ||
+      !Number.isFinite((parsed as Record<string, unknown>).savedAt)
+    ) {
+      return null
+    }
+    const cached = parsed as CachedConfig
     if (Date.now() - cached.savedAt > ttl) {
       // 过期，清理
       localStorage.removeItem(GAME_CONFIG_STORAGE_KEY)
       return null
     }
     const normalized = normalizeConfigSnapshot(cached)
+    const defaults = normalizeConfigSnapshot(undefined)
     return {
-      boardConfig: normalized.boardConfig,
-      punishmentConfig: normalized.punishmentConfig,
-      trapConfig: normalized.traps,
+      boardConfig: validateBoardConfig(normalized.boardConfig)
+        ? normalized.boardConfig
+        : defaults.boardConfig,
+      punishmentConfig: validatePunishmentConfig(normalized.punishmentConfig)
+        ? normalized.punishmentConfig
+        : defaults.punishmentConfig,
+      trapConfig: validateTrapConfig(cached.trapConfig) ? normalized.traps : defaults.traps,
       savedAt: cached.savedAt,
     }
   } catch (err) {

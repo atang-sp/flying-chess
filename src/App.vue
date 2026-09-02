@@ -108,9 +108,11 @@
   import { useLocalGameSession } from './composables/useLocalGameSession'
   import { RULESET_VERSION_BY_MODE, type GameMode } from './config/modes'
   import {
+    applyBoardConfigOverlay,
     createModeConfig,
     createStandardConfigSnapshot,
     validateConfigSnapshot,
+    validateTrapConfig,
   } from '@flying-chess/game-core/config'
   import {
     createPartyPunishmentChoices,
@@ -1227,7 +1229,7 @@
   })
 
   const isTrapConfigValid = computed(() => {
-    return trapConfig.value.length > 0
+    return validateTrapConfig(trapConfig.value)
   })
 
   const stepCompleted = computed(() => ({
@@ -1614,7 +1616,8 @@
 
   // 更新机关配置
   const updateTrapConfig = (traps: TrapAction[]) => {
-    trapConfig.value = traps
+    trapConfig.value = traps.map(trap => ({ ...trap }))
+    if (!validateTrapConfig(traps)) return
     // 重新创建棋盘以应用新的机关配置
     gameState.board = GameService.createBoard(
       gameState.punishmentConfig,
@@ -1646,9 +1649,15 @@
     const sceneKey = playerConfig.scenePreset ?? 'default'
     const scene = sceneKey !== 'default' ? GAME_CONFIG.PARTY_SCENE_PRESETS[sceneKey] : undefined
     const studio = playerConfig.studioConfig?.enabled ? playerConfig.studioConfig : undefined
-    const nextBoardConfig = {
-      ...(studio?.boardConfig ?? scene?.boardConfig ?? partySnapshot.boardConfig),
-    } as BoardConfig
+    const nextBoardConfig = studio?.boardConfig
+      ? cloneConfig(studio.boardConfig)
+      : scene
+        ? applyBoardConfigOverlay(partySnapshot.boardConfig, {
+            ...scene.boardConfig,
+            // 内置场景只覆盖格子构成；用户选择的棋盘大小必须继续生效。
+            totalCells: partySnapshot.boardConfig.totalCells,
+          })
+        : cloneConfig(partySnapshot.boardConfig)
     const nextPunishmentConfig = cloneConfig(partySnapshot.punishmentConfig)
 
     const unlockedPartyContent = getUnlockedPartyContent(localProgress.value)

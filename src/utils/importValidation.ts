@@ -1,6 +1,10 @@
 import { GameService } from '../services/gameService'
 import type { BoardConfig } from '@flying-chess/game-core/types'
-import { inspectPunishmentConfig, normalizePunishmentConfig } from '@flying-chess/game-core/config'
+import {
+  inspectPunishmentConfig,
+  normalizePunishmentConfig,
+  validateTrapConfig as validateSharedTrapConfig,
+} from '@flying-chess/game-core/config'
 
 type UnknownRecord = Record<string, unknown>
 
@@ -106,9 +110,10 @@ function validateBoardConfig(raw: unknown, errors: string[]): void {
     return
   }
 
-  // 向后兼容：缺少 chainPunishmentCells 时补 0
-  if (raw.chainPunishmentCells === undefined) {
-    raw.chainPunishmentCells = 0
+  // 向后兼容：旧配置缺少 chainPunishmentCells 时仅在校验副本中补 0。
+  const candidate: UnknownRecord = {
+    ...raw,
+    chainPunishmentCells: raw.chainPunishmentCells ?? 0,
   }
 
   const fields = [
@@ -121,9 +126,9 @@ function validateBoardConfig(raw: unknown, errors: string[]): void {
     'trapCells',
     'totalCells',
   ] as const
-  const allNumeric = fields.every(field => typeof raw[field] === 'number')
+  const allNumeric = fields.every(field => typeof candidate[field] === 'number')
 
-  if (!allNumeric || !GameService.validateBoardConfig(raw as unknown as BoardConfig)) {
+  if (!allNumeric || !GameService.validateBoardConfig(candidate as unknown as BoardConfig)) {
     errors.push(
       'data.boardConfig 格子数必须为整数，总格子数须为 20-100，且需为起点和终点预留两个格子'
     )
@@ -238,16 +243,10 @@ function validatePunishmentConfig(raw: unknown, errors: string[]): void {
 }
 
 function validateTrapConfig(raw: unknown, errors: string[]): void {
-  if (!Array.isArray(raw) || raw.length === 0) {
-    errors.push('data.trapConfig 必须是非空数组')
+  if (!validateSharedTrapConfig(raw)) {
+    errors.push('data.trapConfig 必须是非空数组，且每个机关的名称、描述和类型必须有效')
     return
   }
-
-  raw.forEach((trap, index) => {
-    if (!isRecord(trap) || !isNonEmptyString(trap.name) || !isNonEmptyString(trap.description)) {
-      errors.push(`data.trapConfig[${index}] 必须包含非空的 name 和 description`)
-    }
-  })
 }
 
 function validateBoardContent(raw: unknown, errors: string[]): void {

@@ -92,6 +92,19 @@ describe('棋盘配置校验', () => {
         totalCells: 80,
       },
     ],
+    [
+      100,
+      {
+        punishmentCells: 67,
+        chainPunishmentCells: 7,
+        bonusCells: 2,
+        reverseCells: 5,
+        restCells: 2,
+        restartCells: 10,
+        trapCells: 5,
+        totalCells: 100,
+      },
+    ],
   ] as const)('为 %s 格棋盘稳定分配目标比例', (totalCells, expected) => {
     expect(GameService.createAutoBoardConfig(totalCells)).toEqual(expected)
   })

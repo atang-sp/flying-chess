@@ -18,6 +18,7 @@ import {
 } from './cache'
 import { devLog } from './logger'
 import { validateImportData } from './configImportContract'
+import { normalizeConfigSnapshot } from '@flying-chess/game-core/config'
 import type { QRCodeToDataURLOptions } from 'qrcode'
 import QRCode from 'qrcode'
 import jsQR from 'jsqr'
@@ -362,10 +363,11 @@ function performImport(data: ExportData, options: Partial<ImportOptions> = {}): 
 
     if (configData.punishmentConfig || configData.boardConfig || configData.trapConfig) {
       const currentConfig = loadConfig()
-      const newConfig: Partial<Omit<CachedConfig, 'savedAt'>> = {
-        punishmentConfig: currentConfig?.punishmentConfig,
-        boardConfig: currentConfig?.boardConfig,
-        trapConfig: currentConfig?.trapConfig,
+      const defaults = normalizeConfigSnapshot(undefined)
+      const newConfig: Omit<CachedConfig, 'savedAt'> = {
+        punishmentConfig: currentConfig?.punishmentConfig ?? defaults.punishmentConfig,
+        boardConfig: currentConfig?.boardConfig ?? defaults.boardConfig,
+        trapConfig: currentConfig?.trapConfig ?? defaults.traps,
       }
 
       if (configData.punishmentConfig) {
@@ -378,14 +380,15 @@ function performImport(data: ExportData, options: Partial<ImportOptions> = {}): 
         newConfig.trapConfig = configData.trapConfig
       }
 
-      if (newConfig.punishmentConfig && newConfig.boardConfig && newConfig.trapConfig) {
-        saveConfig({
-          punishmentConfig: newConfig.punishmentConfig,
-          boardConfig: newConfig.boardConfig,
-          trapConfig: newConfig.trapConfig,
+      const normalizedNewConfig = normalizeConfigSnapshot(newConfig)
+      if (
+        !saveConfig({
+          boardConfig: normalizedNewConfig.boardConfig,
+          punishmentConfig: normalizedNewConfig.punishmentConfig,
+          trapConfig: normalizedNewConfig.traps,
         })
-      } else {
-        warnings.push('配置数据不完整，已跳过部分配置保存')
+      ) {
+        throw new Error('配置保存失败，本地数据未更新')
       }
     }
 

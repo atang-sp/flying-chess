@@ -2,6 +2,7 @@
   import { computed, ref } from 'vue'
   import { GripVertical, Palette, SlidersHorizontal } from '@lucide/vue'
   import type { BoardConfig } from '@flying-chess/game-core/types'
+  import { applyBoardConfigOverlay } from '@flying-chess/game-core/config'
   import {
     createLayoutFromBoardConfig,
     validatePartyStudioConfig,
@@ -47,7 +48,11 @@
     update({ director: { ...props.config.director, [key]: value } })
   }
   const updateBoard = (key: keyof BoardConfig, value: number) => {
-    const boardConfig = { ...props.config.boardConfig, [key]: Math.max(0, Math.trunc(value)) }
+    const sanitizedValue = Math.max(0, Math.trunc(value))
+    const boardConfig =
+      key === 'totalCells'
+        ? applyBoardConfigOverlay(props.config.boardConfig, { totalCells: sanitizedValue })
+        : { ...props.config.boardConfig, [key]: sanitizedValue }
     try {
       update({ boardConfig, cellLayout: createLayoutFromBoardConfig(boardConfig) })
     } catch {
