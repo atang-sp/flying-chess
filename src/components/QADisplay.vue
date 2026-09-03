@@ -84,7 +84,11 @@
     border-radius: var(--radius-xl);
     padding: 30px;
     max-width: 500px;
-    width: 90%;
+    width: 100%;
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    overscroll-behavior: contain;
     text-align: center;
     box-shadow:
       var(--glass-shadow-lg),
@@ -225,7 +229,6 @@
   @media (max-width: 768px) {
     .qa-modal {
       padding: 20px;
-      margin: 20px;
     }
 
     .qa-icon :deep(svg) {

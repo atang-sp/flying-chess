@@ -22,11 +22,121 @@ async function startDefaultGame(page: Page) {
   await expect(page.locator('.game-board')).toBeVisible()
 }
 
+async function openPunishmentSettings(page: Page) {
+  await page.goto('/flying-chess/')
+  await page.locator('.start-btn').click()
+  await page.getByRole('button', { name: '下一步', exact: true }).click()
+  await expect(page.locator('.ratio-distributor', { hasText: '部位设置' })).toBeVisible()
+}
+
 test('玩家人数图标按钮提供可读名称', async ({ page }) => {
   await page.goto('/flying-chess/')
 
   await expect(page.getByRole('button', { name: '减少玩家人数' })).toBeVisible()
   await expect(page.getByRole('button', { name: '增加玩家人数' })).toBeVisible()
+})
+
+test('删除最后一个部位时配置错误弹窗可见且可操作', async ({ page }) => {
+  await openPunishmentSettings(page)
+
+  const bodyPartSection = page.locator('.ratio-distributor', { hasText: '部位设置' })
+  for (const bodyPartName of ['屁股', '后背', '大腿', '臀缝', '手心']) {
+    await bodyPartSection
+      .locator('.rd-segment:visible, .rd-list-item:visible', { hasText: bodyPartName })
+      .click()
+    await bodyPartSection.locator('.rd-btn-remove:visible').last().click()
+  }
+
+  const errorDialog = page.getByRole('alertdialog', { name: '配置错误' })
+  await expect(errorDialog).toBeVisible()
+  await expect(errorDialog).toContainText('工具、部位、姿势或惩罚次数参数超出有效范围')
+  const overlayCoversViewport = await page.locator('.config-error-modal').evaluate(element => {
+    const bounds = element.getBoundingClientRect()
+    return (
+      Math.abs(bounds.left) < 1 &&
+      Math.abs(bounds.top) < 1 &&
+      Math.abs(bounds.width - window.innerWidth) < 1 &&
+      Math.abs(bounds.height - window.innerHeight) < 1
+    )
+  })
+  expect(overlayCoversViewport).toBe(true)
+
+  await errorDialog.getByRole('button', { name: '我知道了' }).click()
+  await expect(errorDialog).toBeHidden()
+  await expect(bodyPartSection.locator('.rd-segment:visible, .rd-list-item:visible')).toHaveCount(1)
+})
+
+test('导出弹窗遮罩层会隔离页面悬浮控件', async ({ page }) => {
+  await page.goto('/flying-chess/')
+  await page.locator('.export-btn').click()
+  await expect(page.locator('.export-modal')).toBeVisible()
+
+  const layering = await page.evaluate(() => {
+    const overlay = document.querySelector<HTMLElement>('.export-overlay')
+    const controls = document.querySelector<HTMLElement>('.guide-controls')
+    const exportButton = document.querySelector<HTMLElement>('.export-btn')
+    const guideButton = document.querySelector<HTMLElement>('.guide-btn')
+    if (!overlay || !controls || !exportButton || !guideButton) return null
+
+    const isBlockedByOverlay = (control: HTMLElement) => {
+      const bounds = control.getBoundingClientRect()
+      const hit = document.elementFromPoint(
+        bounds.left + bounds.width / 2,
+        bounds.top + bounds.height / 2
+      )
+      return Boolean(hit && overlay.contains(hit) && !control.contains(hit))
+    }
+
+    return {
+      overlayZIndex: Number(getComputedStyle(overlay).zIndex),
+      controlsZIndex: Number(getComputedStyle(controls).zIndex),
+      exportButtonBlocked: isBlockedByOverlay(exportButton),
+      guideButtonBlocked: isBlockedByOverlay(guideButton),
+    }
+  })
+
+  expect(layering).not.toBeNull()
+  if (!layering) throw new Error('未能读取导出弹窗层级')
+  expect(layering.overlayZIndex).toBeGreaterThan(layering.controlsZIndex)
+  expect(layering.exportButtonBlocked).toBe(true)
+  expect(layering.guideButtonBlocked).toBe(true)
+})
+
+test('超长机关描述可在手机弹窗内滚动并确认', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chrome')
+
+  await page.goto('/flying-chess/')
+  await page.addStyleTag({ content: '#__vue-devtools-container__ { display: none !important; }' })
+  await page.evaluate(() => {
+    const debugWindow = window as typeof window & {
+      currentTrapDescription: { value: string }
+      showTrapDisplay: { value: boolean }
+    }
+    debugWindow.currentTrapDescription.value = '这是一段超长的自定义机关说明。'.repeat(80)
+    debugWindow.showTrapDisplay.value = true
+  })
+
+  const modal = page.locator('.trap-display-modal')
+  await expect(modal).toBeVisible()
+  await page.waitForTimeout(350)
+  const modalBounds = await modal.evaluate(element => {
+    const bounds = element.getBoundingClientRect()
+    return { top: bounds.top, bottom: bounds.bottom }
+  })
+  const viewportHeight = page.viewportSize()?.height ?? 0
+  expect(modalBounds.top).toBeGreaterThanOrEqual(0)
+  expect(modalBounds.bottom).toBeLessThanOrEqual(viewportHeight)
+
+  const confirmButton = page.getByRole('button', { name: '确认执行' })
+  await confirmButton.scrollIntoViewIfNeeded()
+  const buttonBounds = await confirmButton.evaluate(element => {
+    const bounds = element.getBoundingClientRect()
+    return { top: bounds.top, bottom: bounds.bottom }
+  })
+  expect(buttonBounds.top).toBeGreaterThanOrEqual(0)
+  expect(buttonBounds.bottom).toBeLessThanOrEqual(viewportHeight)
+  await confirmButton.click()
+  await expect(modal).toBeHidden()
 })
 
 test('手机上可轻点查看格子全文，并明确区分普通格和奖励格', async ({ page }, testInfo) => {
