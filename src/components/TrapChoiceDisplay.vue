@@ -109,7 +109,11 @@
     border-radius: var(--radius-xl);
     padding: 30px;
     max-width: 500px;
-    width: 90%;
+    width: 100%;
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    overscroll-behavior: contain;
     text-align: center;
     box-shadow:
       var(--glass-shadow-lg),
@@ -250,6 +254,8 @@
 
   .choice-text {
     flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .trap-confirm-section {
@@ -297,7 +303,6 @@
   @media (max-width: 768px) {
     .trap-choice-modal {
       padding: 20px;
-      margin: 20px;
     }
 
     .trap-choice-title {
