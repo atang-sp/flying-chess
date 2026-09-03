@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "release": "v1.17.0",
+  "release": "v1.17.1",
   "recordedAtUtc": "2026-08-02T00:00:00.000Z",
   "kind": "replace_with_required_kind",
   "artifacts": [

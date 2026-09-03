@@ -359,6 +359,17 @@ test('native WebRTC pairs two phone controllers without cloud signalling', async
   const lobby = page.locator('.multi-device-lobby')
   await expect(lobby).toBeVisible()
   await expect(lobby).toContainText('不使用默认云端信令或外部中继')
+  const lobbyLayering = await page.evaluate(() => {
+    const lobbyElement = document.querySelector<HTMLElement>('.multi-device-lobby')
+    const controlsElement = document.querySelector<HTMLElement>('.guide-controls')
+    if (!lobbyElement || !controlsElement) return null
+    return {
+      lobby: Number(getComputedStyle(lobbyElement).zIndex),
+      controls: Number(getComputedStyle(controlsElement).zIndex),
+    }
+  })
+  if (!lobbyLayering) throw new Error('未能读取多设备等待层级')
+  expect(lobbyLayering.lobby).toBeGreaterThan(lobbyLayering.controls)
   const controllers: Page[] = []
 
   for (let index = 0; index < 2; index += 1) {

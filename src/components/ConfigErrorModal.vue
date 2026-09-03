@@ -20,77 +20,75 @@
 </script>
 
 <template>
-  <div v-if="show" class="config-error-modal">
-    <div class="modal-overlay" @click="closeModal"></div>
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>
-          <AlertTriangle :size="22" />
-          配置错误
-        </h3>
-        <button class="close-btn" @click="closeModal">
-          <X :size="20" />
-        </button>
-      </div>
-
-      <div class="modal-body">
-        <div class="error-icon">
-          <CircleX :size="48" />
+  <Teleport to="body">
+    <div v-if="show" class="config-error-modal" @click.self="closeModal">
+      <div
+        class="config-error-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="config-error-title"
+      >
+        <div class="modal-header">
+          <h3 id="config-error-title">
+            <AlertTriangle :size="22" />
+            配置错误
+          </h3>
+          <button class="close-btn" aria-label="关闭配置错误弹窗" @click="closeModal">
+            <X :size="20" />
+          </button>
         </div>
-        <p class="error-message">{{ errorMessage }}</p>
 
-        <div v-if="requiredSensitivity" class="suggestion">
-          <h4>
-            <Lightbulb :size="18" />
-            建议解决方案：
-          </h4>
-          <ul>
-            <li>添加耐受度为 {{ requiredSensitivity }} 或更高的部位</li>
-            <li>或者降低工具的强度到 {{ requiredSensitivity }} 或更低</li>
-          </ul>
+        <div class="modal-body">
+          <div class="error-icon">
+            <CircleX :size="48" />
+          </div>
+          <p class="error-message">{{ errorMessage }}</p>
+
+          <div v-if="requiredSensitivity" class="suggestion">
+            <h4>
+              <Lightbulb :size="18" />
+              建议解决方案：
+            </h4>
+            <ul>
+              <li>添加耐受度为 {{ requiredSensitivity }} 或更高的部位</li>
+              <li>或者降低工具的强度到 {{ requiredSensitivity }} 或更低</li>
+            </ul>
+          </div>
         </div>
-      </div>
 
-      <div class="modal-footer">
-        <button class="btn btn-primary" @click="closeModal">我知道了</button>
+        <div class="modal-footer">
+          <button class="btn btn-primary" @click="closeModal">我知道了</button>
+        </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <style scoped>
   .config-error-modal {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     z-index: 2000;
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-
-  .modal-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
     background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(4px);
+    padding: 1rem;
   }
 
-  .modal-content {
+  .config-error-dialog {
     position: relative;
     background: rgba(20, 20, 40, 0.95);
     backdrop-filter: blur(var(--glass-blur));
     border: var(--glass-border);
     border-radius: var(--radius-xl);
     max-width: 500px;
-    width: 90%;
-    max-height: 90vh;
+    width: 100%;
+    max-height: calc(100dvh - 2rem);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
     box-shadow: var(--glass-shadow-lg);
     animation: slideIn 0.3s ease-out;
     padding: 0;
@@ -115,6 +113,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
   }
 
   .modal-header h3 {
@@ -150,6 +149,9 @@
   .modal-body {
     padding: 2rem;
     text-align: center;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    overscroll-behavior: contain;
   }
 
   .error-icon {
@@ -198,15 +200,11 @@
     text-align: center;
     border-top: var(--glass-border);
     background: var(--bg-surface);
+    flex-shrink: 0;
   }
 
   /* 移动端适配 */
   @media (max-width: 768px) {
-    .modal-content {
-      width: 95%;
-      max-height: 95vh;
-    }
-
     .modal-header {
       padding: 1rem;
     }

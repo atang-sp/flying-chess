@@ -244,6 +244,11 @@
     const originalConfig = cloneConfig(localConfig.value)
     if (bodyPartName in localConfig.value.bodyParts) {
       delete localConfig.value.bodyParts[bodyPartName]
+      Object.values(localConfig.value.positions).forEach(position => {
+        position.compatibleBodyParts = position.compatibleBodyParts.filter(
+          name => name !== bodyPartName
+        )
+      })
 
       const bodyPartsArray = Object.values(localConfig.value.bodyParts)
       if (bodyPartsArray.length > 0) {
