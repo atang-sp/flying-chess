@@ -206,6 +206,7 @@ const locateSelectedCell = () => emit('locate-selected-cell')
           @locate="locateSelectedCell"
         />
       </main>
+    </div>
 
 
 </template>

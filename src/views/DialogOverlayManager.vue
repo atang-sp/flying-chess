@@ -168,7 +168,6 @@ const emit = defineEmits([
         :to-position="effectToPosition"
         @confirm="emit('confirmEffect')"
       />
-    </div>
 
     <!-- 起飞惩罚显示弹窗 -->
     <TakeoffPunishmentDisplay
