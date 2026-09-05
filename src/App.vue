@@ -50,6 +50,9 @@
     VictoryConfig,
   } from '@flying-chess/game-core/types'
   import IntroPage from './components/IntroPage.vue'
+  import SettingsView from './views/SettingsView.vue'
+  import GameView from './views/GameView.vue'
+  import DialogOverlayManager from './views/DialogOverlayManager.vue'
   import PartyReactionOverlay from './components/PartyReactionOverlay.vue'
   import PartyDiceDecision from './components/PartyDiceDecision.vue'
   import PartyPunishmentChoice from './components/PartyPunishmentChoice.vue'
@@ -1433,7 +1436,7 @@
         lastEffect: typeof lastEffect
         currentPunishment: typeof currentPunishment
         punishmentCombinations: typeof punishmentCombinations
-        punishmentStep: typeof punishmentStep
+        // punishmentStep removed
         effectFromPosition: typeof effectFromPosition
         effectToPosition: typeof effectToPosition
         showTakeoffPunishmentDisplay: typeof showTakeoffPunishmentDisplay
@@ -1466,7 +1469,7 @@
       debugWindow.lastEffect = lastEffect
       debugWindow.currentPunishment = currentPunishment
       debugWindow.punishmentCombinations = punishmentCombinations
-      debugWindow.punishmentStep = punishmentStep
+      // debugWindow.punishmentStep removed
       debugWindow.effectFromPosition = effectFromPosition
       debugWindow.effectToPosition = effectToPosition
       debugWindow.showTakeoffPunishmentDisplay = showTakeoffPunishmentDisplay
@@ -1596,7 +1599,7 @@
 
     // 清除惩罚组合确认状态
     punishmentCombinations.value = []
-    punishmentStep.value = 'config'
+    // punishmentStep reset managed by SettingsView
     resetEffectChainCount()
   }
 
@@ -1871,7 +1874,7 @@
 
     // 清除惩罚组合确认状态
     punishmentCombinations.value = []
-    punishmentStep.value = 'config'
+    // punishmentStep reset managed by SettingsView
     showTakeoffPunishmentDisplay.value = false
     currentTakeoffPunishment.value = null
     currentTakeoffExecutorIndex.value = -1
@@ -2807,7 +2810,7 @@
       gameState.punishmentConfig,
       totalPunishmentCells
     )
-    punishmentStep.value = 'confirm'
+    // punishmentStep.value is managed in SettingsView now
   }
 
   // 确认惩罚组合并开始游戏
@@ -2820,7 +2823,7 @@
       gameState.punishmentConfig
     )
 
-    punishmentStep.value = 'config'
+    // punishmentStep reset managed by SettingsView
     gameState.gameStatus = 'waiting'
     gameStarted.value = true
     if (turnCount.value === 0) {
@@ -2893,7 +2896,7 @@
   }
 
   const handleBackToPunishmentSettings = () => {
-    punishmentStep.value = 'config'
+    // punishmentStep reset managed by SettingsView
     settingsTab.value = 'trap'
   }
 
@@ -3729,567 +3732,157 @@
       @mode-selected="handleModeSelected"
     />
 
-    <!-- 统一设置页面（Stepper 引导布局） -->
-    <div
+    <!-- 统一设置页面 -->
+    <SettingsView
       v-else-if="gameState.gameStatus === 'board_settings' || gameState.gameStatus === 'settings'"
-      class="settings-page"
-    >
-      <div class="page-container">
-        <div class="settings-header">
-          <h2>
-            <Settings :size="24" />
-            游戏设置
-          </h2>
-          <p>配置棋盘、惩罚和陷阱</p>
-        </div>
-
-        <!-- Stepper 步骤指示器 -->
-        <div v-if="punishmentStep === 'config'" class="settings-stepper">
-          <button
-            class="stepper-item"
-            :class="{
-              'stepper-item--active': settingsTab === 'board',
-              'stepper-item--completed': stepCompleted.board && settingsTab !== 'board',
-              'stepper-item--invalid': !stepCompleted.board && settingsTab !== 'board',
-            }"
-            @click="settingsTab = 'board'"
-          >
-            <span class="stepper-number">
-              <Check v-if="stepCompleted.board && settingsTab !== 'board'" :size="14" />
-              <AlertCircle v-else-if="!stepCompleted.board && settingsTab !== 'board'" :size="14" />
-              <span v-else>1</span>
-            </span>
-            <span class="stepper-label">棋盘</span>
-          </button>
-
-          <span
-            class="stepper-connector"
-            :class="{ 'stepper-connector--done': stepCompleted.board }"
-          ></span>
-
-          <button
-            class="stepper-item"
-            :class="{
-              'stepper-item--active': settingsTab === 'punishment',
-              'stepper-item--completed': stepCompleted.punishment && settingsTab !== 'punishment',
-              'stepper-item--invalid': !stepCompleted.punishment && settingsTab !== 'punishment',
-            }"
-            @click="settingsTab = 'punishment'"
-          >
-            <span class="stepper-number">
-              <Check v-if="stepCompleted.punishment && settingsTab !== 'punishment'" :size="14" />
-              <AlertCircle
-                v-else-if="!stepCompleted.punishment && settingsTab !== 'punishment'"
-                :size="14"
-              />
-              <span v-else>2</span>
-            </span>
-            <span class="stepper-label">惩罚</span>
-          </button>
-
-          <span
-            class="stepper-connector"
-            :class="{ 'stepper-connector--done': stepCompleted.punishment }"
-          ></span>
-
-          <button
-            class="stepper-item"
-            :class="{
-              'stepper-item--active': settingsTab === 'trap',
-              'stepper-item--completed': stepCompleted.trap && settingsTab !== 'trap',
-              'stepper-item--invalid': !stepCompleted.trap && settingsTab !== 'trap',
-            }"
-            @click="settingsTab = 'trap'"
-          >
-            <span class="stepper-number">
-              <Check v-if="stepCompleted.trap && settingsTab !== 'trap'" :size="14" />
-              <AlertCircle v-else-if="!stepCompleted.trap && settingsTab !== 'trap'" :size="14" />
-              <span v-else>3</span>
-            </span>
-            <span class="stepper-label">陷阱</span>
-          </button>
-        </div>
-
-        <!-- 确认页面（独立于 Tab 内容） -->
-        <PunishmentConfirmation
-          v-if="punishmentStep === 'confirm'"
-          :combinations="punishmentCombinations"
-          @confirm="confirmPunishmentCombinations"
-          @regenerate="generatePunishmentCombinations"
-          @back-to-settings="handleBackToPunishmentSettings"
-        />
-
-        <!-- Tab 内容（仅在配置阶段显示） -->
-        <div v-else class="settings-tab-content">
-          <BoardConfigPanel
-            v-show="settingsTab === 'board'"
-            :config="gameState.boardConfig"
-            @update="updateBoardConfig"
-          />
-
-          <PunishmentConfigPanel
-            v-show="settingsTab === 'punishment'"
-            :config="gameState.punishmentConfig"
-            @update="updatePunishmentConfig"
-            @validation-failed="handleValidationFailed"
-          />
-
-          <TrapConfigPanel
-            v-show="settingsTab === 'trap'"
-            :traps="trapConfig"
-            @update="updateTrapConfig"
-          />
-        </div>
-
-        <!-- 上下文操作按钮 -->
-        <div v-if="punishmentStep === 'config'" class="page-actions">
-          <button v-if="settingsTab !== 'board'" class="btn btn-secondary" @click="prevStep">
-            <ArrowLeft :size="16" />
-            <span class="btn-text">上一步</span>
-          </button>
-          <button v-else class="btn btn-secondary" @click="showIntro">
-            <ArrowLeft :size="16" />
-            <span class="btn-text">返回首页</span>
-          </button>
-
-          <button
-            v-if="settingsTab === 'trap'"
-            class="btn btn-primary"
-            :disabled="!allConfigValid"
-            @click="generatePunishmentCombinations"
-          >
-            <Target :size="16" />
-            <span class="btn-text">生成惩罚组合</span>
-          </button>
-          <button v-else class="btn btn-primary" @click="nextStep">
-            <span class="btn-text">下一步</span>
-            <ArrowRight :size="16" />
-          </button>
-        </div>
-      </div>
-    </div>
-
+      :board-config="gameState.boardConfig"
+      :punishment-config="gameState.punishmentConfig"
+      :trap-config="trapConfig"
+      :punishment-combinations="punishmentCombinations"
+      :is-party-game="isPartyGame"
+      @update:board-config="updateBoardConfig"
+      @update:punishment-config="updatePunishmentConfig"
+      @update:trap-config="updateTrapConfig"
+      @validation-failed="handleValidationFailed"
+      @generate-punishment-combinations="generatePunishmentCombinations"
+      @confirm-punishment-combinations="confirmPunishmentCombinations"
+      @show-intro="showIntro"
+    />
     <!-- 游戏页面 -->
-    <div v-else class="game-page">
-      <header class="game-header">
-        <div class="header-content">
-          <h1>
-            <Dices :size="20" />
-            惩罚飞行棋
-          </h1>
+    <GameView
+      v-else
+      :game-started="gameStarted"
+      :game-finished="gameFinished"
+      :turn-count="turnCount"
+      :game-state="gameState"
+      :game-status-text="gameStatusText"
+      :get-status-severity="getStatusSeverity"
+      :is-party-game="isPartyGame"
+      :party-act-label="partyActLabel"
+      :party-session="partySession"
+      :RULESET_VERSION_BY_MODE="RULESET_VERSION_BY_MODE"
+      :multi-device-enabled="multiDeviceEnabled"
+      :multi-device="multiDevice"
+      :audio-enabled="audioEnabled"
+      :current-party-heat-contribution="currentPartyHeatContribution"
+      :party-reward-notice="partyRewardNotice"
+      :selected-cell-position="selectedCellPosition"
+      :has-active-forced-overlay="hasActiveForcedOverlay"
+      :session-paused="sessionPaused"
+      :party-interaction-blocking="partyInteractionBlocking"
+      :is-mobile-view="isMobileView"
+      :can-roll-dice="canRollDice"
+      :last-effect="lastEffect"
+      :selected-board-cell="selectedBoardCell"
+      :cell-inspector-open="cellInspectorOpen"
+      @game-controls-start="handleGameControlsStart"
+      @victory-play-again="handleVictoryPlayAgain"
+      @toggle-audio="toggleAudio"
+      @cell-select="handleCellSelect"
+      @dice-roll="handleDiceRoll"
+      @close-cell-inspector="closeCellInspector"
+      @select-adjacent-cell="selectAdjacentCell"
+      @locate-selected-cell="locateSelectedCell"
+    />
 
-          <div v-if="gameStarted" class="header-status">
-            <Badge :value="turnCount" class="turn-badge" />
-            <Tag
-              :value="gameStatusText"
-              :severity="getStatusSeverity(gameState.gameStatus)"
-              class="status-tag"
-            />
-          </div>
-
-          <GameRoster
-            v-if="gameState.players.length > 0"
-            :players="gameState.players"
-            :current-player-index="gameState.currentPlayerIndex"
-            :total-cells="gameState.board.length"
-            :party-act-label="isPartyGame ? partyActLabel : undefined"
-            :party-round="isPartyGame ? partySession?.roundNumber : undefined"
-            :party-ruleset-version="isPartyGame ? RULESET_VERSION_BY_MODE.party : undefined"
-            :tokens-remaining="
-              isPartyGame && !multiDeviceEnabled ? partySession?.tokensRemaining : undefined
-            "
-            class="header-players"
-          />
-
-          <div class="header-actions">
-            <span
-              v-if="multiDeviceEnabled"
-              class="multi-device-badge"
-              :title="`多设备模式 - ${multiDevice.getConnectedPlayerCount()}/${gameState.players.length} 已连接`"
-            >
-              📱 {{ multiDevice.getConnectedPlayerCount() }}/{{ gameState.players.length }}
-            </span>
-            <PButton
-              v-if="!gameStarted"
-              label="开始游戏"
-              icon="pi pi-play"
-              class="p-button-success p-button-sm"
-              @click="handleGameControlsStart"
-            />
-            <PButton
-              v-if="gameFinished"
-              label="再来一局"
-              icon="pi pi-refresh"
-              class="p-button-info p-button-sm"
-              @click="handleVictoryPlayAgain"
-            />
-            <button
-              class="audio-toggle-btn"
-              :title="audioEnabled ? '静音' : '开启声音'"
-              @click="toggleAudio"
-            >
-              <Volume2 v-if="audioEnabled" :size="18" />
-              <VolumeX v-else :size="18" />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main class="game-main">
-        <PartyHeatMeter
-          v-if="isPartyGame && partySession"
-          :heat="partySession.heat"
-          :act="partySession.act"
-          :heat-limit-pending="partySession.heatLimitPending"
-          :current-player-contribution="currentPartyHeatContribution"
-          :reward-notice="partyRewardNotice"
-        />
-        <div class="game-cockpit">
-          <div class="board-section">
-            <GameBoard
-              ref="gameBoardRef"
-              :board="gameState.board"
-              :players="gameState.players"
-              :current-player-index="gameState.currentPlayerIndex"
-              :selected-position="selectedCellPosition"
-              :interaction-disabled="
-                hasActiveForcedOverlay || sessionPaused || gameFinished || partyInteractionBlocking
-              "
-              @select-cell="handleCellSelect"
-            />
-          </div>
-
-          <aside v-if="!isMobileView" class="game-sidecar" aria-label="回合与格子信息">
-            <GameTurnDock
-              :players="gameState.players"
-              :current-player-index="gameState.currentPlayerIndex"
-              :total-cells="gameState.board.length"
-              :can-roll="canRollDice"
-              :dice-value="gameState.diceValue"
-              :last-effect="lastEffect"
-              :turn-count="turnCount"
-              :mobile="false"
-              @roll="handleDiceRoll"
-            />
-            <CellInspector
-              :cell="selectedBoardCell"
-              :total-cells="gameState.board.length"
-              :players="gameState.players"
-              :visible="true"
-              :mobile="false"
-              @close="cellInspectorOpen = false"
-              @previous="selectAdjacentCell(-1)"
-              @next="selectAdjacentCell(1)"
-              @locate="locateSelectedCell"
-            />
-          </aside>
-        </div>
-
-        <GameTurnDock
-          v-if="isMobileView"
-          :players="gameState.players"
-          :current-player-index="gameState.currentPlayerIndex"
-          :total-cells="gameState.board.length"
-          :can-roll="canRollDice"
-          :dice-value="gameState.diceValue"
-          :last-effect="lastEffect"
-          :turn-count="turnCount"
-          :mobile="true"
-          @roll="handleDiceRoll"
-        />
-
-        <CellInspector
-          v-if="isMobileView"
-          :cell="selectedBoardCell"
-          :total-cells="gameState.board.length"
-          :players="gameState.players"
-          :visible="cellInspectorOpen"
-          :mobile="true"
-          @close="closeCellInspector"
-          @previous="selectAdjacentCell(-1)"
-          @next="selectAdjacentCell(1)"
-          @locate="locateSelectedCell"
-        />
-      </main>
-
-      <!-- 惩罚显示弹窗 -->
-      <PunishmentDisplay
-        :punishment="currentPunishment"
-        :executor-player="currentPunishmentExecutor"
-        :target-player="currentPunishmentTarget"
-        :count-selection="currentPunishmentCountSelection"
-        :count-multiplier="currentPunishmentCountMultiplier"
-        :variant="currentPunishmentVariant"
-        :variant-phase="currentPunishmentVariantPhase"
-        :can-request-mercy="canRequestBoardMercy"
-        @confirm="confirmPunishment"
-        @skip="skipPunishment"
-        @request-mercy="handleMercyRequest('board')"
-        @variant-action="handlePunishmentVariantAction"
+      <!-- 弹窗管理器 -->
+      <DialogOverlayManager
+        :active-mode="activeMode"
+        :bounce-final-position="bounceFinalPosition"
+        :bounce-from-position="bounceFromPosition"
+        :bounce-overflow-steps="bounceOverflowSteps"
+        :bounce-target-position="bounceTargetPosition"
+        :can-current-player-reroll="canCurrentPlayerReroll"
+        :can-request-board-mercy="canRequestBoardMercy"
+        :can-request-takeoff-mercy="canRequestTakeoffMercy"
+        :current-dare-instruction="currentDareInstruction"
+        :current-party-event="currentPartyEvent"
+        :current-party-mini-game-kind="currentPartyMiniGameKind"
+        :current-party-tokens="currentPartyTokens"
+        :current-punishment="currentPunishment"
+        :current-punishment-count-multiplier="currentPunishmentCountMultiplier"
+        :current-punishment-count-selection="currentPunishmentCountSelection"
+        :current-punishment-executor="currentPunishmentExecutor"
+        :current-punishment-target="currentPunishmentTarget"
+        :current-punishment-variant="currentPunishmentVariant"
+        :current-punishment-variant-phase="currentPunishmentVariantPhase"
+        :current-q-a-question="currentQAQuestion"
+        :current-takeoff-dice-value="currentTakeoffDiceValue"
+        :current-takeoff-executor-index="currentTakeoffExecutorIndex"
+        :current-takeoff-punishment="currentTakeoffPunishment"
+        :current-takeoff-target="currentTakeoffTarget"
+        :current-takeoff-triggering-player="currentTakeoffTriggeringPlayer"
+        :current-trap-choice-a="currentTrapChoiceA"
+        :current-trap-choice-b="currentTrapChoiceB"
+        :current-trap-description="currentTrapDescription"
+        :current-trap-roulette-target="currentTrapRouletteTarget"
+        :current-trap-variant="currentTrapVariant"
+        :effect-from-position="effectFromPosition"
+        :effect-to-position="effectToPosition"
+        :failed-takeoff-count-for-message="failedTakeoffCountForMessage"
+        :game-state="gameState"
+        :mercy-executor-player="mercyExecutorPlayer"
+        :mercy-halved-strikes="mercyHalvedStrikes"
+        :mercy-source="mercySource"
+        :mercy-target-player="mercyTargetPlayer"
+        :multi-device="multiDevice"
+        :multi-device-enabled="multiDeviceEnabled"
+        :party-dice-decision-visible="partyDiceDecisionVisible"
+        :party-highlight="partyHighlight"
+        :party-punishment-choices="partyPunishmentChoices"
+        :party-punishment-intervention-resolution="partyPunishmentInterventionResolution"
+        :party-reaction="partyReaction"
+        :party-session="partySession"
+        :party-tie-candidates="partyTieCandidates"
+        :session-paused="sessionPaused"
+        :shared-screen-punishment-intervention-options="sharedScreenPunishmentInterventionOptions"
+        :show-bounce-display="showBounceDisplay"
+        :show-chain-punishment-roll="showChainPunishmentRoll"
+        :show-dare-display="showDareDisplay"
+        :show-double-punishment-reveal="showDoublePunishmentReveal"
+        :show-mercy-decision="showMercyDecision"
+        :show-q-a-display="showQADisplay"
+        :show-takeoff-punishment-display="showTakeoffPunishmentDisplay"
+        :show-takeoff-relief-display="showTakeoffReliefDisplay"
+        :show-trap-choice-display="showTrapChoiceDisplay"
+        :show-trap-display="showTrapDisplay"
+        :show-victory-screen="showVictoryScreen"
+        :victory-config="victoryConfig"
+        :lan-pairing-answer-input="lanPairingAnswerInput"
+        @confirm-bounce="confirmBounce"
+        @confirm-dare="confirmDare"
+        @confirm-double-reveal="confirmDoubleReveal"
+        @confirm-effect="confirmEffect"
+        @confirm-punishment="confirmPunishment"
+        @confirm-q-a-answer="confirmQAAnswer"
+        @confirm-q-a-refuse="confirmQARefuse"
+        @confirm-takeoff-punishment="confirmTakeoffPunishment"
+        @confirm-takeoff-relief="confirmTakeoffRelief"
+        @confirm-trap="confirmTrap"
+        @confirm-trap-choice="confirmTrapChoice"
+        @continue-party-move="continuePartyMove"
+        @end-paused-session="endPausedSession"
+        @finish-party-mini-game="finishPartyMiniGame"
+        @finish-party-tie-break="finishPartyTieBreak"
+        @handle-chain-roll-result="handleChainRollResult"
+        @handle-mercy-request="handleMercyRequest"
+        @handle-mercy-result="handleMercyResult"
+        @handle-party-reaction-decision="handlePartyReactionDecision"
+        @handle-party-reaction-prediction="handlePartyReactionPrediction"
+        @handle-party-reroll="handlePartyReroll"
+        @handle-punishment-variant-action="handlePunishmentVariantAction"
+        @handle-victory-play-again="handleVictoryPlayAgain"
+        @request-party-tie-break-roll="requestPartyTieBreakRoll"
+        @resolve-current-party-event="resolveCurrentPartyEvent"
+        @resolve-party-punishment-choice="resolvePartyPunishmentChoice"
+        @resolve-party-punishment-intervention="resolvePartyPunishmentIntervention"
+        @resume-session="resumeSession"
+        @skip-punishment="skipPunishment"
+        @start-current-event-mini-game="startCurrentEventMiniGame"
+        @update:lan-pairing-answer-input="update:lanPairingAnswerInput"
+        @submit-lan-pairing-answer="submitLanPairingAnswer"
+        @pause-session="pauseSession"
       />
-
-      <!-- 求饶决策弹窗 -->
-      <MercyDecision
-        :visible="showMercyDecision"
-        :punishment="mercySource === 'board' ? currentPunishment : currentTakeoffPunishment"
-        :executor-player="mercyExecutorPlayer"
-        :target-player="mercyTargetPlayer"
-        :halved-strikes="mercyHalvedStrikes"
-        @mercy-result="handleMercyResult"
-      />
-
-      <!-- 效果显示弹窗 -->
-      <EffectDisplay
-        :visible="gameState.gameStatus === 'showing_effect'"
-        :effect="gameState.pendingEffect"
-        :from-position="effectFromPosition"
-        :to-position="effectToPosition"
-        @confirm="confirmEffect"
-      />
-    </div>
-
-    <!-- 起飞惩罚显示弹窗 -->
-    <TakeoffPunishmentDisplay
-      :visible="showTakeoffPunishmentDisplay"
-      :punishment="currentTakeoffPunishment"
-      :dice-value="currentTakeoffDiceValue"
-      :executor-name="
-        currentTakeoffExecutorIndex !== undefined && currentTakeoffExecutorIndex >= 0
-          ? gameState.players[currentTakeoffExecutorIndex]?.name || ''
-          : ''
-      "
-      :target-name="currentTakeoffTarget?.name ?? ''"
-      :triggering-player-name="currentTakeoffTriggeringPlayer?.name ?? ''"
-      :can-request-mercy="canRequestTakeoffMercy"
-      @confirm="confirmTakeoffPunishment"
-      @request-mercy="handleMercyRequest('takeoff')"
-    />
-
-    <!-- 机关陷阱弹窗 -->
-    <TrapDisplay
-      :show="showTrapDisplay"
-      :trap-description="currentTrapDescription"
-      @confirm="confirmTrap"
-    />
-
-    <TrapChoiceDisplay
-      :show="showTrapChoiceDisplay"
-      :description="currentTrapDescription"
-      :choice-a="currentTrapChoiceA"
-      :choice-b="currentTrapChoiceB"
-      :player="gameState.players[gameState.currentPlayerIndex]"
-      :roulette-target="currentTrapRouletteTarget"
-      :trap-variant="currentTrapVariant"
-      @choose="confirmTrapChoice"
-      @confirm="confirmTrap"
-    />
-
-    <QADisplay
-      :show="showQADisplay"
-      :question="currentQAQuestion"
-      :player="gameState.players[gameState.currentPlayerIndex]"
-      @answer="confirmQAAnswer"
-      @refuse="confirmQARefuse"
-    />
-
-    <DareDisplay
-      :show="showDareDisplay"
-      :instruction="currentDareInstruction"
-      :player="gameState.players[gameState.currentPlayerIndex]"
-      @confirm="confirmDare"
-    />
-
-    <!-- 反弹效果弹窗 -->
-    <BounceDisplay
-      :visible="showBounceDisplay"
-      :from-position="bounceFromPosition"
-      :target-position="bounceTargetPosition"
-      :final-position="bounceFinalPosition"
-      :overflow-steps="bounceOverflowSteps"
-      :end-point="gameState.board.length"
-      @confirm="confirmBounce"
-    />
-
-    <!-- 翻倍惩罚揭示弹窗 -->
-    <DoublePunishmentReveal :visible="showDoublePunishmentReveal" @confirm="confirmDoubleReveal" />
-
-    <!-- 连锁惩罚掷骰弹窗 -->
-    <ChainPunishmentRoll :visible="showChainPunishmentRoll" @result="handleChainRollResult" />
-
-    <PartyReactionOverlay
-      v-if="
-        !multiDeviceEnabled || !multiDevice.isRemotePlayer(partyReaction?.reactorPlayerIndex ?? -1)
-      "
-      :reaction="partyReaction"
-      :players="gameState.players"
-      :paused="sessionPaused"
-      @predict="handlePartyReactionPrediction"
-      @decide="handlePartyReactionDecision"
-    />
-
-    <PartyDiceDecision
-      v-if="!multiDeviceEnabled || !multiDevice.isRemotePlayer(gameState.currentPlayerIndex)"
-      :visible="partyDiceDecisionVisible"
-      :player-name="gameState.players[gameState.currentPlayerIndex]?.name ?? '当前玩家'"
-      :dice-value="gameState.diceValue ?? 1"
-      :tokens-remaining="currentPartyTokens"
-      :can-reroll="canCurrentPlayerReroll"
-      :paused="sessionPaused"
-      @reroll="handlePartyReroll"
-      @continue="continuePartyMove"
-    />
-
-    <PartyPunishmentChoice
-      v-if="!multiDeviceEnabled || !multiDevice.isRemotePlayer(gameState.currentPlayerIndex)"
-      :visible="partyPunishmentChoices.length === 2"
-      :choices="partyPunishmentChoices"
-      :tokens-remaining="currentPartyTokens"
-      :paused="sessionPaused"
-      @select="resolvePartyPunishmentChoice"
-      @skip="resolvePartyPunishmentChoice()"
-    />
-
-    <PartyPunishmentIntervention
-      :visible="partyPunishmentInterventionResolution !== null"
-      :resolution="partyPunishmentInterventionResolution"
-      :players="gameState.players"
-      :options="sharedScreenPunishmentInterventionOptions"
-      :tokens-remaining="partySession?.tokensRemaining ?? []"
-      :paused="sessionPaused"
-      @apply="resolvePartyPunishmentIntervention"
-      @skip="resolvePartyPunishmentIntervention()"
-    />
-
-    <PartyEventCardOverlay
-      :card="currentPartyEvent"
-      :players="gameState.players"
-      @resolve="resolveCurrentPartyEvent"
-      @start-mini-game="startCurrentEventMiniGame"
-    />
-
-    <PartyMiniGame
-      :visible="currentPartyMiniGameKind !== null"
-      :kind="currentPartyMiniGameKind"
-      :players="gameState.players"
-      :actor-player-index="gameState.currentPlayerIndex"
-      @complete="finishPartyMiniGame"
-    />
-
-    <PartyTieBreak
-      ref="partyTieBreakRef"
-      :visible="partyTieCandidates.length > 1"
-      :players="gameState.players"
-      :candidate-indices="partyTieCandidates"
-      @turn="requestPartyTieBreakRoll"
-      @winner="finishPartyTieBreak"
-    />
-
-    <!-- 胜利结算画面 -->
-    <VictoryScreen
-      :show="showVictoryScreen"
-      :winner="gameState.winner"
-      :all-players="gameState.players"
-      :mode="activeMode"
-      :party-highlight="partyHighlight"
-      :victory-config="activeMode === 'party' ? victoryConfig : undefined"
-      @play-again="handleVictoryPlayAgain"
-    />
-
-    <!-- 起飞失败过多自动起飞弹窗 -->
-    <TakeoffReliefDisplay
-      :visible="showTakeoffReliefDisplay"
-      :failed-count="failedTakeoffCountForMessage"
-      @confirm="confirmTakeoffRelief"
-    />
-
-    <!-- 多设备连接面板 -->
-    <div
-      v-if="
-        multiDeviceEnabled && multiDevice.roomInfo.value && !multiDevice.allPlayersConnected.value
-      "
-      class="multi-device-lobby"
-    >
-      <div class="multi-device-lobby-card">
-        <h2>等待玩家连接</h2>
-        <p class="room-code-label">房间码</p>
-        <p class="room-code">{{ multiDevice.roomInfo.value.roomId }}</p>
-        <p class="room-url">{{ multiDevice.roomInfo.value.gameUrl }}</p>
-        <div class="lan-pairing-panel">
-          <p>1. 手机打开上方手柄地址；2. 将邀请粘贴到手机；3. 把手机生成的应答粘贴回来。</p>
-          <small>原生 WebRTC 局域网直连：不使用默认云端信令或外部中继。</small>
-          <label>
-            <span>局域网配对邀请</span>
-            <textarea
-              :value="multiDevice.pairingOffer.value"
-              readonly
-              placeholder="正在收集局域网连接信息..."
-              data-testid="lan-pairing-offer"
-            />
-          </label>
-          <label>
-            <span>手机配对应答</span>
-            <textarea
-              v-model="lanPairingAnswerInput"
-              placeholder="粘贴手机生成的配对应答 JSON"
-              data-testid="lan-pairing-answer-input"
-            />
-          </label>
-          <button
-            type="button"
-            :disabled="!lanPairingAnswerInput.trim()"
-            data-testid="lan-pairing-submit"
-            @click="submitLanPairingAnswer"
-          >
-            建立局域网直连
-          </button>
-          <p v-if="multiDevice.pairingError.value" class="lan-pairing-error">
-            {{ multiDevice.pairingError.value }}
-          </p>
-        </div>
-        <div class="connection-list">
-          <div
-            v-for="player in gameState.players"
-            :key="player.id"
-            class="connection-item"
-            :class="{
-              connected: multiDevice.connectedPlayers.value.some(
-                c => c.playerIndex === player.id - 1 && c.status === 'connected'
-              ),
-            }"
-          >
-            <span class="player-dot" :style="{ background: player.color }" />
-            <span>{{ player.name }}</span>
-            <span class="connection-status-icon">
-              {{
-                multiDevice.connectedPlayers.value.some(
-                  c => c.playerIndex === player.id - 1 && c.status === 'connected'
-                )
-                  ? '✓'
-                  : '...'
-              }}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <button
-      v-if="canPauseSession && !sessionPaused"
-      class="session-pause-trigger"
-      :class="{ 'session-pause-trigger--blocked': hasActiveForcedOverlay }"
-      aria-label="暂停本局"
-      @click="pauseSession"
-    >
-      <Pause :size="18" aria-hidden="true" />
-      <span>暂停本局</span>
-    </button>
-
-    <SessionPauseOverlay
-      :visible="sessionPaused"
-      @resume="resumeSession"
-      @end-session="endPausedSession"
-    />
-
     <!-- 用户引导按钮和设置 -->
     <div class="guide-controls">
       <!-- 配置导出按钮 -->
