@@ -1,3 +1,4 @@
+import { ref } from "vue";
 <script setup lang="ts">
 import { Dices, Volume2, VolumeX } from '@lucide/vue'
 import Badge from 'primevue/badge'
@@ -49,6 +50,9 @@ const emit = defineEmits([
 ])
 
 // Fix methods in template calling directly instead of emit
+const gameBoardRef = ref()
+defineExpose({ gameBoardRef })
+
 const handleGameControlsStart = () => emit('game-controls-start')
 const handleVictoryPlayAgain = () => emit('victory-play-again')
 const toggleAudio = () => emit('toggle-audio')

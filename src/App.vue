@@ -206,7 +206,7 @@
   }
   const activePartyStartConfig = ref<PartyStartConfig | null>(null)
   const partyTieCandidates = ref<readonly number[]>([])
-  const partyTieBreakRef = ref<{ roll: () => void } | null>(null)
+  const dialogManagerRef = ref<any>(null)
   const classicConfigSnapshot = ref<{
     boardConfig: BoardConfig
     punishmentConfig: PunishmentConfig
@@ -240,7 +240,7 @@
   const windowWidth = ref(window.innerWidth)
 
   const isMobileView = computed(() => windowWidth.value <= 768)
-  const gameBoardRef = ref<InstanceType<typeof GameBoard> | null>(null)
+  const gameViewRef = ref<any>(null)
   const selectedCellPosition = ref<number | null>(1)
   const cellInspectorOpen = ref(false)
   const selectedBoardCell = computed(
@@ -2755,19 +2755,19 @@
       gameState.board.length
     )
     selectedCellPosition.value = nextPosition
-    gameBoardRef.value?.scrollToCell(nextPosition)
+    gameViewRef.value?.gameBoardRef?.scrollToCell(nextPosition)
   }
 
   const locateSelectedCell = () => {
     if (!selectedCellPosition.value) return
-    gameBoardRef.value?.scrollToCell(selectedCellPosition.value)
+    gameViewRef.value?.gameBoardRef?.scrollToCell(selectedCellPosition.value)
   }
 
   const closeCellInspector = () => {
     cellInspectorOpen.value = false
     const selectedPosition = selectedCellPosition.value
     if (selectedPosition) {
-      nextTick(() => gameBoardRef.value?.focusCell(selectedPosition))
+      nextTick(() => gameViewRef.value?.gameBoardRef?.focusCell(selectedPosition))
     }
   }
 
@@ -3166,7 +3166,7 @@
       handleBounceConfirm: () => confirmBounce(),
       handleTakeoffPunishmentDismiss: handleTakeoffPunishmentDisplay,
       handleTakeoffReliefDismiss: () => confirmTakeoffRelief(),
-      handlePartyTieBreakRoll: () => partyTieBreakRef.value?.roll(),
+      handlePartyTieBreakRoll: () => dialogManagerRef.value?.partyTieBreakRef?.roll(),
     },
   })
   const lanPairingAnswerInput = ref('')
@@ -3719,7 +3719,7 @@
       @show-intro="showIntro"
     />
     <!-- 游戏页面 -->
-    <GameView
+    <GameView ref="gameViewRef"
       v-else
       :game-started="gameStarted"
       :game-finished="gameFinished"
@@ -3756,7 +3756,7 @@
     />
 
       <!-- 弹窗管理器 -->
-      <DialogOverlayManager
+      <DialogOverlayManager ref="dialogManagerRef"
         :active-mode="activeMode"
         :bounce-final-position="bounceFinalPosition"
         :bounce-from-position="bounceFromPosition"
@@ -3817,6 +3817,8 @@
         :show-trap-choice-display="showTrapChoiceDisplay"
         :show-trap-display="showTrapDisplay"
         :show-victory-screen="showVictoryScreen"
+        :can-pause-session="canPauseSession"
+        :has-active-forced-overlay="hasActiveForcedOverlay"
         :victory-config="victoryConfig"
         :lan-pairing-answer-input="lanPairingAnswerInput"
         @confirm-bounce="confirmBounce"

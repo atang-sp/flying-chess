@@ -83,9 +83,16 @@ defineProps<{
   showTrapChoiceDisplay: boolean
   showTrapDisplay: boolean
   showVictoryScreen: boolean
+  canPauseSession: boolean
+  hasActiveForcedOverlay: boolean
   victoryConfig: any
   lanPairingAnswerInput: string
 }>()
+
+import { ref } from "vue"
+
+const partyTieBreakRef = ref()
+defineExpose({ partyTieBreakRef })
 
 const emit = defineEmits([
   'confirmBounce',
