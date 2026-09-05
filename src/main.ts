@@ -20,7 +20,11 @@ import Sidebar from 'primevue/sidebar'
 import ProgressBar from 'primevue/progressbar'
 import Divider from 'primevue/divider'
 
+import { createPinia } from 'pinia'
+
 const app = createApp(App)
+const pinia = createPinia()
+app.use(pinia)
 
 // Configure PrimeVue
 app.use(PrimeVue, {
