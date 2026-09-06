@@ -1,6 +1,7 @@
 import { GameService } from '../services/gameService'
 import type { BoardConfig } from '@flying-chess/game-core/types'
 import {
+  describeTrapConfigEntry,
   inspectPunishmentConfig,
   normalizePunishmentConfig,
   validateTrapConfig as validateSharedTrapConfig,
@@ -243,9 +244,18 @@ function validatePunishmentConfig(raw: unknown, errors: string[]): void {
 }
 
 function validateTrapConfig(raw: unknown, errors: string[]): void {
-  if (!validateSharedTrapConfig(raw)) {
+  if (!Array.isArray(raw) || raw.length === 0) {
     errors.push('data.trapConfig 必须是非空数组，且每个机关的名称、描述和类型必须有效')
     return
+  }
+  raw.forEach((entry, index) => {
+    const issue = describeTrapConfigEntry(entry)
+    if (issue) errors.push(`data.trapConfig[${index}] ${issue}`)
+  })
+  // Keep the shared predicate as the final guard in case the entry contract
+  // grows without a corresponding diagnostic branch above.
+  if (!validateSharedTrapConfig(raw) && errors.length === 0) {
+    errors.push('data.trapConfig 必须是非空数组，且每个机关的名称、描述和类型必须有效')
   }
 }
 

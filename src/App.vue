@@ -540,7 +540,6 @@
       mercyRequested.value = false
       showTakeoffPunishmentDisplay.value = true
       audioService.play('punishment')
-      handleTakeoffPunishmentDisplay()
       return
     }
 
@@ -2886,12 +2885,6 @@
     }
   }
 
-  // 处理起飞惩罚显示逻辑
-  const handleTakeoffPunishmentDisplay = () => {
-    // 所有情况下都等待玩家手动确认，不自动消失
-    // 单人游戏和多人游戏都需要玩家点击确认按钮
-  }
-
   const handleBackToPunishmentSettings = () => {
     punishmentStep.value = 'config'
     settingsTab.value = 'trap'
@@ -3143,6 +3136,25 @@
   }
 
   // --- 多设备同步（手柄模式） ---
+  const acknowledgementPlayerIndex = computed<number | null>(() => {
+    const overlays = {
+      currentPunishment: Boolean(currentPunishment.value),
+      showTakeoffPunishment: showTakeoffPunishmentDisplay.value,
+      showTrap: showTrapDisplay.value,
+      showTrapChoice: showTrapChoiceDisplay.value,
+      showQA: showQADisplay.value,
+      showDare: showDareDisplay.value,
+      showBounce: showBounceDisplay.value,
+      showEffect: gameState.gameStatus === 'showing_effect',
+      showTakeoffRelief: showTakeoffReliefDisplay.value,
+    }
+    if (overlays.currentPunishment || overlays.showTakeoffPunishment) {
+      const resolution = pendingRuleResolution.value
+      if (resolution?.kind === 'punishment') return resolution.targetPlayerIndex
+    }
+    return Object.values(overlays).some(Boolean) ? gameState.currentPlayerIndex : null
+  })
+
   const multiDevice = useMultiDeviceHost({
     gameState,
     partySession,
@@ -3151,6 +3163,7 @@
     gameFinished,
     isPartyGame,
     sessionPaused,
+    acknowledgementPlayerIndex,
     canRollDice,
     victoryConfig,
     overlayState: () => ({
@@ -3191,7 +3204,7 @@
         continueAfterMove()
       },
       handleBounceConfirm: () => confirmBounce(),
-      handleTakeoffPunishmentDismiss: handleTakeoffPunishmentDisplay,
+      confirmTakeoffPunishment,
       handleTakeoffReliefDismiss: () => confirmTakeoffRelief(),
       handlePartyTieBreakRoll: () => partyTieBreakRef.value?.roll(),
     },
@@ -4172,6 +4185,7 @@
       :kind="currentPartyMiniGameKind"
       :players="gameState.players"
       :actor-player-index="gameState.currentPlayerIndex"
+      :paused="sessionPaused"
       @complete="finishPartyMiniGame"
     />
 

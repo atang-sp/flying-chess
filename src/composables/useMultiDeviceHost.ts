@@ -30,7 +30,7 @@ export interface MultiDeviceHostActions {
   handleQADismiss: () => void
   handleDareDismiss: () => void
   handleBounceConfirm: () => void
-  handleTakeoffPunishmentDismiss: () => void
+  confirmTakeoffPunishment: () => Promise<void>
   handleTakeoffReliefDismiss: () => void
   handlePartyTieBreakRoll: (playerIndex: number) => void
 }
@@ -55,6 +55,8 @@ export interface MultiDeviceHostDeps {
   gameFinished: Ref<boolean>
   isPartyGame: ComputedRef<boolean>
   sessionPaused: Ref<boolean>
+  /** Player index that must acknowledge the currently visible host overlay. */
+  acknowledgementPlayerIndex: ComputedRef<number | null>
   canRollDice: ComputedRef<boolean>
   victoryConfig: Ref<VictoryConfig>
   overlayState: () => MultiDeviceOverlayState
@@ -264,13 +266,13 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
   }
 
   function handleRemoteAcknowledge(playerIndex: number): void {
-    if (deps.gameState.currentPlayerIndex !== playerIndex) return
+    if (deps.acknowledgementPlayerIndex.value !== playerIndex) return
     const overlays = deps.overlayState()
 
     if (overlays.currentPunishment) {
       deps.actions.confirmPunishment()
     } else if (overlays.showTakeoffPunishment) {
-      deps.actions.handleTakeoffPunishmentDismiss()
+      void deps.actions.confirmTakeoffPunishment()
     } else if (overlays.showTrap) {
       deps.actions.handleTrapDismiss()
     } else if (overlays.showTrapChoice) {
@@ -318,7 +320,7 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
       return { type: 'roll_dice' }
     }
     if (
-      deps.gameState.currentPlayerIndex === playerIndex &&
+      deps.acknowledgementPlayerIndex.value === playerIndex &&
       Object.values(deps.overlayState()).some(Boolean)
     ) {
       return { type: 'acknowledge', message: deps.lastEffect.value || '请在主屏查看并确认当前操作' }
@@ -436,6 +438,8 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
       deps.gameState.diceValue,
       deps.gameState.players.map(p => p.position),
       deps.partySession.value?.reaction?.status,
+      deps.acknowledgementPlayerIndex.value,
+      ...Object.values(deps.overlayState()),
     ],
     () => {
       if (enabled.value) broadcastStateToAll()

@@ -9,12 +9,14 @@ import {
   GAME_CONFIG,
   MODE_POLICIES,
   normalizeConfigSnapshot,
+  normalizeTrapConfig,
   inspectPunishmentConfig,
   projectPublicConfig,
   serializeConfigSnapshot,
   validateBoardConfig,
   validatePunishmentConfig,
   validateConfigSnapshot,
+  validateTrapConfig,
   type BoardRandomSource,
   type ConfigSnapshot,
   type PunishmentConfig,
@@ -30,6 +32,39 @@ const deterministicRandom = (value = 0): BoardRandomSource => ({
 })
 
 describe('shared game configuration contract', () => {
+  it('选择机关必须包含两个非空选项', () => {
+    const valid = {
+      name: '选择机关',
+      description: '二选一',
+      trapVariant: 'choice',
+      choiceA: '  选项 A  ',
+      choiceB: '选项 B',
+    }
+
+    expect(validateTrapConfig([valid])).toBe(true)
+    expect(validateTrapConfig([{ ...valid, choiceA: '   ' }])).toBe(false)
+    expect(validateTrapConfig([{ ...valid, choiceB: undefined }])).toBe(false)
+  })
+
+  it('归一化机关时过滤无效条目并在全部无效时回退', () => {
+    const fallback = [{ name: '默认机关', description: '默认描述' }]
+    const normalized = normalizeTrapConfig(
+      [
+        { name: '有效机关', description: '描述' },
+        { name: '缺少选项', description: '描述', trapVariant: 'choice', choiceA: 'A' },
+      ],
+      fallback
+    )
+
+    expect(normalized).toEqual([{ name: '有效机关', description: '描述' }])
+    expect(
+      normalizeTrapConfig(
+        [{ name: '缺少选项', description: '描述', trapVariant: 'choice', choiceA: 'A' }],
+        fallback
+      )
+    ).toEqual(fallback)
+  })
+
   it('对小数权重使用比例不变的连续区间选择', () => {
     const lowQuantile: BoardRandomSource = {
       randomInt: minimum => minimum,

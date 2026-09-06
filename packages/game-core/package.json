@@ -1,6 +1,6 @@
 {
   "name": "@flying-chess/game-core",
-  "version": "1.17.3",
+  "version": "1.17.4",
   "private": true,
   "type": "module",
   "exports": {

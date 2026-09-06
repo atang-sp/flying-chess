@@ -17,6 +17,7 @@ import {
   spendPartyToken,
   submitPartyPrediction,
 } from '@flying-chess/game-core/party-mode'
+import { recordPartyMomentum } from '@flying-chess/game-core/party-momentum'
 import type { PunishmentConfig } from '@flying-chess/game-core/types'
 
 describe('升温局阶段导演', () => {
@@ -120,6 +121,37 @@ describe('升温局阶段导演', () => {
     session = completePartyTurn(session, { playerIndex: 0, now: 6 * minute })
     session = completePartyTurn(session, { playerIndex: 1, now: 6 * minute })
     expect(session.shouldEnd).toBe(true)
+  })
+
+  it('一幕导演始终保持暖场，热度不会凭空增加幕数', () => {
+    let session = createPartySession({
+      playerCount: 2,
+      startedAt: 0,
+      directorConfig: {
+        actCount: 1,
+        heatingRound: 1,
+        finaleRound: 2,
+        heatingAfterMinutes: 1,
+        finaleAfterMinutes: 2,
+        endAfterMinutes: 3,
+      },
+    })
+
+    for (let index = 0; index < 6; index += 1) {
+      session = recordPartyMomentum(session, {
+        type: 'punishment_completed',
+        participantPlayerIndices: [0],
+        amplified: false,
+        chain: false,
+        mutual: false,
+      })
+      session = completePartyTurn(session, {
+        playerIndex: index % 2,
+        now: index + 1,
+      })
+    }
+
+    expect(session.act).toBe('warmup')
   })
 
   it('每名玩家开局持有一枚通用筹码且每回合最多使用一枚', () => {

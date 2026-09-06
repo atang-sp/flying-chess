@@ -941,22 +941,45 @@ const trapVariants = new Set<TrapVariant>([
 const isTrapVariant = (value: unknown): value is TrapVariant =>
   typeof value === 'string' && trapVariants.has(value as TrapVariant)
 
+/**
+ * Returns a human-readable validation error for one trap entry.
+ * Keeping this logic separate lets strict import validation and the
+ * recovery-oriented normalizer apply the same rules.
+ */
+export function describeTrapConfigEntry(value: unknown): string | null {
+  if (!isRecord(value)) return '必须是配置对象'
+  if (typeof value.name !== 'string' || value.name.trim().length === 0) {
+    return 'name 必须是非空字符串'
+  }
+  if (typeof value.description !== 'string' || value.description.trim().length === 0) {
+    return 'description 必须是非空字符串'
+  }
+  if (value.trapVariant !== undefined && !isTrapVariant(value.trapVariant)) {
+    return 'trapVariant 不是受支持的机关类型'
+  }
+  if (value.choiceA !== undefined && typeof value.choiceA !== 'string') {
+    return 'choiceA 必须是字符串'
+  }
+  if (value.choiceB !== undefined && typeof value.choiceB !== 'string') {
+    return 'choiceB 必须是字符串'
+  }
+  if (value.trapVariant === 'choice') {
+    if (typeof value.choiceA !== 'string' || value.choiceA.trim().length === 0) {
+      return '选择机关必须提供去除首尾空白后的非空 choiceA'
+    }
+    if (typeof value.choiceB !== 'string' || value.choiceB.trim().length === 0) {
+      return '选择机关必须提供去除首尾空白后的非空 choiceB'
+    }
+  }
+  return null
+}
+
+export function validateTrapConfigEntry(value: unknown): value is TrapAction {
+  return describeTrapConfigEntry(value) === null
+}
+
 export function validateTrapConfig(value: unknown): value is TrapAction[] {
-  return (
-    Array.isArray(value) &&
-    value.length > 0 &&
-    value.every(
-      trap =>
-        isRecord(trap) &&
-        typeof trap.name === 'string' &&
-        trap.name.trim().length > 0 &&
-        typeof trap.description === 'string' &&
-        trap.description.trim().length > 0 &&
-        (trap.trapVariant === undefined || isTrapVariant(trap.trapVariant)) &&
-        (trap.choiceA === undefined || typeof trap.choiceA === 'string') &&
-        (trap.choiceB === undefined || typeof trap.choiceB === 'string')
-    )
-  )
+  return Array.isArray(value) && value.length > 0 && value.every(validateTrapConfigEntry)
 }
 
 export function normalizeTrapConfig(
@@ -965,13 +988,7 @@ export function normalizeTrapConfig(
 ): TrapAction[] {
   if (!Array.isArray(value)) return cloneTraps(fallback)
   const normalized = value.flatMap(entry => {
-    if (
-      !isRecord(entry) ||
-      typeof entry.name !== 'string' ||
-      typeof entry.description !== 'string'
-    ) {
-      return []
-    }
+    if (!validateTrapConfigEntry(entry) || !isRecord(entry)) return []
     return [
       {
         name: entry.name,
