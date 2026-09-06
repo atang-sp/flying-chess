@@ -17,6 +17,7 @@
     kind: PartyMiniGameKind | null
     players: readonly Player[]
     actorPlayerIndex: number
+    paused: boolean
   }>()
   const emit = defineEmits<{
     (event: 'complete', outcome: PartyMiniGameOutcome): void
@@ -29,8 +30,13 @@
   const memoryRevealed = ref(true)
   const memoryAnswer = ref<string[]>([])
   const quizSeconds = ref(8)
+  const reactionWaitRemainingMs = ref(0)
+  const memoryRevealRemainingMs = ref(0)
+  const quizRemainingMs = ref(8_000)
   let timeoutId: number | undefined
   let intervalId: number | undefined
+  let timerDeadline = 0
+  let pausedAt: number | undefined
   let submitted = false
 
   const actor = computed(() => props.players[props.actorPlayerIndex])
@@ -52,18 +58,32 @@
     emit('complete', outcome)
   }
 
-  const startReaction = () => {
-    reactionPhase.value = 'waiting'
-    reactionRace.value = createReactionRace(props.players.length)
-    const delay = SecureRandom.randomInt(700, 1500)
-    timeoutId = window.setTimeout(() => {
+  const startReactionTimer = () => {
+    if (props.paused || reactionPhase.value !== 'waiting') return
+    if (reactionWaitRemainingMs.value <= 0) {
       reactionPhase.value = 'go'
       reactionStartedAt.value = performance.now()
-    }, delay)
+      return
+    }
+    timerDeadline = performance.now() + reactionWaitRemainingMs.value
+    timeoutId = window.setTimeout(() => {
+      timeoutId = undefined
+      reactionWaitRemainingMs.value = 0
+      reactionPhase.value = 'go'
+      reactionStartedAt.value = performance.now()
+    }, reactionWaitRemainingMs.value)
+  }
+
+  const startReaction = () => {
+    if (props.paused) return
+    reactionPhase.value = 'waiting'
+    reactionRace.value = createReactionRace(props.players.length)
+    reactionWaitRemainingMs.value = SecureRandom.randomInt(700, 1500)
+    startReactionTimer()
   }
 
   const pressReaction = (playerIndex: number) => {
-    if (reactionPhase.value !== 'go' || !reactionRace.value) return
+    if (props.paused || reactionPhase.value !== 'go' || !reactionRace.value) return
     const race = recordReactionPress(
       reactionRace.value,
       playerIndex,
@@ -79,7 +99,7 @@
   }
 
   const chooseMemorySymbol = (symbol: string) => {
-    if (memoryRevealed.value || submitted) return
+    if (props.paused || memoryRevealed.value || submitted) return
     memoryAnswer.value.push(symbol)
     if (memoryAnswer.value.length < memoryChallenge.value.sequence.length) return
     const correct = memoryAnswer.value.every(
@@ -96,6 +116,7 @@
   }
 
   const finishQuiz = (success: boolean) => {
+    if (props.paused) return
     const actorIndex = props.actorPlayerIndex
     finish({
       winnerPlayerIndices: success ? [actorIndex] : [],
@@ -106,6 +127,65 @@
     })
   }
 
+  const updateQuizClock = () => {
+    const remaining = Math.max(0, timerDeadline - performance.now())
+    quizRemainingMs.value = remaining
+    quizSeconds.value = Math.ceil(remaining / 1000)
+    if (remaining <= 0) finishQuiz(false)
+  }
+
+  const startMemoryTimer = () => {
+    if (props.paused || !memoryRevealed.value) return
+    if (memoryRevealRemainingMs.value <= 0) {
+      memoryRevealed.value = false
+      return
+    }
+    timerDeadline = performance.now() + memoryRevealRemainingMs.value
+    timeoutId = window.setTimeout(() => {
+      timeoutId = undefined
+      memoryRevealRemainingMs.value = 0
+      memoryRevealed.value = false
+    }, memoryRevealRemainingMs.value)
+  }
+
+  const startQuizTimer = () => {
+    if (props.paused || submitted) return
+    if (quizRemainingMs.value <= 0) {
+      finishQuiz(false)
+      return
+    }
+    timerDeadline = performance.now() + quizRemainingMs.value
+    updateQuizClock()
+    intervalId = window.setInterval(updateQuizClock, 100)
+  }
+
+  const pauseTimers = () => {
+    const now = performance.now()
+    pausedAt = now
+    if (timerDeadline > 0) {
+      const remaining = Math.max(0, timerDeadline - now)
+      if (reactionPhase.value === 'waiting') reactionWaitRemainingMs.value = remaining
+      if (memoryRevealed.value) memoryRevealRemainingMs.value = remaining
+      if (props.kind === 'quick_quiz') {
+        quizRemainingMs.value = remaining
+        quizSeconds.value = Math.ceil(remaining / 1000)
+      }
+    }
+    clearTimers()
+    timerDeadline = 0
+  }
+
+  const resumeTimers = () => {
+    if (!props.visible || !props.kind || props.paused || submitted) return
+    if (props.kind === 'reaction' && reactionPhase.value === 'go' && pausedAt !== undefined) {
+      reactionStartedAt.value += performance.now() - pausedAt
+    }
+    pausedAt = undefined
+    if (props.kind === 'reaction') startReactionTimer()
+    else if (props.kind === 'memory') startMemoryTimer()
+    else startQuizTimer()
+  }
+
   const initialize = () => {
     clearTimers()
     submitted = false
@@ -113,17 +193,18 @@
     reactionRace.value = null
     memoryAnswer.value = []
     quizSeconds.value = 8
+    reactionWaitRemainingMs.value = 0
+    memoryRevealRemainingMs.value = 0
+    quizRemainingMs.value = 8_000
+    timerDeadline = 0
+    pausedAt = undefined
     if (props.kind === 'memory') {
       memoryChallenge.value = createMemoryChallenge(3, entries => SecureRandom.choice([...entries]))
       memoryRevealed.value = true
-      timeoutId = window.setTimeout(() => {
-        memoryRevealed.value = false
-      }, 2000)
+      memoryRevealRemainingMs.value = 2_000
+      startMemoryTimer()
     } else if (props.kind === 'quick_quiz') {
-      intervalId = window.setInterval(() => {
-        quizSeconds.value -= 1
-        if (quizSeconds.value <= 0) finishQuiz(false)
-      }, 1000)
+      startQuizTimer()
     }
   }
 
@@ -134,6 +215,14 @@
       else clearTimers()
     },
     { immediate: true }
+  )
+  watch(
+    () => props.paused,
+    (paused, wasPaused) => {
+      if (!props.visible || paused === wasPaused) return
+      if (paused) pauseTimers()
+      else resumeTimers()
+    }
   )
   onBeforeUnmount(clearTimers)
 </script>
@@ -147,14 +236,19 @@
         <p v-if="reactionPhase === 'ready'">设备放在所有人都够得到的位置，准备抢按。</p>
         <p v-else-if="reactionPhase === 'waiting'" class="waiting">等待绿色信号……提前按无效</p>
         <p v-else class="go-signal">现在按！</p>
-        <button v-if="reactionPhase === 'ready'" class="start-button" @click="startReaction">
+        <button
+          v-if="reactionPhase === 'ready'"
+          class="start-button"
+          :disabled="paused"
+          @click="startReaction"
+        >
           全员准备好了
         </button>
         <div v-else class="reaction-buttons">
           <button
             v-for="(player, index) in players"
             :key="player.id"
-            :disabled="reactionPhase !== 'go'"
+            :disabled="paused || reactionPhase !== 'go'"
             :style="{ borderColor: player.color }"
             @click="pressReaction(index)"
           >
@@ -174,6 +268,7 @@
           <button
             v-for="symbol in memoryChallenge.options"
             :key="symbol"
+            :disabled="paused"
             @click="chooseMemorySymbol(symbol)"
           >
             {{ symbol }}
@@ -193,8 +288,8 @@
           {{ quizSeconds }} 秒
         </strong>
         <div class="quiz-actions">
-          <button @click="finishQuiz(true)">已完成</button>
-          <button @click="finishQuiz(false)">放弃 / 判定失败</button>
+          <button :disabled="paused" @click="finishQuiz(true)">已完成</button>
+          <button :disabled="paused" @click="finishQuiz(false)">放弃 / 判定失败</button>
         </div>
       </template>
     </section>

@@ -69,6 +69,8 @@ export {
   chooseWeighted,
   normalizePunishmentConfig,
   normalizeTrapConfig,
+  describeTrapConfigEntry,
+  validateTrapConfigEntry,
   normalizeConfigSnapshot,
   projectPublicConfig,
   serializeConfigSnapshot,

@@ -207,7 +207,11 @@ function actForRoundBoundary(
   return 'warmup'
 }
 
-function actForHeat(heat: number): PartyAct {
+function actForHeat(heat: number, actCount: PartyDirectorConfig['actCount']): PartyAct {
+  if (actCount === 1) return 'warmup'
+  if (actCount === 2) {
+    return heat >= PARTY_HEATING_THRESHOLD ? 'finale' : 'warmup'
+  }
   if (heat >= PARTY_FINALE_THRESHOLD) return 'finale'
   if (heat >= PARTY_HEATING_THRESHOLD) return 'heating'
   return 'warmup'
@@ -597,7 +601,7 @@ export function completePartyTurn(
         session.act,
         laterPartyAct(
           actForRoundBoundary(completedRounds, activeElapsedMs, session.directorConfig),
-          actForHeat(session.heat)
+          actForHeat(session.heat, session.directorConfig.actCount)
         )
       )
     : session.act

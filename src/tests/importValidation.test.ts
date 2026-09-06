@@ -134,6 +134,24 @@ describe('导入配置校验', () => {
     expect(values.get('ludo_game_config')).toBe('existing-config')
   })
 
+  it('拒绝缺少选项的选择机关并指出具体位置', () => {
+    const data = cloneValidImport()
+    data.data.trapConfig = [
+      {
+        name: '缺项机关',
+        description: '必须提供两个选项',
+        trapVariant: 'choice',
+        choiceA: '选项 A',
+      },
+    ] as never
+
+    const result = validateImportData(data)
+
+    expect(result.isValid).toBe(false)
+    expect(result.errors.join('\n')).toContain('data.trapConfig[0]')
+    expect(result.errors.join('\n')).toContain('choiceB')
+  })
+
   it.each(invalidPunishmentMutations)('拒绝超出范围的%s', (_label, mutate) => {
     const data = cloneValidImport()
     mutate(data)
