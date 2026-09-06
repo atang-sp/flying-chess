@@ -429,15 +429,24 @@ export function generateBalancedPunishmentCombinationDefinitions(
   // 构建 (工具, 部位) 联合对，过滤掉强度不兼容的组合
   // 按联合权重 (tool.ratio × bodyPart.ratio) 预分配格子数
   // 这样才能同时保证工具和部位的实际出现比例都符合设定
-  type ToolBodyPair = { tool: PunishmentTool & { name: string }; bodyPart: PunishmentBodyPart & { name: string }; ratio: number }
+  type ToolBodyPair = {
+    tool: PunishmentTool & { name: string }
+    bodyPart: PunishmentBodyPart & { name: string }
+    ratio: number
+  }
   const toolBodyPairs: ToolBodyPair[] = []
   for (const tool of tools) {
     const compatible = bodyParts.filter(part => part.sensitivity >= tool.intensity)
-    const candidates = compatible.length > 0
-      ? compatible
-      : bodyParts.length > 0
-        ? [bodyParts.reduce((best, current) => current.sensitivity > best.sensitivity ? current : best)]
-        : []
+    const candidates =
+      compatible.length > 0
+        ? compatible
+        : bodyParts.length > 0
+          ? [
+              bodyParts.reduce((best, current) =>
+                current.sensitivity > best.sensitivity ? current : best
+              ),
+            ]
+          : []
     for (const bodyPart of candidates) {
       toolBodyPairs.push({ tool, bodyPart, ratio: tool.ratio * bodyPart.ratio })
     }
