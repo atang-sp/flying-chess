@@ -1,175 +1,175 @@
 <script setup lang="ts">
-import PunishmentDisplay from '../components/PunishmentDisplay.vue'
-import MercyDecision from '../components/MercyDecision.vue'
-import EffectDisplay from '../components/EffectDisplay.vue'
-import TakeoffPunishmentDisplay from '../components/TakeoffPunishmentDisplay.vue'
-import TrapDisplay from '../components/TrapDisplay.vue'
-import TrapChoiceDisplay from '../components/TrapChoiceDisplay.vue'
-import QADisplay from '../components/QADisplay.vue'
-import DareDisplay from '../components/DareDisplay.vue'
-import BounceDisplay from '../components/BounceDisplay.vue'
-import DoublePunishmentReveal from '../components/DoublePunishmentReveal.vue'
-import ChainPunishmentRoll from '../components/ChainPunishmentRoll.vue'
-import PartyReactionOverlay from '../components/PartyReactionOverlay.vue'
-import PartyDiceDecision from '../components/PartyDiceDecision.vue'
-import PartyPunishmentChoice from '../components/PartyPunishmentChoice.vue'
-import PartyPunishmentIntervention from '../components/PartyPunishmentIntervention.vue'
-import PartyEventCardOverlay from '../components/PartyEventCardOverlay.vue'
-import PartyMiniGame from '../components/PartyMiniGame.vue'
-import PartyTieBreak from '../components/PartyTieBreak.vue'
-import VictoryScreen from '../components/VictoryScreen.vue'
-import TakeoffReliefDisplay from '../components/TakeoffReliefDisplay.vue'
-import SessionPauseOverlay from '../components/SessionPauseOverlay.vue'
-import { Pause } from 'lucide-vue-next' // Fix import if needed, assuming it's available
+  import PunishmentDisplay from '../components/PunishmentDisplay.vue'
+  import MercyDecision from '../components/MercyDecision.vue'
+  import EffectDisplay from '../components/EffectDisplay.vue'
+  import TakeoffPunishmentDisplay from '../components/TakeoffPunishmentDisplay.vue'
+  import TrapDisplay from '../components/TrapDisplay.vue'
+  import TrapChoiceDisplay from '../components/TrapChoiceDisplay.vue'
+  import QADisplay from '../components/QADisplay.vue'
+  import DareDisplay from '../components/DareDisplay.vue'
+  import BounceDisplay from '../components/BounceDisplay.vue'
+  import DoublePunishmentReveal from '../components/DoublePunishmentReveal.vue'
+  import ChainPunishmentRoll from '../components/ChainPunishmentRoll.vue'
+  import PartyReactionOverlay from '../components/PartyReactionOverlay.vue'
+  import PartyDiceDecision from '../components/PartyDiceDecision.vue'
+  import PartyPunishmentChoice from '../components/PartyPunishmentChoice.vue'
+  import PartyPunishmentIntervention from '../components/PartyPunishmentIntervention.vue'
+  import PartyEventCardOverlay from '../components/PartyEventCardOverlay.vue'
+  import PartyMiniGame from '../components/PartyMiniGame.vue'
+  import PartyTieBreak from '../components/PartyTieBreak.vue'
+  import VictoryScreen from '../components/VictoryScreen.vue'
+  import TakeoffReliefDisplay from '../components/TakeoffReliefDisplay.vue'
+  import SessionPauseOverlay from '../components/SessionPauseOverlay.vue'
+  import { Pause } from 'lucide-vue-next' // Fix import if needed, assuming it's available
 
-defineProps<{
-  activeMode: any
-  bounceFinalPosition: number
-  bounceFromPosition: number
-  bounceOverflowSteps: number
-  bounceTargetPosition: number
-  canCurrentPlayerReroll: boolean
-  canRequestBoardMercy: boolean
-  canRequestTakeoffMercy: boolean
-  currentDareInstruction: string
-  currentPartyEvent: any
-  currentPartyMiniGameKind: any
-  currentPartyTokens: number
-  currentPunishment: any
-  currentPunishmentCountMultiplier: number
-  currentPunishmentCountSelection: number
-  currentPunishmentExecutor: any
-  currentPunishmentTarget: any
-  currentPunishmentVariant: any
-  currentPunishmentVariantPhase: any
-  currentQAQuestion: any
-  currentTakeoffDiceValue: number
-  currentTakeoffExecutorIndex: number
-  currentTakeoffPunishment: any
-  currentTakeoffTarget: any
-  currentTakeoffTriggeringPlayer: any
-  currentTrapChoiceA: any
-  currentTrapChoiceB: any
-  currentTrapDescription: string
-  currentTrapRouletteTarget: any
-  currentTrapVariant: any
-  effectFromPosition: number | undefined
-  effectToPosition: number | undefined
-  failedTakeoffCountForMessage: number
-  gameState: any
-  mercyExecutorPlayer: any
-  mercyHalvedStrikes: number
-  mercySource: string
-  mercyTargetPlayer: any
-  multiDevice: any
-  multiDeviceEnabled: boolean
-  partyDiceDecisionVisible: boolean
-  partyHighlight: any
-  partyPunishmentChoices: any
-  partyPunishmentInterventionResolution: any
-  partyReaction: any
-  partySession: any
-  partyTieCandidates: any
-  sessionPaused: boolean
-  sharedScreenPunishmentInterventionOptions: any
-  showBounceDisplay: boolean
-  showChainPunishmentRoll: boolean
-  showDareDisplay: boolean
-  showDoublePunishmentReveal: boolean
-  showMercyDecision: boolean
-  showQADisplay: boolean
-  showTakeoffPunishmentDisplay: boolean
-  showTakeoffReliefDisplay: boolean
-  showTrapChoiceDisplay: boolean
-  showTrapDisplay: boolean
-  showVictoryScreen: boolean
-  canPauseSession: boolean
-  hasActiveForcedOverlay: boolean
-  victoryConfig: any
-  lanPairingAnswerInput: string
-}>()
+  defineProps<{
+    activeMode: any
+    bounceFinalPosition: number
+    bounceFromPosition: number
+    bounceOverflowSteps: number
+    bounceTargetPosition: number
+    canCurrentPlayerReroll: boolean
+    canRequestBoardMercy: boolean
+    canRequestTakeoffMercy: boolean
+    currentDareInstruction: string
+    currentPartyEvent: any
+    currentPartyMiniGameKind: any
+    currentPartyTokens: number
+    currentPunishment: any
+    currentPunishmentCountMultiplier: number
+    currentPunishmentCountSelection: number
+    currentPunishmentExecutor: any
+    currentPunishmentTarget: any
+    currentPunishmentVariant: any
+    currentPunishmentVariantPhase: any
+    currentQAQuestion: any
+    currentTakeoffDiceValue: number
+    currentTakeoffExecutorIndex: number
+    currentTakeoffPunishment: any
+    currentTakeoffTarget: any
+    currentTakeoffTriggeringPlayer: any
+    currentTrapChoiceA: any
+    currentTrapChoiceB: any
+    currentTrapDescription: string
+    currentTrapRouletteTarget: any
+    currentTrapVariant: any
+    effectFromPosition: number | undefined
+    effectToPosition: number | undefined
+    failedTakeoffCountForMessage: number
+    gameState: any
+    mercyExecutorPlayer: any
+    mercyHalvedStrikes: number
+    mercySource: string
+    mercyTargetPlayer: any
+    multiDevice: any
+    multiDeviceEnabled: boolean
+    partyDiceDecisionVisible: boolean
+    partyHighlight: any
+    partyPunishmentChoices: any
+    partyPunishmentInterventionResolution: any
+    partyReaction: any
+    partySession: any
+    partyTieCandidates: any
+    sessionPaused: boolean
+    sharedScreenPunishmentInterventionOptions: any
+    showBounceDisplay: boolean
+    showChainPunishmentRoll: boolean
+    showDareDisplay: boolean
+    showDoublePunishmentReveal: boolean
+    showMercyDecision: boolean
+    showQADisplay: boolean
+    showTakeoffPunishmentDisplay: boolean
+    showTakeoffReliefDisplay: boolean
+    showTrapChoiceDisplay: boolean
+    showTrapDisplay: boolean
+    showVictoryScreen: boolean
+    canPauseSession: boolean
+    hasActiveForcedOverlay: boolean
+    victoryConfig: any
+    lanPairingAnswerInput: string
+  }>()
 
-import { ref } from 'vue'
+  import { ref } from 'vue'
 
-const partyTieBreakRef = ref()
-defineExpose({ partyTieBreakRef })
+  const partyTieBreakRef = ref()
+  defineExpose({ partyTieBreakRef })
 
-const emit = defineEmits([
-  'confirmBounce',
-  'confirmDare',
-  'confirmDoubleReveal',
-  'confirmEffect',
-  'confirmPunishment',
-  'confirmQAAnswer',
-  'confirmQARefuse',
-  'confirmTakeoffPunishment',
-  'confirmTakeoffRelief',
-  'confirmTrap',
-  'confirmTrapChoice',
-  'continuePartyMove',
-  'endPausedSession',
-  'finishPartyMiniGame',
-  'finishPartyTieBreak',
-  'handleChainRollResult',
-  'handleMercyRequest',
-  'handleMercyResult',
-  'handlePartyReactionDecision',
-  'handlePartyReactionPrediction',
-  'handlePartyReroll',
-  'handlePunishmentVariantAction',
-  'handleVictoryPlayAgain',
-  'requestPartyTieBreakRoll',
-  'resolveCurrentPartyEvent',
-  'resolvePartyPunishmentChoice',
-  'resolvePartyPunishmentIntervention',
-  'resumeSession',
-  'skipPunishment',
-  'startCurrentEventMiniGame',
-  'update:lanPairingAnswerInput',
-  'submitLanPairingAnswer',
-  'pauseSession',
-])
+  const emit = defineEmits([
+    'confirmBounce',
+    'confirmDare',
+    'confirmDoubleReveal',
+    'confirmEffect',
+    'confirmPunishment',
+    'confirmQAAnswer',
+    'confirmQARefuse',
+    'confirmTakeoffPunishment',
+    'confirmTakeoffRelief',
+    'confirmTrap',
+    'confirmTrapChoice',
+    'continuePartyMove',
+    'endPausedSession',
+    'finishPartyMiniGame',
+    'finishPartyTieBreak',
+    'handleChainRollResult',
+    'handleMercyRequest',
+    'handleMercyResult',
+    'handlePartyReactionDecision',
+    'handlePartyReactionPrediction',
+    'handlePartyReroll',
+    'handlePunishmentVariantAction',
+    'handleVictoryPlayAgain',
+    'requestPartyTieBreakRoll',
+    'resolveCurrentPartyEvent',
+    'resolvePartyPunishmentChoice',
+    'resolvePartyPunishmentIntervention',
+    'resumeSession',
+    'skipPunishment',
+    'startCurrentEventMiniGame',
+    'update:lanPairingAnswerInput',
+    'submitLanPairingAnswer',
+    'pauseSession',
+  ])
 
-const handleLanInput = (e: Event) => emit('update:lanPairingAnswerInput', (e.target as HTMLInputElement).value)
-
+  const handleLanInput = (e: Event) =>
+    emit('update:lanPairingAnswerInput', (e.target as HTMLInputElement).value)
 </script>
 
 <template>
   <div class="dialog-manager">
-      <!-- 惩罚显示弹窗 -->
-      <PunishmentDisplay
-        :punishment="currentPunishment"
-        :executor-player="currentPunishmentExecutor"
-        :target-player="currentPunishmentTarget"
-        :count-selection="currentPunishmentCountSelection"
-        :count-multiplier="currentPunishmentCountMultiplier"
-        :variant="currentPunishmentVariant"
-        :variant-phase="currentPunishmentVariantPhase"
-        :can-request-mercy="canRequestBoardMercy"
-        @confirm="emit('confirmPunishment')"
-        @skip="emit('skipPunishment')"
-        @request-mercy="emit('handleMercyRequest', 'board')"
-        @variant-action="emit('handlePunishmentVariantAction')"
-      />
+    <!-- 惩罚显示弹窗 -->
+    <PunishmentDisplay
+      :punishment="currentPunishment"
+      :executor-player="currentPunishmentExecutor"
+      :target-player="currentPunishmentTarget"
+      :count-selection="currentPunishmentCountSelection"
+      :count-multiplier="currentPunishmentCountMultiplier"
+      :variant="currentPunishmentVariant"
+      :variant-phase="currentPunishmentVariantPhase"
+      :can-request-mercy="canRequestBoardMercy"
+      @confirm="emit('confirmPunishment')"
+      @skip="emit('skipPunishment')"
+      @request-mercy="emit('handleMercyRequest', 'board')"
+      @variant-action="emit('handlePunishmentVariantAction')"
+    />
 
-      <!-- 求饶决策弹窗 -->
-      <MercyDecision
-        :visible="showMercyDecision"
-        :punishment="mercySource === 'board' ? currentPunishment : currentTakeoffPunishment"
-        :executor-player="mercyExecutorPlayer"
-        :target-player="mercyTargetPlayer"
-        :halved-strikes="mercyHalvedStrikes"
-        @mercy-result="emit('handleMercyResult')"
-      />
+    <!-- 求饶决策弹窗 -->
+    <MercyDecision
+      :visible="showMercyDecision"
+      :punishment="mercySource === 'board' ? currentPunishment : currentTakeoffPunishment"
+      :executor-player="mercyExecutorPlayer"
+      :target-player="mercyTargetPlayer"
+      :halved-strikes="mercyHalvedStrikes"
+      @mercy-result="emit('handleMercyResult')"
+    />
 
-      <!-- 效果显示弹窗 -->
-      <EffectDisplay
-        :visible="gameState.gameStatus === 'showing_effect'"
-        :effect="gameState.pendingEffect"
-        :from-position="effectFromPosition"
-        :to-position="effectToPosition"
-        @confirm="emit('confirmEffect')"
-      />
+    <!-- 效果显示弹窗 -->
+    <EffectDisplay
+      :visible="gameState.gameStatus === 'showing_effect'"
+      :effect="gameState.pendingEffect"
+      :from-position="effectFromPosition"
+      :to-position="effectToPosition"
+      @confirm="emit('confirmEffect')"
+    />
 
     <!-- 起飞惩罚显示弹窗 -->
     <TakeoffPunishmentDisplay
@@ -234,10 +234,16 @@ const handleLanInput = (e: Event) => emit('update:lanPairingAnswerInput', (e.tar
     />
 
     <!-- 翻倍惩罚揭示弹窗 -->
-    <DoublePunishmentReveal :visible="showDoublePunishmentReveal" @confirm="emit('confirmDoubleReveal')" />
+    <DoublePunishmentReveal
+      :visible="showDoublePunishmentReveal"
+      @confirm="emit('confirmDoubleReveal')"
+    />
 
     <!-- 连锁惩罚掷骰弹窗 -->
-    <ChainPunishmentRoll :visible="showChainPunishmentRoll" @result="emit('handleChainRollResult')" />
+    <ChainPunishmentRoll
+      :visible="showChainPunishmentRoll"
+      @result="emit('handleChainRollResult')"
+    />
 
     <PartyReactionOverlay
       v-if="
@@ -269,7 +275,7 @@ const handleLanInput = (e: Event) => emit('update:lanPairingAnswerInput', (e.tar
       :tokens-remaining="currentPartyTokens"
       :paused="sessionPaused"
       @select="emit('resolvePartyPunishmentChoice')"
-      @skip="emit('resolvePartyPunishmentChoice', )"
+      @skip="emit('resolvePartyPunishmentChoice')"
     />
 
     <PartyPunishmentIntervention
@@ -280,7 +286,7 @@ const handleLanInput = (e: Event) => emit('update:lanPairingAnswerInput', (e.tar
       :tokens-remaining="partySession?.tokensRemaining ?? []"
       :paused="sessionPaused"
       @apply="emit('resolvePartyPunishmentIntervention')"
-      @skip="emit('resolvePartyPunishmentIntervention', )"
+      @skip="emit('resolvePartyPunishmentIntervention')"
     />
 
     <PartyEventCardOverlay
@@ -352,7 +358,8 @@ const handleLanInput = (e: Event) => emit('update:lanPairingAnswerInput', (e.tar
           <label>
             <span>手机配对应答</span>
             <textarea
-              :value="lanPairingAnswerInput" @input="handleLanInput($event)"
+              :value="lanPairingAnswerInput"
+              @input="handleLanInput($event)"
               placeholder="粘贴手机生成的配对应答 JSON"
               data-testid="lan-pairing-answer-input"
             />
@@ -412,7 +419,5 @@ const handleLanInput = (e: Event) => emit('update:lanPairingAnswerInput', (e.tar
       @resume="emit('resumeSession')"
       @end-session="emit('endPausedSession')"
     />
-
-
   </div>
 </template>

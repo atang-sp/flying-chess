@@ -1,30 +1,30 @@
 <script setup lang="ts">
-import PunishmentDisplay from '../components/PunishmentDisplay.vue'
-import MercyDecision from '../components/MercyDecision.vue'
-import EffectDisplay from '../components/EffectDisplay.vue'
-import TakeoffPunishmentDisplay from '../components/TakeoffPunishmentDisplay.vue'
-import TrapDisplay from '../components/TrapDisplay.vue'
-import TrapChoiceDisplay from '../components/TrapChoiceDisplay.vue'
-import QADisplay from '../components/QADisplay.vue'
-import DareDisplay from '../components/DareDisplay.vue'
-import BounceDisplay from '../components/BounceDisplay.vue'
-import DoublePunishmentReveal from '../components/DoublePunishmentReveal.vue'
-import ChainPunishmentRoll from '../components/ChainPunishmentRoll.vue'
-import PartyReactionOverlay from '../components/PartyReactionOverlay.vue'
-import PartyDiceDecision from '../components/PartyDiceDecision.vue'
-import PartyPunishmentChoice from '../components/PartyPunishmentChoice.vue'
-import PartyPunishmentIntervention from '../components/PartyPunishmentIntervention.vue'
-import PartyEventCardOverlay from '../components/PartyEventCardOverlay.vue'
-import PartyMiniGame from '../components/PartyMiniGame.vue'
-import PartyTieBreak from '../components/PartyTieBreak.vue'
-import VictoryScreen from '../components/VictoryScreen.vue'
-import TakeoffReliefDisplay from '../components/TakeoffReliefDisplay.vue'
-import SessionPauseOverlay from '../components/SessionPauseOverlay.vue'
-import { Upload } from '@lucide/vue'
+  import PunishmentDisplay from '../components/PunishmentDisplay.vue'
+  import MercyDecision from '../components/MercyDecision.vue'
+  import EffectDisplay from '../components/EffectDisplay.vue'
+  import TakeoffPunishmentDisplay from '../components/TakeoffPunishmentDisplay.vue'
+  import TrapDisplay from '../components/TrapDisplay.vue'
+  import TrapChoiceDisplay from '../components/TrapChoiceDisplay.vue'
+  import QADisplay from '../components/QADisplay.vue'
+  import DareDisplay from '../components/DareDisplay.vue'
+  import BounceDisplay from '../components/BounceDisplay.vue'
+  import DoublePunishmentReveal from '../components/DoublePunishmentReveal.vue'
+  import ChainPunishmentRoll from '../components/ChainPunishmentRoll.vue'
+  import PartyReactionOverlay from '../components/PartyReactionOverlay.vue'
+  import PartyDiceDecision from '../components/PartyDiceDecision.vue'
+  import PartyPunishmentChoice from '../components/PartyPunishmentChoice.vue'
+  import PartyPunishmentIntervention from '../components/PartyPunishmentIntervention.vue'
+  import PartyEventCardOverlay from '../components/PartyEventCardOverlay.vue'
+  import PartyMiniGame from '../components/PartyMiniGame.vue'
+  import PartyTieBreak from '../components/PartyTieBreak.vue'
+  import VictoryScreen from '../components/VictoryScreen.vue'
+  import TakeoffReliefDisplay from '../components/TakeoffReliefDisplay.vue'
+  import SessionPauseOverlay from '../components/SessionPauseOverlay.vue'
+  import { Upload } from '@lucide/vue'
 
-import { inject } from 'vue'
+  import { inject } from 'vue'
 
-const ctx = inject<any>('gameContext')
+  const ctx = inject<any>('gameContext')
 </script>
 
 <template>
@@ -48,7 +48,9 @@ const ctx = inject<any>('gameContext')
     <!-- 求饶决策弹窗 -->
     <MercyDecision
       :visible="ctx.showMercyDecision"
-      :punishment="ctx.mercySource === 'board' ? ctx.currentPunishment : ctx.currentTakeoffPunishment"
+      :punishment="
+        ctx.mercySource === 'board' ? ctx.currentPunishment : ctx.currentTakeoffPunishment
+      "
       :executor-player="ctx.mercyExecutorPlayer"
       :target-player="ctx.mercyTargetPlayer"
       :halved-strikes="ctx.mercyHalvedStrikes"
@@ -127,14 +129,21 @@ const ctx = inject<any>('gameContext')
     />
 
     <!-- 翻倍惩罚揭示弹窗 -->
-    <DoublePunishmentReveal :visible="ctx.showDoublePunishmentReveal" @confirm="ctx.confirmDoubleReveal" />
+    <DoublePunishmentReveal
+      :visible="ctx.showDoublePunishmentReveal"
+      @confirm="ctx.confirmDoubleReveal"
+    />
 
     <!-- 连锁惩罚掷骰弹窗 -->
-    <ChainPunishmentRoll :visible="ctx.showChainPunishmentRoll" @result="ctx.handleChainRollResult" />
+    <ChainPunishmentRoll
+      :visible="ctx.showChainPunishmentRoll"
+      @result="ctx.handleChainRollResult"
+    />
 
     <PartyReactionOverlay
       v-if="
-        !ctx.multiDeviceEnabled || !ctx.multiDevice.isRemotePlayer(ctx.partyReaction?.reactorPlayerIndex ?? -1)
+        !ctx.multiDeviceEnabled ||
+        !ctx.multiDevice.isRemotePlayer(ctx.partyReaction?.reactorPlayerIndex ?? -1)
       "
       :reaction="ctx.partyReaction"
       :players="ctx.gameState.players"
@@ -144,7 +153,9 @@ const ctx = inject<any>('gameContext')
     />
 
     <PartyDiceDecision
-      v-if="!ctx.multiDeviceEnabled || !ctx.multiDevice.isRemotePlayer(ctx.gameState.currentPlayerIndex)"
+      v-if="
+        !ctx.multiDeviceEnabled || !ctx.multiDevice.isRemotePlayer(ctx.gameState.currentPlayerIndex)
+      "
       :visible="ctx.partyDiceDecisionVisible"
       :player-name="ctx.gameState.players[ctx.gameState.currentPlayerIndex]?.name ?? '当前玩家'"
       :dice-value="ctx.gameState.diceValue ?? 1"
@@ -156,7 +167,9 @@ const ctx = inject<any>('gameContext')
     />
 
     <PartyPunishmentChoice
-      v-if="!ctx.multiDeviceEnabled || !ctx.multiDevice.isRemotePlayer(ctx.gameState.currentPlayerIndex)"
+      v-if="
+        !ctx.multiDeviceEnabled || !ctx.multiDevice.isRemotePlayer(ctx.gameState.currentPlayerIndex)
+      "
       :visible="ctx.partyPunishmentChoices.length === 2"
       :choices="ctx.partyPunishmentChoices"
       :tokens-remaining="ctx.currentPartyTokens"
@@ -208,7 +221,7 @@ const ctx = inject<any>('gameContext')
       :failed-count="ctx.failedTakeoffCountForMessage"
       @confirm="ctx.confirmTakeoffRelief"
     />
-    
+
     <SessionPauseOverlay
       :visible="ctx.sessionPaused"
       @resume="ctx.resumeSession"

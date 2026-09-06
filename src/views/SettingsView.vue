@@ -1,44 +1,41 @@
 <script setup lang="ts">
-import {
-  Settings,
-  Check,
-  AlertCircle,
-  ArrowLeft,
-  ArrowRight,
-  Target
-} from '@lucide/vue'
+  import { Settings, Check, AlertCircle, ArrowLeft, ArrowRight, Target } from '@lucide/vue'
 
-import BoardConfigPanel from '../components/BoardConfig.vue'
-import PunishmentConfigPanel from '../components/PunishmentConfig.vue'
-import TrapConfigPanel from '../components/TrapConfig.vue'
-import PunishmentConfirmation from '../components/PunishmentConfirmation.vue'
+  import BoardConfigPanel from '../components/BoardConfig.vue'
+  import PunishmentConfigPanel from '../components/PunishmentConfig.vue'
+  import TrapConfigPanel from '../components/TrapConfig.vue'
+  import PunishmentConfirmation from '../components/PunishmentConfirmation.vue'
 
-import type { BoardConfig, PunishmentConfig, PunishmentCombination } from '@flying-chess/game-core/types'
+  import type {
+    BoardConfig,
+    PunishmentConfig,
+    PunishmentCombination,
+  } from '@flying-chess/game-core/types'
 
-const props = defineProps<{
-  settingsTab: 'board' | 'punishment' | 'trap'
-  punishmentStep: 'config' | 'confirm'
-  stepCompleted: { board: boolean; punishment: boolean; trap: boolean }
-  allConfigValid: boolean
-  boardConfig: BoardConfig | null
-  punishmentConfig: PunishmentConfig | null
-  trapConfig: Record<string, any>
-  punishmentCombinations: PunishmentCombination[]
-}>()
+  const props = defineProps<{
+    settingsTab: 'board' | 'punishment' | 'trap'
+    punishmentStep: 'config' | 'confirm'
+    stepCompleted: { board: boolean; punishment: boolean; trap: boolean }
+    allConfigValid: boolean
+    boardConfig: BoardConfig | null
+    punishmentConfig: PunishmentConfig | null
+    trapConfig: Record<string, any>
+    punishmentCombinations: PunishmentCombination[]
+  }>()
 
-const emit = defineEmits<{
-  (e: 'update:settingsTab', val: 'board' | 'punishment' | 'trap'): void
-  (e: 'update:punishmentStep', val: 'config' | 'confirm'): void
-  (e: 'update:boardConfig', config: BoardConfig): void
-  (e: 'update:punishmentConfig', config: PunishmentConfig): void
-  (e: 'update:trapConfig', config: Record<string, any>): void
-  (e: 'validation-failed', error: Error): void
-  (e: 'generate-punishment-combinations'): void
-  (e: 'confirm-punishment-combinations', combinations: PunishmentCombination[]): void
-  (e: 'prev-step'): void
-  (e: 'next-step'): void
-  (e: 'show-intro'): void
-}>()
+  const emit = defineEmits<{
+    (e: 'update:settingsTab', val: 'board' | 'punishment' | 'trap'): void
+    (e: 'update:punishmentStep', val: 'config' | 'confirm'): void
+    (e: 'update:boardConfig', config: BoardConfig): void
+    (e: 'update:punishmentConfig', config: PunishmentConfig): void
+    (e: 'update:trapConfig', config: Record<string, any>): void
+    (e: 'validation-failed', error: Error): void
+    (e: 'generate-punishment-combinations'): void
+    (e: 'confirm-punishment-combinations', combinations: PunishmentCombination[]): void
+    (e: 'prev-step'): void
+    (e: 'next-step'): void
+    (e: 'show-intro'): void
+  }>()
 </script>
 
 <template>
