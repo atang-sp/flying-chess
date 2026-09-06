@@ -247,7 +247,10 @@ const selectOptimalCombination = (
   const maximum = Math.max(...pool.map(entry => entry.score))
   const top = pool.filter(entry => entry.score === maximum).map(entry => entry.combination)
   if (top.length === 1) return top[0] as PunishmentCombination
-  const weights = top.map(combination => Math.max(0, combination.tool.ratio))
+  // 使用 tool.ratio × bodyPart.ratio 联合权重打破平局，确保部位和工具都符合比例
+  const weights = top.map(combination =>
+    Math.max(0, combination.tool.ratio * combination.bodyPart.ratio)
+  )
   return weights.some(weight => weight > 0)
     ? weightedChoice(top, weights, random)
     : choice(top, random)
@@ -422,8 +425,35 @@ export function generateBalancedPunishmentCombinationDefinitions(
   const tools = configToArray(config.tools).filter(tool => tool.ratio > 0)
   const bodyParts = configToArray(config.bodyParts).filter(bodyPart => bodyPart.ratio > 0)
   const positions = configToArray(config.positions).filter(position => position.ratio > 0)
-  const toolPool = shuffle(
-    expandByDistribution(tools, calculateDistribution(tools, count, random)),
+
+  // 构建 (工具, 部位) 联合对，过滤掉强度不兼容的组合
+  // 按联合权重 (tool.ratio × bodyPart.ratio) 预分配格子数
+  // 这样才能同时保证工具和部位的实际出现比例都符合设定
+  type ToolBodyPair = {
+    tool: PunishmentTool & { name: string }
+    bodyPart: PunishmentBodyPart & { name: string }
+    ratio: number
+  }
+  const toolBodyPairs: ToolBodyPair[] = []
+  for (const tool of tools) {
+    const compatible = bodyParts.filter(part => part.sensitivity >= tool.intensity)
+    const candidates =
+      compatible.length > 0
+        ? compatible
+        : bodyParts.length > 0
+          ? [
+              bodyParts.reduce((best, current) =>
+                current.sensitivity > best.sensitivity ? current : best
+              ),
+            ]
+          : []
+    for (const bodyPart of candidates) {
+      toolBodyPairs.push({ tool, bodyPart, ratio: tool.ratio * bodyPart.ratio })
+    }
+  }
+
+  const toolBodyPool = shuffle(
+    expandByDistribution(toolBodyPairs, calculateDistribution(toolBodyPairs, count, random)),
     random
   )
   const remainingPositions = shuffle(
@@ -433,48 +463,30 @@ export function generateBalancedPunishmentCombinationDefinitions(
   const result: PunishmentCombination[] = []
   const used = new Set<string>()
 
-  for (const tool of toolPool) {
+  for (const { tool, bodyPart } of toolBodyPool) {
     if (result.length >= count || remainingPositions.length === 0) break
-    const compatibleBodyParts = bodyParts.filter(part => part.sensitivity >= tool.intensity)
-    const bodyPartCandidates =
-      compatibleBodyParts.length > 0
-        ? compatibleBodyParts
-        : bodyParts.length > 0
-          ? [
-              bodyParts.reduce((best, current) =>
-                current.sensitivity > best.sensitivity ? current : best
-              ),
-            ]
-          : []
-    const candidates: Array<{
-      bodyPart: PunishmentBodyPart
+    // 优先选未使用过的组合（三元组去重），若全部用过则允许重复（保证槽位被填满）
+    const unusedCandidates: Array<{
       position: PunishmentPosition
       positionIndex: number
-      weight: number
+    }> = []
+    const allCandidates: Array<{
+      position: PunishmentPosition
+      positionIndex: number
     }> = []
     remainingPositions.forEach((position, positionIndex) => {
-      bodyPartCandidates.forEach(bodyPart => {
-        const definition = createDefinition(tool, bodyPart, position)
-        if (
-          isPositionCompatibleWithBodyPart(position, bodyPart) &&
-          !used.has(punishmentKey(definition))
-        ) {
-          candidates.push({
-            bodyPart,
-            position,
-            positionIndex,
-            weight: Math.max(1, bodyPart.ratio),
-          })
-        }
-      })
+      if (!isPositionCompatibleWithBodyPart(position, bodyPart)) return
+      const definition = createDefinition(tool, bodyPart, position)
+      allCandidates.push({ position, positionIndex })
+      if (!used.has(punishmentKey(definition))) {
+        unusedCandidates.push({ position, positionIndex })
+      }
     })
+    // 优先选未使用过的；若全部已使用，则从所有兼容中选（避免槽位白白浪费）
+    const candidates = unusedCandidates.length > 0 ? unusedCandidates : allCandidates
     if (candidates.length === 0) continue
-    const selected = weightedChoice(
-      candidates,
-      candidates.map(candidate => candidate.weight),
-      random
-    )
-    const definition = createDefinition(tool, selected.bodyPart, selected.position)
+    const selected = choice(candidates, random)
+    const definition = createDefinition(tool, bodyPart, selected.position)
     result.push(definition)
     used.add(punishmentKey(definition))
     remainingPositions.splice(selected.positionIndex, 1)
@@ -495,9 +507,12 @@ export function generateBalancedPunishmentCombinationDefinitions(
       )
       if (available.length > 0) {
         selectedPositionIndex = positionIndex
+        // 按 tool.ratio × bodyPart.ratio 联合权重加权，确保部位和工具都符合比例
         selected = weightedChoice(
           available,
-          available.map(definition => Math.max(1, definition.tool.ratio)),
+          available.map(definition =>
+            Math.max(1, definition.tool.ratio * definition.bodyPart.ratio)
+          ),
           random
         )
         break
@@ -511,9 +526,10 @@ export function generateBalancedPunishmentCombinationDefinitions(
 
   const remaining = all.filter(definition => !used.has(punishmentKey(definition)))
   while (result.length < count && remaining.length > 0) {
+    // 按 tool.ratio × bodyPart.ratio 联合权重加权，确保部位和工具都符合比例
     const selected = weightedChoice(
       remaining,
-      remaining.map(definition => Math.max(1, definition.tool.ratio)),
+      remaining.map(definition => Math.max(1, definition.tool.ratio * definition.bodyPart.ratio)),
       random
     )
     result.push(selected)
