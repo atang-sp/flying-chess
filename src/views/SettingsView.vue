@@ -181,7 +181,10 @@
           v-if="settingsTab === 'trap'"
           class="btn btn-primary"
           :disabled="!allConfigValid"
-          @click="emit('generate-punishment-combinations')"
+          @click="
+            emit('generate-punishment-combinations')
+            punishmentStep = 'confirm'
+          "
         >
           <Target :size="16" />
           <span class="btn-text">生成惩罚组合</span>

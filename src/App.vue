@@ -192,7 +192,7 @@
   }
   const activePartyStartConfig = ref<PartyStartConfig | null>(null)
   const partyTieCandidates = ref<readonly number[]>([])
-  const dialogManagerRef = ref<any>(null)
+  const dialogManagerRef = ref<any>(null) // eslint-disable-line
   const classicConfigSnapshot = ref<{
     boardConfig: BoardConfig
     punishmentConfig: PunishmentConfig
