@@ -21,7 +21,7 @@
     isPartyGame: boolean
     partyActLabel?: string
     partySession?: any
-    RULESET_VERSION_BY_MODE: any
+    rulesetVersionByMode: any
     multiDeviceEnabled: boolean
     multiDevice: any
     audioEnabled: boolean
@@ -65,7 +65,7 @@
 
 <template>
   <!-- 游戏页面 -->
-  <div v-else class="game-page">
+  <div class="game-page">
     <header class="game-header">
       <div class="header-content">
         <h1>
@@ -89,7 +89,7 @@
           :total-cells="gameState.board.length"
           :party-act-label="isPartyGame ? partyActLabel : undefined"
           :party-round="isPartyGame ? partySession?.roundNumber : undefined"
-          :party-ruleset-version="isPartyGame ? RULESET_VERSION_BY_MODE.party : undefined"
+          :party-ruleset-version="isPartyGame ? rulesetVersionByMode.party : undefined"
           :tokens-remaining="
             isPartyGame && !multiDeviceEnabled ? partySession?.tokensRemaining : undefined
           "
@@ -172,7 +172,7 @@
             :players="gameState.players"
             :visible="true"
             :mobile="false"
-            @close="cellInspectorOpen = false"
+            @close="closeCellInspector"
             @previous="selectAdjacentCell(-1)"
             @next="selectAdjacentCell(1)"
             @locate="locateSelectedCell"

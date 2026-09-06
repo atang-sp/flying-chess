@@ -3731,7 +3731,7 @@
       :is-party-game="isPartyGame"
       :party-act-label="partyActLabel"
       :party-session="partySession"
-      :RULESET_VERSION_BY_MODE="RULESET_VERSION_BY_MODE"
+      :ruleset-version-by-mode="RULESET_VERSION_BY_MODE"
       :multi-device-enabled="multiDeviceEnabled"
       :multi-device="multiDevice"
       :audio-enabled="audioEnabled"
