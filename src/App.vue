@@ -19,21 +19,7 @@
     resolveConditionalPunishment,
   } from '@flying-chess/game-core/punishment-variants'
   import { GAME_CONFIG } from './config/gameConfig'
-  import {
-    ArrowLeft,
-    ArrowRight,
-    Check,
-    Settings,
-    Target,
-    Dices,
-    Upload,
-    HelpCircle,
-    RotateCcw,
-    Volume2,
-    VolumeX,
-    AlertCircle,
-    Pause,
-  } from '@lucide/vue'
+  import { Settings, Upload, HelpCircle, RotateCcw } from '@lucide/vue'
   import type {
     Player,
     BoardCell,
@@ -256,17 +242,6 @@
 
   // 设置页 Tab 状态
   const settingsTab = ref<'board' | 'punishment' | 'trap'>('board')
-  const tabOrder = ['board', 'punishment', 'trap'] as const
-
-  function nextStep() {
-    const idx = tabOrder.indexOf(settingsTab.value)
-    if (idx < tabOrder.length - 1) settingsTab.value = tabOrder[idx + 1]
-  }
-
-  function prevStep() {
-    const idx = tabOrder.indexOf(settingsTab.value)
-    if (idx > 0) settingsTab.value = tabOrder[idx - 1]
-  }
 
   // 音效状态
   const audioEnabled = ref(true)
@@ -1192,28 +1167,6 @@
         gameState.gameStatus === 'configuring' ||
         hasActiveForcedOverlay.value)
   )
-
-  const isConfigValid = computed(() => {
-    return GameService.validatePunishmentConfig(gameState.punishmentConfig).isValid
-  })
-
-  const isBoardConfigValid = computed(() => {
-    return GameService.validateBoardConfig(gameState.boardConfig)
-  })
-
-  const isTrapConfigValid = computed(() => {
-    return validateTrapConfig(trapConfig.value)
-  })
-
-  const stepCompleted = computed(() => ({
-    board: isBoardConfigValid.value,
-    punishment: isConfigValid.value,
-    trap: isTrapConfigValid.value,
-  }))
-
-  const allConfigValid = computed(() => {
-    return isBoardConfigValid.value && isConfigValid.value && isTrapConfigValid.value
-  })
 
   // UI辅助方法
   const getStatusSeverity = (status: string) => {
@@ -2865,11 +2818,6 @@
     // 单人游戏和多人游戏都需要玩家点击确认按钮
   }
 
-  const handleBackToPunishmentSettings = () => {
-    // punishmentStep reset managed by SettingsView
-    settingsTab.value = 'trap'
-  }
-
   // 添加validation-failed事件处理
   const handleValidationFailed = (errorMessage: string) => {
     devLog('惩罚配置验证失败:', errorMessage)
@@ -3720,8 +3668,8 @@
     />
     <!-- 游戏页面 -->
     <GameView
-      ref="gameViewRef"
       v-else
+      ref="gameViewRef"
       :game-started="gameStarted"
       :game-finished="gameFinished"
       :turn-count="turnCount"
@@ -3853,7 +3801,7 @@
       @resume-session="resumeSession"
       @skip-punishment="skipPunishment"
       @start-current-event-mini-game="startCurrentEventMiniGame"
-      @update:lan-pairing-answer-input="update: lanPairingAnswerInput"
+      @update:lan-pairing-answer-input="lanPairingAnswerInput = $event"
       @submit-lan-pairing-answer="submitLanPairingAnswer"
       @pause-session="pauseSession"
     />

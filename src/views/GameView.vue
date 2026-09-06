@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   import { ref } from 'vue'
   import { Dices, Volume2, VolumeX } from '@lucide/vue'
   import Badge from 'primevue/badge'

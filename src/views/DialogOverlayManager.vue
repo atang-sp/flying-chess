@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   import PunishmentDisplay from '../components/PunishmentDisplay.vue'
   import MercyDecision from '../components/MercyDecision.vue'
   import EffectDisplay from '../components/EffectDisplay.vue'
@@ -20,9 +21,9 @@
   import VictoryScreen from '../components/VictoryScreen.vue'
   import TakeoffReliefDisplay from '../components/TakeoffReliefDisplay.vue'
   import SessionPauseOverlay from '../components/SessionPauseOverlay.vue'
-  import { Pause } from 'lucide-vue-next' // Fix import if needed, assuming it's available
+  import { Pause } from '@lucide/vue' // Fix import if needed, assuming it's available
 
-  defineProps<{
+  const props = defineProps<{
     activeMode: any
     bounceFinalPosition: number
     bounceFromPosition: number
@@ -37,7 +38,7 @@
     currentPartyTokens: number
     currentPunishment: any
     currentPunishmentCountMultiplier: number
-    currentPunishmentCountSelection: number
+    currentPunishmentCountSelection: any
     currentPunishmentExecutor: any
     currentPunishmentTarget: any
     currentPunishmentVariant: any
@@ -94,6 +95,10 @@
   const partyTieBreakRef = ref()
   defineExpose({ partyTieBreakRef })
 
+  const isPlayerConnected = (playerId: number) =>
+    props.multiDevice?.connectedPlayers?.value?.some(
+      (c: any) => c.playerIndex === playerId - 1 && c.status === 'connected'
+    ) ?? false
   const emit = defineEmits([
     'confirmBounce',
     'confirmDare',
@@ -382,21 +387,13 @@
             :key="player.id"
             class="connection-item"
             :class="{
-              connected: multiDevice.connectedPlayers.value.some(
-                c => c.playerIndex === player.id - 1 && c.status === 'connected'
-              ),
+              connected: isPlayerConnected(player.id),
             }"
           >
             <span class="player-dot" :style="{ background: player.color }" />
             <span>{{ player.name }}</span>
             <span class="connection-status-icon">
-              {{
-                multiDevice.connectedPlayers.value.some(
-                  c => c.playerIndex === player.id - 1 && c.status === 'connected'
-                )
-                  ? '✓'
-                  : '...'
-              }}
+              {{ isPlayerConnected(player.id) ? '✓' : '...' }}
             </span>
           </div>
         </div>

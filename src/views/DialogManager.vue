@@ -16,11 +16,9 @@
   import PartyPunishmentIntervention from '../components/PartyPunishmentIntervention.vue'
   import PartyEventCardOverlay from '../components/PartyEventCardOverlay.vue'
   import PartyMiniGame from '../components/PartyMiniGame.vue'
-  import PartyTieBreak from '../components/PartyTieBreak.vue'
   import VictoryScreen from '../components/VictoryScreen.vue'
   import TakeoffReliefDisplay from '../components/TakeoffReliefDisplay.vue'
   import SessionPauseOverlay from '../components/SessionPauseOverlay.vue'
-  import { Upload } from '@lucide/vue'
 
   import { inject } from 'vue'
 

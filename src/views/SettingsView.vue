@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   import { Settings, Check, AlertCircle, ArrowLeft, ArrowRight, Target } from '@lucide/vue'
 
   import BoardConfigPanel from '../components/BoardConfig.vue'
@@ -19,7 +20,7 @@
     allConfigValid: boolean
     boardConfig: BoardConfig | null
     punishmentConfig: PunishmentConfig | null
-    trapConfig: Record<string, any>
+    trapConfig: any[]
     punishmentCombinations: PunishmentCombination[]
   }>()
 
@@ -28,7 +29,7 @@
     (e: 'update:punishmentStep', val: 'config' | 'confirm'): void
     (e: 'update:boardConfig', config: BoardConfig): void
     (e: 'update:punishmentConfig', config: PunishmentConfig): void
-    (e: 'update:trapConfig', config: Record<string, any>): void
+    (e: 'update:trapConfig', config: any[]): void
     (e: 'validation-failed', error: Error): void
     (e: 'generate-punishment-combinations'): void
     (e: 'confirm-punishment-combinations', combinations: PunishmentCombination[]): void
@@ -129,15 +130,15 @@
       <div v-else class="settings-tab-content">
         <BoardConfigPanel
           v-show="settingsTab === 'board'"
-          :config="boardConfig"
+          :config="boardConfig!"
           @update="emit('update:boardConfig', $event)"
         />
 
         <PunishmentConfigPanel
           v-show="settingsTab === 'punishment'"
-          :config="punishmentConfig"
+          :config="punishmentConfig!"
           @update="emit('update:punishmentConfig', $event)"
-          @validation-failed="emit('validation-failed', $event)"
+          @validation-failed="msg => emit('validation-failed', new Error(msg))"
         />
 
         <TrapConfigPanel
