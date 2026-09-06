@@ -364,9 +364,9 @@
             <span>手机配对应答</span>
             <textarea
               :value="lanPairingAnswerInput"
-              @input="handleLanInput($event)"
               placeholder="粘贴手机生成的配对应答 JSON"
               data-testid="lan-pairing-answer-input"
+              @input="handleLanInput($event)"
             />
           </label>
           <button

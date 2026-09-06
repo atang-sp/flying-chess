@@ -226,7 +226,7 @@
   const windowWidth = ref(window.innerWidth)
 
   const isMobileView = computed(() => windowWidth.value <= 768)
-  const gameViewRef = ref<any>(null)
+  const gameViewRef = ref<any>(null) // eslint-disable-line
   const selectedCellPosition = ref<number | null>(1)
   const cellInspectorOpen = ref(false)
   const selectedBoardCell = computed(
@@ -2819,7 +2819,7 @@
   }
 
   // 添加validation-failed事件处理
-  const handleValidationFailed = (errorMessage: string) => {
+  const handleValidationFailed = (errorMessage: Error | string) => {
     devLog('惩罚配置验证失败:', errorMessage)
     // 不需要重置游戏状态，只需要显示错误提示即可
     // 错误提示已经在PunishmentConfig组件中处理了

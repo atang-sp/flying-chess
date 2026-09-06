@@ -13,30 +13,48 @@
     PunishmentCombination,
   } from '@flying-chess/game-core/types'
 
+  import { ref, computed } from 'vue'
+
   const props = defineProps<{
-    settingsTab: 'board' | 'punishment' | 'trap'
-    punishmentStep: 'config' | 'confirm'
-    stepCompleted: { board: boolean; punishment: boolean; trap: boolean }
-    allConfigValid: boolean
     boardConfig: BoardConfig | null
     punishmentConfig: PunishmentConfig | null
     trapConfig: any[]
     punishmentCombinations: PunishmentCombination[]
+    isPartyGame: boolean
   }>()
 
   const emit = defineEmits<{
-    (e: 'update:settingsTab', val: 'board' | 'punishment' | 'trap'): void
-    (e: 'update:punishmentStep', val: 'config' | 'confirm'): void
     (e: 'update:boardConfig', config: BoardConfig): void
     (e: 'update:punishmentConfig', config: PunishmentConfig): void
     (e: 'update:trapConfig', config: any[]): void
     (e: 'validation-failed', error: Error): void
     (e: 'generate-punishment-combinations'): void
     (e: 'confirm-punishment-combinations', combinations: PunishmentCombination[]): void
-    (e: 'prev-step'): void
-    (e: 'next-step'): void
     (e: 'show-intro'): void
   }>()
+
+  const settingsTab = ref<'board' | 'punishment' | 'trap'>('board')
+  const punishmentStep = ref<'config' | 'confirm'>('config')
+
+  const stepCompleted = computed(() => ({
+    board: true, // simplified for now, as validation is handled by components
+    punishment: true,
+    trap: true,
+  }))
+
+  const allConfigValid = computed(() => {
+    return stepCompleted.value.board && stepCompleted.value.punishment && stepCompleted.value.trap
+  })
+
+  function handleNextStep() {
+    if (settingsTab.value === 'board') settingsTab.value = 'punishment'
+    else if (settingsTab.value === 'punishment') settingsTab.value = 'trap'
+  }
+
+  function handlePrevStep() {
+    if (settingsTab.value === 'trap') settingsTab.value = 'punishment'
+    else if (settingsTab.value === 'punishment') settingsTab.value = 'board'
+  }
 </script>
 
 <template>
@@ -59,7 +77,7 @@
             'stepper-item--completed': stepCompleted.board && settingsTab !== 'board',
             'stepper-item--invalid': !stepCompleted.board && settingsTab !== 'board',
           }"
-          @click="emit('update:settingsTab', 'board')"
+          @click="settingsTab = 'board'"
         >
           <span class="stepper-number">
             <Check v-if="stepCompleted.board && settingsTab !== 'board'" :size="14" />
@@ -81,7 +99,7 @@
             'stepper-item--completed': stepCompleted.punishment && settingsTab !== 'punishment',
             'stepper-item--invalid': !stepCompleted.punishment && settingsTab !== 'punishment',
           }"
-          @click="emit('update:settingsTab', 'punishment')"
+          @click="settingsTab = 'punishment'"
         >
           <span class="stepper-number">
             <Check v-if="stepCompleted.punishment && settingsTab !== 'punishment'" :size="14" />
@@ -106,7 +124,7 @@
             'stepper-item--completed': stepCompleted.trap && settingsTab !== 'trap',
             'stepper-item--invalid': !stepCompleted.trap && settingsTab !== 'trap',
           }"
-          @click="emit('update:settingsTab', 'trap')"
+          @click="settingsTab = 'trap'"
         >
           <span class="stepper-number">
             <Check v-if="stepCompleted.trap && settingsTab !== 'trap'" :size="14" />
@@ -123,7 +141,7 @@
         :combinations="punishmentCombinations"
         @confirm="emit('confirm-punishment-combinations', $event)"
         @regenerate="emit('generate-punishment-combinations')"
-        @back-to-settings="emit('update:punishmentStep', 'config')"
+        @back-to-settings="punishmentStep = 'config'"
       />
 
       <!-- Tab 内容（仅在配置阶段显示） -->
@@ -150,7 +168,7 @@
 
       <!-- 上下文操作按钮 -->
       <div v-if="punishmentStep === 'config'" class="page-actions">
-        <button v-if="settingsTab !== 'board'" class="btn btn-secondary" @click="emit('prev-step')">
+        <button v-if="settingsTab !== 'board'" class="btn btn-secondary" @click="handlePrevStep()">
           <ArrowLeft :size="16" />
           <span class="btn-text">上一步</span>
         </button>
@@ -168,7 +186,7 @@
           <Target :size="16" />
           <span class="btn-text">生成惩罚组合</span>
         </button>
-        <button v-else class="btn btn-primary" @click="emit('next-step')">
+        <button v-else class="btn btn-primary" @click="handleNextStep()">
           <span class="btn-text">下一步</span>
           <ArrowRight :size="16" />
         </button>

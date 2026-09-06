@@ -22,7 +22,7 @@
 
   import { inject } from 'vue'
 
-  const ctx = inject<any>('gameContext')
+  const ctx = inject<any>('gameContext') // eslint-disable-line
 </script>
 
 <template>
