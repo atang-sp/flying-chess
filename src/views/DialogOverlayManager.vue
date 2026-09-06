@@ -89,7 +89,7 @@ defineProps<{
   lanPairingAnswerInput: string
 }>()
 
-import { ref } from "vue"
+import { ref } from 'vue'
 
 const partyTieBreakRef = ref()
 defineExpose({ partyTieBreakRef })
@@ -129,6 +129,8 @@ const emit = defineEmits([
   'submitLanPairingAnswer',
   'pauseSession',
 ])
+
+const handleLanInput = (e: Event) => emit('update:lanPairingAnswerInput', (e.target as HTMLInputElement).value)
 
 </script>
 
@@ -350,7 +352,7 @@ const emit = defineEmits([
           <label>
             <span>手机配对应答</span>
             <textarea
-              :value="lanPairingAnswerInput" @input="emit('update:lanPairingAnswerInput', ($event.target as HTMLInputElement).value)"
+              :value="lanPairingAnswerInput" @input="handleLanInput($event)"
               placeholder="粘贴手机生成的配对应答 JSON"
               data-testid="lan-pairing-answer-input"
             />

@@ -1,5 +1,5 @@
-import { ref } from "vue";
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Dices, Volume2, VolumeX } from '@lucide/vue'
 import Badge from 'primevue/badge'
 import Tag from 'primevue/tag'
