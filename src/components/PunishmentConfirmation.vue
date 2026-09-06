@@ -215,7 +215,7 @@
 
     <p class="duplicate-notice">
       <Info :size="14" />
-      相同工具+部位+姿势的组合已自动去重
+      为保持设置比例并填满棋盘，部分组合可能重复出现
     </p>
 
     <!-- Combination List -->
