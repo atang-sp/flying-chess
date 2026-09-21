@@ -17,6 +17,9 @@
     Check,
     Flame,
     ShieldCheck,
+    ChevronDown,
+    ChevronUp,
+    SlidersHorizontal,
   } from '@lucide/vue'
   import {
     savePlayerSettings,
@@ -79,6 +82,8 @@
   const eventDeck = ref<readonly PartyEventCard[]>(loadPartyEventDeck())
   const localProgress = loadLocalProgress()
   const studioConfig = ref<PartyStudioConfig>(loadPartyStudioConfig())
+  const showAdvancedSettings = ref(false)
+  const advancedTab = ref<'victory' | 'events' | 'community' | 'studio' | 'achievements'>('victory')
   const canStart = computed(
     () =>
       selectedMode.value === 'classic' ||
@@ -504,30 +509,7 @@
         </div>
       </div>
 
-      <VictoryConfigPanel
-        v-if="selectedMode === 'party'"
-        :config="victoryConfig"
-        :player-count="playerCount"
-        @update="victoryConfig = $event"
-      />
-
-      <PartyEventDeckEditor
-        v-if="selectedMode === 'party'"
-        :deck="eventDeck"
-        @update="eventDeck = $event"
-      />
-
-      <CommunityPackBrowser v-if="selectedMode === 'party'" @apply="applyCommunityPack" />
-
-      <PartyStudioEditor
-        v-if="selectedMode === 'party'"
-        :config="studioConfig"
-        @update="studioConfig = $event"
-      />
-
-      <ProgressAchievements :progress="localProgress" />
-
-      <!-- 操作区域 -->
+      <!-- 主操作区域：置顶直达 -->
       <div class="intro-actions">
         <button
           class="btn btn-primary start-btn"
@@ -559,7 +541,127 @@
             <span class="info-text">适合年龄：18岁以上</span>
           </div>
         </div>
+      </div>
 
+      <!-- 高级局况定制与工坊（折叠收纳，渐进式展示） -->
+      <section class="advanced-settings-accordion" aria-labelledby="advanced-settings-header">
+        <button
+          type="button"
+          class="advanced-toggle-btn"
+          :class="{ 'is-expanded': showAdvancedSettings }"
+          :aria-expanded="showAdvancedSettings"
+          @click="showAdvancedSettings = !showAdvancedSettings"
+        >
+          <div class="toggle-header-left">
+            <span class="toggle-icon">
+              <SlidersHorizontal :size="18" />
+            </span>
+            <div class="toggle-text-block">
+              <strong id="advanced-settings-header">局况高级定制 (可选)</strong>
+              <small class="toggle-summary">
+                <template v-if="selectedMode === 'party'">
+                  <span>⚡ {{ eventDeck.length }}张事件卡</span>
+                  <span class="dot-sep">·</span>
+                  <span>🏆 {{ victoryConfig.actionText ? '终局已设定' : '默认终局' }}</span>
+                  <span class="dot-sep">·</span>
+                  <span>🎨 {{ studioConfig.enabled ? '工坊场景' : '内置场景' }}</span>
+                </template>
+                <template v-else>
+                  <span>🏆 查看本地成就与个人进度</span>
+                </template>
+              </small>
+            </div>
+          </div>
+          <div class="toggle-chevron">
+            <ChevronUp v-if="showAdvancedSettings" :size="20" />
+            <ChevronDown v-else :size="20" />
+          </div>
+        </button>
+
+        <div v-show="showAdvancedSettings" class="advanced-panels-container">
+          <div v-if="selectedMode === 'party'" class="advanced-tabs-bar">
+            <button
+              type="button"
+              class="adv-tab-btn"
+              :class="{ 'is-active': advancedTab === 'victory' }"
+              @click="advancedTab = 'victory'"
+            >
+              终局奖惩
+            </button>
+            <button
+              type="button"
+              class="adv-tab-btn"
+              :class="{ 'is-active': advancedTab === 'events' }"
+              @click="advancedTab = 'events'"
+            >
+              事件卡池 ({{ eventDeck.length }})
+            </button>
+            <button
+              type="button"
+              class="adv-tab-btn"
+              :class="{ 'is-active': advancedTab === 'community' }"
+              @click="advancedTab = 'community'"
+            >
+              社区卡包
+            </button>
+            <button
+              type="button"
+              class="adv-tab-btn"
+              :class="{ 'is-active': advancedTab === 'studio' }"
+              @click="advancedTab = 'studio'"
+            >
+              场景工坊
+            </button>
+            <button
+              type="button"
+              class="adv-tab-btn"
+              :class="{ 'is-active': advancedTab === 'achievements' }"
+              @click="advancedTab = 'achievements'"
+            >
+              本地成就
+            </button>
+          </div>
+
+          <div class="advanced-tab-content">
+            <template v-if="selectedMode === 'party'">
+              <VictoryConfigPanel
+                v-show="advancedTab === 'victory'"
+                :config="victoryConfig"
+                :player-count="playerCount"
+                @update="victoryConfig = $event"
+              />
+
+              <PartyEventDeckEditor
+                v-show="advancedTab === 'events'"
+                :deck="eventDeck"
+                @update="eventDeck = $event"
+              />
+
+              <CommunityPackBrowser
+                v-show="advancedTab === 'community'"
+                @apply="applyCommunityPack"
+              />
+
+              <PartyStudioEditor
+                v-show="advancedTab === 'studio'"
+                :config="studioConfig"
+                @update="studioConfig = $event"
+              />
+
+              <ProgressAchievements
+                v-show="advancedTab === 'achievements'"
+                :progress="localProgress"
+              />
+            </template>
+            <template v-else>
+              <ProgressAchievements :progress="localProgress" />
+            </template>
+          </div>
+        </div>
+      </section>
+
+      <!-- 底部隐私说明与数据管理 -->
+      <div class="intro-footer-actions">
         <p class="privacy-note">
           本应用使用无 Cookie
           的匿名统计改进体验；不会上传玩家姓名、游戏配置内容，也不启用录屏或页面回放。
@@ -1231,6 +1333,137 @@
     background: rgba(15, 23, 42, 0.38);
     border: 1px solid rgba(148, 163, 184, 0.16);
     border-radius: var(--radius-md);
+  }
+
+  /* 高级局况定制手风琴与Tab */
+  .advanced-settings-accordion {
+    width: 100%;
+    margin-top: 1.5rem;
+    border: 1px solid rgba(212, 178, 114, 0.28);
+    border-radius: var(--radius-lg);
+    background: rgba(8, 26, 21, 0.72);
+    backdrop-filter: blur(12px);
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .advanced-toggle-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.2s ease;
+  }
+
+  .advanced-toggle-btn:hover {
+    background: rgba(212, 178, 114, 0.08);
+  }
+
+  .toggle-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+  }
+
+  .toggle-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(212, 178, 114, 0.15);
+    color: var(--color-accent-light);
+    flex-shrink: 0;
+  }
+
+  .toggle-text-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+
+  .toggle-text-block strong {
+    font-size: 0.98rem;
+    color: #fffaf0;
+    font-weight: 600;
+  }
+
+  .toggle-summary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    color: #a8b8ae;
+  }
+
+  .dot-sep {
+    opacity: 0.6;
+  }
+
+  .toggle-chevron {
+    color: var(--color-accent-light);
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .advanced-panels-container {
+    border-top: 1px solid rgba(212, 178, 114, 0.18);
+    padding: 1.25rem;
+  }
+
+  .advanced-tabs-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .adv-tab-btn {
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid rgba(212, 178, 114, 0.25);
+    background: rgba(255, 255, 255, 0.04);
+    color: #c9d6ce;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+  }
+
+  .adv-tab-btn:hover {
+    background: rgba(212, 178, 114, 0.15);
+    color: #fffaf0;
+  }
+
+  .adv-tab-btn.is-active {
+    background: linear-gradient(135deg, rgba(209, 172, 101, 0.3), rgba(160, 126, 68, 0.4));
+    border-color: #d1ac65;
+    color: #fffaf0;
+    font-weight: 600;
+  }
+
+  .intro-footer-actions {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+    width: 100%;
   }
 
   /* 背景装饰 */
