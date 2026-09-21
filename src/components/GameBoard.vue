@@ -211,6 +211,14 @@
     }, 700)
   }
 
+  const isShaking = ref(false)
+  const shakeBoard = () => {
+    isShaking.value = true
+    setTimeout(() => {
+      isShaking.value = false
+    }, 420)
+  }
+
   watch(
     () => props.players.map(player => player.position),
     (positions, previousPositions) => {
@@ -220,9 +228,12 @@
       )
       if (movedIndex === -1) return
       const position = positions[movedIndex]
+      const player = props.players[movedIndex]
       nextTick(() => {
-        triggerLanding(position)
-        triggerCellActivation(position)
+        if (!player?.isMoving) {
+          triggerLanding(position)
+          triggerCellActivation(position)
+        }
         scrollToCell(position)
       })
     }
@@ -261,14 +272,14 @@
     if (landingTimer) clearTimeout(landingTimer)
   })
 
-  defineExpose({ focusCell, scrollToCell, triggerCellActivation, triggerLanding })
+  defineExpose({ focusCell, scrollToCell, triggerCellActivation, triggerLanding, shakeBoard })
 </script>
 
 <template>
   <section
     ref="boardRef"
     class="game-board"
-    :class="{ 'board-disabled': interactionDisabled }"
+    :class="{ 'board-disabled': interactionDisabled, 'board-shaking': isShaking }"
     aria-label="飞行棋赛道"
   >
     <div class="board-toolbar">
@@ -857,6 +868,52 @@
   .player-token.current-player {
     filter: drop-shadow(0 0 2px #3e2d14) drop-shadow(0 0 5px #f4cf7e)
       drop-shadow(0 4px 4px rgb(0 0 0 / 0.52));
+  }
+
+  .player-token.player-moving {
+    animation: meepleHopStep 180ms ease-out both;
+    z-index: 10;
+  }
+
+  @keyframes meepleHopStep {
+    0% {
+      transform: translateX(-50%) translateY(0) scale(1, 1);
+    }
+    35% {
+      transform: translateX(-50%) translateY(-14px) scale(0.9, 1.15);
+    }
+    70% {
+      transform: translateX(-50%) translateY(0) scale(1.12, 0.88);
+    }
+    85% {
+      transform: translateX(-50%) translateY(-3px) scale(0.98, 1.02);
+    }
+    100% {
+      transform: translateX(-50%) translateY(0) scale(1, 1);
+    }
+  }
+
+  .board-shaking {
+    animation: boardJolt 400ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  }
+
+  @keyframes boardJolt {
+    0%,
+    100% {
+      transform: translate(0, 0);
+    }
+    20% {
+      transform: translate(-3px, 2px) rotate(-0.3deg);
+    }
+    40% {
+      transform: translate(3px, -2px) rotate(0.3deg);
+    }
+    60% {
+      transform: translate(-2px, 1px);
+    }
+    80% {
+      transform: translate(1px, -1px);
+    }
   }
 
   .player-overflow {

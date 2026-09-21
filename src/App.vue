@@ -2200,6 +2200,46 @@
     await performDiceRoll()
   }
 
+  const skipMovementAnimation = ref(false)
+
+  const calculateStepSequence = (
+    fromPos: number,
+    toPos: number,
+    boardLength: number,
+    diceValue?: number | null
+  ): number[] => {
+    if (fromPos === 0) {
+      return [toPos]
+    }
+    if (diceValue && fromPos + diceValue > boardLength) {
+      const steps: number[] = []
+      // 走到终点
+      for (let p = fromPos + 1; p <= boardLength; p++) {
+        steps.push(p)
+      }
+      // 反弹倒退
+      for (let p = boardLength - 1; p >= toPos; p--) {
+        steps.push(p)
+      }
+      return steps
+    }
+    if (toPos > fromPos) {
+      const steps: number[] = []
+      for (let p = fromPos + 1; p <= toPos; p++) {
+        steps.push(p)
+      }
+      return steps
+    }
+    if (toPos < fromPos) {
+      const steps: number[] = []
+      for (let p = fromPos - 1; p >= toPos; p--) {
+        steps.push(p)
+      }
+      return steps
+    }
+    return [toPos]
+  }
+
   // 移动当前玩家（第一步：基本移动）
   const moveCurrentPlayer = async () => {
     try {
@@ -2226,10 +2266,6 @@
             : undefined
         )
 
-      // 更新玩家位置
-      currentPlayer.position = newPosition
-      audioService.play('pieceStep')
-
       // 显示移动路径信息或起飞信息
       if (canTakeOff) {
         lastEffect.value = '起飞成功！移动到第1格'
@@ -2241,8 +2277,46 @@
         lastEffect.value = `${fromText} → ${toText}`
       }
 
-      // 等待移动动画完成
-      await new Promise(resolve => setTimeout(resolve, 600))
+      // 执行逐格跳步动效
+      currentPlayer.isMoving = true
+      skipMovementAnimation.value = false
+
+      const steps = calculateStepSequence(
+        fromPosition,
+        newPosition,
+        gameState.board.length,
+        diceValue
+      )
+
+      for (let i = 0; i < steps.length; i++) {
+        if (skipMovementAnimation.value) {
+          currentPlayer.position = newPosition
+          audioService.play('pieceStep')
+          break
+        }
+        currentPlayer.position = steps[i]
+        audioService.play('pieceStep')
+        await new Promise(resolve => setTimeout(resolve, 130))
+      }
+
+      currentPlayer.position = newPosition
+      currentPlayer.isMoving = false
+
+      // 落点反馈：震颤与特殊格音效
+      const targetCell = gameState.board[newPosition - 1]
+      if (targetCell?.type === 'punishment' || targetCell?.type === 'trap') {
+        gameBoardRef.value?.shakeBoard()
+        if (targetCell.type === 'trap') {
+          audioService.play('trap')
+        } else {
+          audioService.play('punishment')
+        }
+      } else if (targetCell?.type === 'bonus') {
+        audioService.play('bonus')
+      }
+
+      // 等待短暂停顿以展示落点效果
+      await new Promise(resolve => setTimeout(resolve, 280))
 
       // 检查是否到达终点
       const boardSize = gameState.board.length
@@ -3958,7 +4032,7 @@
           :reward-notice="partyRewardNotice"
         />
         <div class="game-cockpit">
-          <div class="board-section">
+          <div class="board-section" @click="skipMovementAnimation = true">
             <GameBoard
               ref="gameBoardRef"
               :board="gameState.board"

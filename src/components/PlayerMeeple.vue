@@ -36,8 +36,9 @@
     flex: 0 0 var(--meeple-size);
     display: inline-grid;
     place-items: center;
-    filter: drop-shadow(0 4px 4px rgb(0 0 0 / 0.4));
+    filter: drop-shadow(0 5px 6px rgba(0, 0, 0, 0.45)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
     isolation: isolate;
+    transition: transform 0.2s ease;
   }
 
   .player-meeple.is-small {
@@ -51,7 +52,13 @@
   .meeple-shape {
     position: absolute;
     inset: 0;
-    background: var(--player-color);
+    background:
+      radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.45) 0%, transparent 42%),
+      linear-gradient(
+        180deg,
+        var(--player-color) 0%,
+        color-mix(in srgb, var(--player-color) 72%, #000) 100%
+      );
     border-radius: 4px;
     -webkit-mask: var(--pawn-mask) center / contain no-repeat;
     mask: var(--pawn-mask) center / contain no-repeat;
@@ -63,9 +70,10 @@
     inset: 0;
     background: linear-gradient(
       135deg,
-      rgb(255 255 255 / 0.38),
-      transparent 48%,
-      rgb(0 0 0 / 0.22)
+      rgba(255, 255, 255, 0.5) 0%,
+      rgba(255, 255, 255, 0.1) 35%,
+      transparent 55%,
+      rgba(0, 0, 0, 0.35) 100%
     );
     -webkit-mask: var(--pawn-mask) center / contain no-repeat;
     mask: var(--pawn-mask) center / contain no-repeat;
@@ -76,15 +84,17 @@
     z-index: 1;
     display: grid;
     place-items: center;
-    width: 1.25em;
-    height: 1.25em;
-    border: 1px solid rgb(255 255 255 / 0.82);
+    width: 1.3em;
+    height: 1.3em;
+    border: 1.5px solid rgba(255, 235, 185, 0.9);
     border-radius: 50%;
-    color: #fff;
-    background: rgb(11 21 18 / 0.76);
-    box-shadow: 0 1px 3px rgb(0 0 0 / 0.42);
-    font-size: calc(var(--meeple-size) * 0.29);
-    font-weight: 900;
+    color: #fffaf0;
+    background: radial-gradient(circle at 35% 30%, #20352c 0%, #081410 100%);
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.55),
+      inset 0 1px 1px rgba(255, 255, 255, 0.3);
+    font-size: calc(var(--meeple-size) * 0.28);
+    font-weight: 800;
     line-height: 1;
   }
 </style>

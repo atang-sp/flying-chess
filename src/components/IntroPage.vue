@@ -504,30 +504,7 @@
         </div>
       </div>
 
-      <VictoryConfigPanel
-        v-if="selectedMode === 'party'"
-        :config="victoryConfig"
-        :player-count="playerCount"
-        @update="victoryConfig = $event"
-      />
-
-      <PartyEventDeckEditor
-        v-if="selectedMode === 'party'"
-        :deck="eventDeck"
-        @update="eventDeck = $event"
-      />
-
-      <CommunityPackBrowser v-if="selectedMode === 'party'" @apply="applyCommunityPack" />
-
-      <PartyStudioEditor
-        v-if="selectedMode === 'party'"
-        :config="studioConfig"
-        @update="studioConfig = $event"
-      />
-
-      <ProgressAchievements :progress="localProgress" />
-
-      <!-- 操作区域 -->
+      <!-- 主操作区域：置顶直达 -->
       <div class="intro-actions">
         <button
           class="btn btn-primary start-btn"
@@ -559,7 +536,36 @@
             <span class="info-text">适合年龄：18岁以上</span>
           </div>
         </div>
+      </div>
 
+      <!-- 高级局况定制与工坊（置于开始按钮下方，按需定制） -->
+      <section class="advanced-settings-section" aria-label="局况定制与工坊">
+        <VictoryConfigPanel
+          v-if="selectedMode === 'party'"
+          :config="victoryConfig"
+          :player-count="playerCount"
+          @update="victoryConfig = $event"
+        />
+
+        <PartyEventDeckEditor
+          v-if="selectedMode === 'party'"
+          :deck="eventDeck"
+          @update="eventDeck = $event"
+        />
+
+        <CommunityPackBrowser v-if="selectedMode === 'party'" @apply="applyCommunityPack" />
+
+        <PartyStudioEditor
+          v-if="selectedMode === 'party'"
+          :config="studioConfig"
+          @update="studioConfig = $event"
+        />
+
+        <ProgressAchievements :progress="localProgress" />
+      </section>
+
+      <!-- 底部隐私说明与数据管理 -->
+      <div class="intro-footer-actions">
         <p class="privacy-note">
           本应用使用无 Cookie
           的匿名统计改进体验；不会上传玩家姓名、游戏配置内容，也不启用录屏或页面回放。
@@ -1231,6 +1237,24 @@
     background: rgba(15, 23, 42, 0.38);
     border: 1px solid rgba(148, 163, 184, 0.16);
     border-radius: var(--radius-md);
+  }
+
+  /* 高级局况定制区 */
+  .advanced-settings-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .intro-footer-actions {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+    width: 100%;
   }
 
   /* 背景装饰 */

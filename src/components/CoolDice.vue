@@ -25,10 +25,10 @@
     // 触发滚动事件
     emit('roll')
 
-    // 等待动画完成
+    // 等待动画完成 (1.1s 干脆利落)
     setTimeout(() => {
       isRolling.value = false
-    }, 2500)
+    }, 1100)
   }
 
   watch(
@@ -38,7 +38,7 @@
         // 延迟重置，让用户看到结果
         setTimeout(() => {
           isRolling.value = false
-        }, 500)
+        }, 350)
       }
     }
   )
@@ -146,8 +146,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1.5rem;
-    padding: 2rem;
+    gap: 0.75rem;
+    padding: 0.5rem;
     background: transparent;
   }
 
@@ -168,13 +168,13 @@
     transform-style: preserve-3d;
     transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
-    margin: 3rem;
-    filter: drop-shadow(0 4px 12px rgba(102, 126, 234, 0.3));
+    margin: 1.5rem auto;
+    filter: drop-shadow(0 6px 16px rgba(2, 18, 14, 0.45));
   }
 
   .dice-cube:hover:not(.rolling) {
     transform: scale(1.05) rotateX(5deg) rotateY(5deg);
-    filter: drop-shadow(0 6px 16px rgba(102, 126, 234, 0.5));
+    filter: drop-shadow(0 8px 20px rgba(212, 178, 114, 0.45));
   }
 
   .dice-cube:disabled {
@@ -191,25 +191,25 @@
   }
 
   .dice-cube.rolling {
-    animation: roll 2.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    filter: drop-shadow(0 6px 20px rgba(102, 126, 234, 0.5));
+    animation: roll 1.1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    filter: drop-shadow(0 8px 24px rgba(212, 178, 114, 0.5));
   }
 
-  /* 骰子面 */
+  /* 骰子面 - 象牙白温润质感 */
   .face {
     position: absolute;
     width: 100px;
     height: 100px;
-    background: rgba(20, 20, 40, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: linear-gradient(145deg, #fefcf9 0%, #f7f1e6 55%, #eae0cf 100%);
+    border: 1.5px solid rgba(214, 180, 118, 0.65);
     border-radius: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow:
-      inset 0 0 20px rgba(0, 0, 0, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      var(--glass-shadow);
+      inset 0 2px 4px rgba(255, 255, 255, 0.95),
+      inset 0 -3px 6px rgba(160, 128, 78, 0.22),
+      0 6px 18px rgba(1, 15, 12, 0.28);
     backface-visibility: hidden;
   }
 
@@ -220,34 +220,25 @@
     left: 4px;
     right: 4px;
     bottom: 4px;
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.06) 0%,
-      rgba(255, 255, 255, 0.02) 50%,
-      transparent 100%
-    );
+    border: 1px dashed rgba(206, 172, 108, 0.25);
     border-radius: 16px;
     z-index: 1;
+    pointer-events: none;
   }
 
   .face::after {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     background: linear-gradient(
-      45deg,
-      transparent 20%,
-      rgba(255, 255, 255, 0.06) 40%,
-      rgba(255, 255, 255, 0.1) 50%,
-      rgba(255, 255, 255, 0.06) 60%,
-      transparent 80%
+      135deg,
+      rgba(255, 255, 255, 0.4) 0%,
+      transparent 45%,
+      rgba(170, 138, 88, 0.12) 100%
     );
     border-radius: 20px;
     z-index: 3;
-    opacity: 0.6;
+    pointer-events: none;
   }
 
   /* 3D定位 */
@@ -270,17 +261,36 @@
     transform: rotateX(-90deg) translateZ(50px);
   }
 
-  /* 点数样式 */
+  /* 点数样式 - 沉稳雕刻内凹质感 */
   .dot {
-    width: 16px;
-    height: 16px;
-    background: var(--text-primary);
+    width: 17px;
+    height: 17px;
+    background: #332617;
     border-radius: 50%;
     box-shadow:
-      0 0 6px rgba(255, 255, 255, 0.4),
-      0 2px 4px rgba(0, 0, 0, 0.3);
+      inset 0 2px 3px rgba(0, 0, 0, 0.6),
+      0 1px 1px rgba(255, 255, 255, 0.75);
     z-index: 4;
     position: relative;
+  }
+
+  /* 面1 中心大红点 (传统朱砂点) */
+  .face-1 .dot {
+    width: 26px;
+    height: 26px;
+    background: radial-gradient(circle at 35% 35%, #e53935 0%, #b71c1c 75%, #880e4f 100%);
+    box-shadow:
+      inset 0 2px 4px rgba(0, 0, 0, 0.45),
+      0 0 6px rgba(229, 57, 53, 0.3),
+      0 1px 1px rgba(255, 255, 255, 0.8);
+  }
+
+  /* 面4 四角红点 (传统中式中四) */
+  .face-4 .dot {
+    background: radial-gradient(circle at 35% 35%, #e53935 0%, #c62828 85%);
+    box-shadow:
+      inset 0 2px 3px rgba(0, 0, 0, 0.45),
+      0 1px 1px rgba(255, 255, 255, 0.75);
   }
 
   /* 点数布局 */

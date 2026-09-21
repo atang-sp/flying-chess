@@ -177,11 +177,7 @@
     min-width: 82px;
     transform: scale(0.76);
     transform-origin: center;
-    margin: -16px -8px -15px;
-  }
-
-  .dice-area :deep(.dice-cube) {
-    filter: sepia(0.12) saturate(0.82);
+    margin: -10px 0;
   }
 
   .dice-area :deep(.desktop-status),
@@ -261,7 +257,7 @@
 
     .dice-area :deep(.cool-dice-container) {
       transform: scale(0.76);
-      margin: -18px -9px -18px;
+      margin: -10px 0;
     }
 
     .dice-caption {
