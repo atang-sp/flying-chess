@@ -302,6 +302,26 @@
 
   const turnCount = ref(0)
   const lastEffect = ref<string>('')
+  let lastEffectTimer: number | null = null
+
+  const clearLastEffectDelayed = (delayMs = 2000) => {
+    if (lastEffectTimer !== null) {
+      clearTimeout(lastEffectTimer)
+      lastEffectTimer = null
+    }
+    lastEffectTimer = window.setTimeout(() => {
+      lastEffect.value = ''
+      lastEffectTimer = null
+    }, delayMs)
+  }
+
+  const cancelLastEffectTimer = () => {
+    if (lastEffectTimer !== null) {
+      clearTimeout(lastEffectTimer)
+      lastEffectTimer = null
+    }
+  }
+
   const currentPunishment = ref<PunishmentAction | null>(null)
   const currentPunishmentTarget = ref<Player | null>(null)
   const pendingRuleResolution = ref<ResolvedRuleResult | null>(null)
@@ -1327,6 +1347,7 @@
   const movingStateEnteredAt = ref<number | null>(null)
   const playerMovingTimeoutMap = new Map<number, number>()
   let initialGuideTimer: number | null = null
+  let autoGuideTimer: number | null = null
 
   const clearAllPlayerMovingTimeouts = () => {
     playerMovingTimeoutMap.forEach(timeoutId => {
@@ -1620,6 +1641,13 @@
       initialGuideTimer = null
     }
 
+    if (autoGuideTimer !== null) {
+      clearTimeout(autoGuideTimer)
+      autoGuideTimer = null
+    }
+
+    cancelLastEffectTimer()
+
     if (healthCheckIntervalId.value !== null) {
       clearInterval(healthCheckIntervalId.value)
       healthCheckIntervalId.value = null
@@ -1673,6 +1701,7 @@
     currentPartyMiniGameSource.value = null
     partyTieCandidates.value = []
     turnCount.value = 0
+    cancelLastEffectTimer()
     lastEffect.value = ''
     currentPunishment.value = null
     currentPunishmentExecutor.value = null // 清除执行惩罚的玩家
@@ -1929,6 +1958,7 @@
     gameStarted.value = false
     gameFinished.value = false
     turnCount.value = 0
+    cancelLastEffectTimer()
     lastEffect.value = ''
     currentPunishment.value = null
     currentPunishmentExecutor.value = null // 清除执行惩罚的玩家
@@ -2640,9 +2670,7 @@
       advanceToNextPlayablePlayer()
 
       // 清除上一步效果
-      setTimeout(() => {
-        lastEffect.value = ''
-      }, 2000)
+      clearLastEffectDelayed(2000)
     } catch (error) {
       console.error('继续游戏流程时发生错误:', error)
       // 确保在发生错误时重置游戏状态
@@ -2901,9 +2929,7 @@
       advanceToNextPlayablePlayer()
 
       // 清除上一步效果
-      setTimeout(() => {
-        lastEffect.value = ''
-      }, 2000)
+      clearLastEffectDelayed(2000)
     } catch (error) {
       console.error('惩罚后继续游戏流程时发生错误:', error)
       // 确保在发生错误时重置游戏状态
@@ -3665,7 +3691,11 @@
     if (autoGuideEnabled.value && !hasShownGuide.value.has(pageType)) {
       devLog(`准备显示自动引导 - 页面: ${pageType}`)
       // 延迟一下确保页面元素已经渲染
-      setTimeout(() => {
+      if (autoGuideTimer !== null) {
+        clearTimeout(autoGuideTimer)
+        autoGuideTimer = null
+      }
+      autoGuideTimer = window.setTimeout(() => {
         devLog(`执行自动引导 - 页面: ${pageType}`)
         // 针对特定页面，直接调用专门的引导函数
         if (pageType === 'punishment_confirmation') {
@@ -3676,6 +3706,7 @@
           startGuide()
         }
         hasShownGuide.value.add(pageType)
+        autoGuideTimer = null
       }, 800) // 稍微减少延迟时间
     }
   }
@@ -3848,8 +3879,13 @@
     newValue => {
       devLog(`惩罚步骤变化: ${newValue}`)
       if (newValue === 'confirm') {
-        setTimeout(() => {
+        if (autoGuideTimer !== null) {
+          clearTimeout(autoGuideTimer)
+          autoGuideTimer = null
+        }
+        autoGuideTimer = window.setTimeout(() => {
           showAutoGuide('punishment_confirmation')
+          autoGuideTimer = null
         }, 500)
       }
     }
