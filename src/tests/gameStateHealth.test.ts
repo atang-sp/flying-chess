@@ -14,9 +14,11 @@ const noBlockingOverlay = {
 }
 
 describe('游戏移动状态健康检查', () => {
-  it('只在移动状态无覆盖层且超时后恢复', () => {
+  it('只在移动或掷骰状态无覆盖层且超时后恢复', () => {
     expect(shouldRecoverMovingState('moving', 5001, noBlockingOverlay)).toBe(true)
     expect(shouldRecoverMovingState('moving', 5000, noBlockingOverlay)).toBe(false)
+    expect(shouldRecoverMovingState('rolling', 5001, noBlockingOverlay)).toBe(true)
+    expect(shouldRecoverMovingState('rolling', 5000, noBlockingOverlay)).toBe(false)
     expect(shouldRecoverMovingState('waiting', 5001, noBlockingOverlay)).toBe(false)
   })
 
