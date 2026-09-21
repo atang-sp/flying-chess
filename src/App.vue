@@ -4475,7 +4475,7 @@
 
 <style scoped>
   .app {
-    min-height: 100vh;
+    min-height: 100dvh;
     background-color: var(--bg-primary);
     background-image: radial-gradient(ellipse at top, rgba(102, 126, 234, 0.15), transparent 60%);
   }
@@ -4551,7 +4551,7 @@
 
   /* 设置页面样式 */
   .settings-page {
-    min-height: 100vh;
+    min-height: 100dvh;
     padding: clamp(0.5rem, 3vw, 1rem);
     width: 100%;
     background-color: var(--bg-primary);
@@ -4686,7 +4686,7 @@
 
   /* 游戏页面样式 */
   .game-page {
-    min-height: 100vh;
+    min-height: 100dvh;
     width: 100%;
     display: flex;
     flex-direction: column;
