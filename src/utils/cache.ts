@@ -3,6 +3,7 @@ import type {
   PunishmentConfig,
   TrapAction,
   VictoryConfig,
+  GameState,
 } from '@flying-chess/game-core/types'
 import {
   DEFAULT_GAME_MODE,
@@ -42,6 +43,7 @@ export const VICTORY_CONFIG_STORAGE_KEY = 'flying-chess-victory-config'
 export const PARTY_EVENT_DECK_STORAGE_KEY = 'flying-chess-party-event-deck'
 export const LOCAL_PROGRESS_STORAGE_KEY = 'flying-chess-local-progress-v1'
 export const PARTY_STUDIO_STORAGE_KEY = 'flying-chess-party-studio-v1'
+export const LOCAL_GAME_SESSION_SNAPSHOT_KEY = 'flying-chess-local-session-snapshot'
 export const LOCAL_GAME_STORAGE_KEYS = [
   GAME_CONFIG_STORAGE_KEY,
   PLAYER_SETTINGS_STORAGE_KEY,
@@ -51,9 +53,81 @@ export const LOCAL_GAME_STORAGE_KEYS = [
   PARTY_EVENT_DECK_STORAGE_KEY,
   LOCAL_PROGRESS_STORAGE_KEY,
   PARTY_STUDIO_STORAGE_KEY,
+  LOCAL_GAME_SESSION_SNAPSHOT_KEY,
   'hasShownGuide',
   'autoGuideEnabled',
 ] as const
+
+// ================= 单机进度快照缓存 =================
+
+export interface LocalGameSnapshot {
+  gameState: GameState
+  turnCount: number
+  trapConfig: TrapAction[]
+  activeMode: GameMode | null
+  partyEventState?: unknown
+  partySession?: unknown
+  timestamp: number
+}
+
+export function saveLocalGameSnapshot(
+  snapshot: Omit<LocalGameSnapshot, 'timestamp'>,
+  storage: Storage = localStorage
+): boolean {
+  try {
+    storage.setItem(
+      LOCAL_GAME_SESSION_SNAPSHOT_KEY,
+      JSON.stringify({
+        ...snapshot,
+        timestamp: Date.now(),
+      })
+    )
+    return true
+  } catch (error) {
+    console.warn('保存单机进度快照失败:', error)
+    return false
+  }
+}
+
+// 单机进度快照有效期：24 小时
+const SNAPSHOT_TTL = 1000 * 60 * 60 * 24
+
+export function loadLocalGameSnapshot(
+  storage: Storage = localStorage,
+  ttl: number = SNAPSHOT_TTL
+): LocalGameSnapshot | null {
+  const raw = storage.getItem(LOCAL_GAME_SESSION_SNAPSHOT_KEY)
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw)
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof parsed.timestamp === 'number' &&
+      Date.now() - parsed.timestamp < ttl &&
+      parsed.gameState &&
+      Array.isArray(parsed.gameState.players) &&
+      parsed.gameState.players.length > 0 &&
+      Array.isArray(parsed.gameState.board) &&
+      parsed.gameState.board.length > 0
+    ) {
+      return parsed as LocalGameSnapshot
+    }
+    // 已过期或数据不完整，清理残留
+    storage.removeItem(LOCAL_GAME_SESSION_SNAPSHOT_KEY)
+    return null
+  } catch {
+    storage.removeItem(LOCAL_GAME_SESSION_SNAPSHOT_KEY)
+    return null
+  }
+}
+
+export function clearLocalGameSnapshot(storage: Storage = localStorage): void {
+  storage.removeItem(LOCAL_GAME_SESSION_SNAPSHOT_KEY)
+}
+
+// ============================================
+
 // 12 个月有效期（毫秒）
 const DEFAULT_TTL = 1000 * 60 * 60 * 24 * 365
 

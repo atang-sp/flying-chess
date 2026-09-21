@@ -91,14 +91,13 @@
     loadLocalProgress,
     saveLocalProgress,
     saveGameMode,
+    saveLocalGameSnapshot,
+    loadLocalGameSnapshot,
+    clearLocalGameSnapshot,
   } from './utils/cache'
   import { SecureRandom } from './utils/secureRandom'
   import { devLog } from './utils/logger'
-  import {
-    hasBlockingOverlay,
-    shouldRecoverMovingState,
-    type BlockingOverlayState,
-  } from './services/gameStateHealth'
+  import { hasBlockingOverlay, shouldRecoverMovingState } from './services/gameStateHealth'
   import { audioService } from './services/audioService'
   import { usePlayerState } from './composables/usePlayerState'
   import { usePunishmentConfigNormalizer } from './composables/usePunishmentConfigNormalizer'
@@ -106,6 +105,7 @@
   import { usePartyMode } from './composables/usePartyMode'
   import { useMultiDeviceHost } from './composables/useMultiDeviceHost'
   import { useLocalGameSession } from './composables/useLocalGameSession'
+  import { useGameOverlays } from './composables/useGameOverlays'
   import { RULESET_VERSION_BY_MODE, type GameMode } from './config/modes'
   import {
     applyBoardConfigOverlay,
@@ -122,6 +122,7 @@
     type PartyAct,
     type PartyPrediction,
     type PartyReactionDecision,
+    type PartySession,
   } from '@flying-chess/game-core/party-mode'
   import {
     applyPartyPunishmentIntervention,
@@ -317,6 +318,62 @@
     }
   })
 
+  // ==================== 单机存档防丢 (Auto-save) ====================
+  let snapshotSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+  const saveCurrentSnapshot = () => {
+    if (
+      !gameStarted.value ||
+      gameFinished.value ||
+      (activeMode.value !== 'party' && activeMode.value !== 'classic')
+    ) {
+      return
+    }
+    const savedGameState = JSON.parse(JSON.stringify(gameState))
+    if (savedGameState.gameStatus !== 'finished') {
+      savedGameState.gameStatus = 'waiting'
+    }
+    savedGameState.diceValue = null
+    savedGameState.pendingEffect = null
+    for (const player of savedGameState.players || []) {
+      player.isMoving = false
+    }
+
+    saveLocalGameSnapshot({
+      gameState: savedGameState,
+      turnCount: turnCount.value,
+      trapConfig: JSON.parse(JSON.stringify(trapConfig.value)),
+      activeMode: activeMode.value,
+      partyEventState: partyEventState.value
+        ? JSON.parse(JSON.stringify(partyEventState.value))
+        : undefined,
+      partySession: partySession.value ? JSON.parse(JSON.stringify(partySession.value)) : undefined,
+    })
+  }
+
+  watch(
+    () => [gameState, turnCount.value, activeMode.value, partyEventState.value, partySession.value],
+    () => {
+      // 仅在游戏进行中保存
+      if (
+        !gameStarted.value ||
+        gameFinished.value ||
+        (activeMode.value !== 'party' && activeMode.value !== 'classic')
+      ) {
+        if (gameFinished.value) {
+          clearLocalGameSnapshot()
+        }
+        return
+      }
+      if (snapshotSaveTimer) clearTimeout(snapshotSaveTimer)
+      snapshotSaveTimer = setTimeout(() => {
+        saveCurrentSnapshot()
+      }, 1500)
+    },
+    { deep: true }
+  )
+  // ================================================================
+
   // 惩罚组合确认状态
   const punishmentCombinations = ref<PunishmentCombination[]>([])
   const punishmentStep = ref<'config' | 'confirm'>('config')
@@ -332,13 +389,57 @@
   const effectFromPosition = ref<number | undefined>(undefined)
   const effectToPosition = ref<number | undefined>(undefined)
 
-  // 起飞惩罚显示状态
-  const showTakeoffPunishmentDisplay = ref(false)
-  const currentTakeoffPunishment = ref<PunishmentAction | null>(null)
-  const currentTakeoffDiceValue = ref(1)
-  const currentTakeoffExecutorIndex = ref(0)
-  const currentTakeoffTarget = ref<Player | null>(null)
-  const currentTakeoffTriggeringPlayer = ref<Player | null>(null)
+  const gameOverlays = useGameOverlays()
+  const {
+    showTakeoffPunishmentDisplay,
+    currentTakeoffPunishment,
+    currentTakeoffDiceValue,
+    currentTakeoffExecutorIndex,
+    currentTakeoffTarget,
+    currentTakeoffTriggeringPlayer,
+
+    showTrapDisplay,
+    showTrapChoiceDisplay,
+    currentTrapPunishment,
+    currentTrapDescription,
+    currentTrapChoiceA,
+    currentTrapChoiceB,
+    currentTrapVariant,
+    currentTrapRouletteTarget,
+
+    showQADisplay,
+    currentQAQuestion,
+    showDareDisplay,
+    currentDareInstruction,
+
+    showBounceDisplay,
+    bounceFromPosition,
+    bounceTargetPosition,
+    bounceFinalPosition,
+    bounceOverflowSteps,
+
+    showDoublePunishmentReveal,
+    isDoublePunishment,
+    pendingDoublePunishment,
+
+    isChainPunishment,
+    showChainPunishmentRoll,
+
+    showMercyDecision,
+    mercyHalvedStrikes,
+    mercySource,
+    mercyRequested,
+    mercyExecutorPlayer,
+    mercyTargetPlayer,
+
+    showTakeoffReliefDisplay,
+    failedTakeoffCountForMessage,
+
+    showVictoryScreen,
+
+    resetOverlays,
+    getBlockingOverlays,
+  } = gameOverlays
 
   // 执行惩罚的玩家状态
   const currentPunishmentExecutor = ref<Player | null>(null)
@@ -374,21 +475,6 @@
     { deep: true }
   )
 
-  // 机关陷阱弹窗状态
-  const showTrapDisplay = ref(false)
-  const showTrapChoiceDisplay = ref(false)
-  const currentTrapPunishment = ref<PunishmentAction | null>(null)
-  const currentTrapDescription = ref<string>('')
-  const currentTrapChoiceA = ref('')
-  const currentTrapChoiceB = ref('')
-  const currentTrapVariant = ref<string | undefined>()
-  const currentTrapRouletteTarget = ref<Player | null>(null)
-
-  // 升温局问答 / 指令格弹窗
-  const showQADisplay = ref(false)
-  const currentQAQuestion = ref('')
-  const showDareDisplay = ref(false)
-  const currentDareInstruction = ref('')
   const selectedPartyScene = ref<PartyScenePreset | 'default'>('default')
 
   const getCurrentPartyActConstraints = (act: PartyAct): PunishmentConstraints => {
@@ -402,35 +488,9 @@
     }
   }
 
-  // 反弹效果弹窗状态
-  const showBounceDisplay = ref(false)
-  const bounceFromPosition = ref<number>(0)
-  const bounceTargetPosition = ref<number>(0)
-  const bounceFinalPosition = ref<number>(0)
-  const bounceOverflowSteps = ref<number>(0)
   const MAX_EFFECT_CHAIN_COUNT = 5
   const effectChainCount = ref(0)
-
-  // 翻倍惩罚状态
-  const showDoublePunishmentReveal = ref(false)
-  const isDoublePunishment = ref(false)
-  const pendingDoublePunishment = ref<PunishmentAction | null>(null)
-
-  // 连锁惩罚状态
-  const isChainPunishment = ref(false)
-  const showChainPunishmentRoll = ref(false)
-
-  // 求饶状态
   const MERCY_MULTIPLIER = 1.5
-  const showMercyDecision = ref(false)
-  const mercyHalvedStrikes = ref(0)
-  const mercySource = ref<'board' | 'takeoff'>('board')
-  const mercyRequested = ref(false)
-  const mercyExecutorPlayer = ref<Player | null>(null)
-  const mercyTargetPlayer = ref<Player | null>(null)
-
-  // 胜利结算画面状态
-  const showVictoryScreen = ref(false)
 
   const currentPunishmentCountSelection = computed(() => {
     const resolution = pendingRuleResolution.value
@@ -1284,21 +1344,10 @@
 
   // 状态检查机制
   const checkGameStateHealth = () => {
-    const blockingOverlays: BlockingOverlayState = {
-      takeoffPunishment: showTakeoffPunishmentDisplay.value,
-      trap:
-        showTrapDisplay.value ||
-        showTrapChoiceDisplay.value ||
-        showQADisplay.value ||
-        showDareDisplay.value,
-      bounce: showBounceDisplay.value,
-      takeoffRelief: showTakeoffReliefDisplay.value,
-      doublePunishmentReveal: showDoublePunishmentReveal.value,
-      chainPunishmentRoll: showChainPunishmentRoll.value,
-      mercyDecision: showMercyDecision.value,
-      sessionPaused: sessionPaused.value,
-      partyInteraction: partyInteractionBlocking.value,
-    }
+    const blockingOverlays = getBlockingOverlays(
+      sessionPaused.value,
+      partyInteractionBlocking.value
+    )
 
     // 检查是否卡在 moving 状态超过 5 秒
     if (gameState.gameStatus === 'moving' && !hasBlockingOverlay(blockingOverlays)) {
@@ -1422,6 +1471,30 @@
       gameState.players = createPlayersFromSettings(cachedPlayerSettings)
     }
 
+    // 页面刷新或关闭前同步刷入快照
+    window.addEventListener('beforeunload', saveCurrentSnapshot)
+
+    // 尝试读取本地单机对局快照（具有最高恢复优先级）
+    const gameSnapshot = loadLocalGameSnapshot()
+    if (gameSnapshot) {
+      if (window.confirm('检测到未完成的单机对局，是否恢复进度？')) {
+        localGameSession.restoreSnapshot(gameSnapshot.gameState)
+        activeMode.value = gameSnapshot.activeMode
+        turnCount.value = gameSnapshot.turnCount
+        if (gameSnapshot.trapConfig) {
+          trapConfig.value = gameSnapshot.trapConfig
+        }
+        if (gameSnapshot.partyEventState) {
+          partyEventState.value = gameSnapshot.partyEventState as PartyEventState
+        }
+        if (gameSnapshot.partySession) {
+          partyMode.session.value = gameSnapshot.partySession as PartySession
+        }
+      } else {
+        clearLocalGameSnapshot()
+      }
+    }
+
     // 将游戏状态暴露到全局作用域，方便调试
     if (import.meta.env.DEV) {
       const debugWindow = window as typeof window & {
@@ -1534,6 +1607,12 @@
     window.removeEventListener('resize', onWindowResize)
     window.removeEventListener('unhandledrejection', handleUnhandledRejection)
     window.removeEventListener('error', handleGlobalError)
+    window.removeEventListener('beforeunload', saveCurrentSnapshot)
+
+    if (snapshotSaveTimer) {
+      clearTimeout(snapshotSaveTimer)
+      snapshotSaveTimer = null
+    }
 
     if (healthCheckIntervalId.value !== null) {
       clearInterval(healthCheckIntervalId.value)
@@ -1872,47 +1951,11 @@
     // 清除惩罚组合确认状态
     punishmentCombinations.value = []
     punishmentStep.value = 'config'
-    showTakeoffPunishmentDisplay.value = false
-    currentTakeoffPunishment.value = null
-    currentTakeoffExecutorIndex.value = -1
-
     // 清除所有强制结算弹层，结束本局后不残留旧流程
-    showTrapDisplay.value = false
-    showTrapChoiceDisplay.value = false
-    currentTrapPunishment.value = null
-    currentTrapDescription.value = ''
-    currentTrapChoiceA.value = ''
-    currentTrapChoiceB.value = ''
-    currentTrapVariant.value = undefined
-    currentTrapRouletteTarget.value = null
-    showQADisplay.value = false
-    currentQAQuestion.value = ''
-    showDareDisplay.value = false
-    currentDareInstruction.value = ''
+    resetOverlays()
     selectedPartyScene.value = 'default'
-    showDoublePunishmentReveal.value = false
-    isDoublePunishment.value = false
-    pendingDoublePunishment.value = null
-    showChainPunishmentRoll.value = false
-    isChainPunishment.value = false
-    showTakeoffReliefDisplay.value = false
-
-    // 清除反弹效果状态
-    showBounceDisplay.value = false
-    bounceFromPosition.value = 0
-    bounceTargetPosition.value = 0
-    bounceFinalPosition.value = 0
-    bounceOverflowSteps.value = 0
-
-    // 清除胜利结算画面状态
-    showVictoryScreen.value = false
     resetEffectChainCount()
-
-    // 清除求饶状态
-    showMercyDecision.value = false
-    mercyRequested.value = false
-    mercyExecutorPlayer.value = null
-    mercyTargetPlayer.value = null
+    clearLocalGameSnapshot()
 
     // 升温局重置后回首页方可切换玩法；经典局保留原配置流程。
     gameState.gameStatus = resetMode === 'party' ? 'intro' : 'board_settings'
@@ -3209,9 +3252,6 @@
 
     gameTelemetry.startSetup(playerCount)
   }
-
-  const showTakeoffReliefDisplay = ref(false)
-  const failedTakeoffCountForMessage = ref(0)
 
   const confirmTakeoffRelief = async () => {
     showTakeoffReliefDisplay.value = false

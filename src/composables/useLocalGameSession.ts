@@ -45,5 +45,22 @@ export function useLocalGameSession(options: LocalGameSessionOptions) {
       gameState.pendingEffect = null
       for (const player of gameState.players) player.isMoving = false
     },
+    restoreSnapshot(snapshotState: GameState) {
+      Object.assign(gameState, snapshotState)
+      if (gameState.gameStatus !== 'finished') {
+        gameState.gameStatus = 'waiting'
+      }
+      gameState.diceValue = null
+      gameState.pendingEffect = null
+      for (const player of gameState.players) {
+        player.isMoving = false
+      }
+      gameStarted.value = snapshotState.gameStatus !== 'intro'
+      gameFinished.value = snapshotState.gameStatus === 'finished'
+    },
+    resetSnapshot() {
+      gameStarted.value = false
+      gameFinished.value = false
+    },
   }
 }

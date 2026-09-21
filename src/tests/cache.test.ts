@@ -19,10 +19,15 @@ import {
   savePartyEventDeck,
   saveLocalProgress,
   saveConfig,
+  saveLocalGameSnapshot,
+  loadLocalGameSnapshot,
+  clearLocalGameSnapshot,
+  LOCAL_GAME_SESSION_SNAPSHOT_KEY,
 } from '../utils/cache'
 import { normalizeConfigSnapshot } from '@flying-chess/game-core/config'
 import { DEFAULT_PARTY_EVENT_DECK } from '@flying-chess/game-core/party-events'
 import { recordLocalProgress } from '../services/localProgress'
+import type { BoardCell } from '@flying-chess/game-core/types'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -225,5 +230,70 @@ describe('本地游戏数据清理', () => {
     expect(saveLocalProgress(progress, storage)).toBe(true)
     expect(loadLocalProgress(storage)).toEqual(progress)
     expect(LOCAL_GAME_STORAGE_KEYS).toContain(LOCAL_PROGRESS_STORAGE_KEY)
+  })
+
+  it('支持保存、读取与清除单机对局快照 (Auto-save)', () => {
+    const values = new Map<string, string>()
+    const storage = {
+      getItem(key: string) {
+        return values.get(key) ?? null
+      },
+      setItem(key: string, value: string) {
+        values.set(key, value)
+      },
+      removeItem(key: string) {
+        values.delete(key)
+      },
+    } as unknown as Storage
+
+    expect(loadLocalGameSnapshot(storage)).toBeNull()
+
+    const defaults = normalizeConfigSnapshot(undefined)
+    const mockSnapshot = {
+      gameState: {
+        players: [
+          {
+            id: 1,
+            name: 'Player 1',
+            position: 5,
+            color: '#ff0000',
+            isMoving: false,
+            hasTakenOff: true,
+            isWinner: false,
+          },
+        ],
+        currentPlayerIndex: 0,
+        diceValue: 3,
+        gameStatus: 'waiting' as const,
+        winner: null,
+        board: [
+          { id: 1, position: 1, type: 'normal', color: '#ff0000', description: '' },
+        ] as unknown as BoardCell[],
+        punishmentConfig: defaults.punishmentConfig,
+        boardConfig: defaults.boardConfig,
+        pendingEffect: null,
+      },
+      turnCount: 4,
+      trapConfig: [],
+      activeMode: 'classic' as const,
+    }
+
+    expect(saveLocalGameSnapshot(mockSnapshot, storage)).toBe(true)
+    const loaded = loadLocalGameSnapshot(storage)
+    expect(loaded).not.toBeNull()
+    expect(loaded?.turnCount).toBe(4)
+    expect(loaded?.gameState.players[0].position).toBe(5)
+    expect(loaded?.activeMode).toBe('classic')
+    expect(typeof loaded?.timestamp).toBe('number')
+
+    // 过期快照自动失效并清除
+    expect(loadLocalGameSnapshot(storage, 0)).toBeNull()
+    expect(values.has(LOCAL_GAME_SESSION_SNAPSHOT_KEY)).toBe(false)
+
+    // 重新保存后清除
+    expect(saveLocalGameSnapshot(mockSnapshot, storage)).toBe(true)
+    clearLocalGameSnapshot(storage)
+    expect(loadLocalGameSnapshot(storage)).toBeNull()
+    expect(LOCAL_GAME_STORAGE_KEYS).toContain(LOCAL_GAME_SESSION_SNAPSHOT_KEY)
   })
 })
