@@ -46,4 +46,45 @@ describe('本地对局会话', () => {
     expect(session.gameStarted.value).toBe(true)
     expect(session.sessionPaused.value).toBe(true)
   })
+
+  it('恢复快照时重置残留的移动与掷骰状态并进入就绪等待态', () => {
+    const session = useLocalGameSession({
+      selectedMode: 'classic',
+      victoryConfig: {
+        actionText: '测试',
+        baseCount: 1,
+        countUnit: '下',
+        loserGradientEnabled: false,
+        gradientStep: 1,
+      },
+    })
+
+    session.restoreSnapshot({
+      players: [
+        {
+          id: 1,
+          name: '玩家1',
+          color: '#f00',
+          position: 10,
+          isWinner: false,
+          isMoving: true,
+          hasTakenOff: true,
+        },
+      ],
+      currentPlayerIndex: 0,
+      diceValue: 5,
+      gameStatus: 'moving',
+      winner: null,
+      board: [],
+      punishmentConfig: session.gameState.punishmentConfig,
+      boardConfig: session.gameState.boardConfig,
+      pendingEffect: null,
+    })
+
+    expect(session.gameState.gameStatus).toBe('waiting')
+    expect(session.gameState.diceValue).toBeNull()
+    expect(session.gameState.players[0].isMoving).toBe(false)
+    expect(session.gameStarted.value).toBe(true)
+    expect(session.gameFinished.value).toBe(false)
+  })
 })

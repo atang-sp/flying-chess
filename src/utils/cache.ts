@@ -89,16 +89,35 @@ export function saveLocalGameSnapshot(
   }
 }
 
-export function loadLocalGameSnapshot(storage: Storage = localStorage): LocalGameSnapshot | null {
+// 单机进度快照有效期：24 小时
+const SNAPSHOT_TTL = 1000 * 60 * 60 * 24
+
+export function loadLocalGameSnapshot(
+  storage: Storage = localStorage,
+  ttl: number = SNAPSHOT_TTL
+): LocalGameSnapshot | null {
   const raw = storage.getItem(LOCAL_GAME_SESSION_SNAPSHOT_KEY)
   if (!raw) return null
   try {
     const parsed = JSON.parse(raw)
-    if (parsed && typeof parsed === 'object' && parsed.gameState && parsed.gameState.players) {
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof parsed.timestamp === 'number' &&
+      Date.now() - parsed.timestamp < ttl &&
+      parsed.gameState &&
+      Array.isArray(parsed.gameState.players) &&
+      parsed.gameState.players.length > 0 &&
+      Array.isArray(parsed.gameState.board) &&
+      parsed.gameState.board.length > 0
+    ) {
       return parsed as LocalGameSnapshot
     }
+    // 已过期或数据不完整，清理残留
+    storage.removeItem(LOCAL_GAME_SESSION_SNAPSHOT_KEY)
     return null
   } catch {
+    storage.removeItem(LOCAL_GAME_SESSION_SNAPSHOT_KEY)
     return null
   }
 }

@@ -27,6 +27,7 @@ import {
 import { normalizeConfigSnapshot } from '@flying-chess/game-core/config'
 import { DEFAULT_PARTY_EVENT_DECK } from '@flying-chess/game-core/party-events'
 import { recordLocalProgress } from '../services/localProgress'
+import type { BoardCell } from '@flying-chess/game-core/types'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -265,7 +266,9 @@ describe('本地游戏数据清理', () => {
         diceValue: 3,
         gameStatus: 'waiting' as const,
         winner: null,
-        board: [],
+        board: [
+          { id: 1, position: 1, type: 'normal', color: '#ff0000', description: '' },
+        ] as unknown as BoardCell[],
         punishmentConfig: defaults.punishmentConfig,
         boardConfig: defaults.boardConfig,
         pendingEffect: null,
@@ -283,6 +286,12 @@ describe('本地游戏数据清理', () => {
     expect(loaded?.activeMode).toBe('classic')
     expect(typeof loaded?.timestamp).toBe('number')
 
+    // 过期快照自动失效并清除
+    expect(loadLocalGameSnapshot(storage, 0)).toBeNull()
+    expect(values.has(LOCAL_GAME_SESSION_SNAPSHOT_KEY)).toBe(false)
+
+    // 重新保存后清除
+    expect(saveLocalGameSnapshot(mockSnapshot, storage)).toBe(true)
     clearLocalGameSnapshot(storage)
     expect(loadLocalGameSnapshot(storage)).toBeNull()
     expect(LOCAL_GAME_STORAGE_KEYS).toContain(LOCAL_GAME_SESSION_SNAPSHOT_KEY)

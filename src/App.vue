@@ -320,6 +320,37 @@
 
   // ==================== 单机存档防丢 (Auto-save) ====================
   let snapshotSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+  const saveCurrentSnapshot = () => {
+    if (
+      !gameStarted.value ||
+      gameFinished.value ||
+      (activeMode.value !== 'party' && activeMode.value !== 'classic')
+    ) {
+      return
+    }
+    const savedGameState = JSON.parse(JSON.stringify(gameState))
+    if (savedGameState.gameStatus !== 'finished') {
+      savedGameState.gameStatus = 'waiting'
+    }
+    savedGameState.diceValue = null
+    savedGameState.pendingEffect = null
+    for (const player of savedGameState.players || []) {
+      player.isMoving = false
+    }
+
+    saveLocalGameSnapshot({
+      gameState: savedGameState,
+      turnCount: turnCount.value,
+      trapConfig: JSON.parse(JSON.stringify(trapConfig.value)),
+      activeMode: activeMode.value,
+      partyEventState: partyEventState.value
+        ? JSON.parse(JSON.stringify(partyEventState.value))
+        : undefined,
+      partySession: partySession.value ? JSON.parse(JSON.stringify(partySession.value)) : undefined,
+    })
+  }
+
   watch(
     () => [gameState, turnCount.value, activeMode.value, partyEventState.value, partySession.value],
     () => {
@@ -336,19 +367,7 @@
       }
       if (snapshotSaveTimer) clearTimeout(snapshotSaveTimer)
       snapshotSaveTimer = setTimeout(() => {
-        // 深拷贝防止由于响应式对象导致序列化错误
-        saveLocalGameSnapshot({
-          gameState: JSON.parse(JSON.stringify(gameState)),
-          turnCount: turnCount.value,
-          trapConfig: JSON.parse(JSON.stringify(trapConfig.value)),
-          activeMode: activeMode.value,
-          partyEventState: partyEventState.value
-            ? JSON.parse(JSON.stringify(partyEventState.value))
-            : undefined,
-          partySession: partySession.value
-            ? JSON.parse(JSON.stringify(partySession.value))
-            : undefined,
-        })
+        saveCurrentSnapshot()
       }, 1500)
     },
     { deep: true }
@@ -1403,33 +1422,6 @@
     // 组件挂载时初始化游戏
     initializeGame()
 
-    // 尝试读取本地单机对局快照
-    const gameSnapshot = loadLocalGameSnapshot()
-    if (gameSnapshot) {
-      if (window.confirm('检测到未完成的单机对局，是否恢复进度？')) {
-        activeMode.value = gameSnapshot.activeMode
-        turnCount.value = gameSnapshot.turnCount
-        if (gameSnapshot.trapConfig) {
-          trapConfig.value = gameSnapshot.trapConfig
-        }
-        if (gameSnapshot.partyEventState) {
-          partyEventState.value = gameSnapshot.partyEventState as PartyEventState
-        }
-        if (gameSnapshot.partySession) {
-          partyMode.session.value = gameSnapshot.partySession as PartySession
-        }
-        Object.assign(gameState, gameSnapshot.gameState)
-        gameStarted.value = true
-        gameFinished.value = false
-        // 确保不会跳回介绍页
-        if (gameState.gameStatus === 'intro') {
-          gameState.gameStatus = 'waiting'
-        }
-      } else {
-        clearLocalGameSnapshot()
-      }
-    }
-
     // 初始化后尝试读取本地缓存配置并应用
     const cached = loadConfig()
     if (cached) {
@@ -1477,6 +1469,30 @@
     if (cachedPlayerSettings) {
       devLog('已加载玩家设置:', cachedPlayerSettings)
       gameState.players = createPlayersFromSettings(cachedPlayerSettings)
+    }
+
+    // 页面刷新或关闭前同步刷入快照
+    window.addEventListener('beforeunload', saveCurrentSnapshot)
+
+    // 尝试读取本地单机对局快照（具有最高恢复优先级）
+    const gameSnapshot = loadLocalGameSnapshot()
+    if (gameSnapshot) {
+      if (window.confirm('检测到未完成的单机对局，是否恢复进度？')) {
+        localGameSession.restoreSnapshot(gameSnapshot.gameState)
+        activeMode.value = gameSnapshot.activeMode
+        turnCount.value = gameSnapshot.turnCount
+        if (gameSnapshot.trapConfig) {
+          trapConfig.value = gameSnapshot.trapConfig
+        }
+        if (gameSnapshot.partyEventState) {
+          partyEventState.value = gameSnapshot.partyEventState as PartyEventState
+        }
+        if (gameSnapshot.partySession) {
+          partyMode.session.value = gameSnapshot.partySession as PartySession
+        }
+      } else {
+        clearLocalGameSnapshot()
+      }
     }
 
     // 将游戏状态暴露到全局作用域，方便调试
@@ -1591,6 +1607,12 @@
     window.removeEventListener('resize', onWindowResize)
     window.removeEventListener('unhandledrejection', handleUnhandledRejection)
     window.removeEventListener('error', handleGlobalError)
+    window.removeEventListener('beforeunload', saveCurrentSnapshot)
+
+    if (snapshotSaveTimer) {
+      clearTimeout(snapshotSaveTimer)
+      snapshotSaveTimer = null
+    }
 
     if (healthCheckIntervalId.value !== null) {
       clearInterval(healthCheckIntervalId.value)
@@ -1933,6 +1955,7 @@
     resetOverlays()
     selectedPartyScene.value = 'default'
     resetEffectChainCount()
+    clearLocalGameSnapshot()
 
     // 升温局重置后回首页方可切换玩法；经典局保留原配置流程。
     gameState.gameStatus = resetMode === 'party' ? 'intro' : 'board_settings'
