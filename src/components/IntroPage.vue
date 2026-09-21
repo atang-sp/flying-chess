@@ -621,7 +621,7 @@
 
 <style scoped>
   .intro-page {
-    min-height: 100vh;
+    min-height: 100dvh;
     background: linear-gradient(
       135deg,
       #0c0c0c 0%,
@@ -631,16 +631,16 @@
       #533483 100%
     );
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
     position: relative;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   }
 
   /* 粒子背景 */
   .particles-container {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
@@ -663,6 +663,7 @@
 
   /* 主内容 */
   .intro-content {
+    margin: auto;
     text-align: center;
     color: var(--text-primary);
     z-index: 10;
@@ -1478,7 +1479,7 @@
   @media (max-width: 767px) {
     .intro-page {
       padding: 1rem;
-      min-height: 100vh;
+      min-height: 100dvh;
     }
 
     .intro-content {

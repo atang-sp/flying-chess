@@ -107,7 +107,7 @@
 }
 
 body {
-  min-height: 100vh;
+  min-height: 100dvh;
   color: var(--text-primary);
   background:
     radial-gradient(circle at 50% -15%, rgb(64 101 82 / 0.25), transparent 42%), var(--bg-primary);
