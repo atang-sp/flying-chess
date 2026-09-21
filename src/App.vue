@@ -174,6 +174,7 @@
   const partyMode = usePartyMode()
   const localPartyMomentum = createLocalPartyMomentumCompletion()
   const isPartyGame = computed(() => activeMode.value === 'party' && partyMode.isActive.value)
+  const isAnyPlayerMoving = computed(() => gameState.players.some(p => p.isMoving))
   const partySession = computed(() => partyMode.session.value)
   const partyReaction = computed(() => partySession.value?.reaction ?? null)
   const partyHighlight = computed(() => partyMode.highlight.value)
@@ -2208,6 +2209,9 @@
     boardLength: number,
     diceValue?: number | null
   ): number[] => {
+    if (fromPos === toPos) {
+      return []
+    }
     if (fromPos === 0) {
       return [toPos]
     }
@@ -2277,10 +2281,6 @@
         lastEffect.value = `${fromText} → ${toText}`
       }
 
-      // 执行逐格跳步动效
-      currentPlayer.isMoving = true
-      skipMovementAnimation.value = false
-
       const steps = calculateStepSequence(
         fromPosition,
         newPosition,
@@ -2288,19 +2288,29 @@
         diceValue
       )
 
-      for (let i = 0; i < steps.length; i++) {
-        if (skipMovementAnimation.value) {
-          currentPlayer.position = newPosition
-          audioService.play('pieceStep')
-          break
-        }
-        currentPlayer.position = steps[i]
-        audioService.play('pieceStep')
-        await new Promise(resolve => setTimeout(resolve, 130))
-      }
+      if (steps.length > 0) {
+        // 执行逐格跳步动效
+        currentPlayer.isMoving = true
+        skipMovementAnimation.value = false
 
-      currentPlayer.position = newPosition
-      currentPlayer.isMoving = false
+        for (let i = 0; i < steps.length; i++) {
+          if (skipMovementAnimation.value) {
+            currentPlayer.position = newPosition
+            audioService.play('pieceStep')
+            break
+          }
+          currentPlayer.position = steps[i]
+          audioService.play('pieceStep')
+          await new Promise(resolve => setTimeout(resolve, 160))
+        }
+
+        currentPlayer.position = newPosition
+        currentPlayer.isMoving = false
+
+        if (fromPosition !== newPosition) {
+          gameBoardRef.value?.handleMovementFinish(newPosition)
+        }
+      }
 
       // 落点反馈：震颤与特殊格音效
       const targetCell = gameState.board[newPosition - 1]
@@ -4023,6 +4033,13 @@
       </header>
 
       <main class="game-main">
+        <!-- Bug 4 Fix: 全局移动动画跳过遮罩，拦截下层点击 -->
+        <div
+          v-if="isAnyPlayerMoving"
+          class="movement-skip-overlay"
+          @click.stop.prevent="skipMovementAnimation = true"
+        ></div>
+
         <PartyHeatMeter
           v-if="isPartyGame && partySession"
           :heat="partySession.heat"
@@ -4032,7 +4049,7 @@
           :reward-notice="partyRewardNotice"
         />
         <div class="game-cockpit">
-          <div class="board-section" @click="skipMovementAnimation = true">
+          <div class="board-section">
             <GameBoard
               ref="gameBoardRef"
               :board="gameState.board"
@@ -4461,6 +4478,13 @@
     min-height: 100vh;
     background-color: var(--bg-primary);
     background-image: radial-gradient(ellipse at top, rgba(102, 126, 234, 0.15), transparent 60%);
+  }
+
+  .movement-skip-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    cursor: pointer;
   }
 
   .app--party-studio {

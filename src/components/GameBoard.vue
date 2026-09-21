@@ -219,6 +219,12 @@
     }, 420)
   }
 
+  const handleMovementFinish = (position: number) => {
+    triggerLanding(position)
+    triggerCellActivation(position)
+    scrollToCell(position, 'smooth')
+  }
+
   watch(
     () => props.players.map(player => player.position),
     (positions, previousPositions) => {
@@ -234,7 +240,7 @@
           triggerLanding(position)
           triggerCellActivation(position)
         }
-        scrollToCell(position)
+        scrollToCell(position, player?.isMoving ? 'auto' : 'smooth')
       })
     }
   )
@@ -272,7 +278,14 @@
     if (landingTimer) clearTimeout(landingTimer)
   })
 
-  defineExpose({ focusCell, scrollToCell, triggerCellActivation, triggerLanding, shakeBoard })
+  defineExpose({
+    focusCell,
+    scrollToCell,
+    triggerCellActivation,
+    triggerLanding,
+    shakeBoard,
+    handleMovementFinish,
+  })
 </script>
 
 <template>

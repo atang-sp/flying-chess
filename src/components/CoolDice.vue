@@ -38,7 +38,7 @@
         // 延迟重置，让用户看到结果
         setTimeout(() => {
           isRolling.value = false
-        }, 350)
+        }, 1000)
       }
     }
   )
