@@ -67,7 +67,7 @@
   import TrapConfigPanel from './components/TrapConfig.vue'
   import PunishmentDisplay from './components/PunishmentDisplay.vue'
   import PunishmentConfirmation from './components/PunishmentConfirmation.vue'
-  import BoardFloatingToast from './components/BoardFloatingToast.vue'
+  import EffectDisplay from './components/EffectDisplay.vue'
   import TakeoffPunishmentDisplay from './components/TakeoffPunishmentDisplay.vue'
   import TrapDisplay from './components/TrapDisplay.vue'
   import TrapChoiceDisplay from './components/TrapChoiceDisplay.vue'
@@ -4033,11 +4033,6 @@
         />
         <div class="game-cockpit">
           <div class="board-section" @click="skipMovementAnimation = true">
-            <BoardFloatingToast
-              :visible="gameState.gameStatus === 'showing_effect'"
-              :effect="gameState.pendingEffect"
-              @confirm="confirmEffect"
-            />
             <GameBoard
               ref="gameBoardRef"
               :board="gameState.board"
@@ -4128,6 +4123,15 @@
         :target-player="mercyTargetPlayer"
         :halved-strikes="mercyHalvedStrikes"
         @mercy-result="handleMercyResult"
+      />
+
+      <!-- 效果显示弹窗 -->
+      <EffectDisplay
+        :visible="gameState.gameStatus === 'showing_effect'"
+        :effect="gameState.pendingEffect"
+        :from-position="effectFromPosition"
+        :to-position="effectToPosition"
+        @confirm="confirmEffect"
       />
     </div>
 

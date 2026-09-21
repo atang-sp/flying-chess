@@ -174,8 +174,8 @@
   }
 
   .dice-area :deep(.cool-dice-container) {
-    min-width: 80px;
-    transform: scale(0.72);
+    min-width: 82px;
+    transform: scale(0.76);
     transform-origin: center;
     margin: -10px 0;
   }
@@ -256,7 +256,7 @@
     }
 
     .dice-area :deep(.cool-dice-container) {
-      transform: scale(0.72);
+      transform: scale(0.76);
       margin: -10px 0;
     }
 
