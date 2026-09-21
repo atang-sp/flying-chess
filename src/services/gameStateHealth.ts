@@ -19,4 +19,7 @@ export const shouldRecoverMovingState = (
   gameStatus: GameState['gameStatus'],
   movingDurationMs: number,
   overlays: BlockingOverlayState
-): boolean => gameStatus === 'moving' && movingDurationMs > 5000 && !hasBlockingOverlay(overlays)
+): boolean =>
+  (gameStatus === 'moving' || gameStatus === 'rolling') &&
+  movingDurationMs > 5000 &&
+  !hasBlockingOverlay(overlays)

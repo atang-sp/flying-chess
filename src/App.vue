@@ -1236,24 +1236,6 @@
   }
 
   // 计算属性
-  const canRollDice = computed(() => {
-    return (
-      gameStarted.value &&
-      !gameFinished.value &&
-      gameState.gameStatus === 'waiting' &&
-      !sessionPaused.value &&
-      !currentPunishment.value &&
-      !showTakeoffPunishmentDisplay.value &&
-      !showTrapDisplay.value &&
-      !showTrapChoiceDisplay.value &&
-      !showQADisplay.value &&
-      !showDareDisplay.value &&
-      !showDoublePunishmentReveal.value &&
-      !showChainPunishmentRoll.value &&
-      !partyInteractionBlocking.value
-    )
-  })
-
   const hasActiveForcedOverlay = computed(
     () =>
       Boolean(currentPunishment.value) ||
@@ -1270,6 +1252,16 @@
       partyInteractionBlocking.value ||
       gameState.gameStatus === 'showing_effect'
   )
+
+  const canRollDice = computed(() => {
+    return (
+      gameStarted.value &&
+      !gameFinished.value &&
+      gameState.gameStatus === 'waiting' &&
+      !sessionPaused.value &&
+      !hasActiveForcedOverlay.value
+    )
+  })
 
   const canPauseSession = computed(
     () =>
@@ -1334,6 +1326,7 @@
   const healthCheckIntervalId = ref<number | null>(null)
   const movingStateEnteredAt = ref<number | null>(null)
   const playerMovingTimeoutMap = new Map<number, number>()
+  let initialGuideTimer: number | null = null
 
   const clearAllPlayerMovingTimeouts = () => {
     playerMovingTimeoutMap.forEach(timeoutId => {
@@ -1349,8 +1342,11 @@
       partyInteractionBlocking.value
     )
 
-    // 检查是否卡在 moving 状态超过 5 秒
-    if (gameState.gameStatus === 'moving' && !hasBlockingOverlay(blockingOverlays)) {
+    // 检查是否卡在 moving 或 rolling 状态超过 5 秒
+    if (
+      (gameState.gameStatus === 'moving' || gameState.gameStatus === 'rolling') &&
+      !hasBlockingOverlay(blockingOverlays)
+    ) {
       if (movingStateEnteredAt.value === null) {
         movingStateEnteredAt.value = Date.now()
       } else if (
@@ -1360,7 +1356,7 @@
           blockingOverlays
         )
       ) {
-        console.warn('检测到游戏卡在moving状态超过5秒，正在重置...')
+        console.warn(`检测到游戏卡在${gameState.gameStatus}状态超过5秒，正在重置...`)
         movingStateEnteredAt.value = null
         recoverStalledMovement()
       }
@@ -1480,6 +1476,9 @@
       if (window.confirm('检测到未完成的单机对局，是否恢复进度？')) {
         localGameSession.restoreSnapshot(gameSnapshot.gameState)
         activeMode.value = gameSnapshot.activeMode
+        if (gameSnapshot.activeMode) {
+          selectedMode.value = gameSnapshot.activeMode
+        }
         turnCount.value = gameSnapshot.turnCount
         if (gameSnapshot.trapConfig) {
           trapConfig.value = gameSnapshot.trapConfig
@@ -1489,6 +1488,8 @@
         }
         if (gameSnapshot.partySession) {
           partyMode.session.value = gameSnapshot.partySession as PartySession
+        } else if (gameSnapshot.activeMode === 'party') {
+          partyMode.start(gameSnapshot.gameState.players.length)
         }
       } else {
         clearLocalGameSnapshot()
@@ -1593,7 +1594,7 @@
     })
 
     // 延迟检查作为备用
-    setTimeout(() => {
+    initialGuideTimer = window.setTimeout(() => {
       const currentStatus = gameState.gameStatus
       devLog(`页面加载完成，当前状态: ${currentStatus}`)
       if (['intro', 'board_settings', 'settings'].includes(currentStatus)) {
@@ -1612,6 +1613,11 @@
     if (snapshotSaveTimer) {
       clearTimeout(snapshotSaveTimer)
       snapshotSaveTimer = null
+    }
+
+    if (initialGuideTimer !== null) {
+      clearTimeout(initialGuideTimer)
+      initialGuideTimer = null
     }
 
     if (healthCheckIntervalId.value !== null) {
@@ -1677,6 +1683,9 @@
     punishmentCombinations.value = []
     punishmentStep.value = 'config'
     resetEffectChainCount()
+    resetOverlays()
+    clearAllPlayerMovingTimeouts()
+    partyEventState.value = createPartyEventState(loadPartyEventDeck())
   }
 
   // 更新惩罚配置
@@ -1956,6 +1965,8 @@
     selectedPartyScene.value = 'default'
     resetEffectChainCount()
     clearLocalGameSnapshot()
+    clearAllPlayerMovingTimeouts()
+    partyEventState.value = createPartyEventState(loadPartyEventDeck())
 
     // 升温局重置后回首页方可切换玩法；经典局保留原配置流程。
     gameState.gameStatus = resetMode === 'party' ? 'intro' : 'board_settings'
@@ -2141,51 +2152,61 @@
   }
 
   const performDiceRoll = async (isReroll = false) => {
-    audioService.play('diceRoll')
-    resetEffectChainCount()
-    gameState.gameStatus = 'rolling'
-    gameState.diceValue = GameService.rollDice()
-    if (isPartyGame.value) {
-      recordPartyEventSignal({ kind: 'dice_value', value: gameState.diceValue })
-    }
+    try {
+      audioService.play('diceRoll')
+      resetEffectChainCount()
+      gameState.gameStatus = 'rolling'
+      gameState.diceValue = GameService.rollDice()
+      if (isPartyGame.value) {
+        recordPartyEventSignal({ kind: 'dice_value', value: gameState.diceValue })
+      }
 
-    await new Promise(resolve => setTimeout(resolve, 1000))
+      await new Promise(resolve => setTimeout(resolve, 1000))
 
-    if (
-      isPartyGame.value &&
-      !isReroll &&
-      partyMode.session.value?.reaction?.status === 'awaiting_roll'
-    ) {
-      const resolvedSession = partyMode.resolveRoll(gameState.diceValue)
-      if (resolvedSession.reaction?.status === 'awaiting_decision') {
-        const reactorIdx = resolvedSession.reaction.reactorPlayerIndex
-        if (multiDevice.isRemotePlayer(reactorIdx)) {
-          multiDevice.requestAction(reactorIdx, {
-            type: 'reaction_decision',
-            rolledValue: resolvedSession.reaction.rolledValue ?? gameState.diceValue,
+      if (
+        isPartyGame.value &&
+        !isReroll &&
+        partyMode.session.value?.reaction?.status === 'awaiting_roll'
+      ) {
+        const resolvedSession = partyMode.resolveRoll(gameState.diceValue)
+        if (resolvedSession.reaction?.status === 'awaiting_decision') {
+          const reactorIdx = resolvedSession.reaction.reactorPlayerIndex
+          if (multiDevice.isRemotePlayer(reactorIdx)) {
+            multiDevice.requestAction(reactorIdx, {
+              type: 'reaction_decision',
+              rolledValue: resolvedSession.reaction.rolledValue ?? gameState.diceValue,
+              timeoutSeconds: 5,
+            })
+          }
+          return
+        }
+        gameState.diceValue = resolvedSession.reaction?.finalDiceValue ?? gameState.diceValue
+      }
+
+      if (isPartyGame.value && !isReroll) {
+        const currentIdx = gameState.currentPlayerIndex
+        if (multiDevice.isRemotePlayer(currentIdx)) {
+          multiDevice.requestAction(currentIdx, {
+            type: 'dice_decision',
+            diceValue: gameState.diceValue ?? 1,
+            canReroll: canCurrentPlayerReroll.value,
             timeoutSeconds: 5,
           })
         }
+        partyDiceDecisionVisible.value = true
         return
       }
-      gameState.diceValue = resolvedSession.reaction?.finalDiceValue ?? gameState.diceValue
-    }
 
-    if (isPartyGame.value && !isReroll) {
-      const currentIdx = gameState.currentPlayerIndex
-      if (multiDevice.isRemotePlayer(currentIdx)) {
-        multiDevice.requestAction(currentIdx, {
-          type: 'dice_decision',
-          diceValue: gameState.diceValue ?? 1,
-          canReroll: canCurrentPlayerReroll.value,
-          timeoutSeconds: 5,
-        })
+      await continuePartyMove()
+    } catch (error) {
+      console.error('掷骰或执行移动时发生错误:', error)
+      gameState.gameStatus = 'waiting'
+      gameState.diceValue = null
+      const currentPlayer = gameState.players[gameState.currentPlayerIndex]
+      if (currentPlayer) {
+        currentPlayer.isMoving = false
       }
-      partyDiceDecisionVisible.value = true
-      return
     }
-
-    await continuePartyMove()
   }
 
   const handlePartyReactionPrediction = async (prediction: PartyPrediction) => {

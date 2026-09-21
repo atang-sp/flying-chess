@@ -41,7 +41,6 @@
 <style scoped>
   .controller-root {
     min-height: 100dvh;
-    min-height: 100dvh;
     background: var(--color-background, #0a0a1a);
     color: var(--color-text, #e8e6e3);
     display: flex;

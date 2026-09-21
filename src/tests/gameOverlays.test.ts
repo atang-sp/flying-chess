@@ -42,6 +42,22 @@ describe('游戏浮层状态管理器 (useGameOverlays)', () => {
     expect(overlays.getBlockingOverlays(false, false).trap).toBe(true)
     overlays.showDareDisplay.value = false
 
+    overlays.showMercyDecision.value = true
+    expect(overlays.getBlockingOverlays(false, false).mercyDecision).toBe(true)
+    overlays.showMercyDecision.value = false
+
+    overlays.showTakeoffReliefDisplay.value = true
+    expect(overlays.getBlockingOverlays(false, false).takeoffRelief).toBe(true)
+    overlays.showTakeoffReliefDisplay.value = false
+
+    overlays.showDoublePunishmentReveal.value = true
+    expect(overlays.getBlockingOverlays(false, false).doublePunishmentReveal).toBe(true)
+    overlays.showDoublePunishmentReveal.value = false
+
+    overlays.showChainPunishmentRoll.value = true
+    expect(overlays.getBlockingOverlays(false, false).chainPunishmentRoll).toBe(true)
+    overlays.showChainPunishmentRoll.value = false
+
     expect(overlays.getBlockingOverlays(true, false).sessionPaused).toBe(true)
     expect(overlays.getBlockingOverlays(false, true).partyInteraction).toBe(true)
   })
