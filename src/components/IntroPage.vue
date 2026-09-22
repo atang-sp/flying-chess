@@ -20,8 +20,6 @@
     Heart,
     Beer,
     Sparkles,
-    ChevronDown,
-    Settings2,
   } from '@lucide/vue'
   import {
     savePlayerSettings,
@@ -145,7 +143,6 @@
   ]
 
   const activeScenarioId = ref<string | null>(null)
-  const showAdvancedSettings = ref(false)
 
   const applyScenarioPreset = (preset: ScenarioPreset) => {
     activeScenarioId.value = preset.id
@@ -661,51 +658,30 @@
         </div>
       </div>
 
-      <!-- 高级局况定制与工坊（折叠式手风琴，按需展开） -->
+      <!-- 高级局况定制与工坊（置于开始按钮下方，按需定制） -->
       <section class="advanced-settings-section" aria-label="局况定制与工坊">
-        <button
-          type="button"
-          class="advanced-settings-toggle"
-          :class="{ 'advanced-settings-toggle--open': showAdvancedSettings }"
-          :aria-expanded="showAdvancedSettings"
-          data-testid="toggle-advanced-settings"
-          @click="showAdvancedSettings = !showAdvancedSettings"
-        >
-          <div class="advanced-settings-toggle__title">
-            <Settings2 :size="18" />
-            <span>高级玩法与工坊配置 (胜利用例、事件牌堆、社区词库、场景主题)</span>
-          </div>
-          <ChevronDown
-            :size="18"
-            class="advanced-settings-toggle__chevron"
-            :class="{ 'is-flipped': showAdvancedSettings }"
-          />
-        </button>
+        <VictoryConfigPanel
+          v-if="selectedMode === 'party'"
+          :config="victoryConfig"
+          :player-count="playerCount"
+          @update="victoryConfig = $event"
+        />
 
-        <div v-show="showAdvancedSettings" class="advanced-settings-content">
-          <VictoryConfigPanel
-            v-if="selectedMode === 'party'"
-            :config="victoryConfig"
-            :player-count="playerCount"
-            @update="victoryConfig = $event"
-          />
+        <PartyEventDeckEditor
+          v-if="selectedMode === 'party'"
+          :deck="eventDeck"
+          @update="eventDeck = $event"
+        />
 
-          <PartyEventDeckEditor
-            v-if="selectedMode === 'party'"
-            :deck="eventDeck"
-            @update="eventDeck = $event"
-          />
+        <CommunityPackBrowser v-if="selectedMode === 'party'" @apply="applyCommunityPack" />
 
-          <CommunityPackBrowser v-if="selectedMode === 'party'" @apply="applyCommunityPack" />
+        <PartyStudioEditor
+          v-if="selectedMode === 'party'"
+          :config="studioConfig"
+          @update="studioConfig = $event"
+        />
 
-          <PartyStudioEditor
-            v-if="selectedMode === 'party'"
-            :config="studioConfig"
-            @update="studioConfig = $event"
-          />
-
-          <ProgressAchievements :progress="localProgress" />
-        </div>
+        <ProgressAchievements :progress="localProgress" />
       </section>
 
       <!-- 底部隐私说明与数据管理 -->
@@ -1516,57 +1492,7 @@
     display: flex;
     flex-direction: column;
     gap: 1.2rem;
-    margin-top: 1.8rem;
-  }
-
-  .advanced-settings-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 1rem 1.25rem;
-    background: rgba(15, 23, 42, 0.65);
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: var(--radius-lg);
-    color: var(--text-secondary);
-    font-size: 0.92rem;
-    cursor: pointer;
-    backdrop-filter: blur(var(--glass-blur));
-    transition: all var(--transition-fast);
-  }
-
-  .advanced-settings-toggle:hover {
-    background: rgba(30, 41, 59, 0.8);
-    border-color: rgba(129, 140, 248, 0.4);
-    color: var(--text-primary);
-  }
-
-  .advanced-settings-toggle--open {
-    border-color: rgba(129, 140, 248, 0.6);
-    color: var(--text-primary);
-    background: rgba(30, 41, 59, 0.85);
-  }
-
-  .advanced-settings-toggle__title {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    font-weight: 600;
-  }
-
-  .advanced-settings-toggle__chevron {
-    transition: transform var(--transition-normal);
-    flex-shrink: 0;
-  }
-
-  .advanced-settings-toggle__chevron.is-flipped {
-    transform: rotate(180deg);
-  }
-
-  .advanced-settings-content {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+    margin-top: 1.5rem;
   }
 
   .intro-footer-actions {
