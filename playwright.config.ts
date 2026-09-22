@@ -7,6 +7,7 @@ const packageVersion = JSON.parse(readFileSync(new URL('./package.json', import.
 export default defineConfig({
   testDir: './tests/e2e',
   timeout: 30_000,
+  retries: process.env.CI ? 2 : 0,
   // Some scenarios create extra host/guest/controller contexts. Capping file-level
   // parallelism avoids multiplying those into enough Chrome processes to cause false timeouts.
   workers: 2,

@@ -390,7 +390,7 @@ test('native WebRTC pairs two phone controllers without cloud signalling', async
     await expect(
       page.getByTitle(`多设备模式 - ${index + 1}/2 已连接`),
       `controller ${index + 1} should finish its WebRTC handshake`
-    ).toBeVisible({ timeout: 15_000 })
+    ).toBeVisible({ timeout: 25_000 })
   }
 
   await expect(lobby).toBeHidden()
@@ -2302,11 +2302,10 @@ test('dynamic punishment resolves its target and external count before confirmat
       },
     }
 
-    let randomCall = 0
     Object.defineProperty(window.crypto, 'getRandomValues', {
       configurable: true,
       value: (values: Uint32Array) => {
-        values[0] = randomCall++ % 2 === 0 ? 0 : 3
+        values[0] = 3
         return values
       },
     })

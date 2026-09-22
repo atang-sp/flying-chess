@@ -1,4 +1,4 @@
-import { chooseWeighted } from '@flying-chess/game-core/config'
+import { chooseWeighted, cryptoRandomInt } from '@flying-chess/game-core/config'
 
 /**
  * 🔒 密码学安全随机数生成器
@@ -13,24 +13,7 @@ export class SecureRandom {
    * 替代 Math.random()
    */
   static random(): number {
-    if (typeof crypto === 'undefined' || !crypto.getRandomValues) {
-      throw new Error('此环境不支持 crypto.getRandomValues()，无法提供密码学安全的随机数')
-    }
-
-    try {
-      // 生成两个独立的随机源并混合以增强随机性
-      const array1 = new Uint32Array(1)
-      const array2 = new Uint32Array(1)
-      crypto.getRandomValues(array1)
-      crypto.getRandomValues(array2)
-
-      // 使用加法混合，然后转换为 [0, 1) 范围的浮点数
-      const mixedValue = (array1[0] + array2[0]) >>> 0
-      return mixedValue / (0xffffffff + 1)
-    } catch (error) {
-      console.error('密码学随机数生成失败:', error)
-      throw new Error('无法生成安全的随机数，请确保在现代浏览器环境中运行')
-    }
+    return cryptoRandomInt(0, 0xffff_ffff) / 0x1_0000_0000
   }
 
   /**
@@ -39,19 +22,7 @@ export class SecureRandom {
    * @param max 最大值（包含）
    */
   static randomInt(min: number, max: number): number {
-    const range = max - min + 1
-    const maxValid = Math.floor(0xffffffff / range) * range
-
-    let randomValue: number
-    do {
-      const array1 = new Uint32Array(1)
-      const array2 = new Uint32Array(1)
-      crypto.getRandomValues(array1)
-      crypto.getRandomValues(array2)
-      randomValue = (array1[0] + array2[0]) >>> 0
-    } while (randomValue >= maxValid) // 拒绝采样确保均匀分布
-
-    return (randomValue % range) + min
+    return cryptoRandomInt(min, max)
   }
 
   /**
@@ -59,7 +30,10 @@ export class SecureRandom {
    * @param max 最大值（不包含）
    */
   static randomIntBelow(max: number): number {
-    return this.randomInt(0, max - 1)
+    if (max <= 0) {
+      throw new RangeError('max 必须大于 0')
+    }
+    return cryptoRandomInt(0, max - 1)
   }
 
   /**
