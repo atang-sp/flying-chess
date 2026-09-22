@@ -379,7 +379,10 @@
                 'current-player': index === currentPlayerIndex,
                 'player-moving': player.isMoving,
               }"
-              :style="{ '--token-index': tokenIndex }"
+              :style="{
+                '--token-index': tokenIndex,
+                '--total-tokens': Math.min(getPlayersOnCell(item.cell.position).length, 3),
+              }"
               :color="player.color"
               :number="index + 1"
               :name="player.name"
@@ -872,10 +875,13 @@
 
   .player-token {
     position: absolute;
-    left: calc(50% + (var(--token-index) - 1) * 15px);
+    left: calc(50% + (var(--token-index) - (var(--total-tokens, 1) - 1) / 2) * 16px);
     width: 26px;
     height: 28px;
     transform: translateX(-50%);
+    transition:
+      left 0.2s ease,
+      transform 0.2s ease;
   }
 
   .player-token.current-player {
@@ -1018,7 +1024,7 @@
     .board-grid {
       align-content: start;
       min-height: max-content;
-      padding: 1.35rem 0.9rem 1.6rem;
+      padding: 1.35rem 0.9rem calc(108px + env(safe-area-inset-bottom, 0px));
     }
 
     .board-hint {
