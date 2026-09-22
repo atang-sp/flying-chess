@@ -55,6 +55,12 @@
     border: 2px solid rgba(255, 71, 87, 0.6);
     max-width: 400px;
     text-align: center;
+    border-radius: var(--radius-xl);
+    background: rgba(20, 10, 15, 0.92);
+    backdrop-filter: blur(16px);
+    box-shadow:
+      0 20px 50px rgba(0, 0, 0, 0.6),
+      0 0 30px rgba(255, 71, 87, 0.25);
   }
 
   .double-reveal-animation {

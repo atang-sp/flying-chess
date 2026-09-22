@@ -63,7 +63,7 @@
       </div>
     </div>
 
-    <div class="dice-area">
+    <div class="dice-area" :class="{ 'can-roll': canRoll }">
       <CoolDice :can-roll="canRoll" :value="diceValue" @roll="handleRoll" />
       <span class="dice-caption">{{ canRoll ? '轮到你掷骰' : '等待回合处理' }}</span>
     </div>
@@ -190,6 +190,27 @@
     font-size: 0.62rem;
     font-weight: 700;
     white-space: nowrap;
+    transition:
+      color 0.25s ease,
+      text-shadow 0.25s ease;
+  }
+
+  .dice-area.can-roll .dice-caption {
+    color: #fbbf24;
+    text-shadow: 0 0 8px rgba(251, 191, 36, 0.45);
+    animation: pulseCaption 1.8s ease-in-out infinite;
+  }
+
+  @keyframes pulseCaption {
+    0%,
+    100% {
+      opacity: 0.85;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.06);
+    }
   }
 
   .effect-line {
@@ -232,6 +253,10 @@
       gap: 0.35rem;
       padding: 0.62rem 0.7rem;
       border-radius: 18px;
+      backdrop-filter: blur(16px);
+      box-shadow:
+        0 12px 36px rgba(0, 0, 0, 0.45),
+        0 0 0 1px rgba(255, 255, 255, 0.08);
     }
 
     .turn-kicker {

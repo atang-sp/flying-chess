@@ -87,9 +87,15 @@
 
 <style scoped>
   .chain-roll {
-    border: 2px solid rgba(255, 99, 72, 0.5);
+    border: 2px solid rgba(255, 99, 72, 0.6);
     max-width: 400px;
     text-align: center;
+    border-radius: var(--radius-xl);
+    background: rgba(22, 12, 16, 0.92);
+    backdrop-filter: blur(16px);
+    box-shadow:
+      0 20px 50px rgba(0, 0, 0, 0.6),
+      0 0 30px rgba(255, 99, 72, 0.25);
   }
 
   .chain-header {

@@ -17,6 +17,9 @@
     Check,
     Flame,
     ShieldCheck,
+    Heart,
+    Beer,
+    Sparkles,
   } from '@lucide/vue'
   import {
     savePlayerSettings,
@@ -85,6 +88,78 @@
       (playerCount.value >= PARTY_MIN_PLAYERS &&
         (!studioConfig.value.enabled || validatePartyStudioConfig(studioConfig.value).ok))
   )
+
+  interface ScenarioPreset {
+    id: 'couple' | 'party' | 'friends' | 'classic'
+    title: string
+    tag: string
+    desc: string
+    playerCount: number
+    defaultNames: string[]
+    mode: GameMode
+    scenePreset?: PartyScenePreset | 'default'
+  }
+
+  const scenarioPresets: ScenarioPreset[] = [
+    {
+      id: 'couple',
+      title: '情侣升温',
+      tag: '2人密语',
+      desc: '心动升温 · 浪漫互动与真心话',
+      playerCount: 2,
+      defaultNames: ['男生', '女生'],
+      mode: 'party',
+      scenePreset: 'intimate',
+    },
+    {
+      id: 'party',
+      title: '酒局狂欢',
+      tag: '高能刺激',
+      desc: '酒令大冒险 · 惩罚暴击与反转',
+      playerCount: 4,
+      defaultNames: ['玩家1', '玩家2', '玩家3', '玩家4'],
+      mode: 'party',
+      scenePreset: 'hardcore',
+    },
+    {
+      id: 'friends',
+      title: '宿舍破冰',
+      tag: '聚会必备',
+      desc: '反应快问快答 · 欢乐猜拳',
+      playerCount: 4,
+      defaultNames: ['玩家1', '玩家2', '玩家3', '玩家4'],
+      mode: 'party',
+      scenePreset: 'icebreaker',
+    },
+    {
+      id: 'classic',
+      title: '经典竞速',
+      tag: '原汁原味',
+      desc: '经典起飞 · 策略停靠与博弈',
+      playerCount: 4,
+      defaultNames: ['玩家1', '玩家2', '玩家3', '玩家4'],
+      mode: 'classic',
+    },
+  ]
+
+  const activeScenarioId = ref<string | null>(null)
+
+  const applyScenarioPreset = (preset: ScenarioPreset) => {
+    activeScenarioId.value = preset.id
+    selectedMode.value = preset.mode
+    playerCount.value = preset.playerCount
+    if (preset.scenePreset) {
+      selectedScenePreset.value = preset.scenePreset
+    }
+    const isGeneric = playerNames.value.every(
+      (name, idx) => !name || name === `玩家${idx + 1}` || name === '男生' || name === '女生'
+    )
+    if (isGeneric) {
+      playerNames.value = [...preset.defaultNames]
+    } else {
+      updatePlayerNames()
+    }
+  }
 
   // 加载玩家设置的函数
   const loadAndApplyPlayerSettings = () => {
@@ -357,6 +432,51 @@
           </div>
         </div>
       </div>
+
+      <!-- 快捷场景预设 (Scenario Presets) -->
+      <section class="scenario-presets" aria-labelledby="scenario-presets-title">
+        <div class="settings-header">
+          <h2 id="scenario-presets-title" class="settings-title">
+            <Sparkles :size="22" class="settings-icon" />
+            <span class="settings-title-text">一键开局推荐</span>
+          </h2>
+          <div class="settings-underline"></div>
+        </div>
+
+        <div class="scenario-grid">
+          <button
+            v-for="preset in scenarioPresets"
+            :key="preset.id"
+            type="button"
+            class="scenario-card"
+            :class="{ 'scenario-card--selected': activeScenarioId === preset.id }"
+            :data-testid="`scenario-preset-${preset.id}`"
+            @click="applyScenarioPreset(preset)"
+          >
+            <div class="scenario-card__header">
+              <span class="scenario-card__icon" :class="`scenario-card__icon--${preset.id}`">
+                <component
+                  :is="
+                    preset.id === 'couple'
+                      ? Heart
+                      : preset.id === 'party'
+                        ? Beer
+                        : preset.id === 'friends'
+                          ? Sparkles
+                          : Dices
+                  "
+                  :size="22"
+                />
+              </span>
+              <span class="scenario-card__tag">{{ preset.tag }}</span>
+            </div>
+            <div class="scenario-card__body">
+              <strong class="scenario-card__title">{{ preset.title }}</strong>
+              <span class="scenario-card__desc">{{ preset.desc }}</span>
+            </div>
+          </button>
+        </div>
+      </section>
 
       <section class="mode-chooser" aria-labelledby="mode-chooser-title">
         <div class="settings-header">
@@ -882,7 +1002,133 @@
     transform: scale(1.2);
   }
 
-  /* 玩家设置区域 */
+  /* 快捷场景预设 */
+  .scenario-presets {
+    margin: clamp(1.8rem, 5vw, 2.5rem) 0 0;
+    padding: clamp(1.2rem, 3.5vw, 1.6rem);
+    background: rgba(15, 23, 42, 0.76);
+    border: var(--glass-border);
+    border-radius: var(--radius-xl);
+    backdrop-filter: blur(var(--glass-blur));
+    box-shadow: var(--glass-shadow);
+  }
+
+  .scenario-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.85rem;
+  }
+
+  @media (max-width: 900px) {
+    .scenario-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 480px) {
+    .scenario-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.65rem;
+    }
+  }
+
+  .scenario-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0.95rem;
+    border-radius: var(--radius-lg);
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    color: var(--text-primary);
+    cursor: pointer;
+    text-align: left;
+    transition:
+      transform var(--transition-fast),
+      border-color var(--transition-fast),
+      background var(--transition-fast),
+      box-shadow var(--transition-fast);
+  }
+
+  .scenario-card:hover {
+    transform: translateY(-2px);
+    background: rgba(30, 41, 59, 0.88);
+    border-color: rgba(129, 140, 248, 0.5);
+  }
+
+  .scenario-card--selected {
+    background: rgba(49, 46, 129, 0.35);
+    border-color: #818cf8;
+    box-shadow:
+      0 0 0 2px rgba(129, 140, 248, 0.24),
+      0 8px 24px rgba(15, 23, 42, 0.4);
+  }
+
+  .scenario-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 0.6rem;
+  }
+
+  .scenario-card__icon {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  .scenario-card__icon--couple {
+    color: #f43f5e;
+    background: rgba(244, 63, 94, 0.16);
+  }
+
+  .scenario-card__icon--party {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.16);
+  }
+
+  .scenario-card__icon--friends {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.16);
+  }
+
+  .scenario-card__icon--classic {
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.16);
+  }
+
+  .scenario-card__tag {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.15rem 0.45rem;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-secondary);
+  }
+
+  .scenario-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .scenario-card__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .scenario-card__desc {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.35;
+  }
+
+  /* 玩法选择区域 */
   .mode-chooser {
     margin: clamp(2rem, 6vw, 3rem) 0 0;
     padding: clamp(1.25rem, 4vw, 1.75rem);
@@ -1245,7 +1491,7 @@
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.2rem;
     margin-top: 1.5rem;
   }
 
