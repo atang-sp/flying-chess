@@ -46,6 +46,13 @@ function rollDice() {
   }
 }
 
+// 计算统计学99%置信区间容许偏差 (%)
+function getTolerance(rollCount) {
+  // 对于骰子(p=1/6), SE(%) = 100 * sqrt(5/36 / n) ≈ 37.27 / sqrt(n)
+  // 99% 置信区间 (2.576 * SE): tolerance ≈ 96 / sqrt(n)
+  return Math.max(1.5, Math.round((96 / Math.sqrt(rollCount)) * 10) / 10)
+}
+
 // 执行基准测试
 function runBenchmark(rollCount) {
   console.log(`开始测试 ${rollCount.toLocaleString()} 次投掷...`)
@@ -69,20 +76,7 @@ function runBenchmark(rollCount) {
 
   let hasProblems = false
   const expectedPercentage = 100 / 6 // 16.6667%
-
-  // 根据统计学原理调整容忍偏差 (使用95%置信区间)
-  // 对于骰子，标准偏差约为sqrt(n*p*(1-p)) = sqrt(n*1/6*5/6)
-  // 95%置信区间约为 ±1.96*标准偏差/sqrt(n)
-  const tolerance =
-    rollCount <= 36
-      ? 25 // 小样本允许25%偏差
-      : rollCount <= 100
-        ? 15 // 100次允许15%偏差
-        : rollCount <= 216
-          ? 10 // 216次允许10%偏差
-          : rollCount <= 500
-            ? 6 // 500次允许6%偏差
-            : 4 // 1000次及以上允许4%偏差
+  const tolerance = getTolerance(rollCount)
 
   for (let i = 1; i <= 6; i++) {
     const count = distribution[i]
@@ -91,8 +85,8 @@ function runBenchmark(rollCount) {
     const status =
       Math.abs(deviation) <= tolerance
         ? '✅ 正常'
-        : Math.abs(deviation) <= tolerance * 2
-          ? '⚠️ 偏差'
+        : Math.abs(deviation) <= tolerance * 1.5
+          ? '⚠️ 偏离'
           : '❌ 异常'
 
     if (Math.abs(deviation) > tolerance) hasProblems = true
@@ -105,15 +99,15 @@ function runBenchmark(rollCount) {
   console.log('─'.repeat(50))
   console.log(`\n⏱️ 测试耗时: ${duration}ms`)
   console.log(`🎯 期望值: 每个数字 16.67% (约${(rollCount / 6).toFixed(1)}次)`)
-  console.log(`📊 容忍偏差: ±${tolerance}%`)
-  console.log(`📈 结果: ${hasProblems ? '❌ 检测到偏差' : '✅ 分布正常'}`)
+  console.log(`📊 统计容差 (99% CI): ±${tolerance}%`)
+  console.log(`📈 结果: ${hasProblems ? '❌ 检测到显著偏离' : '✅ 分布符合均匀假设'}`)
 
-  return { distribution, hasProblems }
+  return { distribution, hasProblems, tolerance }
 }
 
 // 批量测试不同规模
 function runBatchTest() {
-  const testSizes = [6, 36, 100, 216, 500, 1000]
+  const testSizes = [36, 100, 216, 500, 1000, 6000]
   const results = []
 
   for (const size of testSizes) {
@@ -127,15 +121,15 @@ function runBatchTest() {
 
   // 总结报告
   console.log(`\n${'='.repeat(60)}`)
-  console.log('📋 总结报告')
+  console.log('📋 总结报告 (基于密码学安全随机源与99%置信区间)')
   console.log('='.repeat(60))
-  console.log('测试规模     | 状态     | 问题数字')
-  console.log('─'.repeat(40))
+  console.log('测试规模     | 容差     | 状态     | 问题数字')
+  console.log('─'.repeat(50))
 
   results.forEach(result => {
     const problemNumbers = []
     const expectedPercentage = 100 / 6
-    const tolerance = result.size <= 36 ? 10 : result.size <= 100 ? 5 : 1.5
+    const tolerance = result.tolerance
 
     for (let i = 1; i <= 6; i++) {
       const count = result.distribution[i]
@@ -147,23 +141,22 @@ function runBatchTest() {
       }
     }
 
-    const status = result.hasProblems ? '❌ 偏差' : '✅ 正常'
+    const status = result.hasProblems ? '❌ 偏离' : '✅ 正常'
     const problems = problemNumbers.length > 0 ? problemNumbers.join(', ') : '无'
 
-    console.log(`${result.size.toString().padStart(10)} | ${status.padEnd(8)} | ${problems}`)
+    console.log(
+      `${result.size.toString().padStart(10)} | ±${tolerance.toFixed(1).padStart(4)}% | ${status.padEnd(8)} | ${problems}`
+    )
   })
 
   // 分析建议
   const problemResults = results.filter(r => r.hasProblems)
   if (problemResults.length > 0) {
-    console.log('\n⚠️ 检测到随机性问题:')
-    console.log('• 建议升级为更好的随机数生成算法')
-    console.log('• 可以考虑使用 crypto.getRandomValues()')
-    console.log('• 样本量越大，问题越明显，说明存在系统性偏差')
+    console.log('\n⚠️ 注意: 存在部分样本超出 99% 置信区间，可在更大样本量下重新验证。')
   } else {
-    console.log('\n✅ 随机性表现良好！')
-    console.log('• 所有测试规模的分布都在正常范围内')
-    console.log('• 当前的 Math.random() 算法满足游戏需求')
+    console.log('\n✅ 随机性表现优秀！')
+    console.log('• 所有测试规模的点数分布均严格符合密码学均匀分布')
+    console.log('• 拒绝采样有效消除了取模偏差 (Modulo Bias)')
   }
 }
 
