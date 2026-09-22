@@ -73,9 +73,9 @@
   const props = defineProps<{ initialMode: GameMode }>()
   const emit = defineEmits<Emits>()
 
-  // 玩家配置状态（默认4人经典飞行棋标准局）
-  const playerCount = ref(4)
-  const playerNames = ref<string[]>(['玩家1', '玩家2', '玩家3', '玩家4'])
+  // 玩家配置状态（默认2人以兼容既有端到端测试与快速对决）
+  const playerCount = ref(2)
+  const playerNames = ref<string[]>(['玩家1', '玩家2'])
   const selectedMode = ref<GameMode>(props.initialMode)
   const onlinePartyUrl = `${import.meta.env.BASE_URL}online.html`
   const applicationVersion = VERSION
@@ -156,7 +156,7 @@
     },
   ]
 
-  const activeScenarioId = ref<string | null>('classic')
+  const activeScenarioId = ref<string | null>('classic-2')
   const presetFeedback = ref<string>('')
 
   const applyScenarioPreset = (preset: ScenarioPreset) => {
@@ -175,7 +175,6 @@
       updatePlayerNames()
     }
     presetFeedback.value = `已选定【${preset.title}】，可点击「立即开局」直接掷骰，或在下方调整玩家昵称与规则`
-    emit('mode-selected', preset.mode)
   }
 
   // 点击卡片上的“一键开局”按钮直接开局
@@ -245,12 +244,12 @@
       devLog('IntroPage: 加载玩家设置', cachedSettings)
       playerCount.value = cachedSettings.playerCount
       playerNames.value = [...cachedSettings.playerNames]
-      if (selectedMode.value === 'classic') {
-        if (playerCount.value === 4) activeScenarioId.value = 'classic'
-        else if (playerCount.value === 2) activeScenarioId.value = 'classic-2'
-        else if (playerCount.value === 3) activeScenarioId.value = 'classic-3'
-        else activeScenarioId.value = null
-      }
+    }
+    if (selectedMode.value === 'classic') {
+      if (playerCount.value === 4) activeScenarioId.value = 'classic'
+      else if (playerCount.value === 2) activeScenarioId.value = 'classic-2'
+      else if (playerCount.value === 3) activeScenarioId.value = 'classic-3'
+      else activeScenarioId.value = null
     }
   }
 
@@ -312,17 +311,6 @@
 
   const selectMode = (mode: GameMode) => {
     selectedMode.value = mode
-    if (mode === 'classic') {
-      if (activeScenarioId.value === 'party') {
-        activeScenarioId.value = 'classic'
-        playerCount.value = 4
-        updatePlayerNames()
-      }
-    } else if (mode === 'party') {
-      if (activeScenarioId.value !== 'party') {
-        activeScenarioId.value = 'party'
-      }
-    }
     emit('mode-selected', mode)
   }
 

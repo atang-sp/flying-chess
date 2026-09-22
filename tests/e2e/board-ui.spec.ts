@@ -356,6 +356,7 @@ test('一键快速开局按钮可跳过配置直接进入经典对局并可掷�
   await expect(classicPreset).toBeVisible()
   await expect(classicPreset).toContainText('经典 4 人标准局')
   await expect(classicPreset).toContainText('官方推荐')
+  await classicPreset.click()
 
   const modeClassic = page.getByTestId('mode-classic')
   await expect(modeClassic).toContainText('官方推荐')
