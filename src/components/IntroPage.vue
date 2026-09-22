@@ -17,9 +17,11 @@
     Check,
     Flame,
     ShieldCheck,
-    Heart,
-    Beer,
     Sparkles,
+    Trophy,
+    Zap,
+    Play,
+    Settings,
   } from '@lucide/vue'
   import {
     savePlayerSettings,
@@ -62,6 +64,7 @@
         victoryConfig: VictoryConfig
         eventDeck: readonly PartyEventCard[]
         studioConfig: PartyStudioConfig
+        quickStart?: boolean
       }
     ): void
     (e: 'mode-selected', mode: GameMode): void
@@ -70,7 +73,7 @@
   const props = defineProps<{ initialMode: GameMode }>()
   const emit = defineEmits<Emits>()
 
-  // 玩家配置状态
+  // 玩家配置状态（默认2人以兼容既有端到端测试与快速对决）
   const playerCount = ref(2)
   const playerNames = ref<string[]>(['玩家1', '玩家2'])
   const selectedMode = ref<GameMode>(props.initialMode)
@@ -90,59 +93,71 @@
   )
 
   interface ScenarioPreset {
-    id: 'couple' | 'party' | 'friends' | 'classic'
+    id: 'classic' | 'classic-2' | 'classic-3' | 'party'
     title: string
     tag: string
+    badge?: string
     desc: string
     playerCount: number
     defaultNames: string[]
     mode: GameMode
     scenePreset?: PartyScenePreset | 'default'
+    featured?: boolean
+    icon: unknown
   }
 
+  // 快捷对局预设：优先推广经典局（3款经典对决 + 1款派对拓展）
   const scenarioPresets: ScenarioPreset[] = [
     {
-      id: 'couple',
-      title: '情侣升温',
-      tag: '2人密语',
-      desc: '心动升温 · 浪漫互动与真心话',
+      id: 'classic',
+      title: '经典 4 人标准局',
+      tag: '👑 官方推荐',
+      badge: '最经典',
+      desc: '4人满员起飞 · 撞子回航 · 原汁原味的经典飞行棋对战',
+      playerCount: 4,
+      defaultNames: ['玩家1', '玩家2', '玩家3', '玩家4'],
+      mode: 'classic',
+      featured: true,
+      icon: Trophy,
+    },
+    {
+      id: 'classic-2',
+      title: '经典 2 人极速局',
+      tag: '⚡ 双人速战',
+      badge: '快节奏',
+      desc: '双人面对面较量 · 快速起飞 · 轻松休闲的策略博弈',
       playerCount: 2,
-      defaultNames: ['男生', '女生'],
-      mode: 'party',
-      scenePreset: 'intimate',
+      defaultNames: ['玩家1', '玩家2'],
+      mode: 'classic',
+      icon: Zap,
+    },
+    {
+      id: 'classic-3',
+      title: '经典 3 人好友局',
+      tag: '🎯 三人同行',
+      badge: '好友局',
+      desc: '三人环形棋盘 · 攻防牵制 · 欢乐互动的经典对弈',
+      playerCount: 3,
+      defaultNames: ['玩家1', '玩家2', '玩家3'],
+      mode: 'classic',
+      icon: Users,
     },
     {
       id: 'party',
-      title: '酒局狂欢',
-      tag: '高能刺激',
-      desc: '酒令大冒险 · 惩罚暴击与反转',
-      playerCount: 4,
-      defaultNames: ['玩家1', '玩家2', '玩家3', '玩家4'],
-      mode: 'party',
-      scenePreset: 'hardcore',
-    },
-    {
-      id: 'friends',
-      title: '宿舍破冰',
-      tag: '聚会必备',
-      desc: '反应快问快答 · 欢乐猜拳',
+      title: '聚会升温拓展局',
+      tag: '🔥 派对自选',
+      badge: '拓展玩法',
+      desc: '真心话大冒险、筹码干预与同场反应 · 破冰酒局必备',
       playerCount: 4,
       defaultNames: ['玩家1', '玩家2', '玩家3', '玩家4'],
       mode: 'party',
       scenePreset: 'icebreaker',
-    },
-    {
-      id: 'classic',
-      title: '经典竞速',
-      tag: '原汁原味',
-      desc: '经典起飞 · 策略停靠与博弈',
-      playerCount: 4,
-      defaultNames: ['玩家1', '玩家2', '玩家3', '玩家4'],
-      mode: 'classic',
+      icon: Flame,
     },
   ]
 
-  const activeScenarioId = ref<string | null>(null)
+  const activeScenarioId = ref<string | null>('classic-2')
+  const presetFeedback = ref<string>('')
 
   const applyScenarioPreset = (preset: ScenarioPreset) => {
     activeScenarioId.value = preset.id
@@ -159,7 +174,68 @@
     } else {
       updatePlayerNames()
     }
+    presetFeedback.value = `已选定【${preset.title}】，可点击「立即开局」直接掷骰，或在下方调整玩家昵称与规则`
   }
+
+  // 点击卡片上的“一键开局”按钮直接开局
+  const quickStartPreset = (preset: ScenarioPreset) => {
+    applyScenarioPreset(preset)
+    emit('start', {
+      count: playerCount.value,
+      names: [...playerNames.value],
+      mode: preset.mode,
+      scenePreset: preset.scenePreset,
+      multiDevice: multiDeviceMode.value,
+      victoryConfig: { ...victoryConfig.value },
+      eventDeck: eventDeck.value,
+      studioConfig: studioConfig.value,
+      quickStart: true,
+    })
+  }
+
+  // 主操作区：一键快速开局（直接跳过配置步骤进入对局）
+  const startQuickGame = () => {
+    if (!canStart.value) return
+    emit('start', {
+      count: playerCount.value,
+      names: [...playerNames.value],
+      mode: selectedMode.value,
+      scenePreset: selectedMode.value === 'party' ? selectedScenePreset.value : undefined,
+      multiDevice: selectedMode.value === 'party' ? multiDeviceMode.value : undefined,
+      victoryConfig: { ...victoryConfig.value },
+      eventDeck: eventDeck.value,
+      studioConfig: studioConfig.value,
+      quickStart: true,
+    })
+  }
+
+  // 详细配置与启动（经典局进入自定义配置引导，升温局进入游戏）
+  const startGame = () => {
+    if (!canStart.value) return
+    emit('start', {
+      count: playerCount.value,
+      names: [...playerNames.value],
+      mode: selectedMode.value,
+      scenePreset: selectedMode.value === 'party' ? selectedScenePreset.value : undefined,
+      multiDevice: selectedMode.value === 'party' ? multiDeviceMode.value : undefined,
+      victoryConfig: { ...victoryConfig.value },
+      eventDeck: eventDeck.value,
+      studioConfig: studioConfig.value,
+      quickStart: false,
+    })
+  }
+
+  // 快速开局按钮的提示文本
+  const quickStartBtnText = computed(() => {
+    if (selectedMode.value === 'party') {
+      return '一键开始升温局'
+    }
+    const currentPreset = scenarioPresets.find(p => p.id === activeScenarioId.value)
+    if (currentPreset && currentPreset.mode === 'classic') {
+      return `⚡ 立即开局（${currentPreset.title}）`
+    }
+    return `⚡ 立即开始经典局（${playerCount.value}人）`
+  })
 
   // 加载玩家设置的函数
   const loadAndApplyPlayerSettings = () => {
@@ -168,6 +244,12 @@
       devLog('IntroPage: 加载玩家设置', cachedSettings)
       playerCount.value = cachedSettings.playerCount
       playerNames.value = [...cachedSettings.playerNames]
+    }
+    if (selectedMode.value === 'classic') {
+      if (playerCount.value === 4) activeScenarioId.value = 'classic'
+      else if (playerCount.value === 2) activeScenarioId.value = 'classic-2'
+      else if (playerCount.value === 3) activeScenarioId.value = 'classic-3'
+      else activeScenarioId.value = null
     }
   }
 
@@ -214,25 +296,17 @@
   const onPlayerCountChange = (newCount: number) => {
     playerCount.value = newCount
     updatePlayerNames()
+    if (selectedMode.value === 'classic') {
+      if (newCount === 4) activeScenarioId.value = 'classic'
+      else if (newCount === 2) activeScenarioId.value = 'classic-2'
+      else if (newCount === 3) activeScenarioId.value = 'classic-3'
+      else activeScenarioId.value = null
+    }
   }
 
   // 更新单个玩家名称
   const updatePlayerName = (index: number, name: string) => {
     playerNames.value[index] = name
-  }
-
-  const startGame = () => {
-    if (!canStart.value) return
-    emit('start', {
-      count: playerCount.value,
-      names: playerNames.value,
-      mode: selectedMode.value,
-      scenePreset: selectedMode.value === 'party' ? selectedScenePreset.value : undefined,
-      multiDevice: selectedMode.value === 'party' ? multiDeviceMode.value : undefined,
-      victoryConfig: { ...victoryConfig.value },
-      eventDeck: eventDeck.value,
-      studioConfig: studioConfig.value,
-    })
   }
 
   const selectMode = (mode: GameMode) => {
@@ -438,43 +512,86 @@
         <div class="settings-header">
           <h2 id="scenario-presets-title" class="settings-title">
             <Sparkles :size="22" class="settings-icon" />
-            <span class="settings-title-text">一键开局推荐</span>
+            <span class="settings-title-text">快速开局推荐</span>
+            <span class="settings-title-badge">👑 经典局优先</span>
           </h2>
           <div class="settings-underline"></div>
         </div>
+        <p class="presets-intro-subtitle">
+          选择推荐配置即可一键直接掷骰开局，或点击卡片选定后在下方按需微调
+        </p>
 
         <div class="scenario-grid">
-          <button
+          <div
             v-for="preset in scenarioPresets"
             :key="preset.id"
-            type="button"
             class="scenario-card"
-            :class="{ 'scenario-card--selected': activeScenarioId === preset.id }"
+            :class="{
+              'scenario-card--selected': activeScenarioId === preset.id,
+              'scenario-card--featured': preset.featured,
+            }"
             :data-testid="`scenario-preset-${preset.id}`"
+            role="button"
+            tabindex="0"
             @click="applyScenarioPreset(preset)"
+            @keydown.enter="applyScenarioPreset(preset)"
+            @keydown.space.prevent="applyScenarioPreset(preset)"
           >
             <div class="scenario-card__header">
               <span class="scenario-card__icon" :class="`scenario-card__icon--${preset.id}`">
-                <component
-                  :is="
-                    preset.id === 'couple'
-                      ? Heart
-                      : preset.id === 'party'
-                        ? Beer
-                        : preset.id === 'friends'
-                          ? Sparkles
-                          : Dices
-                  "
-                  :size="22"
-                />
+                <component :is="preset.icon" :size="20" />
               </span>
-              <span class="scenario-card__tag">{{ preset.tag }}</span>
+              <span
+                class="scenario-card__tag"
+                :class="{ 'scenario-card__tag--featured': preset.featured }"
+              >
+                {{ preset.tag }}
+              </span>
             </div>
+
             <div class="scenario-card__body">
-              <strong class="scenario-card__title">{{ preset.title }}</strong>
+              <div class="scenario-card__title-row">
+                <strong class="scenario-card__title">{{ preset.title }}</strong>
+                <span v-if="preset.badge" class="scenario-card__badge">{{ preset.badge }}</span>
+              </div>
               <span class="scenario-card__desc">{{ preset.desc }}</span>
+              <div class="scenario-card__meta">
+                <span class="scenario-card__meta-item">
+                  <Users :size="13" />
+                  {{ preset.playerCount }}人对决
+                </span>
+                <span class="scenario-card__meta-item">
+                  <Clock :size="13" />
+                  {{
+                    preset.mode === 'party'
+                      ? '约20分'
+                      : preset.playerCount === 2
+                        ? '约10分'
+                        : '约15分'
+                  }}
+                </span>
+              </div>
             </div>
-          </button>
+
+            <div class="scenario-card__action">
+              <button
+                type="button"
+                class="scenario-card__quick-btn"
+                :class="{ 'scenario-card__quick-btn--featured': preset.featured }"
+                :data-testid="`quick-start-preset-${preset.id}`"
+                :title="`以【${preset.title}】一键开局`"
+                @click.stop="quickStartPreset(preset)"
+              >
+                <Play :size="13" class="btn-play-icon" />
+                <span>一键开局</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="presetFeedback" class="preset-feedback-banner" role="status">
+          <Check :size="16" class="feedback-icon" />
+          <span class="feedback-text">{{ presetFeedback }}</span>
         </div>
       </section>
 
@@ -482,7 +599,7 @@
         <div class="settings-header">
           <h2 id="mode-chooser-title" class="settings-title">
             <Dices :size="22" class="settings-icon" />
-            <span class="settings-title-text">本局玩法</span>
+            <span class="settings-title-text">本局玩法模式</span>
           </h2>
           <div class="settings-underline"></div>
         </div>
@@ -490,8 +607,11 @@
         <div class="mode-grid">
           <button
             type="button"
-            class="mode-card"
-            :class="{ 'mode-card--selected': selectedMode === 'classic' }"
+            class="mode-card mode-card--classic"
+            :class="{
+              'mode-card--selected': selectedMode === 'classic',
+              'mode-card--recommended': true,
+            }"
             :aria-pressed="selectedMode === 'classic'"
             data-testid="mode-classic"
             @click="selectMode('classic')"
@@ -500,10 +620,16 @@
               <ShieldCheck :size="26" />
             </span>
             <span class="mode-card__content">
-              <strong>经典局</strong>
-              <span>完整保留当前开局、移动、惩罚和胜利规则</span>
+              <div class="mode-card__title-row">
+                <strong>经典局</strong>
+                <span class="mode-card__badge mode-card__badge--featured">
+                  👑 官方推荐 · 核心玩法
+                </span>
+              </div>
+              <span class="mode-card__desc">
+                经典飞行棋完整规则 · 原汁原味起飞、撞子回航与策略博弈（支持 2–4 人）
+              </span>
             </span>
-            <span class="mode-card__badge">classic_v1</span>
           </button>
 
           <button
@@ -518,10 +644,14 @@
               <Flame :size="26" />
             </span>
             <span class="mode-card__content">
-              <strong>升温局</strong>
-              <span>实验玩法 · 约 20 分钟 · 三幕、筹码与同场反应</span>
+              <div class="mode-card__title-row">
+                <strong>升温局</strong>
+                <span class="mode-card__badge mode-card__badge--party">🔥 聚会拓展</span>
+              </div>
+              <span class="mode-card__desc">
+                派对互动玩法 · 约 20 分钟 · 三幕进程、筹码干预与真心话大冒险
+              </span>
             </span>
-            <span class="mode-card__badge mode-card__badge--party">party_v3</span>
           </button>
         </div>
 
@@ -626,17 +756,32 @@
 
       <!-- 主操作区域：置顶直达 -->
       <div class="intro-actions">
-        <button
-          class="btn btn-primary start-btn"
-          :disabled="!canStart"
-          data-testid="start-game"
-          @click="startGame"
-        >
-          <Rocket :size="22" />
-          <span class="btn-text">
-            {{ selectedMode === 'party' ? '一键开始升温局' : '开始配置' }}
-          </span>
-        </button>
+        <div class="action-buttons-group">
+          <!-- 一键快速开局 -->
+          <button
+            class="btn btn-primary quick-start-btn"
+            :disabled="!canStart"
+            data-testid="quick-start-game"
+            @click="startQuickGame"
+          >
+            <Rocket :size="22" />
+            <span class="btn-text">{{ quickStartBtnText }}</span>
+          </button>
+
+          <!-- 详细配置入口 -->
+          <button
+            class="btn btn-secondary start-btn"
+            :disabled="!canStart"
+            data-testid="start-game"
+            @click="startGame"
+          >
+            <Settings :size="18" />
+            <span class="btn-text">
+              {{ selectedMode === 'party' ? '升温局局况与工坊' : '⚙️ 自定义规则配置' }}
+            </span>
+          </button>
+        </div>
+
         <p
           v-if="selectedMode === 'party' && playerCount < PARTY_MIN_PLAYERS"
           class="party-player-hint"
@@ -648,12 +793,22 @@
           <div class="info-item">
             <Clock :size="16" class="info-icon" />
             <span class="info-text">
-              游戏时长：{{ selectedMode === 'party' ? '约20分钟' : '约10-20分钟' }}
+              游戏时长：{{
+                selectedMode === 'party'
+                  ? '约20分钟'
+                  : playerCount === 2
+                    ? '约10分钟'
+                    : '约15-20分钟'
+              }}
             </span>
           </div>
           <div class="info-item">
             <Target :size="16" class="info-icon" />
-            <span class="info-text">适合年龄：18岁以上</span>
+            <span class="info-text">
+              {{
+                selectedMode === 'party' ? '适合年龄：18岁以上（聚会互动）' : '全年龄段休闲益智对战'
+              }}
+            </span>
           </div>
         </div>
       </div>
@@ -1003,6 +1158,7 @@
   }
 
   /* 快捷场景预设 */
+  /* 快捷场景预设 */
   .scenario-presets {
     margin: clamp(1.8rem, 5vw, 2.5rem) 0 0;
     padding: clamp(1.2rem, 3.5vw, 1.6rem);
@@ -1013,22 +1169,43 @@
     box-shadow: var(--glass-shadow);
   }
 
+  .settings-title-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
+    background: rgba(245, 158, 11, 0.18);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    color: #fbbf24;
+    margin-left: 0.5rem;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .presets-intro-subtitle {
+    margin: 0.35rem 0 1rem;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
   .scenario-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.85rem;
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 960px) {
     .scenario-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
-  @media (max-width: 480px) {
+  @media (max-width: 520px) {
     .scenario-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.65rem;
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
     }
   }
 
@@ -1036,8 +1213,8 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    padding: 0.95rem;
+    justify-content: space-between;
+    padding: 1rem;
     border-radius: var(--radius-lg);
     background: rgba(30, 41, 59, 0.6);
     border: 1px solid rgba(148, 163, 184, 0.22);
@@ -1061,8 +1238,26 @@
     background: rgba(49, 46, 129, 0.35);
     border-color: #818cf8;
     box-shadow:
-      0 0 0 2px rgba(129, 140, 248, 0.24),
+      0 0 0 2px rgba(129, 140, 248, 0.28),
       0 8px 24px rgba(15, 23, 42, 0.4);
+  }
+
+  .scenario-card--featured {
+    border-color: rgba(245, 158, 11, 0.45);
+    background: rgba(30, 41, 59, 0.75);
+    box-shadow: 0 4px 18px rgba(245, 158, 11, 0.1);
+  }
+
+  .scenario-card--featured:hover {
+    border-color: rgba(245, 158, 11, 0.8);
+    box-shadow: 0 6px 22px rgba(245, 158, 11, 0.2);
+  }
+
+  .scenario-card--featured.scenario-card--selected {
+    border-color: #f59e0b;
+    box-shadow:
+      0 0 0 2px rgba(245, 158, 11, 0.35),
+      0 8px 24px rgba(245, 158, 11, 0.25);
   }
 
   .scenario-card__header {
@@ -1081,24 +1276,24 @@
     border-radius: 12px;
   }
 
-  .scenario-card__icon--couple {
-    color: #f43f5e;
-    background: rgba(244, 63, 94, 0.16);
+  .scenario-card__icon--classic {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.18);
+  }
+
+  .scenario-card__icon--classic-2 {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.16);
+  }
+
+  .scenario-card__icon--classic-3 {
+    color: #a855f7;
+    background: rgba(168, 85, 247, 0.16);
   }
 
   .scenario-card__icon--party {
-    color: #f59e0b;
-    background: rgba(245, 158, 11, 0.16);
-  }
-
-  .scenario-card__icon--friends {
-    color: #10b981;
-    background: rgba(16, 185, 129, 0.16);
-  }
-
-  .scenario-card__icon--classic {
-    color: #6366f1;
-    background: rgba(99, 102, 241, 0.16);
+    color: #f43f5e;
+    background: rgba(244, 63, 94, 0.16);
   }
 
   .scenario-card__tag {
@@ -1110,10 +1305,24 @@
     color: var(--text-secondary);
   }
 
+  .scenario-card__tag--featured {
+    background: rgba(245, 158, 11, 0.22);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+  }
+
   .scenario-card__body {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+    width: 100%;
+  }
+
+  .scenario-card__title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
   }
 
   .scenario-card__title {
@@ -1122,10 +1331,109 @@
     color: var(--text-primary);
   }
 
+  .scenario-card__badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  .scenario-card--featured .scenario-card__badge {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+  }
+
   .scenario-card__desc {
     font-size: 0.75rem;
     color: var(--text-secondary);
     line-height: 1.35;
+  }
+
+  .scenario-card__meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.35rem;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+
+  .scenario-card__meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .scenario-card__action {
+    margin-top: 0.85rem;
+    width: 100%;
+  }
+
+  .scenario-card__quick-btn {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.42rem 0.75rem;
+    border-radius: var(--radius-md);
+    background: rgba(99, 102, 241, 0.22);
+    border: 1px solid rgba(129, 140, 248, 0.45);
+    color: #c7d2fe;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .scenario-card__quick-btn:hover {
+    background: #6366f1;
+    border-color: #6366f1;
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+    transform: translateY(-1px);
+  }
+
+  .scenario-card__quick-btn:active {
+    transform: translateY(0);
+  }
+
+  .scenario-card__quick-btn--featured {
+    background: rgba(245, 158, 11, 0.22);
+    border-color: rgba(245, 158, 11, 0.55);
+    color: #fef08a;
+  }
+
+  .scenario-card__quick-btn--featured:hover {
+    background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+    border-color: #f59e0b;
+    color: #1a1a2e;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.45);
+  }
+
+  .btn-play-icon {
+    flex-shrink: 0;
+  }
+
+  .preset-feedback-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+    padding: 0.5rem 0.85rem;
+    border-radius: var(--radius-md);
+    background: rgba(16, 185, 129, 0.14);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    color: #6ee7b7;
+    font-size: 0.82rem;
+  }
+
+  .feedback-icon {
+    flex-shrink: 0;
+    color: #34d399;
   }
 
   /* 玩法选择区域 */
@@ -1168,6 +1476,26 @@
     transform: translateY(-2px);
     border-color: rgba(129, 140, 248, 0.7);
     background: rgba(30, 41, 59, 0.9);
+  }
+
+  .mode-card--recommended {
+    border-color: rgba(245, 158, 11, 0.35);
+  }
+
+  .mode-card__title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .mode-card__badge--featured {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    font-size: 0.72rem;
+    font-weight: 700;
   }
 
   .mode-card--selected {
@@ -1435,7 +1763,46 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: clamp(2rem, 5vw, 3rem);
+    gap: clamp(1.5rem, 4vw, 2.5rem);
+    width: 100%;
+  }
+
+  .action-buttons-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    width: 100%;
+    max-width: 640px;
+  }
+
+  .quick-start-btn {
+    flex: 1 1 260px;
+    padding: clamp(0.95rem, 2.8vw, 1.3rem) clamp(1.6rem, 4vw, 2.4rem);
+    font-size: clamp(1.05rem, 3vw, 1.22rem);
+    font-weight: 800;
+    border-radius: var(--radius-full);
+    min-height: clamp(52px, 10vw, 62px);
+    background: linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%);
+    box-shadow: 0 4px 20px rgba(79, 70, 229, 0.45);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+  }
+
+  .quick-start-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(79, 70, 229, 0.65);
+  }
+
+  .quick-start-btn:active:not(:disabled) {
+    transform: translateY(0);
   }
 
   .party-player-hint {
@@ -1445,11 +1812,15 @@
   }
 
   .start-btn {
-    padding: clamp(1.2rem, 4vw, 1.8rem) clamp(3rem, 8vw, 4rem);
-    font-size: clamp(1.1rem, 3.5vw, 1.4rem);
+    flex: 1 1 200px;
+    padding: clamp(0.9rem, 2.5vw, 1.2rem) clamp(1.5rem, 3.5vw, 2rem);
+    font-size: clamp(0.95rem, 2.5vw, 1.05rem);
     border-radius: var(--radius-full);
-    min-height: clamp(50px, 12vw, 70px);
-    min-width: clamp(200px, 60vw, 300px);
+    min-height: clamp(50px, 10vw, 60px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
   }
 
   .game-info {
