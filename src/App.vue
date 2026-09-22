@@ -3081,6 +3081,7 @@
     victoryConfig: VictoryConfig
     eventDeck: readonly PartyEventCard[]
     studioConfig: PartyStudioConfig
+    quickStart?: boolean
   }) => {
     selectedMode.value = playerConfig.mode
     saveGameMode(playerConfig.mode)
@@ -3110,6 +3111,43 @@
     partyMode.clear()
     localPartyMomentum.cancel()
     partyRewardNotice.value = ''
+
+    if (playerConfig.quickStart) {
+      gameState.players = GameService.createCustomPlayers(playerConfig.count, playerConfig.names)
+      gameState.board = GameService.createBoard(
+        gameState.punishmentConfig,
+        gameState.boardConfig,
+        trapConfig.value
+      )
+      const punishmentCells = gameState.board.filter(cell => cell.type === 'punishment')
+      const combinations = GameService.generateBalancedPunishmentCombinationDefinitions(
+        gameState.punishmentConfig,
+        punishmentCells.length
+      )
+      gameState.board = GameService.updateBoardWithConfirmedCombinationDefinitions(
+        gameState.board,
+        combinations,
+        gameState.punishmentConfig
+      )
+      punishmentCombinations.value = combinations
+      gameState.currentPlayerIndex = 0
+      gameState.diceValue = null
+      gameState.winner = null
+      gameState.pendingEffect = null
+      cancelLastEffectTimer()
+      lastEffect.value = ''
+      currentPunishment.value = null
+      currentPunishmentExecutor.value = null
+      currentPunishmentTarget.value = null
+      pendingRuleResolution.value = null
+      sessionPaused.value = false
+      turnCount.value = 1
+      gameFinished.value = false
+      gameStarted.value = true
+      gameState.gameStatus = 'waiting'
+      return
+    }
+
     startGame(playerConfig)
   }
 
