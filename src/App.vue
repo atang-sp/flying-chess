@@ -4694,10 +4694,7 @@
               v-else-if="viewerTab === 'punishment'"
               :config="gameState.punishmentConfig"
             />
-            <TrapConfigPanel
-              v-else-if="viewerTab === 'trap'"
-              :traps="trapConfig"
-            />
+            <TrapConfigPanel v-else-if="viewerTab === 'trap'" :traps="trapConfig" />
           </div>
         </div>
       </div>
