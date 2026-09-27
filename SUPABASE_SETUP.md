@@ -42,9 +42,11 @@ VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ## 第四步：配置登录方式
 
 ### Email / Password
+
 默认已开启，无需额外配置。
 
 ### X (Twitter) OAuth
+
 1. Supabase Dashboard → Authentication → Providers → **Twitter**
 2. 填入 X Developer Portal 的 **API Key** 和 **API Secret**
 3. 在 X 开发者控制台将回调 URL 设为 `https://your-project-id.supabase.co/auth/v1/callback`
@@ -104,11 +106,11 @@ enable oauth2 basic providers: true
 
 ### 关键文件
 
-| 文件 | 作用 |
-|---|---|
-| `src/services/supabaseClient.ts` | Supabase 客户端单例 |
-| `src/composables/useAuth.ts` | 全局 Auth 状态 + 监听器 |
-| `src/services/syncEngine.ts` | pull/push 同步逻辑 |
-| `src/components/AuthModal.vue` | 登录/注册/退出 UI |
-| `src/utils/cache.ts` | 已拦截 `saveConfig` / `saveLocalProgress` |
-| `supabase-schema.sql` | 数据库建表 + RLS 脚本 |
+| 文件                             | 作用                                      |
+| -------------------------------- | ----------------------------------------- |
+| `src/services/supabaseClient.ts` | Supabase 客户端单例                       |
+| `src/composables/useAuth.ts`     | 全局 Auth 状态 + 监听器                   |
+| `src/services/syncEngine.ts`     | pull/push 同步逻辑                        |
+| `src/components/AuthModal.vue`   | 登录/注册/退出 UI                         |
+| `src/utils/cache.ts`             | 已拦截 `saveConfig` / `saveLocalProgress` |
+| `supabase-schema.sql`            | 数据库建表 + RLS 脚本                     |

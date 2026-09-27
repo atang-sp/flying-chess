@@ -13,6 +13,7 @@
 本计划的目标是：**引入 Supabase (PostgreSQL + Auth) 作为轻量后端，构建一套“非强制登录、本地优先 (Local-First)”的跨设备账户体系**。
 
 ### 核心设计原则
+
 1. **非强制登录 (Guest-First)**：未登录用户体验零改变，依旧使用现有的 `LocalStorage` 游玩，不弹出强制登录阻拦。
 2. **本地优先 (Local-First)**：读取与修改优先写入本地，确保游戏零网络延迟、支持离线体验；云同步采用异步静默推送 (Fire-and-Forget)，网络失败不阻塞游戏。
 3. **多渠道登录**：支持邮箱/密码、X (Twitter) OAuth 2.0，以及 SP 专属社区论坛 (atang-sp.run.place) 账号登录。
@@ -50,18 +51,21 @@
 ### 1. 登录渠道方案与技术细节
 
 #### (1) 邮箱 / 密码认证 (Email / Password)
-* 采用 Supabase Auth 基础邮箱认证。
-* 登录逻辑支持无缝容错：登录凭证不存在时，引导自动注册并提示。
+
+- 采用 Supabase Auth 基础邮箱认证。
+- 登录逻辑支持无缝容错：登录凭证不存在时，引导自动注册并提示。
 
 #### (2) X (Twitter) OAuth 2.0
-* 使用 Supabase 官方原生的 Twitter/X OAuth Provider。
-* 在 X Developer Portal 配置 OAuth 2.0 Client，设置 Redirect URI 为 `https://<supabase-project-id>.supabase.co/auth/v1/callback`。
+
+- 使用 Supabase 官方原生的 Twitter/X OAuth Provider。
+- 在 X Developer Portal 配置 OAuth 2.0 Client，设置 Redirect URI 为 `https://<supabase-project-id>.supabase.co/auth/v1/callback`。
 
 #### (3) SP 专属社区论坛 (atang-sp.run.place) 账号登录
-* **现状分析**：经在论坛服务器（Ubuntu + Docker Discourse）实地排查，Discourse 原生作为身份提供者 (IdP) 采用的是 **DiscourseConnect Provider (SSO HMAC-SHA256 协议)**，并不自带标准的 OAuth2 Authorization Server (`/oauth/token`) 端点。
-* **对接实现方案**：
-  * **方案 A（轻量桥接服务）**：在服务器上启动微型 OAuth2/OIDC 桥接器（或利用 Supabase Edge Function），一端接收 Supabase 的 OAuth2 请求，另一端与 Discourse 的 DiscourseConnect 端点完成签名校验，将论坛账号无缝映射进 Supabase。
-  * **方案 B（论坛直接验证 + Supabase 自定义 Token）**：由客户端发起向论坛的会话确认或 SSO 跳转，验证成功后通过服务端生成 Supabase JWT / 交换 Session。
+
+- **现状分析**：经在论坛服务器（Ubuntu + Docker Discourse）实地排查，Discourse 原生作为身份提供者 (IdP) 采用的是 **DiscourseConnect Provider (SSO HMAC-SHA256 协议)**，并不自带标准的 OAuth2 Authorization Server (`/oauth/token`) 端点。
+- **对接实现方案**：
+  - **方案 A（轻量桥接服务）**：在服务器上启动微型 OAuth2/OIDC 桥接器（或利用 Supabase Edge Function），一端接收 Supabase 的 OAuth2 请求，另一端与 Discourse 的 DiscourseConnect 端点完成签名校验，将论坛账号无缝映射进 Supabase。
+  - **方案 B（论坛直接验证 + Supabase 自定义 Token）**：由客户端发起向论坛的会话确认或 SSO 跳转，验证成功后通过服务端生成 Supabase JWT / 交换 Session。
 
 ---
 
@@ -96,10 +100,10 @@ create table public.game_progress (
 );
 ```
 
-* **自动化触发器**：
-  * `on_auth_user_created`：在用户注册成功瞬间自动从 `auth.users` 生成 profile 记录。
-  * `set_updated_at`：表更新时自动刷新 `updated_at` 字段。
-* **RLS 策略**：所有表严格限制 `auth.uid() = user_id`，杜绝越权访问。
+- **自动化触发器**：
+  - `on_auth_user_created`：在用户注册成功瞬间自动从 `auth.users` 生成 profile 记录。
+  - `set_updated_at`：表更新时自动刷新 `updated_at` 字段。
+- **RLS 策略**：所有表严格限制 `auth.uid() = user_id`，杜绝越权访问。
 
 ---
 
@@ -142,28 +146,30 @@ create table public.game_progress (
 ```
 
 ### 关键防死循环设计
-* 云端拉取合并写回本地时，直接操作底层 Key，而不调用带 Push 钩子的 `saveLocalProgress`，避免产生 `Pull -> Write -> Push -> ...` 的连锁反应。
+
+- 云端拉取合并写回本地时，直接操作底层 Key，而不调用带 Push 钩子的 `saveLocalProgress`，避免产生 `Pull -> Write -> Push -> ...` 的连锁反应。
 
 ---
 
 ## 五、 代码实施与架构模块一览
 
-| 模块 / 文件 | 类型 | 职责说明 |
-|---|---|---|
-| [`src/services/supabaseClient.ts`](./src/services/supabaseClient.ts) | 基础服务 | 初始化并导出 Supabase Client 单例 |
-| [`src/composables/useAuth.ts`](./src/composables/useAuth.ts) | 状态钩子 | 全局响应式 User/Session 状态管理，单例生命周期，监听登录登出 |
-| [`src/services/syncEngine.ts`](./src/services/syncEngine.ts) | 同步中间件 | 核心同步层：`pullAndMerge`、`pushConfig`、`pushProgress` |
-| [`src/components/AuthModal.vue`](./src/components/AuthModal.vue) | 视图组件 | 登录弹窗：支持 X、论坛、邮箱登录，以及登录后的账号展示与登出 |
-| [`src/utils/cache.ts`](./src/utils/cache.ts) | 缓存代理 | 在现有 `saveConfig` 和 `saveLocalProgress` 后插入异步非阻塞同步钩子 |
-| [`src/App.vue`](./src/App.vue) | 入口挂载 | 挂载 `initAuth`、集成账户快捷入口按钮（支持头像/首字母预览）与弹窗 |
-| [`supabase-schema.sql`](./supabase-schema.sql) | 数据库脚本 | 数据库表建表、RLS 策略与触发器定义 |
-| [`.env.local.example`](./.env.local.example) | 配置文件 | 环境变量配置模板 (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) |
+| 模块 / 文件                                                          | 类型       | 职责说明                                                            |
+| -------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------- |
+| [`src/services/supabaseClient.ts`](./src/services/supabaseClient.ts) | 基础服务   | 初始化并导出 Supabase Client 单例                                   |
+| [`src/composables/useAuth.ts`](./src/composables/useAuth.ts)         | 状态钩子   | 全局响应式 User/Session 状态管理，单例生命周期，监听登录登出        |
+| [`src/services/syncEngine.ts`](./src/services/syncEngine.ts)         | 同步中间件 | 核心同步层：`pullAndMerge`、`pushConfig`、`pushProgress`            |
+| [`src/components/AuthModal.vue`](./src/components/AuthModal.vue)     | 视图组件   | 登录弹窗：支持 X、论坛、邮箱登录，以及登录后的账号展示与登出        |
+| [`src/utils/cache.ts`](./src/utils/cache.ts)                         | 缓存代理   | 在现有 `saveConfig` 和 `saveLocalProgress` 后插入异步非阻塞同步钩子 |
+| [`src/App.vue`](./src/App.vue)                                       | 入口挂载   | 挂载 `initAuth`、集成账户快捷入口按钮（支持头像/首字母预览）与弹窗  |
+| [`supabase-schema.sql`](./supabase-schema.sql)                       | 数据库脚本 | 数据库表建表、RLS 策略与触发器定义                                  |
+| [`.env.local.example`](./.env.local.example)                         | 配置文件   | 环境变量配置模板 (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)    |
 
 ---
 
 ## 六、 后续实施路线与执行步骤 (Roadmap)
 
 ### 阶段一：客户端核心与同步层构建【已完成】
+
 - [x] 安装 `@supabase/supabase-js` 客户端依赖
 - [x] 封装 `supabaseClient.ts` 与 `useAuth.ts`
 - [x] 实现 Local-First `syncEngine.ts`（数值合并、静默上报、防循环）
@@ -171,21 +177,25 @@ create table public.game_progress (
 - [x] 通过 `vue-tsc` 类型安全检查与生产环境无破坏性回归验证
 
 ### 阶段二：创建独立 Supabase 项目与部署 Schema【待用户提供凭证】
+
 - [ ] 用户在 Supabase 创建独立项目（如 `flying-chess`），提供 `Project URL` 与 `anon key`
 - [ ] 写入本地 `.env.local`
 - [ ] 执行 `supabase-schema.sql` 完成数据库初始化及 RLS 配置
 
 ### 阶段三：配置 X (Twitter) OAuth 渠道【计划中】
+
 - [ ] 在 Twitter Developer Portal 创建 App，获取 Client ID / Secret
 - [ ] 在 Supabase Dashboard 启用 Twitter Provider 并填入回调地址
 - [ ] 客户端真实登录调通验证
 
 ### 阶段四：打通 SP 专属社区论坛 (atang-sp.run.place) 登录【计划中】
+
 - [ ] 基于论坛的 DiscourseConnect 协议配置对接适配桥接
 - [ ] 在论坛后台开启 SSO Provider 授权
 - [ ] 客户端“SP 专属社区登录”联调验证
 
 ### 阶段五：跨设备多端联调与发布上线【计划中】
+
 - [ ] 跨浏览器（PC / 移动端）多端数据同步验证
 - [ ] 弱网与离线断网情况下的鲁棒性测试
 - [ ] 合并并发布版本上线
