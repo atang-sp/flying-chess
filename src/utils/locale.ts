@@ -20,11 +20,11 @@ import { i18n } from '../i18n'
 
 export type { LocaleContent }
 
-/** Resolve the initial language: saved preference > navigator.language > 'en'. */
+/** Resolve the initial language: saved preference > 'zh'. */
 function resolveInitialLanguage(): string {
   const saved = loadLocalePreference()
   if (saved) return saved
-  return (typeof navigator !== 'undefined' && navigator.language.split('-')[0]) || 'en'
+  return 'zh'
 }
 
 /** BCP-47 tag resolved at module-load time.  May be overridden via `setActiveLanguage`. */

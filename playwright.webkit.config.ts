@@ -35,6 +35,7 @@ export default defineConfig({
       use: {
         ...devices['iPhone 13'],
         browserName: 'webkit',
+        locale: 'zh-CN',
       },
     },
   ],

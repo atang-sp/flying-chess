@@ -38,6 +38,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1280, height: 900 },
+        locale: 'zh-CN',
       },
     },
     {
@@ -45,6 +46,7 @@ export default defineConfig({
       use: {
         ...devices['Pixel 5'],
         viewport: { width: 390, height: 844 },
+        locale: 'zh-CN',
       },
     },
   ],
