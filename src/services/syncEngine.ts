@@ -12,12 +12,14 @@
  */
 import { supabase } from './supabaseClient'
 import { useAuth } from '../composables/useAuth'
+import { loadConfig, saveConfig, loadLocalProgress } from '../utils/cache'
 import {
-  loadConfig,
-  saveConfig,
-  loadLocalProgress,
-} from '../utils/cache'
-import { validateLocalProgress } from './localProgress'
+  validateLocalProgress,
+  type LocalProgress,
+  type LocalPlayerProgress,
+  type LocalProgressTotals,
+} from './localProgress'
+import type { BoardConfig, PunishmentConfig, TrapAction } from '@flying-chess/game-core/types'
 
 // ================================================================
 // 内部工具
@@ -39,18 +41,35 @@ async function withUser<T>(fn: (userId: string) => Promise<T>): Promise<T | null
 // 合并策略：以「更新时间较新」为准，双方同时存在时提示用户
 // ================================================================
 
-function mergeProgress(local: any, cloud: any): any {
+interface CloudProgressRow {
+  totals?: Record<string, unknown>
+  shame_records?: Record<string, unknown>
+}
+
+function mergeProgress(local: LocalProgress, cloud: CloudProgressRow): LocalProgress {
   if (!cloud) return local
-  // 简单策略：取各项数值的最大值（本地 + 云端不会互相丢失）
-  const totals: Record<string, any> = { ...local.totals }
+
+  const totals: Record<string, unknown> = { ...local.totals }
   if (cloud.totals && typeof cloud.totals === 'object') {
-    for (const key of Object.keys(cloud.totals)) {
-      if (typeof cloud.totals[key] === 'number') {
-        totals[key] = Math.max(totals[key] ?? 0, cloud.totals[key])
-      } else if (key === 'variantCompletions' && typeof cloud.totals[key] === 'object') {
-        const vc: Record<string, number> = { ...(totals.variantCompletions ?? {}) }
-        for (const vk of Object.keys(cloud.totals[key])) {
-          vc[vk] = Math.max(vc[vk] ?? 0, cloud.totals[key][vk] ?? 0)
+    const cloudTotals = cloud.totals as Record<string, unknown>
+    for (const key of Object.keys(cloudTotals)) {
+      const cloudVal = cloudTotals[key]
+      if (typeof cloudVal === 'number') {
+        const localVal = typeof totals[key] === 'number' ? (totals[key] as number) : 0
+        totals[key] = Math.max(localVal, cloudVal)
+      } else if (
+        key === 'variantCompletions' &&
+        typeof cloudVal === 'object' &&
+        cloudVal !== null
+      ) {
+        const cloudVc = cloudVal as Record<string, unknown>
+        const localVc = (totals.variantCompletions as Record<string, number>) ?? {}
+        const vc: Record<string, number> = { ...localVc }
+        for (const vk of Object.keys(cloudVc)) {
+          const cvk = cloudVc[vk]
+          if (typeof cvk === 'number') {
+            vc[vk] = Math.max(vc[vk] ?? 0, cvk)
+          }
         }
         totals.variantCompletions = vc
       }
@@ -58,22 +77,44 @@ function mergeProgress(local: any, cloud: any): any {
   }
 
   // 耻辱墙：合并两侧玩家记录，取各自最大值
-  const players: Record<string, any> = { ...local.players }
+  const players: Record<string, LocalPlayerProgress> = { ...local.players }
   if (cloud.shame_records && typeof cloud.shame_records === 'object') {
-    for (const [name, rec] of Object.entries(cloud.shame_records as Record<string, any>)) {
-      if (!players[name]) {
-        players[name] = rec
-      } else {
-        players[name] = {
-          ...players[name],
-          punishmentCount: Math.max(players[name].punishmentCount ?? 0, rec.punishmentCount ?? 0),
-          mercyRequests: Math.max(players[name].mercyRequests ?? 0, rec.mercyRequests ?? 0),
+    const cloudShame = cloud.shame_records as Record<string, unknown>
+    for (const [name, rec] of Object.entries(cloudShame)) {
+      if (rec && typeof rec === 'object') {
+        const recObj = rec as Record<string, unknown>
+        const cloudPunish = typeof recObj.punishmentCount === 'number' ? recObj.punishmentCount : 0
+        const cloudMercy = typeof recObj.mercyRequests === 'number' ? recObj.mercyRequests : 0
+        const existing = players[name]
+
+        if (!existing) {
+          players[name] = {
+            playerName: name,
+            punishmentCount: cloudPunish,
+            mercyRequests: cloudMercy,
+          }
+        } else {
+          players[name] = {
+            playerName: name,
+            punishmentCount: Math.max(existing.punishmentCount, cloudPunish),
+            mercyRequests: Math.max(existing.mercyRequests, cloudMercy),
+          }
         }
       }
     }
   }
 
-  return { ...local, totals, players }
+  return {
+    ...local,
+    totals: totals as unknown as LocalProgressTotals,
+    players,
+  }
+}
+
+interface CloudConfigPayload {
+  boardConfig?: BoardConfig
+  punishmentConfig?: PunishmentConfig
+  trapConfig?: TrapAction[]
 }
 
 // ================================================================
@@ -86,7 +127,7 @@ export const syncEngine = {
    * 并与本地数据合并写回 LocalStorage。
    */
   async pullAndMerge(): Promise<boolean> {
-    const result = await withUser(async (userId) => {
+    const result = await withUser(async userId => {
       // — 拉取游戏配置 —
       const { data: cfgRow } = await supabase
         .from('user_configs')
@@ -100,7 +141,18 @@ export const syncEngine = {
         // 云端配置在下次 push 时会被更新。
         const localCfg = loadConfig()
         if (!localCfg) {
-          saveConfig(cfgRow.settings as any)
+          const cloudSettings = cfgRow.settings as CloudConfigPayload
+          if (
+            cloudSettings.boardConfig &&
+            cloudSettings.punishmentConfig &&
+            cloudSettings.trapConfig
+          ) {
+            saveConfig({
+              boardConfig: cloudSettings.boardConfig,
+              punishmentConfig: cloudSettings.punishmentConfig,
+              trapConfig: cloudSettings.trapConfig,
+            })
+          }
         }
       }
 
@@ -113,12 +165,14 @@ export const syncEngine = {
 
       if (progRow) {
         const localProgress = loadLocalProgress()
-        const merged = mergeProgress(localProgress, progRow)
+        const merged = mergeProgress(localProgress, progRow as CloudProgressRow)
         if (validateLocalProgress(merged)) {
           // 直接写 localStorage，避免触发 saveLocalProgress 的 push 钩子（防止循环）
           try {
             localStorage.setItem('flying-chess-local-progress-v1', JSON.stringify(merged))
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         }
       }
       return true
@@ -131,11 +185,13 @@ export const syncEngine = {
    * 仅在已登录时执行，网络失败静默忽略。
    */
   async pushConfig(settings: unknown): Promise<void> {
-    await withUser(async (userId) => {
-      await supabase.from('user_configs').upsert(
-        { user_id: userId, settings, updated_at: new Date().toISOString() },
-        { onConflict: 'user_id' }
-      )
+    await withUser(async userId => {
+      await supabase
+        .from('user_configs')
+        .upsert(
+          { user_id: userId, settings, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' }
+        )
     })
   },
 
@@ -144,8 +200,8 @@ export const syncEngine = {
    * 仅在已登录时执行，网络失败静默忽略。
    */
   async pushProgress(progress: unknown): Promise<void> {
-    await withUser(async (userId) => {
-      const p = progress as any
+    await withUser(async userId => {
+      const p = progress as Partial<LocalProgress> | null
       await supabase.from('game_progress').upsert(
         {
           user_id: userId,
