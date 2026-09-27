@@ -1,6 +1,7 @@
 <script setup lang="ts">
   /* eslint-disable @typescript-eslint/ban-ts-comment */
   import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+  import { useAuth } from './composables/useAuth'
   import { GameService } from './services/gameService'
   import { gameTelemetry } from './services/gameTelemetry'
   import {
@@ -34,6 +35,7 @@
     AlertCircle,
     Pause,
     Home,
+    User,
   } from '@lucide/vue'
   import type {
     Player,
@@ -82,6 +84,7 @@
   import MercyDecision from './components/MercyDecision.vue'
   import SessionPauseOverlay from './components/SessionPauseOverlay.vue'
   import ConfigExport from './components/ConfigExport.vue'
+  import AuthModal from './components/AuthModal.vue'
   import {
     saveConfig,
     loadConfig,
@@ -1437,6 +1440,9 @@
 
     // 定期检查游戏状态健康度
     healthCheckIntervalId.value = window.setInterval(checkGameStateHealth, 2000) // 每2秒检查一次
+
+    // 初始化 Supabase Auth（非阻塞）
+    authSetup.initAuth()
 
     // 组件挂载时初始化游戏
     initializeGame()
@@ -3772,6 +3778,11 @@
   // 配置导出功能
   const showConfigExport = ref(false)
 
+  // 账户 / 云同步
+  const showAuthModal = ref(false)
+  const authSetup = useAuth()
+  const { currentUser } = authSetup
+
   const showAutoGuide = (pageType: string) => {
     devLog(
       `检查自动引导 - 页面类型: ${pageType}, 自动引导开启: ${autoGuideEnabled.value}, 已显示过: ${hasShownGuide.value.has(pageType)}`
@@ -4600,6 +4611,18 @@
         <Upload :size="20" />
       </button>
 
+      <!-- 账户 / 云同步按钮 -->
+      <button
+        class="export-btn auth-btn"
+        :title="currentUser ? '账户：' + (currentUser.email ?? '已登录') : '登录 · 云端同步'"
+        @click="showAuthModal = true"
+      >
+        <span v-if="currentUser" class="auth-avatar-badge">
+          {{ (currentUser.user_metadata?.name ?? currentUser.email ?? '?')[0].toUpperCase() }}
+        </span>
+        <User v-else :size="20" />
+      </button>
+
       <!-- 主要引导按钮 -->
       <button class="guide-btn" title="查看当前页面引导" @click="startGuide">
         <HelpCircle :size="20" />
@@ -4653,6 +4676,9 @@
       @import-success="handleImportSuccess"
       @import-error="handleImportError"
     />
+
+    <!-- 账户 / 云同步对话框 -->
+    <AuthModal :show="showAuthModal" @close="showAuthModal = false" />
 
     <!-- 游戏设置查看对话框 -->
     <PDialog
@@ -5264,6 +5290,25 @@
     margin-left: 0.5rem;
     font-size: 0.8rem;
     font-weight: 600;
+  }
+
+  /* 账户按钮 */
+  .auth-btn {
+    background: rgba(99, 102, 241, 0.75);
+    border-color: rgba(99, 102, 241, 0.35);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25);
+  }
+
+  .auth-btn:hover {
+    background: rgba(99, 102, 241, 0.9);
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+  }
+
+  .auth-avatar-badge {
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1;
   }
 
   .guide-settings {
