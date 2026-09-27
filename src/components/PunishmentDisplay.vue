@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { Zap, Check, SkipForward, HandHeart, Gift, Eye, Timer } from '@lucide/vue'
   import type {
     PunishmentAction,
@@ -43,6 +44,7 @@
     countMultiplier: 1,
   })
   const emit = defineEmits<Emits>()
+  const { t } = useI18n()
 
   const variantPresentation = computed(() =>
     props.variant ? getPunishmentVariantPresentation(props.variant) : null
@@ -55,11 +57,12 @@
     () => props.variant === 'deferred' && props.variantPhase === undefined
   )
   const variantPhaseInstruction = computed(() => {
-    if (props.variantPhase === 'conditional_resolved') return '条件已经判定，请按调整后的次数执行。'
-    if (props.variantPhase === 'deferred_execution') return '已到约定回合，请先完成这条延迟惩罚。'
-    if (props.variantPhase === 'mutual_return') return '现在交换角色，用相同内容完成第二次执行。'
-    if (props.variantPhase === 'encore_return')
-      return '返场阶段：同一名玩家完成减半后的第二次执行。'
+    if (props.variantPhase === 'conditional_resolved')
+      return t('punishment_variant_conditional_resolved')
+    if (props.variantPhase === 'deferred_execution')
+      return t('punishment_variant_deferred_execution')
+    if (props.variantPhase === 'mutual_return') return t('punishment_variant_mutual_return')
+    if (props.variantPhase === 'encore_return') return t('punishment_variant_encore_return')
     return variantPresentation.value?.instruction ?? ''
   })
   const variantRevealed = ref(false)
@@ -133,9 +136,9 @@
       <div class="punishment-header">
         <h3>
           <Zap :size="20" />
-          惩罚时间
+          {{ $t('punishment_display_title') }}
         </h3>
-        <p>你踩到了惩罚格子！</p>
+        <p>{{ $t('punishment_display_subtitle') }}</p>
       </div>
 
       <div class="punishment-content">
@@ -159,7 +162,7 @@
               @click="variantRevealed = true"
             >
               <Eye :size="17" aria-hidden="true" />
-              执行者已准备好，揭晓内容
+              {{ $t('punishment_display_reveal_btn') }}
             </button>
           </aside>
 
@@ -169,12 +172,12 @@
             data-testid="conditional-variant-decision"
           >
             <label>
-              <span>其他玩家提出的当场条件</span>
+              <span>{{ $t('punishment_display_condition_label') }}</span>
               <input
                 v-model="conditionalCondition"
                 type="text"
                 maxlength="80"
-                placeholder="例如：连续猜中一次硬币正反"
+                :placeholder="$t('punishment_display_condition_placeholder')"
               />
             </label>
             <div>
@@ -184,7 +187,7 @@
                 :disabled="!conditionalCondition.trim()"
                 @click="resolveCondition(true)"
               >
-                条件完成，次数减半
+                {{ $t('punishment_display_condition_met') }}
               </button>
               <button
                 type="button"
@@ -192,13 +195,13 @@
                 :disabled="!conditionalCondition.trim()"
                 @click="resolveCondition(false)"
               >
-                条件未完成，照常执行
+                {{ $t('punishment_display_condition_failed') }}
               </button>
             </div>
           </div>
 
           <div v-if="detailsVisible && targetPlayer" class="target-info">
-            <span class="target-label">受罚玩家</span>
+            <span class="target-label">{{ $t('punishment_display_target_label') }}</span>
             <div class="target-player">
               <div class="target-avatar" :style="{ backgroundColor: targetPlayer.color }"></div>
               <span class="target-name">{{ targetPlayer.name }}</span>
@@ -208,7 +211,7 @@
           <!-- 执行惩罚的玩家信息 -->
           <div v-if="detailsVisible && executorPlayer" class="executor-info">
             <div class="executor-header">
-              <span class="executor-label">执行惩罚的玩家:</span>
+              <span class="executor-label">{{ $t('punishment_display_executor_label') }}</span>
             </div>
             <div class="executor-player">
               <div class="executor-avatar" :style="{ backgroundColor: executorPlayer.color }"></div>
@@ -218,49 +221,74 @@
 
           <div v-if="detailsVisible" class="punishment-details">
             <div class="punishment-item">
-              <span class="label">工具:</span>
+              <span class="label">{{ $t('punishment_display_tool_label') }}</span>
               <span class="value tool">{{ punishment.tool.name }}</span>
-              <span class="intensity">强度: {{ punishment.tool.intensity }}/10</span>
+              <span class="intensity">
+                {{ $t('punishment_display_intensity', { value: punishment.tool.intensity }) }}
+              </span>
             </div>
 
             <div class="punishment-item">
-              <span class="label">部位:</span>
+              <span class="label">{{ $t('punishment_display_body_part_label') }}</span>
               <span class="value body-part">{{ punishment.bodyPart.name }}</span>
-              <span class="sensitivity">耐受度: {{ punishment.bodyPart.sensitivity }}/10</span>
+              <span class="sensitivity">
+                {{
+                  $t('punishment_display_sensitivity', { value: punishment.bodyPart.sensitivity })
+                }}
+              </span>
             </div>
 
             <div class="punishment-item">
-              <span class="label">姿势:</span>
+              <span class="label">{{ $t('punishment_display_position_label') }}</span>
               <span class="value position">{{ punishment.position.name }}</span>
             </div>
 
             <div v-if="punishment.strikes != null" class="punishment-item">
-              <span class="label">次数:</span>
-              <span class="value strikes">{{ punishment.strikes }} 下</span>
+              <span class="label">{{ $t('punishment_display_strikes_label') }}</span>
+              <span class="value strikes">
+                {{ $t('punishment_display_strikes_value', { count: punishment.strikes }) }}
+              </span>
             </div>
           </div>
 
           <div v-if="detailsVisible" class="punishment-summary">
-            <h4>执行内容:</h4>
+            <h4>{{ $t('punishment_display_exec_content') }}</h4>
             <p v-if="countSelection" class="summary-text">
-              由{{ executorPlayer?.name || '其他玩家' }}决定本次惩罚次数
+              {{
+                executorPlayer
+                  ? $t('punishment_display_executor_decides', { name: executorPlayer.name })
+                  : $t('punishment_display_executor_decides_other')
+              }}
             </p>
             <p v-else class="summary-text">{{ punishment.description }}</p>
           </div>
 
           <label v-if="detailsVisible && countSelection" class="count-selection">
-            <span>惩罚次数</span>
-            <select v-model.number="selectedCount" aria-label="惩罚次数">
+            <span>{{ $t('punishment_display_count_label') }}</span>
+            <select
+              v-model.number="selectedCount"
+              :aria-label="$t('punishment_display_count_label')"
+            >
               <option v-for="count in countOptions" :key="count" :value="count">
-                {{ count }} 下
+                {{ $t('punishment_display_count_option', { count }) }}
               </option>
             </select>
             <small>
-              可选范围 {{ countSelection.minimum }}–{{ countSelection.maximum }}，按
-              {{ countSelection.step }} 递增
+              {{
+                $t('punishment_display_count_range', {
+                  min: countSelection.minimum,
+                  max: countSelection.maximum,
+                  step: countSelection.step,
+                })
+              }}
             </small>
             <small v-if="countMultiplier !== 1" class="multiplier-preview">
-              本次倍率 ×{{ countMultiplier }}，最终执行 {{ finalizedCountPreview }} 下
+              {{
+                $t('punishment_display_multiplier', {
+                  multiplier: countMultiplier,
+                  final: finalizedCountPreview,
+                })
+              }}
             </small>
           </label>
         </div>
@@ -273,7 +301,11 @@
             @click="confirmPunishment"
           >
             <Check :size="18" />
-            {{ variantPhase === 'mutual_return' ? '确认第二次执行' : '确认执行' }}
+            {{
+              variantPhase === 'mutual_return'
+                ? $t('punishment_display_confirm_second')
+                : $t('punishment_display_confirm')
+            }}
           </button>
           <button
             v-if="isDeferredDecision"
@@ -284,15 +316,15 @@
             @click="deferPunishment"
           >
             <Timer :size="18" />
-            记下内容，下回合执行
+            {{ $t('punishment_display_defer') }}
           </button>
           <button v-if="canRequestMercy" class="btn btn-mercy" @click="requestMercy">
             <HandHeart :size="18" />
-            求饶
+            {{ $t('punishment_display_mercy') }}
           </button>
           <button class="btn btn-secondary" @click="skipPunishment">
             <SkipForward :size="18" />
-            跳过惩罚
+            {{ $t('punishment_display_skip') }}
           </button>
         </div>
       </div>

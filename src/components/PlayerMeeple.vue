@@ -19,7 +19,9 @@
     class="player-meeple"
     :class="`is-${size}`"
     :style="{ '--player-color': color, '--pawn-mask': `url(${kenneyPawnUrl})` }"
-    :aria-label="name ? `${name}，玩家 ${number}` : `玩家 ${number}`"
+    :aria-label="
+      name ? $t('player_meeple_named', { name, number }) : $t('player_meeple_unnamed', { number })
+    "
     role="img"
   >
     <span class="meeple-shape" aria-hidden="true"></span>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import {
     Dices,
     Star,
@@ -37,6 +38,7 @@
   } from '../utils/cache'
   import { SecureRandom } from '../utils/secureRandom'
   import { devLog } from '../utils/logger'
+  import { localeContent, setActiveLanguage, activeLanguage } from '../utils/locale'
   import VersionDisplay from './VersionDisplay.vue'
   import PartySceneSelector from './PartySceneSelector.vue'
   import VictoryConfigPanel from './VictoryConfig.vue'
@@ -68,14 +70,19 @@
       }
     ): void
     (e: 'mode-selected', mode: GameMode): void
+    (e: 'language-changed', lang: string): void
   }
 
+  const { t } = useI18n()
   const props = defineProps<{ initialMode: GameMode }>()
   const emit = defineEmits<Emits>()
 
   // 玩家配置状态（默认2人以兼容既有端到端测试与快速对决）
   const playerCount = ref(2)
-  const playerNames = ref<string[]>(['玩家1', '玩家2'])
+  const playerNames = ref<string[]>([
+    localeContent.defaultPlayerName(0),
+    localeContent.defaultPlayerName(1),
+  ])
   const selectedMode = ref<GameMode>(props.initialMode)
   const onlinePartyUrl = `${import.meta.env.BASE_URL}online.html`
   const applicationVersion = VERSION
@@ -85,6 +92,59 @@
   const eventDeck = ref<readonly PartyEventCard[]>(loadPartyEventDeck())
   const localProgress = loadLocalProgress()
   const studioConfig = ref<PartyStudioConfig>(loadPartyStudioConfig())
+
+  // ---- Language selector state ----
+  const currentLanguage = ref(activeLanguage)
+
+  const supportedLanguages = [
+    { code: 'zh', name: '🇨🇳 中文' },
+    { code: 'en', name: '🌐 English' },
+    { code: 'ja', name: '🇯🇵 日本語' },
+    { code: 'ko', name: '🇰🇷 한국어' },
+    { code: 'es', name: '🇪🇸 Español' },
+    { code: 'fr', name: '🇫🇷 Français' },
+    { code: 'de', name: '🇩🇪 Deutsch' },
+    { code: 'ru', name: '🇷🇺 Русский' },
+    { code: 'pt', name: '🇵🇹 Português' },
+    { code: 'it', name: '🇮🇹 Italiano' },
+  ]
+
+  const switchLanguage = (lang: string) => {
+    setActiveLanguage(lang)
+    currentLanguage.value = lang
+
+    // Re-derive default player names using the new locale
+    const isGeneric = playerNames.value.every(
+      (name, idx) =>
+        !name ||
+        name === `玩家${idx + 1}` ||
+        name === `Player ${idx + 1}` ||
+        name === `プレイヤー${idx + 1}` ||
+        name === `플레이어 ${idx + 1}` ||
+        name === `Jugador ${idx + 1}` ||
+        name === `Joueur ${idx + 1}` ||
+        name === `Spieler ${idx + 1}` ||
+        name === `Игрок ${idx + 1}` ||
+        name === `Jogador ${idx + 1}` ||
+        name === `Giocatore ${idx + 1}`
+    )
+    if (isGeneric) {
+      playerNames.value = Array.from({ length: playerCount.value }, (_, i) =>
+        localeContent.defaultPlayerName(i)
+      )
+    }
+
+    // Update scenario preset default names
+    scenarioPresets.value.forEach(preset => {
+      preset.defaultNames = Array.from({ length: preset.playerCount }, (_, i) =>
+        localeContent.defaultPlayerName(i)
+      )
+    })
+
+    // Notify parent (App.vue) so it can reinitialize game defaults
+    emit('language-changed', lang)
+  }
+
   const canStart = computed(
     () =>
       selectedMode.value === 'classic' ||
@@ -107,54 +167,54 @@
   }
 
   // 快捷对局预设：优先推广经典局（3款经典对决 + 1款派对拓展）
-  const scenarioPresets: ScenarioPreset[] = [
+  const scenarioPresets = computed<ScenarioPreset[]>(() => [
     {
       id: 'classic',
-      title: '经典 4 人标准局',
-      tag: '👑 官方推荐',
-      badge: '最经典',
-      desc: '4人满员起飞 · 撞子回航 · 原汁原味的经典飞行棋对战',
+      title: t('classic_4_title'),
+      tag: t('official_recommended'),
+      badge: t('classic_4_badge'),
+      desc: t('classic_4_desc'),
       playerCount: 4,
-      defaultNames: ['玩家1', '玩家2', '玩家3', '玩家4'],
+      defaultNames: [0, 1, 2, 3].map(i => localeContent.defaultPlayerName(i)),
       mode: 'classic',
       featured: true,
       icon: Trophy,
     },
     {
       id: 'classic-2',
-      title: '经典 2 人极速局',
-      tag: '⚡ 双人速战',
-      badge: '快节奏',
-      desc: '双人面对面较量 · 快速起飞 · 轻松休闲的策略博弈',
+      title: t('classic_2_title'),
+      tag: t('classic_2_tag'),
+      badge: t('classic_2_badge'),
+      desc: t('classic_2_desc'),
       playerCount: 2,
-      defaultNames: ['玩家1', '玩家2'],
+      defaultNames: [0, 1].map(i => localeContent.defaultPlayerName(i)),
       mode: 'classic',
       icon: Zap,
     },
     {
       id: 'classic-3',
-      title: '经典 3 人好友局',
-      tag: '🎯 三人同行',
-      badge: '好友局',
-      desc: '三人环形棋盘 · 攻防牵制 · 欢乐互动的经典对弈',
+      title: t('classic_3_title'),
+      tag: t('classic_3_tag'),
+      badge: t('classic_3_badge'),
+      desc: t('classic_3_desc'),
       playerCount: 3,
-      defaultNames: ['玩家1', '玩家2', '玩家3'],
+      defaultNames: [0, 1, 2].map(i => localeContent.defaultPlayerName(i)),
       mode: 'classic',
       icon: Users,
     },
     {
       id: 'party',
-      title: '聚会升温拓展局',
-      tag: '🔥 派对自选',
-      badge: '拓展玩法',
-      desc: '真心话大冒险、筹码干预与同场反应 · 破冰酒局必备',
+      title: t('party_4_title'),
+      tag: t('party_4_tag'),
+      badge: t('party_4_badge'),
+      desc: t('party_4_desc'),
       playerCount: 4,
-      defaultNames: ['玩家1', '玩家2', '玩家3', '玩家4'],
+      defaultNames: [0, 1, 2, 3].map(i => localeContent.defaultPlayerName(i)),
       mode: 'party',
       scenePreset: 'icebreaker',
       icon: Flame,
     },
-  ]
+  ])
 
   const activeScenarioId = ref<string | null>('classic-2')
   const presetFeedback = ref<string>('')
@@ -167,17 +227,23 @@
       selectedScenePreset.value = preset.scenePreset
     }
     const isGeneric = playerNames.value.every(
-      (name, idx) => !name || name === `玩家${idx + 1}` || name === '男生' || name === '女生'
+      (name, idx) =>
+        !name ||
+        name === localeContent.defaultPlayerName(idx) ||
+        name === `玩家${idx + 1}` ||
+        name === `Player ${idx + 1}` ||
+        name === '男生' ||
+        name === '女生'
     )
     if (isGeneric) {
       playerNames.value = [...preset.defaultNames]
     } else {
       updatePlayerNames()
     }
-    presetFeedback.value = `已选定【${preset.title}】，可点击「立即开局」直接掷骰，或在下方调整玩家昵称与规则`
+    presetFeedback.value = t('preset_feedback', { title: preset.title })
   }
 
-  // 点击卡片上的“一键开局”按钮直接开局
+  // 点击卡片上的"一键开局"按钮直接开局
   const quickStartPreset = (preset: ScenarioPreset) => {
     applyScenarioPreset(preset)
     emit('start', {
@@ -228,13 +294,13 @@
   // 快速开局按钮的提示文本
   const quickStartBtnText = computed(() => {
     if (selectedMode.value === 'party') {
-      return '一键开始升温局'
+      return t('quick_start_party')
     }
-    const currentPreset = scenarioPresets.find(p => p.id === activeScenarioId.value)
+    const currentPreset = scenarioPresets.value.find(p => p.id === activeScenarioId.value)
     if (currentPreset && currentPreset.mode === 'classic') {
-      return `⚡ 立即开局（${currentPreset.title}）`
+      return t('quick_start_preset', { title: currentPreset.title })
     }
-    return `⚡ 立即开始经典局（${playerCount.value}人）`
+    return t('quick_start_classic', { count: playerCount.value })
   })
 
   // 加载玩家设置的函数
@@ -285,7 +351,7 @@
       if (i < currentNames.length) {
         newNames.push(currentNames[i])
       } else {
-        newNames.push(`玩家${i + 1}`)
+        newNames.push(localeContent.defaultPlayerName(i))
       }
     }
 
@@ -455,12 +521,27 @@
 
     <!-- 主内容 -->
     <div class="intro-content">
+      <!-- 语言选择器 / Language Switcher -->
+      <!-- 语言选择器 / Language Switcher -->
+      <div class="language-switcher" data-testid="language-switcher">
+        <select
+          v-model="currentLanguage"
+          class="lang-select"
+          data-testid="lang-select"
+          @change="switchLanguage(currentLanguage)"
+        >
+          <option v-for="lang in supportedLanguages" :key="lang.code" :value="lang.code">
+            {{ lang.name }}
+          </option>
+        </select>
+      </div>
+
       <!-- 标题区域 -->
       <div class="intro-header">
         <div class="title-container">
           <h1 class="game-title">
             <Dices :size="48" class="title-icon" />
-            <span class="title-main">惩罚飞行棋</span>
+            <span class="title-main">{{ $t('game_title') }}</span>
             <div class="title-glow"></div>
           </h1>
           <div class="title-decoration">
@@ -474,7 +555,7 @@
         </div>
 
         <div class="game-subtitle">
-          <span class="subtitle-text">环形棋盘 · 自定义惩罚 · 刺激体验</span>
+          <span class="subtitle-text">{{ $t('game_subtitle') }}</span>
           <div class="subtitle-underline"></div>
         </div>
 
@@ -482,7 +563,7 @@
           <div class="dev-card">
             <div class="dev-avatar"><Code2 :size="28" /></div>
             <div class="dev-details">
-              <span class="dev-name">开发者：阿汤</span>
+              <span class="dev-name">{{ $t('developer') }}</span>
               <!-- 论坛宣传链接 -->
               <a
                 href="https://atang-sp.run.place"
@@ -490,7 +571,7 @@
                 rel="noopener noreferrer"
                 class="dev-link"
               >
-                <span class="dev-id">论坛: atang-sp.run.place</span>
+                <span class="dev-id">{{ $t('forum_link') }}</span>
                 <ExternalLink :size="14" class="link-icon" />
               </a>
               <a
@@ -512,13 +593,13 @@
         <div class="settings-header">
           <h2 id="scenario-presets-title" class="settings-title">
             <Sparkles :size="22" class="settings-icon" />
-            <span class="settings-title-text">快速开局推荐</span>
-            <span class="settings-title-badge">👑 经典局优先</span>
+            <span class="settings-title-text">{{ $t('quick_start_recommend') }}</span>
+            <span class="settings-title-badge">{{ $t('classic_priority') }}</span>
           </h2>
           <div class="settings-underline"></div>
         </div>
         <p class="presets-intro-subtitle">
-          选择推荐配置即可一键直接掷骰开局，或点击卡片选定后在下方按需微调
+          {{ $t('presets_intro') }}
         </p>
 
         <div class="scenario-grid">
@@ -558,16 +639,16 @@
               <div class="scenario-card__meta">
                 <span class="scenario-card__meta-item">
                   <Users :size="13" />
-                  {{ preset.playerCount }}人对决
+                  {{ preset.playerCount }}{{ $t('players_duel') }}
                 </span>
                 <span class="scenario-card__meta-item">
                   <Clock :size="13" />
                   {{
                     preset.mode === 'party'
-                      ? '约20分'
+                      ? $t('preset_time_20m')
                       : preset.playerCount === 2
-                        ? '约10分'
-                        : '约15分'
+                        ? $t('preset_time_10m')
+                        : $t('preset_time_15m')
                   }}
                 </span>
               </div>
@@ -583,7 +664,7 @@
                 @click.stop="quickStartPreset(preset)"
               >
                 <Play :size="13" class="btn-play-icon" />
-                <span>一键开局</span>
+                <span>{{ $t('quick_start_btn') }}</span>
               </button>
             </div>
           </div>
@@ -599,7 +680,7 @@
         <div class="settings-header">
           <h2 id="mode-chooser-title" class="settings-title">
             <Dices :size="22" class="settings-icon" />
-            <span class="settings-title-text">本局玩法模式</span>
+            <span class="settings-title-text">{{ $t('gameplay_mode') }}</span>
           </h2>
           <div class="settings-underline"></div>
         </div>
@@ -621,13 +702,13 @@
             </span>
             <span class="mode-card__content">
               <div class="mode-card__title-row">
-                <strong>经典局</strong>
+                <strong>{{ $t('classic_mode') }}</strong>
                 <span class="mode-card__badge mode-card__badge--featured">
-                  👑 官方推荐 · 核心玩法
+                  {{ $t('classic_badge') }}
                 </span>
               </div>
               <span class="mode-card__desc">
-                经典飞行棋完整规则 · 原汁原味起飞、撞子回航与策略博弈（支持 2–4 人）
+                {{ $t('classic_desc') }}
               </span>
             </span>
           </button>
@@ -645,11 +726,13 @@
             </span>
             <span class="mode-card__content">
               <div class="mode-card__title-row">
-                <strong>升温局</strong>
-                <span class="mode-card__badge mode-card__badge--party">🔥 聚会拓展</span>
+                <strong>{{ $t('party_mode') }}</strong>
+                <span class="mode-card__badge mode-card__badge--party">
+                  {{ $t('party_badge') }}
+                </span>
               </div>
               <span class="mode-card__desc">
-                派对互动玩法 · 约 20 分钟 · 三幕进程、筹码干预与真心话大冒险
+                {{ $t('party_desc') }}
               </span>
             </span>
           </button>
@@ -668,8 +751,8 @@
             @click="multiDeviceMode = !multiDeviceMode"
           >
             <span class="mode-card__icon">📱</span>
-            <span class="mode-card__title">多设备模式</span>
-            <span class="mode-card__desc">每人用自己的手机操作</span>
+            <span class="mode-card__title">{{ $t('multi_device_mode') }}</span>
+            <span class="mode-card__desc">{{ $t('multi_device_desc') }}</span>
           </button>
         </div>
 
@@ -681,8 +764,8 @@
         >
           <span class="mode-card__icon">🌐</span>
           <span class="mode-card__content">
-            <strong>联机升温局</strong>
-            <span>2–8 人扫码加入，由房间服务器同步局面</span>
+            <strong>{{ $t('online_party_title') }}</strong>
+            <span>{{ $t('online_party_desc') }}</span>
           </span>
           <span class="mode-card__badge mode-card__badge--party">
             应用 v{{ applicationVersion }} · party_v3
@@ -695,7 +778,7 @@
         <div class="settings-header">
           <h2 class="settings-title">
             <Users :size="22" class="settings-icon" />
-            <span class="settings-title-text">玩家设置</span>
+            <span class="settings-title-text">{{ $t('player_settings') }}</span>
           </h2>
           <div class="settings-underline"></div>
         </div>
@@ -705,7 +788,7 @@
           <div class="setting-item">
             <label class="setting-label">
               <User :size="20" class="label-icon" />
-              <span class="label-text">玩家人数</span>
+              <span class="label-text">{{ $t('player_count_label') }}</span>
             </label>
             <div class="count-controls">
               <button
@@ -718,7 +801,7 @@
               </button>
               <div class="count-display">
                 <span class="count-number">{{ playerCount }}</span>
-                <span class="count-unit">人</span>
+                <span v-if="$t('unit_people')" class="count-unit">{{ $t('unit_people') }}</span>
               </div>
               <button
                 class="btn btn-secondary count-btn plus"
@@ -734,7 +817,7 @@
         <!-- 玩家名称设置 -->
         <div class="player-names-section">
           <div class="names-header">
-            <span class="names-title">玩家昵称</span>
+            <span class="names-title">{{ $t('player_names_label') }}</span>
           </div>
           <div class="names-list">
             <div v-for="(name, index) in playerNames" :key="index" class="name-item">
@@ -777,7 +860,11 @@
           >
             <Settings :size="18" />
             <span class="btn-text">
-              {{ selectedMode === 'party' ? '升温局局况与工坊' : '⚙️ 自定义规则配置' }}
+              {{
+                selectedMode === 'party'
+                  ? $t('advanced_settings_workshop')
+                  : $t('custom_rules_config')
+              }}
             </span>
           </button>
         </div>
@@ -786,28 +873,27 @@
           v-if="selectedMode === 'party' && playerCount < PARTY_MIN_PLAYERS"
           class="party-player-hint"
         >
-          升温局需要至少两名玩家参与反应。
+          {{ $t('party_min_players_hint') }}
         </p>
 
         <div class="game-info">
           <div class="info-item">
             <Clock :size="16" class="info-icon" />
             <span class="info-text">
-              游戏时长：{{
+              {{ $t('game_duration_label')
+              }}{{
                 selectedMode === 'party'
-                  ? '约20分钟'
+                  ? $t('game_duration_20m')
                   : playerCount === 2
-                    ? '约10分钟'
-                    : '约15-20分钟'
+                    ? $t('game_duration_10m')
+                    : $t('game_duration_15_20m')
               }}
             </span>
           </div>
           <div class="info-item">
             <Target :size="16" class="info-icon" />
             <span class="info-text">
-              {{
-                selectedMode === 'party' ? '适合年龄：18岁以上（聚会互动）' : '全年龄段休闲益智对战'
-              }}
+              {{ selectedMode === 'party' ? $t('game_target_adult') : $t('game_target_all') }}
             </span>
           </div>
         </div>
@@ -842,8 +928,7 @@
       <!-- 底部隐私说明与数据管理 -->
       <div class="intro-footer-actions">
         <p class="privacy-note">
-          本应用使用无 Cookie
-          的匿名统计改进体验；不会上传玩家姓名、游戏配置内容，也不启用录屏或页面回放。
+          {{ $t('privacy_note') }}
         </p>
 
         <!-- 清空缓存选项 -->
@@ -854,15 +939,15 @@
             @click="clearCache"
           >
             <Eraser :size="16" />
-            <span class="btn-text">清除本地游戏数据</span>
+            <span class="btn-text">{{ $t('clear_local_data') }}</span>
           </button>
-          <p class="cache-hint">清除后刷新页面即可从默认配置重新开始</p>
+          <p class="cache-hint">{{ $t('clear_cache_hint') }}</p>
         </div>
 
         <!-- 清空成功提示 -->
         <div v-if="showClearSuccess" class="clear-success-toast">
           <Check :size="18" class="toast-icon" />
-          <span class="toast-text">本地游戏数据已清除</span>
+          <span class="toast-text">{{ $t('local_data_cleared') }}</span>
         </div>
       </div>
     </div>
@@ -911,6 +996,45 @@
     overflow-x: hidden;
     overflow-y: auto;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  /* 语言选择器 / Language Switcher */
+  .language-switcher {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 12px 20px 0;
+    z-index: 10;
+  }
+
+  .lang-select {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: white;
+    font-size: 0.95rem;
+    padding: 6px 30px 6px 14px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    appearance: none;
+    outline: none;
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+    background-repeat: no-repeat;
+    background-position: right 10px top 50%;
+    background-size: 10px auto;
+  }
+
+  .lang-select:hover {
+    background-color: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  .lang-select option {
+    background: #1a1a2e;
+    color: white;
   }
 
   /* 粒子背景 */

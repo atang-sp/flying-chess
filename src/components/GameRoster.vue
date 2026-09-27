@@ -28,14 +28,14 @@
     class="game-roster"
     :class="{ 'is-party': isParty }"
     :data-testid="isParty ? 'party-status' : 'game-roster'"
-    aria-label="玩家进度"
+    :aria-label="$t('game_roster_aria')"
   >
     <div v-if="isParty" class="party-context">
       <Flame :size="17" aria-hidden="true" />
       <span>
-        <strong>升温局 · {{ partyActLabel }}</strong>
+        <strong>{{ $t('game_roster_party_prefix', { act: partyActLabel }) }}</strong>
         <small>
-          第 {{ partyRound }} 轮
+          {{ $t('game_roster_round', { round: partyRound }) }}
           <span v-if="partyRulesetVersion">· {{ partyRulesetVersion }}</span>
         </small>
       </span>
@@ -60,16 +60,25 @@
           <strong>{{ player.name }}</strong>
           <small>
             <MapPin :size="11" aria-hidden="true" />
-            {{ player.position === 0 ? '起飞区' : `${player.position}/${totalCells}` }}
+            {{
+              player.position === 0
+                ? $t('game_roster_takeoff_zone')
+                : `${player.position}/${totalCells}`
+            }}
           </small>
         </span>
         <span
           v-if="tokensRemaining"
           class="token-count"
-          :aria-label="`${player.name}剩余${tokensRemaining[index] ?? 0}枚干预筹码`"
+          :aria-label="
+            $t('game_roster_tokens_aria', {
+              name: player.name,
+              count: tokensRemaining[index] ?? 0,
+            })
+          "
         >
           <span class="token-player-name">{{ player.name }}</span>
-          {{ tokensRemaining[index] ?? 0 }} 枚
+          {{ $t('game_roster_tokens_count', { count: tokensRemaining[index] ?? 0 }) }}
         </span>
         <span class="roster-progress" aria-hidden="true">
           <span

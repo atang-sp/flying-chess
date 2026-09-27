@@ -28,8 +28,8 @@
 
 <template>
   <div class="scene-selector">
-    <h3 class="scene-title">选择场景</h3>
-    <p class="scene-subtitle">每个场景为升温局提供不同的内容组合和节奏</p>
+    <h3 class="scene-title">{{ $t('party_scene_title') }}</h3>
+    <p class="scene-subtitle">{{ $t('party_scene_subtitle') }}</p>
 
     <div class="scene-grid">
       <button
@@ -41,8 +41,8 @@
           <Flame :size="32" />
         </div>
         <div class="scene-card-body">
-          <h4>默认升温</h4>
-          <p>标准升温局配置</p>
+          <h4>{{ $t('party_scene_default_title') }}</h4>
+          <p>{{ $t('party_scene_default_desc') }}</p>
         </div>
       </button>
 

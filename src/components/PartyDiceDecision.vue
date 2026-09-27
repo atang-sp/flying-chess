@@ -73,12 +73,12 @@
     <section class="party-dice-card" role="dialog" aria-modal="true">
       <p class="party-dice-kicker">
         <Coins :size="18" />
-        {{ tokensRemaining }} 枚筹码可用
+        {{ $t('party_dice_tokens_available', { count: tokensRemaining }) }}
       </p>
-      <h2>{{ playerName }} 掷出了 {{ diceValue }}</h2>
+      <h2>{{ $t('party_dice_player_rolled', { name: playerName, value: diceValue }) }}</h2>
       <p>
         <Timer :size="16" />
-        {{ secondsRemaining }} 秒后自动继续移动
+        {{ $t('party_dice_auto_move', { seconds: secondsRemaining }) }}
       </p>
       <div class="party-dice-actions">
         <button
@@ -88,7 +88,7 @@
           @click="choose('continue')"
         >
           <MoveRight :size="18" />
-          接受并移动
+          {{ $t('party_dice_accept_move') }}
         </button>
         <button
           type="button"
@@ -98,10 +98,10 @@
           @click="choose('reroll')"
         >
           <RotateCcw :size="18" />
-          消耗 1 枚重掷
+          {{ $t('party_dice_spend_reroll') }}
         </button>
       </div>
-      <small v-if="!canReroll && tokensRemaining > 0">本次骰点已经改变，不能再次重掷。</small>
+      <small v-if="!canReroll && tokensRemaining > 0">{{ $t('party_dice_cannot_reroll') }}</small>
     </section>
   </div>
 </template>

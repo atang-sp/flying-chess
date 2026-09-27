@@ -142,32 +142,32 @@ export function getLocalAchievements(progress: LocalProgress): readonly LocalAch
   return Object.freeze([
     Object.freeze({
       id: 'first_game',
-      title: '完成首航',
-      description: '完整结束 1 局游戏',
+      title: 'achievement_first_game_title',
+      description: 'achievement_first_game_desc',
       unlocked: progress.totals.completedGames >= 1,
     }),
     Object.freeze({
       id: 'endurance_30',
-      title: '累计耐受',
-      description: '累计完成 30 次惩罚',
+      title: 'achievement_endurance_title',
+      description: 'achievement_endurance_desc',
       unlocked: progress.totals.punishmentCount >= 30,
     }),
     Object.freeze({
       id: 'mercy_five',
-      title: '求饶专家',
-      description: '累计发起 5 次求饶',
+      title: 'achievement_mercy_expert_title',
+      description: 'achievement_mercy_expert_desc',
       unlocked: progress.totals.mercyRequests >= 5,
     }),
     Object.freeze({
       id: 'chain_three',
-      title: '连锁飞行员',
-      description: '单次连锁达到 3 层',
+      title: 'achievement_chain_pilot_title',
+      description: 'achievement_chain_pilot_desc',
       unlocked: progress.totals.longestChain >= 3,
     }),
     Object.freeze({
       id: 'variant_collector',
-      title: '命运收藏家',
-      description: '完成 4 种不同惩罚变体',
+      title: 'achievement_fate_collector_title',
+      description: 'achievement_fate_collector_desc',
       unlocked: variantsSeen >= 4,
     }),
   ])

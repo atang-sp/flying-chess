@@ -110,21 +110,21 @@
     <!-- 突出显示骰子点数 -->
     <div v-if="value !== null && !isRolling" class="dice-result-highlight">
       <div class="result-number">{{ value }}</div>
-      <div class="result-label">点</div>
+      <div class="result-label">{{ $t('dice_label') }}</div>
     </div>
 
     <div class="dice-info">
       <div v-if="isRolling" class="rolling-text">
         <span class="rolling-icon">🎲</span>
-        <span>骰子滚动中...</span>
+        <span>{{ $t('dice_rolling') }}</span>
       </div>
       <div v-else-if="value !== null" class="result-text">
         <span class="result-icon">🎯</span>
-        <span>点数: {{ value }}</span>
+        <span>{{ $t('dice_result', { value }) }}</span>
       </div>
       <div v-else class="roll-prompt">
         <span class="prompt-icon">👆</span>
-        <span>点击骰子开始</span>
+        <span>{{ $t('dice_click_to_start') }}</span>
       </div>
     </div>
 
@@ -136,7 +136,9 @@
         @click="handleRoll"
       >
         <span class="button-icon">🎲</span>
-        <span class="button-text">{{ isRolling ? '滚动中...' : '投骰子' }}</span>
+        <span class="button-text">
+          {{ isRolling ? $t('dice_rolling_short') : $t('roll_dice') }}
+        </span>
       </button>
     </div>
   </div>

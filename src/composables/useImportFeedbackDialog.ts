@@ -1,8 +1,10 @@
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 type ImportFeedbackType = 'success' | 'error'
 
 export function useImportFeedbackDialog() {
+  const { t } = useI18n()
   const importFeedbackVisible = ref(false)
   const importFeedbackTitle = ref('')
   const importFeedbackMessage = ref('')
@@ -10,8 +12,8 @@ export function useImportFeedbackDialog() {
 
   const showImportSuccess = (message: string, boardRegenerated: boolean) => {
     importFeedbackType.value = 'success'
-    importFeedbackTitle.value = '配置导入成功'
-    importFeedbackMessage.value = `${message}\n配置已成功应用到游戏中！${boardRegenerated ? '\n棋盘已重新生成。' : ''}`
+    importFeedbackTitle.value = t('config_import_success_title')
+    importFeedbackMessage.value = `${message}\n${t('config_import_success_applied')}${boardRegenerated ? `\n${t('config_import_success_board')}` : ''}`
     importFeedbackVisible.value = true
   }
 
@@ -23,7 +25,7 @@ export function useImportFeedbackDialog() {
   }
 
   const showImportError = (error: string) => {
-    showError('配置导入失败', error)
+    showError(t('config_import_failed_title'), error)
   }
 
   const closeImportFeedback = () => {

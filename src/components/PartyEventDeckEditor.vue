@@ -1,11 +1,14 @@
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { Copy, RotateCcw, Sparkles, Upload } from '@lucide/vue'
   import {
     DEFAULT_PARTY_EVENT_DECK,
     validatePartyEventDeck,
     type PartyEventCard,
   } from '@flying-chess/game-core/party-events'
+
+  const { t } = useI18n()
 
   const props = defineProps<{ deck: readonly PartyEventCard[] }>()
   const emit = defineEmits<{ (event: 'update', deck: readonly PartyEventCard[]): void }>()
@@ -30,10 +33,12 @@
       const validation = validatePartyEventDeck(parsed)
       if (!validation.ok) throw new Error(validation.error)
       emit('update', parsed as readonly PartyEventCard[])
-      feedback.value = `已载入 ${(parsed as readonly PartyEventCard[]).length} 张事件卡`
+      feedback.value = t('party_deck_loaded', {
+        count: (parsed as readonly PartyEventCard[]).length,
+      })
       feedbackKind.value = 'success'
     } catch (error) {
-      feedback.value = error instanceof Error ? error.message : '事件卡 JSON 无效'
+      feedback.value = error instanceof Error ? error.message : t('party_deck_invalid_json')
       feedbackKind.value = 'error'
     }
   }
@@ -42,17 +47,17 @@
     refreshDraft()
     try {
       await navigator.clipboard.writeText(jsonDraft.value)
-      feedback.value = '卡包 JSON 已复制，可直接分享'
+      feedback.value = t('party_deck_copied')
       feedbackKind.value = 'success'
     } catch {
-      feedback.value = '浏览器未允许复制，请从下方文本框手动复制'
+      feedback.value = t('party_deck_copy_failed')
       feedbackKind.value = 'error'
     }
   }
 
   const resetDeck = () => {
     emit('update', DEFAULT_PARTY_EVENT_DECK)
-    feedback.value = '已恢复内置事件卡池'
+    feedback.value = t('party_deck_reset_success')
     feedbackKind.value = 'success'
   }
 </script>
@@ -62,18 +67,23 @@
     <summary>
       <span>
         <Sparkles :size="19" aria-hidden="true" />
-        事件卡 / 命运轮盘
+        {{ t('party_deck_title') }}
       </span>
-      <small>{{ deck.length }} 张 · 可自定义与导入</small>
+      <small>{{ t('party_deck_subtitle', { count: deck.length }) }}</small>
     </summary>
 
     <div class="event-deck-body">
       <p class="deck-summary">
-        每 N 回合 {{ triggerSummary.rounds }} 张 · 连续惩罚 {{ triggerSummary.streaks }} 张 ·
-        特定骰点 {{ triggerSummary.dice }} 张
+        {{
+          t('party_deck_summary', {
+            rounds: triggerSummary.rounds,
+            streaks: triggerSummary.streaks,
+            dice: triggerSummary.dice,
+          })
+        }}
       </p>
 
-      <div class="card-list" aria-label="当前事件卡">
+      <div class="card-list" :aria-label="t('party_deck_cards_aria')">
         <article v-for="card in deck" :key="card.id">
           <strong>{{ card.title }}</strong>
           <span>{{ card.description }}</span>
@@ -82,22 +92,22 @@
       </div>
 
       <label class="json-field">
-        <span>卡包 JSON（触发条件与效果均可编辑）</span>
+        <span>{{ t('party_deck_json_label') }}</span>
         <textarea v-model="jsonDraft" rows="9" spellcheck="false"></textarea>
       </label>
 
       <div class="editor-actions">
         <button type="button" @click="applyDraft">
           <Upload :size="16" />
-          校验并载入
+          {{ t('party_deck_btn_apply') }}
         </button>
         <button type="button" @click="copyDeck">
           <Copy :size="16" />
-          复制分享
+          {{ t('party_deck_btn_copy') }}
         </button>
         <button type="button" @click="resetDeck">
           <RotateCcw :size="16" />
-          恢复内置
+          {{ t('party_deck_btn_reset') }}
         </button>
       </div>
       <p v-if="feedback" class="feedback" :class="`feedback--${feedbackKind}`">{{ feedback }}</p>

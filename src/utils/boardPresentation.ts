@@ -82,64 +82,118 @@ const getVisualKind = (cell: BoardCell, totalCells: number): CellVisualKind => {
   return 'normal'
 }
 
-const getDetails = (cell: BoardCell, kind: CellVisualKind): CellPresentationDetail[] => {
+const getDetails = (
+  cell: BoardCell,
+  kind: CellVisualKind,
+  t?: (key: string, values?: Record<string, unknown>) => string
+): CellPresentationDetail[] => {
   const punishment = cell.effect?.punishment
   if ((kind === 'punishment' || kind === 'chain') && punishment) {
     return [
-      { label: '工具', value: punishment.tool.name },
-      { label: '部位', value: punishment.bodyPart.name },
-      { label: '姿势', value: punishment.position.name },
+      { label: t ? t('board_cell_detail_tool') : '工具', value: punishment.tool.name },
+      { label: t ? t('board_cell_detail_body_part') : '部位', value: punishment.bodyPart.name },
+      { label: t ? t('board_cell_detail_position') : '姿势', value: punishment.position.name },
       {
-        label: '次数',
+        label: t ? t('board_cell_detail_strikes') : '次数',
         value:
           punishment.strikes === undefined
             ? cell.effect?.dynamicType === 'dice_multiplier'
-              ? `骰点 × ${cell.effect.multiplier ?? punishment.multiplier ?? 1}`
-              : '落地后决定'
-            : `${punishment.strikes} 下`,
+              ? t
+                ? t('board_cell_detail_dice_multiplier', {
+                    mult: cell.effect.multiplier ?? punishment.multiplier ?? 1,
+                  })
+                : `骰点 × ${cell.effect.multiplier ?? punishment.multiplier ?? 1}`
+              : t
+                ? t('board_cell_detail_decide_landing')
+                : '落地后决定'
+            : t
+              ? t('board_cell_detail_strikes_value', { count: punishment.strikes })
+              : `${punishment.strikes} 下`,
       },
     ]
   }
 
   const value = cell.effect?.value ?? 0
+  const effectLabel = t ? t('board_cell_detail_effect') : '效果'
+  const locationLabel = t ? t('board_cell_detail_location') : '位置'
+
   switch (kind) {
     case 'bonus':
-      return [{ label: '效果', value: `前进 ${value} 步` }]
+      return [
+        {
+          label: effectLabel,
+          value: t ? t('board_cell_detail_forward', { n: value }) : `前进 ${value} 步`,
+        },
+      ]
     case 'reverse':
-      return [{ label: '效果', value: `后退 ${value} 步` }]
+      return [
+        {
+          label: effectLabel,
+          value: t ? t('board_cell_detail_backward', { n: value }) : `后退 ${value} 步`,
+        },
+      ]
     case 'rest':
-      return [{ label: '效果', value: `休息 ${value} 回合` }]
+      return [
+        {
+          label: effectLabel,
+          value: t ? t('board_cell_detail_rest', { n: value }) : `休息 ${value} 回合`,
+        },
+      ]
     case 'restart':
-      return [{ label: '效果', value: '回到起点' }]
+      return [{ label: effectLabel, value: t ? t('board_cell_detail_restart') : '回到起点' }]
     case 'trap':
-      return [{ label: '效果', value: '触发随机机关' }]
+      return [{ label: effectLabel, value: t ? t('board_cell_detail_trap') : '触发随机机关' }]
     case 'qa':
-      return [{ label: '效果', value: cell.effect?.description || '回答问题' }]
+      return [
+        {
+          label: effectLabel,
+          value: cell.effect?.description || (t ? t('board_cell_detail_qa') : '回答问题'),
+        },
+      ]
     case 'dare':
-      return [{ label: '效果', value: cell.effect?.description || '执行指令' }]
+      return [
+        {
+          label: effectLabel,
+          value: cell.effect?.description || (t ? t('board_cell_detail_dare') : '执行指令'),
+        },
+      ]
     case 'start':
-      return [{ label: '位置', value: '赛道起点' }]
+      return [{ label: locationLabel, value: t ? t('board_cell_detail_start_loc') : '赛道起点' }]
     case 'finish':
-      return [{ label: '位置', value: '抵达即获胜' }]
+      return [{ label: locationLabel, value: t ? t('board_cell_detail_finish_loc') : '抵达即获胜' }]
     default:
       return []
   }
 }
 
-export const getBoardCellPresentation = (cell: BoardCell, totalCells: number): CellPresentation => {
+export const getBoardCellPresentation = (
+  cell: BoardCell,
+  totalCells: number,
+  t?: (key: string, values?: Record<string, unknown>) => string
+): CellPresentation => {
   const kind = getVisualKind(cell, totalCells)
+  const meta = CELL_META[kind]
+  const label = t ? t(`board_cell_${kind}_label`) : meta.label
+  const shortLabel = t ? t(`board_cell_${kind}_short`) : meta.shortLabel
+
   const description =
     kind === 'start'
-      ? '所有玩家从这里等待起飞。'
+      ? t
+        ? t('board_cell_start_desc')
+        : '所有玩家从这里等待起飞。'
       : kind === 'finish'
-        ? '率先抵达这里即可赢得本局。'
-        : cell.effect?.description || CELL_META[kind].label
+        ? t
+          ? t('board_cell_finish_desc')
+          : '率先抵达这里即可赢得本局。'
+        : cell.effect?.description || label
 
   return {
     kind,
-    ...CELL_META[kind],
+    label,
+    shortLabel,
+    iconName: meta.iconName,
     description,
-    details: getDetails(cell, kind),
+    details: getDetails(cell, kind, t),
   }
 }
 

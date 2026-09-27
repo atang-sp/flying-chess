@@ -25,11 +25,19 @@
   let activeTimer: number | undefined
   let submitted = false
 
+  import { useI18n } from 'vue-i18n'
+
+  const { t } = useI18n()
+
   const reactorName = computed(
-    () => props.players[props.reaction?.reactorPlayerIndex ?? -1]?.name ?? '反应者'
+    () =>
+      props.players[props.reaction?.reactorPlayerIndex ?? -1]?.name ??
+      t('party_reaction_reactor_fallback')
   )
   const targetName = computed(
-    () => props.players[props.reaction?.targetPlayerIndex ?? -1]?.name ?? '当前玩家'
+    () =>
+      props.players[props.reaction?.targetPlayerIndex ?? -1]?.name ??
+      t('party_interv_current_player')
   )
 
   const clearActiveTimer = () => {
@@ -116,14 +124,14 @@
     <section class="party-reaction-card" role="dialog" aria-modal="true">
       <div class="party-reaction-kicker">
         <Eye :size="18" />
-        本轮反应机会
+        {{ $t('party_reaction_kicker') }}
       </div>
 
       <template v-if="reaction.status === 'awaiting_prediction'">
-        <h2>{{ reactorName }}，预测 {{ targetName }} 的骰子范围</h2>
+        <h2>{{ $t('party_reaction_title', { reactor: reactorName, target: targetName }) }}</h2>
         <p class="party-countdown">
           <Timer :size="16" />
-          {{ secondsRemaining }} 秒后自动预测 1–3
+          {{ $t('party_reaction_countdown_predict', { seconds: secondsRemaining }) }}
         </p>
         <div class="party-reaction-actions">
           <button
@@ -132,7 +140,7 @@
             data-testid="predict-low"
             @click="predict('low')"
           >
-            预测 1–3
+            {{ $t('party_reaction_btn_low') }}
           </button>
           <button
             type="button"
@@ -140,16 +148,16 @@
             data-testid="predict-high"
             @click="predict('high')"
           >
-            预测 4–6
+            {{ $t('party_reaction_btn_high') }}
           </button>
         </div>
       </template>
 
       <template v-else>
-        <h2>预测成功：骰子是 {{ reaction.rolledValue }}</h2>
+        <h2>{{ $t('party_reaction_success_title', { value: reaction.rolledValue }) }}</h2>
         <p class="party-countdown">
           <Timer :size="16" />
-          {{ secondsRemaining }} 秒后默认保留
+          {{ $t('party_reaction_countdown_keep', { seconds: secondsRemaining }) }}
         </p>
         <div class="party-reaction-actions">
           <button
@@ -159,7 +167,7 @@
             :disabled="submitted"
             @click="decide('keep')"
           >
-            保留 {{ reaction.rolledValue }}
+            {{ $t('party_reaction_btn_keep', { value: reaction.rolledValue }) }}
           </button>
           <button
             type="button"
@@ -169,7 +177,7 @@
             @click="decide('mirror')"
           >
             <RefreshCw :size="17" />
-            镜像为 {{ 7 - (reaction.rolledValue ?? 0) }}
+            {{ $t('party_reaction_btn_mirror', { value: 7 - (reaction.rolledValue ?? 0) }) }}
           </button>
         </div>
       </template>

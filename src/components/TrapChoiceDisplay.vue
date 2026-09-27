@@ -52,10 +52,10 @@
         <h2 class="trap-choice-title">
           {{
             trapVariant === 'roulette'
-              ? '命运轮盘！'
+              ? $t('trap_choice_title_roulette')
               : trapVariant === 'all_players'
-                ? '全员机关！'
-                : '机关触发！'
+                ? $t('trap_choice_title_all')
+                : $t('trap_choice_title_trigger')
           }}
         </h2>
         <p v-if="player" class="trap-choice-player">
@@ -68,7 +68,7 @@
         <p class="trap-choice-desc">{{ description }}</p>
 
         <div v-if="rouletteTarget" class="roulette-target">
-          <p>命运选中了：</p>
+          <p>{{ $t('trap_choice_fate_selected') }}</p>
           <div class="target-info">
             <span class="player-dot" :style="{ backgroundColor: rouletteTarget.color }"></span>
             <strong>{{ rouletteTarget.name }}</strong>
@@ -80,7 +80,7 @@
             <span class="choice-label">A</span>
             <span class="choice-text">{{ choiceA }}</span>
           </button>
-          <span class="choice-or">或</span>
+          <span class="choice-or">{{ $t('trap_choice_or') }}</span>
           <button class="choice-btn choice-b" :disabled="submitted" @click="choose('B')">
             <span class="choice-label">B</span>
             <span class="choice-text">{{ choiceB }}</span>
@@ -89,7 +89,7 @@
 
         <div v-else class="trap-confirm-section">
           <button class="btn trap-confirm-btn" :disabled="submitted" @click="confirmTrap">
-            确认执行
+            {{ $t('trap_choice_confirm') }}
           </button>
         </div>
       </div>

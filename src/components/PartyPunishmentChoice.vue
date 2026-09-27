@@ -65,14 +65,14 @@
     <section class="party-choice-card" role="dialog" aria-modal="true">
       <p class="party-choice-kicker">
         <Flame :size="18" />
-        随机二选一 ·
+        {{ $t('party_choice_random_two') }} ·
         <Coins :size="16" />
-        {{ tokensRemaining }} 枚
+        {{ $t('party_choice_tokens_count', { count: tokensRemaining }) }}
       </p>
-      <h2>要消耗一枚筹码选择结果吗？</h2>
+      <h2>{{ $t('party_choice_prompt') }}</h2>
       <p class="party-choice-countdown">
         <Timer :size="15" />
-        {{ secondsRemaining }} 秒后沿用原结果
+        {{ $t('party_choice_countdown', { seconds: secondsRemaining }) }}
       </p>
       <div class="party-choice-grid">
         <button
@@ -83,7 +83,7 @@
           :data-testid="`party-choice-${index}`"
           @click="select(index)"
         >
-          <span>选项 {{ index + 1 }}</span>
+          <span>{{ $t('party_choice_option_num', { num: index + 1 }) }}</span>
           <strong>{{ choice.description }}</strong>
         </button>
       </div>
@@ -93,7 +93,7 @@
         data-testid="party-choice-skip"
         @click="emit('skip')"
       >
-        不使用筹码，沿用原结果
+        {{ $t('party_choice_skip_btn') }}
       </button>
     </section>
   </div>

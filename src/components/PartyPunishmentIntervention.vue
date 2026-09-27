@@ -28,12 +28,18 @@
   let timer: number | undefined
   let submitted = false
 
+  import { useI18n } from 'vue-i18n'
+
+  const { t } = useI18n()
+
   const targetPlayer = computed(() =>
     props.resolution ? props.players[props.resolution.targetPlayerIndex] : undefined
   )
   const punishmentCount = computed(() => {
     const count = props.resolution?.count
-    return count?.kind === 'fixed' ? `${count.value} 下` : '次数待选'
+    return count?.kind === 'fixed'
+      ? t('party_interv_count_fixed', { count: count.value })
+      : t('party_interv_count_pending')
   })
 
   const clearTimer = () => {
@@ -95,22 +101,26 @@
       <header>
         <p class="kicker">
           <Coins :size="18" aria-hidden="true" />
-          惩罚干预时间
+          {{ $t('party_interv_title') }}
         </p>
-        <h2>有人要出手吗？</h2>
+        <h2>{{ $t('party_interv_subtitle') }}</h2>
         <p>
-          {{ targetPlayer?.name ?? '当前玩家' }} 将执行
-          {{ punishmentCount }}；本回合只能使用一枚筹码。
+          {{
+            $t('party_interv_desc', {
+              name: targetPlayer?.name ?? $t('party_interv_current_player'),
+              count: punishmentCount,
+            })
+          }}
         </p>
         <span class="countdown">
           <Timer :size="15" aria-hidden="true" />
-          {{ secondsRemaining }} 秒后沿用原惩罚
+          {{ $t('party_interv_countdown', { seconds: secondsRemaining }) }}
         </span>
       </header>
 
       <div class="player-options">
         <p v-if="options.length === 0" class="private-options-note">
-          可用筹码与操作已发送到各自手机；主屏不会显示私密选择。
+          {{ $t('party_interv_private_note') }}
         </p>
         <article v-for="option in options" :key="option.playerIndex" class="player-option">
           <div class="player-heading">
@@ -119,21 +129,25 @@
               :style="{ backgroundColor: players[option.playerIndex]?.color }"
             ></span>
             <strong>{{ players[option.playerIndex]?.name }}</strong>
-            <small>{{ tokensRemaining[option.playerIndex] ?? 0 }} 枚</small>
+            <small>
+              {{
+                $t('party_choice_tokens_count', { count: tokensRemaining[option.playerIndex] ?? 0 })
+              }}
+            </small>
           </div>
 
           <div class="option-actions">
             <div v-if="option.actions.includes('transfer')" class="transfer-action">
               <select
                 v-model.number="transferTargets[option.playerIndex]"
-                :aria-label="`${players[option.playerIndex]?.name}的转嫁目标`"
+                :aria-label="players[option.playerIndex]?.name"
               >
                 <option
                   v-for="targetIndex in option.transferTargetPlayerIndices"
                   :key="targetIndex"
                   :value="targetIndex"
                 >
-                  转给 {{ players[targetIndex]?.name }}
+                  {{ $t('party_interv_transfer_to', { name: players[targetIndex]?.name }) }}
                 </option>
               </select>
               <button
@@ -148,7 +162,7 @@
                 "
               >
                 <ArrowRightLeft :size="17" aria-hidden="true" />
-                转嫁
+                {{ $t('party_interv_btn_transfer') }}
               </button>
             </div>
 
@@ -159,7 +173,7 @@
               @click="apply({ action: 'immunity', playerIndex: option.playerIndex })"
             >
               <Ban :size="17" aria-hidden="true" />
-              免疫本次惩罚
+              {{ $t('party_interv_btn_immunity') }}
             </button>
 
             <button
@@ -169,14 +183,14 @@
               @click="apply({ action: 'amplify', playerIndex: option.playerIndex })"
             >
               <Flame :size="17" aria-hidden="true" />
-              加码为 2 倍
+              {{ $t('party_interv_btn_amplify') }}
             </button>
           </div>
         </article>
       </div>
 
       <button type="button" class="skip-button" data-testid="party-intervention-skip" @click="skip">
-        都不使用，沿用原惩罚
+        {{ $t('party_interv_btn_skip') }}
       </button>
     </section>
   </div>

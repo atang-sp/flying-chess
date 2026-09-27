@@ -101,13 +101,17 @@
         <span class="rd-badge">{{ items.length }}</span>
       </div>
       <div class="rd-actions">
-        <button class="rd-btn-action" title="均匀分配" @click="emit('equal-distribute')">
+        <button
+          class="rd-btn-action"
+          :title="$t('ratio_distributor_equal')"
+          @click="emit('equal-distribute')"
+        >
           <Equal :size="14" />
         </button>
         <button
           class="rd-btn-action rd-btn-add"
           :class="{ active: showAddForm }"
-          title="添加"
+          :title="$t('ratio_distributor_add')"
           @click="toggleAddForm"
         >
           <Plus :size="14" />
@@ -165,14 +169,14 @@
 
     <!-- Empty state -->
     <div v-if="items.length === 0" class="rd-empty">
-      <span>暂无条目，点击 + 添加</span>
+      <span>{{ $t('ratio_distributor_empty') }}</span>
     </div>
 
     <!-- Inline Detail Panel (Accordion) -->
     <Transition name="rd-expand">
       <div v-if="selectedItem" :key="selectedName!" class="rd-detail">
         <div class="rd-detail-row">
-          <span class="rd-detail-label">比例</span>
+          <span class="rd-detail-label">{{ $t('ratio_distributor_ratio') }}</span>
           <div class="rd-detail-slider-group">
             <button
               class="btn-stat"
@@ -206,7 +210,7 @@
         <div class="rd-detail-footer">
           <button class="rd-btn-remove" @click="removeSelected">
             <X :size="14" />
-            <span>删除</span>
+            <span>{{ $t('ratio_distributor_delete') }}</span>
           </button>
         </div>
       </div>

@@ -1,11 +1,43 @@
 <script setup lang="ts">
   import { computed } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import {
     PARTY_FINALE_THRESHOLD,
     PARTY_HEATING_THRESHOLD,
     PARTY_HEAT_MAX,
   } from '@flying-chess/game-core/party-momentum'
   import type { PartyAct } from '@flying-chess/game-core/party-mode'
+
+  const t = (() => {
+    try {
+      const { t } = useI18n()
+      return t
+    } catch {
+      return (key: string, values?: Record<string, unknown>) => {
+        const zhMap: Record<string, string> = {
+          party_heat_aria: 'Party 全局热度',
+          party_heat_global: '全局热度',
+          party_heat_stage_warmup: '暖场阶段',
+          party_heat_stage_heating: '升温阶段',
+          party_heat_stage_finale: '终局阶段',
+          party_heat_to_heating: '距离升温还差 {count}',
+          party_heat_to_finale: '距离终局还差 {count}',
+          party_heat_to_max: '距离满格还差 {count}',
+          party_heat_limit_pending: '当前完整轮次结束后进入结算',
+          party_heat_full: '热度已满',
+          party_heat_contribution: '当前玩家贡献 {count}',
+          party_heat_progress_aria: 'Party 全局热度进度',
+        }
+        let res = zhMap[key] || key
+        if (values) {
+          for (const [k, v] of Object.entries(values)) {
+            res = res.replace(`{${k}}`, String(v))
+          }
+        }
+        return res
+      }
+    }
+  })()
 
   const props = withDefaults(
     defineProps<{
@@ -22,32 +54,32 @@
   )
 
   const stageLabel = computed(() => {
-    if (props.act === 'finale') return '终局阶段'
-    if (props.act === 'heating') return '升温阶段'
-    return '暖场阶段'
+    if (props.act === 'finale') return t('party_heat_stage_finale')
+    if (props.act === 'heating') return t('party_heat_stage_heating')
+    return t('party_heat_stage_warmup')
   })
 
   const nextThresholdLabel = computed(() => {
     if (props.heat < PARTY_HEATING_THRESHOLD) {
-      return `距离升温还差 ${PARTY_HEATING_THRESHOLD - props.heat}`
+      return t('party_heat_to_heating', { count: PARTY_HEATING_THRESHOLD - props.heat })
     }
     if (props.heat < PARTY_FINALE_THRESHOLD) {
-      return `距离终局还差 ${PARTY_FINALE_THRESHOLD - props.heat}`
+      return t('party_heat_to_finale', { count: PARTY_FINALE_THRESHOLD - props.heat })
     }
     if (props.heat < PARTY_HEAT_MAX) {
-      return `距离满格还差 ${PARTY_HEAT_MAX - props.heat}`
+      return t('party_heat_to_max', { count: PARTY_HEAT_MAX - props.heat })
     }
-    return props.heatLimitPending ? '当前完整轮次结束后进入结算' : '热度已满'
+    return props.heatLimitPending ? t('party_heat_limit_pending') : t('party_heat_full')
   })
 
   const boundedHeat = computed(() => Math.min(PARTY_HEAT_MAX, Math.max(0, props.heat)))
 </script>
 
 <template>
-  <section class="party-heat-meter" aria-label="Party 全局热度">
+  <section class="party-heat-meter" :aria-label="t('party_heat_aria')">
     <div class="party-heat-meter__summary">
       <div>
-        <span class="party-heat-meter__eyebrow">全局热度</span>
+        <span class="party-heat-meter__eyebrow">{{ t('party_heat_global') }}</span>
         <strong>{{ boundedHeat }} / {{ PARTY_HEAT_MAX }}</strong>
       </div>
       <div class="party-heat-meter__stage">
@@ -55,14 +87,14 @@
         <span>{{ nextThresholdLabel }}</span>
       </div>
       <span class="party-heat-meter__contribution">
-        当前玩家贡献 {{ currentPlayerContribution }}
+        {{ t('party_heat_contribution', { count: currentPlayerContribution }) }}
       </span>
     </div>
 
     <div
       class="party-heat-meter__track"
       role="progressbar"
-      aria-label="Party 全局热度进度"
+      :aria-label="t('party_heat_progress_aria')"
       :aria-valuemin="0"
       :aria-valuemax="PARTY_HEAT_MAX"
       :aria-valuenow="boundedHeat"

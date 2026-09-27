@@ -39,12 +39,14 @@
         <div class="double-icon">
           <CopyX :size="48" />
         </div>
-        <h2 class="double-title">翻倍！</h2>
-        <p class="double-description">相同惩罚再来一次！</p>
+        <h2 class="double-title">{{ $t('double_punishment_title') }}</h2>
+        <p class="double-description">{{ $t('double_punishment_desc') }}</p>
       </div>
 
       <div v-if="showContent" class="double-actions">
-        <button class="btn btn-danger" @click="confirm">接受命运</button>
+        <button class="btn btn-danger" @click="confirm">
+          {{ $t('double_punishment_accept') }}
+        </button>
       </div>
     </div>
   </div>

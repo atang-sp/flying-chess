@@ -18,6 +18,7 @@ function iphoneContextOptions(): BrowserContextOptions {
     deviceScaleFactor: device.deviceScaleFactor,
     isMobile: device.isMobile,
     hasTouch: device.hasTouch,
+    locale: 'zh-CN',
   }
 }
 

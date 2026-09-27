@@ -23,25 +23,25 @@
     <header>
       <span class="config-icon"><Flag :size="21" aria-hidden="true" /></span>
       <div>
-        <h2 id="victory-config-title">终局奖惩</h2>
-        <p>胜者执行动作；可让排名越后的玩家次数越高。</p>
+        <h2 id="victory-config-title">{{ $t('victory_config_title') }}</h2>
+        <p>{{ $t('victory_config_desc') }}</p>
       </div>
     </header>
 
     <div class="config-grid">
       <label class="field field--wide">
-        <span>奖惩动作</span>
+        <span>{{ $t('victory_config_action_label') }}</span>
         <input
           :value="config.actionText"
           type="text"
           maxlength="80"
-          placeholder="例如：用手掌打屁股"
+          :placeholder="$t('victory_config_action_placeholder')"
           @change="update({ actionText: ($event.target as HTMLInputElement).value })"
         />
       </label>
 
       <label class="field">
-        <span>基础次数</span>
+        <span>{{ $t('victory_config_base_count') }}</span>
         <input
           :value="config.baseCount"
           type="number"
@@ -53,12 +53,12 @@
       </label>
 
       <label class="field">
-        <span>单位</span>
+        <span>{{ $t('victory_config_unit') }}</span>
         <input
           :value="config.countUnit"
           type="text"
           maxlength="8"
-          placeholder="下"
+          :placeholder="$t('victory_config_unit_default')"
           @change="update({ countUnit: ($event.target as HTMLInputElement).value })"
         />
       </label>
@@ -73,14 +73,14 @@
       <span>
         <strong>
           <TrendingDown :size="17" aria-hidden="true" />
-          启用败者惩罚梯度
+          {{ $t('victory_config_gradient') }}
         </strong>
-        <small>同一进度的玩家同档，最后一名最重。</small>
+        <small>{{ $t('victory_config_gradient_desc') }}</small>
       </span>
     </label>
 
     <label v-if="config.loserGradientEnabled" class="field gradient-step">
-      <span>每落后一档增加</span>
+      <span>{{ $t('victory_config_gradient_step') }}</span>
       <div>
         <input
           :value="config.gradientStep"
@@ -94,10 +94,18 @@
       </div>
     </label>
 
-    <div class="settlement-preview" aria-label="终局奖惩预览">
-      <p>预览：胜者对第二名{{ config.actionText }} {{ config.baseCount }}{{ config.countUnit }}</p>
+    <div class="settlement-preview" :aria-label="$t('victory_config_preview_aria')">
+      <p>
+        {{
+          $t('victory_config_preview', {
+            action: config.actionText,
+            count: config.baseCount,
+            unit: config.countUnit,
+          })
+        }}
+      </p>
       <p v-if="config.loserGradientEnabled && playerCount > 2">
-        最后一名为 {{ lastPlaceCount }}{{ config.countUnit }}
+        {{ $t('victory_config_preview_last', { count: lastPlaceCount, unit: config.countUnit }) }}
       </p>
     </div>
   </section>

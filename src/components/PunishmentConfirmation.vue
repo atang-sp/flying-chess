@@ -157,12 +157,12 @@
     <div class="step-indicator">
       <button class="step" @click="emit('back-to-settings')">
         <span class="step-number">1</span>
-        <span class="step-label">配置</span>
+        <span class="step-label">{{ $t('punishment_confirmation_step_config') }}</span>
       </button>
       <span class="step-divider"></span>
       <div class="step active">
         <span class="step-number">2</span>
-        <span class="step-label">确认</span>
+        <span class="step-label">{{ $t('punishment_confirmation_step_confirm') }}</span>
       </div>
     </div>
 
@@ -170,7 +170,12 @@
     <div class="stats-summary">
       <div class="donut-group">
         <div class="donut-item">
-          <MiniDonut :segments="toolDonutSegments" :size="56" :stroke-width="7" label="工具" />
+          <MiniDonut
+            :segments="toolDonutSegments"
+            :size="56"
+            :stroke-width="7"
+            :label="$t('punishment_confirmation_donut_tool')"
+          />
           <div class="donut-legend">
             <span v-for="seg in toolDonutSegments" :key="seg.name" class="legend-item">
               <span class="legend-dot" :style="{ backgroundColor: seg.color }"></span>
@@ -179,7 +184,12 @@
           </div>
         </div>
         <div class="donut-item">
-          <MiniDonut :segments="bodyPartDonutSegments" :size="56" :stroke-width="7" label="部位" />
+          <MiniDonut
+            :segments="bodyPartDonutSegments"
+            :size="56"
+            :stroke-width="7"
+            :label="$t('punishment_confirmation_donut_body_part')"
+          />
           <div class="donut-legend">
             <span v-for="seg in bodyPartDonutSegments" :key="seg.name" class="legend-item">
               <span class="legend-dot" :style="{ backgroundColor: seg.color }"></span>
@@ -188,7 +198,12 @@
           </div>
         </div>
         <div class="donut-item">
-          <MiniDonut :segments="positionDonutSegments" :size="56" :stroke-width="7" label="姿势" />
+          <MiniDonut
+            :segments="positionDonutSegments"
+            :size="56"
+            :stroke-width="7"
+            :label="$t('punishment_confirmation_donut_position')"
+          />
           <div class="donut-legend">
             <span v-for="seg in positionDonutSegments" :key="seg.name" class="legend-item">
               <span class="legend-dot" :style="{ backgroundColor: seg.color }"></span>
@@ -200,22 +215,22 @@
       <div class="stats-numbers">
         <div class="stat-num">
           <span class="stat-num-value">{{ combinations.length }}</span>
-          <span class="stat-num-label">总数</span>
+          <span class="stat-num-label">{{ $t('punishment_confirmation_total') }}</span>
         </div>
         <div v-if="removedCombinations.size > 0" class="stat-num">
           <span class="stat-num-value stat-num-removed">{{ removedCombinations.size }}</span>
-          <span class="stat-num-label">已删除</span>
+          <span class="stat-num-label">{{ $t('punishment_confirmation_removed') }}</span>
         </div>
         <div class="stat-num">
           <span class="stat-num-value stat-num-retained">{{ retainedCount }}</span>
-          <span class="stat-num-label">保留</span>
+          <span class="stat-num-label">{{ $t('punishment_confirmation_retained') }}</span>
         </div>
       </div>
     </div>
 
     <p class="duplicate-notice">
       <Info :size="14" />
-      为保持设置比例并填满棋盘，部分组合可能重复出现
+      {{ $t('punishment_confirmation_notice') }}
     </p>
 
     <!-- Combination List -->
@@ -245,8 +260,14 @@
         <Transition name="combo-expand">
           <div v-if="selectedIndex === index" class="combo-detail">
             <div class="combo-detail-stats">
-              <span class="detail-badge">强度 {{ combo.tool.intensity }}/10</span>
-              <span class="detail-badge">耐受度 {{ combo.bodyPart.sensitivity }}/10</span>
+              <span class="detail-badge">
+                {{ $t('punishment_confirmation_intensity', { value: combo.tool.intensity }) }}
+              </span>
+              <span class="detail-badge">
+                {{
+                  $t('punishment_confirmation_sensitivity', { value: combo.bodyPart.sensitivity })
+                }}
+              </span>
             </div>
             <div v-if="combo.description" class="combo-detail-desc">
               {{ combo.description }}
@@ -258,7 +279,7 @@
                 @click.stop="removeCombination(index)"
               >
                 <X :size="14" />
-                <span>删除</span>
+                <span>{{ $t('punishment_confirmation_delete') }}</span>
               </button>
               <button
                 v-else
@@ -266,7 +287,7 @@
                 @click.stop="restoreCombination(index)"
               >
                 <RotateCw :size="14" />
-                <span>恢复</span>
+                <span>{{ $t('punishment_confirmation_restore') }}</span>
               </button>
             </div>
           </div>
@@ -278,11 +299,11 @@
     <div class="confirm-actions">
       <button class="btn btn-secondary" @click="regenerateCombinations">
         <RotateCcw :size="16" />
-        重新生成
+        {{ $t('punishment_confirmation_regenerate') }}
       </button>
       <button class="btn btn-primary" :disabled="retainedCount === 0" @click="confirmCombinations">
         <Rocket :size="16" />
-        开始游戏 ({{ retainedCount }}个)
+        {{ $t('punishment_confirmation_start', { count: retainedCount }) }}
       </button>
     </div>
   </div>

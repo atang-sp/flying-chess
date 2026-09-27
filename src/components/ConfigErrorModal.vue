@@ -31,9 +31,9 @@
         <div class="modal-header">
           <h3 id="config-error-title">
             <AlertTriangle :size="22" />
-            配置错误
+            {{ $t('config_error_title') }}
           </h3>
-          <button class="close-btn" aria-label="关闭配置错误弹窗" @click="closeModal">
+          <button class="close-btn" :aria-label="$t('config_error_close_aria')" @click="closeModal">
             <X :size="20" />
           </button>
         </div>
@@ -47,17 +47,31 @@
           <div v-if="requiredSensitivity" class="suggestion">
             <h4>
               <Lightbulb :size="18" />
-              建议解决方案：
+              {{ $t('config_error_solution_title') }}
             </h4>
             <ul>
-              <li>添加耐受度为 {{ requiredSensitivity }} 或更高的部位</li>
-              <li>或者降低工具的强度到 {{ requiredSensitivity }} 或更低</li>
+              <li>
+                {{
+                  $t('config_error_solution_add_bodypart', {
+                    count: requiredSensitivity,
+                  })
+                }}
+              </li>
+              <li>
+                {{
+                  $t('config_error_solution_lower_tool', {
+                    count: requiredSensitivity,
+                  })
+                }}
+              </li>
             </ul>
           </div>
         </div>
 
         <div class="modal-footer">
-          <button class="btn btn-primary" @click="closeModal">我知道了</button>
+          <button class="btn btn-primary" @click="closeModal">
+            {{ $t('config_error_got_it') }}
+          </button>
         </div>
       </div>
     </div>

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "icebreaker-plus",
+  "title": "破冰加量包",
+  "description": "适合新朋友的轻量投票、问答和反应事件。",
+  "tags": ["破冰局", "轻度", "多人"],
+  "rating": 4.8,
+  "eventDeck": [
+    {
+      "id": "icebreaker-vote",
+      "title": "第一印象",
+      "description": "全员投票选择本轮最会带动气氛的人。",
+      "tags": ["投票", "破冰"],
+      "trigger": { "kind": "every_n_turns", "interval": 2 },
+      "effect": {
+        "kind": "vote",
+        "prompt": "谁最会带动现场气氛？",
+        "options": ["当前玩家", "左边玩家", "右边玩家"]
+      }
+    },
+    {
+      "id": "icebreaker-quick-quiz",
+      "title": "快速认识",
+      "description": "掷出 6 点时开始一轮快速问答。",
+      "tags": ["问答", "小游戏"],
+      "trigger": { "kind": "dice_value", "value": 6 },
+      "effect": { "kind": "mini_game", "game": "quick_quiz" }
+    }
+  ]
+}

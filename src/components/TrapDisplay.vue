@@ -29,7 +29,7 @@
         <div class="trap-icon">
           <Skull :size="48" />
         </div>
-        <h2 class="trap-title">机关陷阱触发！</h2>
+        <h2 class="trap-title">{{ $t('trap_display_title') }}</h2>
       </div>
 
       <div class="trap-content">
@@ -40,7 +40,7 @@
         <div class="trap-warning">
           <p>
             <AlertTriangle :size="18" />
-            机关陷阱已触发，请按照描述执行！
+            {{ $t('trap_display_warning') }}
           </p>
         </div>
       </div>
@@ -50,7 +50,7 @@
           <span class="btn-icon">
             <AlertTriangle :size="18" />
           </span>
-          <span class="btn-text">确认执行</span>
+          <span class="btn-text">{{ $t('trap_display_confirm') }}</span>
         </button>
       </div>
     </div>

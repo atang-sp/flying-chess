@@ -136,10 +136,10 @@
     <div class="config-section">
       <h3>
         <Target :size="20" />
-        棋盘格子配置
+        {{ $t('board_config_title') }}
       </h3>
       <p class="section-description">
-        设置游戏中各种类型格子的数量。总格子数：{{ localConfig.totalCells }}
+        {{ $t('board_config_desc', { n: localConfig.totalCells }) }}
       </p>
 
       <div class="config-grid">
@@ -147,7 +147,7 @@
         <div class="config-item">
           <label class="config-label">
             <span class="label-icon"><Settings :size="18" /></span>
-            总格子数
+            {{ $t('board_config_total') }}
           </label>
           <div class="input-group">
             <input
@@ -159,7 +159,7 @@
               class="config-input"
               @input="handleCellInput('totalCells')"
             />
-            <span class="input-unit">格</span>
+            <span class="input-unit">{{ $t('board_config_unit') }}</span>
           </div>
         </div>
 
@@ -167,7 +167,7 @@
         <div class="config-item">
           <label class="config-label">
             <span class="label-icon"><AlertTriangle :size="18" /></span>
-            惩罚格子
+            {{ $t('board_config_punishment') }}
           </label>
           <div class="input-group">
             <input
@@ -179,16 +179,16 @@
               class="config-input"
               @input="handleCellInput('punishmentCells')"
             />
-            <span class="input-unit">格</span>
+            <span class="input-unit">{{ $t('board_config_unit') }}</span>
           </div>
-          <div class="cell-description">玩家踩到后需要接受惩罚的格子</div>
+          <div class="cell-description">{{ $t('board_config_punishment_desc') }}</div>
         </div>
 
         <!-- 连锁惩罚格子 -->
         <div class="config-item">
           <label class="config-label">
             <span class="label-icon"><Link :size="18" /></span>
-            连锁惩罚格子
+            {{ $t('board_config_chain_punishment') }}
           </label>
           <div class="input-group">
             <input
@@ -199,16 +199,16 @@
               class="config-input"
               @input="handleCellInput('chainPunishmentCells')"
             />
-            <span class="input-unit">格</span>
+            <span class="input-unit">{{ $t('board_config_unit') }}</span>
           </div>
-          <div class="cell-description">惩罚后掷骰：奇数继续罚，偶数结束</div>
+          <div class="cell-description">{{ $t('board_config_chain_desc') }}</div>
         </div>
 
         <!-- 奖励格子 -->
         <div class="config-item">
           <label class="config-label">
             <span class="label-icon"><Rocket :size="18" /></span>
-            奖励格子
+            {{ $t('board_config_bonus') }}
           </label>
           <div class="input-group">
             <input
@@ -219,16 +219,16 @@
               class="config-input"
               @input="handleCellInput('bonusCells')"
             />
-            <span class="input-unit">格</span>
+            <span class="input-unit">{{ $t('board_config_unit') }}</span>
           </div>
-          <div class="cell-description">玩家踩到后可以前进的格子</div>
+          <div class="cell-description">{{ $t('board_config_bonus_desc') }}</div>
         </div>
 
         <!-- 后退格子 -->
         <div class="config-item">
           <label class="config-label">
             <span class="label-icon"><ArrowLeft :size="18" /></span>
-            后退格子
+            {{ $t('board_config_backward') }}
           </label>
           <div class="input-group">
             <input
@@ -239,16 +239,16 @@
               class="config-input"
               @input="handleCellInput('reverseCells')"
             />
-            <span class="input-unit">格</span>
+            <span class="input-unit">{{ $t('board_config_unit') }}</span>
           </div>
-          <div class="cell-description">后退的格子</div>
+          <div class="cell-description">{{ $t('board_config_reverse_desc') }}</div>
         </div>
 
         <!-- 休息格子 -->
         <div class="config-item">
           <label class="config-label">
             <span class="label-icon"><Info :size="18" /></span>
-            休息格子
+            {{ $t('board_config_rest') }}
           </label>
           <div class="input-group">
             <input
@@ -259,16 +259,16 @@
               class="config-input"
               @input="handleCellInput('restCells')"
             />
-            <span class="input-unit">格</span>
+            <span class="input-unit">{{ $t('board_config_unit') }}</span>
           </div>
-          <div class="cell-description">玩家踩到后需要休息的格子</div>
+          <div class="cell-description">{{ $t('board_config_rest_desc') }}</div>
         </div>
 
         <!-- 回到起点格子 -->
         <div class="config-item">
           <label class="config-label">
             <span class="label-icon"><RotateCcw :size="18" /></span>
-            回到起点格子
+            {{ $t('board_config_restart') }}
           </label>
           <div class="input-group">
             <input
@@ -279,16 +279,16 @@
               class="config-input"
               @input="handleCellInput('restartCells')"
             />
-            <span class="input-unit">格</span>
+            <span class="input-unit">{{ $t('board_config_unit') }}</span>
           </div>
-          <div class="cell-description">玩家踩到后需要回到起点的格子</div>
+          <div class="cell-description">{{ $t('board_config_restart_desc') }}</div>
         </div>
 
         <!-- 机关格子 -->
         <div class="config-item">
           <label class="config-label">
             <span class="label-icon"><Skull :size="18" /></span>
-            机关格子
+            {{ $t('board_config_trap') }}
           </label>
           <div class="input-group">
             <input
@@ -299,15 +299,15 @@
               class="config-input"
               @input="handleCellInput('trapCells')"
             />
-            <span class="input-unit">格</span>
+            <span class="input-unit">{{ $t('board_config_unit') }}</span>
           </div>
-          <div class="cell-description">玩家踩到后随机触发机关惩罚的格子</div>
+          <div class="cell-description">{{ $t('board_config_trap_desc') }}</div>
         </div>
 
         <div v-if="localConfig.qaCells !== undefined" class="config-item">
           <label class="config-label">
             <span class="label-icon"><Info :size="18" /></span>
-            问答格子
+            {{ $t('board_config_qa') }}
           </label>
           <div class="input-group">
             <input
@@ -318,15 +318,15 @@
               class="config-input"
               @input="handleCellInput('qaCells')"
             />
-            <span class="input-unit">格</span>
+            <span class="input-unit">{{ $t('board_config_unit') }}</span>
           </div>
-          <div class="cell-description">玩家踩到后回答问题的格子</div>
+          <div class="cell-description">{{ $t('board_config_qa_desc') }}</div>
         </div>
 
         <div v-if="localConfig.dareCells !== undefined" class="config-item">
           <label class="config-label">
             <span class="label-icon"><Target :size="18" /></span>
-            大冒险格子
+            {{ $t('board_config_dare') }}
           </label>
           <div class="input-group">
             <input
@@ -337,9 +337,9 @@
               class="config-input"
               @input="handleCellInput('dareCells')"
             />
-            <span class="input-unit">格</span>
+            <span class="input-unit">{{ $t('board_config_unit') }}</span>
           </div>
-          <div class="cell-description">玩家踩到后完成指令的格子</div>
+          <div class="cell-description">{{ $t('board_config_dare_desc') }}</div>
         </div>
       </div>
 
@@ -353,7 +353,9 @@
             <Check v-if="remainingCells >= 0" :size="16" />
             <X v-else :size="16" />
           </span>
-          <span class="status-text">剩余可用格子：{{ remainingCells }} 格</span>
+          <span class="status-text">
+            {{ $t('board_config_remaining', { count: remainingCells }) }}
+          </span>
         </div>
 
         <div
@@ -364,7 +366,13 @@
             <Check v-if="isConfigValid" :size="16" />
             <X v-else :size="16" />
           </span>
-          <span class="status-text">配置状态：{{ isConfigValid ? '有效' : '无效' }}</span>
+          <span class="status-text">
+            {{
+              $t('board_config_status', {
+                status: isConfigValid ? $t('board_config_valid') : $t('board_config_invalid'),
+              })
+            }}
+          </span>
         </div>
       </div>
 
@@ -372,11 +380,11 @@
       <div class="quick-actions">
         <button class="btn btn-secondary" @click="resetToDefault">
           <RotateCcw :size="16" />
-          重置默认
+          {{ $t('board_config_reset') }}
         </button>
         <button class="btn btn-secondary" @click="autoDistribute">
           <Target :size="16" />
-          自动分配
+          {{ $t('board_config_auto') }}
         </button>
       </div>
     </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { Undo2, Check, Trophy } from '@lucide/vue'
+  import { Undo2, Check } from '@lucide/vue'
 
   interface Props {
     visible: boolean
@@ -28,26 +28,28 @@
       <div class="bounce-header">
         <h3>
           <Undo2 :size="20" />
-          反弹效果
+          {{ $t('bounce_display_title') }}
         </h3>
-        <p>超出终点，按飞行棋规则反弹！</p>
+        <p>{{ $t('bounce_display_subtitle') }}</p>
       </div>
 
       <div class="bounce-content">
         <div class="bounce-message">
           <p class="main-message">
-            超出终点
-            <Trophy :size="18" class="inline-icon" />
-            (第{{ endPoint }}格) {{ overflowSteps }}格子，所以倒退{{ overflowSteps }}格，最后是第{{
-              finalPosition
-            }}格
+            {{
+              $t('bounce_display_message', {
+                end: endPoint,
+                overflow: overflowSteps,
+                pos: finalPosition,
+              })
+            }}
           </p>
         </div>
 
         <div class="bounce-actions">
           <button class="btn btn-confirm" @click="confirmBounce">
             <Check :size="18" />
-            确认反弹
+            {{ $t('bounce_display_confirm') }}
           </button>
         </div>
       </div>

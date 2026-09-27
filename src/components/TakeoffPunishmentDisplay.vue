@@ -38,32 +38,36 @@
         <div class="punishment-icon">
           <Plane :size="48" />
         </div>
-        <div class="punishment-title">未起飞惩罚</div>
+        <div class="punishment-title">{{ $t('takeoff_punishment_title') }}</div>
       </div>
 
       <div class="punishment-content">
         <div class="punishment-description">
-          {{ triggeringPlayerName || '当前玩家' }}掷到{{ diceValue }}点，未能起飞！本次由
-          {{ targetName || triggeringPlayerName || '当前玩家' }}接受惩罚{{
-            punishment?.strikes ?? diceValue
-          }}下。
+          {{
+            $t('takeoff_punishment_desc', {
+              player: triggeringPlayerName || $t('takeoff_punishment_current_player'),
+              n: diceValue,
+              target: targetName || triggeringPlayerName || $t('takeoff_punishment_current_player'),
+              count: punishment?.strikes ?? diceValue,
+            })
+          }}
         </div>
 
         <div v-if="punishment" class="punishment-details">
           <div v-if="executorName" class="detail-item">
-            <span class="detail-label">执行者：</span>
+            <span class="detail-label">{{ $t('takeoff_punishment_executor') }}</span>
             <span class="detail-value">{{ executorName }}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">工具：</span>
+            <span class="detail-label">{{ $t('takeoff_punishment_tool') }}</span>
             <span class="detail-value">{{ punishment.tool.name }}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">部位：</span>
+            <span class="detail-label">{{ $t('takeoff_punishment_body_part') }}</span>
             <span class="detail-value">{{ punishment.bodyPart.name }}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">姿势：</span>
+            <span class="detail-label">{{ $t('takeoff_punishment_position') }}</span>
             <span class="detail-value">{{ punishment.position.name }}</span>
           </div>
         </div>
@@ -72,16 +76,18 @@
           <div class="note-icon">
             <Info :size="20" />
           </div>
-          <div class="note-text">只有掷到6点才能起飞。下次掷到6点前，每次掷骰子都会受到惩罚。</div>
+          <div class="note-text">{{ $t('takeoff_punishment_note') }}</div>
         </div>
       </div>
 
       <div class="punishment-footer">
         <button v-if="canRequestMercy" class="mercy-btn" @click="requestMercy">
           <HandHeart :size="18" />
-          求饶
+          {{ $t('takeoff_punishment_mercy') }}
         </button>
-        <button class="confirm-btn" @click="handleConfirm">确认惩罚</button>
+        <button class="confirm-btn" @click="handleConfirm">
+          {{ $t('takeoff_punishment_confirm') }}
+        </button>
       </div>
     </div>
   </div>

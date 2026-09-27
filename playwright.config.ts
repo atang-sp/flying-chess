@@ -14,6 +14,7 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:4175',
     channel: 'chrome',
+    locale: 'zh-CN',
     trace: 'retain-on-failure',
   },
   webServer: [
@@ -37,6 +38,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1280, height: 900 },
+        locale: 'zh-CN',
       },
     },
     {
@@ -44,6 +46,7 @@ export default defineConfig({
       use: {
         ...devices['Pixel 5'],
         viewport: { width: 390, height: 844 },
+        locale: 'zh-CN',
       },
     },
   ],

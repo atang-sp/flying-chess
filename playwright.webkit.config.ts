@@ -11,6 +11,7 @@ export default defineConfig({
   workers: 1,
   use: {
     baseURL: 'http://127.0.0.1:4176',
+    locale: 'zh-CN',
     trace: 'retain-on-failure',
   },
   webServer: [
@@ -34,6 +35,7 @@ export default defineConfig({
       use: {
         ...devices['iPhone 13'],
         browserName: 'webkit',
+        locale: 'zh-CN',
       },
     },
   ],

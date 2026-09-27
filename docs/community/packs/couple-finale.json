@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "couple-finale",
+  "title": "情侣终局包",
+  "description": "为两人升温局准备的柔和终局梯度。",
+  "tags": ["情侣局", "终局", "轻度"],
+  "rating": 4.6,
+  "victoryConfig": {
+    "actionText": "完成一个由胜者指定的亲密挑战",
+    "baseCount": 1,
+    "countUnit": "轮",
+    "loserGradientEnabled": true,
+    "gradientStep": 1
+  }
+}

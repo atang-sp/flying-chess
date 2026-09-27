@@ -44,6 +44,7 @@ export const PARTY_EVENT_DECK_STORAGE_KEY = 'flying-chess-party-event-deck'
 export const LOCAL_PROGRESS_STORAGE_KEY = 'flying-chess-local-progress-v1'
 export const PARTY_STUDIO_STORAGE_KEY = 'flying-chess-party-studio-v1'
 export const LOCAL_GAME_SESSION_SNAPSHOT_KEY = 'flying-chess-local-session-snapshot'
+export const LOCALE_STORAGE_KEY = 'flying-chess-locale'
 export const LOCAL_GAME_STORAGE_KEYS = [
   GAME_CONFIG_STORAGE_KEY,
   PLAYER_SETTINGS_STORAGE_KEY,
@@ -54,6 +55,7 @@ export const LOCAL_GAME_STORAGE_KEYS = [
   LOCAL_PROGRESS_STORAGE_KEY,
   PARTY_STUDIO_STORAGE_KEY,
   LOCAL_GAME_SESSION_SNAPSHOT_KEY,
+  LOCALE_STORAGE_KEY,
   'hasShownGuide',
   'autoGuideEnabled',
 ] as const
@@ -162,6 +164,12 @@ export function saveConfig(data: Omit<CachedConfig, 'savedAt'>): boolean {
   }
   try {
     localStorage.setItem(GAME_CONFIG_STORAGE_KEY, JSON.stringify(payload))
+    // 异步云端同步，失败不阻塞本地游戏
+    import('../services/syncEngine')
+      .then(({ syncEngine }) => {
+        syncEngine.pushConfig(payload)
+      })
+      .catch(() => {})
     return true
   } catch (err) {
     console.warn('保存配置到 localStorage 失败:', err)
@@ -382,6 +390,12 @@ export function saveLocalProgress(
   if (!validateLocalProgress(progress)) return false
   try {
     storage.setItem(LOCAL_PROGRESS_STORAGE_KEY, JSON.stringify(progress))
+    // 异步云端同步，失败不阻塞本地游戏
+    import('../services/syncEngine')
+      .then(({ syncEngine }) => {
+        syncEngine.pushProgress(progress)
+      })
+      .catch(() => {})
     return true
   } catch (error) {
     console.warn('保存本地成就进度失败:', error)
@@ -418,5 +432,34 @@ export function savePartyStudioConfig(
   } catch (error) {
     console.warn('保存 Party Studio 场景失败:', error)
     return false
+  }
+}
+
+// ================= 语言偏好缓存 =================
+
+/**
+ * Persist the user's manual language choice so it survives page reloads.
+ */
+export function saveLocalePreference(
+  lang: string,
+  storage: Pick<Storage, 'setItem'> = localStorage
+): void {
+  try {
+    storage.setItem(LOCALE_STORAGE_KEY, lang)
+  } catch (error) {
+    console.warn('保存语言偏好失败:', error)
+  }
+}
+
+/**
+ * Read the previously saved language preference, or `null` when none was set.
+ */
+export function loadLocalePreference(
+  storage: Pick<Storage, 'getItem'> = localStorage
+): string | null {
+  try {
+    return storage.getItem(LOCALE_STORAGE_KEY)
+  } catch {
+    return null
   }
 }

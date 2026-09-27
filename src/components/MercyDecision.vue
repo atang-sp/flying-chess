@@ -26,33 +26,41 @@
     <div class="modal-content mercy-decision">
       <div class="mercy-header">
         <HandHeart :size="28" />
-        <h3>求饶请求</h3>
+        <h3>{{ $t('mercy_decision_title') }}</h3>
       </div>
 
       <div class="mercy-body">
         <p class="mercy-intro">
-          <span class="highlight">{{ targetPlayer?.name ?? '受罚方' }}</span>
-          向
-          <span class="highlight">{{ executorPlayer?.name ?? '施罚方' }}</span>
-          求饶
+          <span class="highlight">
+            {{ targetPlayer?.name ?? $t('mercy_decision_target_fallback') }}
+          </span>
+          {{ $t('mercy_decision_intro') }}
+          <span class="highlight">
+            {{ executorPlayer?.name ?? $t('mercy_decision_executor_fallback') }}
+          </span>
+          {{ $t('mercy_decision_plea') }}
         </p>
 
         <div class="mercy-comparison">
           <div class="comparison-item original">
-            <span class="comparison-label">原惩罚</span>
-            <span class="comparison-value">{{ punishment.strikes ?? 0 }} 下</span>
+            <span class="comparison-label">{{ $t('mercy_decision_original') }}</span>
+            <span class="comparison-value">
+              {{ $t('mercy_decision_strikes', { count: punishment.strikes ?? 0 }) }}
+            </span>
           </div>
           <div class="comparison-arrow">→</div>
           <div class="comparison-item halved">
-            <span class="comparison-label">求饶后</span>
-            <span class="comparison-value">{{ halvedStrikes }} 下</span>
+            <span class="comparison-label">{{ $t('mercy_decision_halved') }}</span>
+            <span class="comparison-value">
+              {{ $t('mercy_decision_strikes', { count: halvedStrikes }) }}
+            </span>
           </div>
         </div>
 
         <p class="mercy-cost">
-          同意后：本次减半，但
-          <strong>{{ targetPlayer?.name ?? '受罚方' }}</strong>
-          下次被罚自动 ×1.5
+          {{ $t('mercy_decision_cost') }}
+          <strong>{{ targetPlayer?.name ?? $t('mercy_decision_target_fallback') }}</strong>
+          {{ $t('mercy_decision_cost_suffix') }}
         </p>
 
         <div class="punishment-brief">
@@ -64,11 +72,11 @@
       <div class="mercy-actions">
         <button class="btn btn-success" @click="accept">
           <Check :size="18" />
-          同意求饶
+          {{ $t('mercy_decision_accept') }}
         </button>
         <button class="btn btn-danger" @click="reject">
           <X :size="18" />
-          拒绝求饶
+          {{ $t('mercy_decision_reject') }}
         </button>
       </div>
     </div>

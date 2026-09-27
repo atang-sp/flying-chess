@@ -27,7 +27,7 @@
 <template>
   <div class="score-panel">
     <div class="panel-header">
-      <span class="panel-title">排名</span>
+      <span class="panel-title">{{ $t('score_panel_rank') }}</span>
       <span v-if="turnCount" class="panel-turn">R{{ turnCount }}</span>
     </div>
     <div class="player-list">
