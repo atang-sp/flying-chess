@@ -36,7 +36,11 @@
 </script>
 
 <template>
-  <section class="turn-dock" :class="{ 'is-mobile': mobile }" aria-label="当前回合">
+  <section
+    class="turn-dock"
+    :class="{ 'is-mobile': mobile }"
+    :aria-label="$t('game_turn_dock_aria')"
+  >
     <div v-if="currentPlayer" class="turn-player">
       <span class="turn-kicker">CURRENT TURN</span>
       <div class="player-line">
@@ -51,7 +55,7 @@
             <Footprints :size="14" />
             {{
               currentPlayer.position === 0
-                ? '等待起飞'
+                ? $t('game_turn_dock_waiting_takeoff')
                 : `${currentPlayer.position} / ${totalCells}`
             }}
           </span>
@@ -65,12 +69,14 @@
 
     <div class="dice-area" :class="{ 'can-roll': canRoll }">
       <CoolDice :can-roll="canRoll" :value="diceValue" @roll="handleRoll" />
-      <span class="dice-caption">{{ canRoll ? '轮到你掷骰' : '等待回合处理' }}</span>
+      <span class="dice-caption">
+        {{ canRoll ? $t('game_turn_dock_your_turn') : $t('game_turn_dock_waiting') }}
+      </span>
     </div>
 
     <div class="effect-line" :class="{ 'has-effect': lastEffect }" aria-live="polite">
       <Sparkles :size="15" />
-      <span>{{ lastEffect || '落地效果会显示在这里' }}</span>
+      <span>{{ lastEffect || $t('game_turn_dock_effect_placeholder') }}</span>
     </div>
   </section>
 </template>

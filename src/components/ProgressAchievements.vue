@@ -64,8 +64,8 @@
             <Award v-if="achievement.unlocked" :size="18" />
             <Lock v-else :size="18" />
             <div>
-              <strong>{{ achievement.title }}</strong>
-              <small>{{ achievement.description }}</small>
+              <strong>{{ $t(achievement.title) }}</strong>
+              <small>{{ $t(achievement.description) }}</small>
             </div>
           </article>
         </div>

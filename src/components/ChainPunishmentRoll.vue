@@ -49,15 +49,15 @@
     <div class="modal-content chain-roll">
       <div class="chain-header">
         <Link :size="28" />
-        <h3>连锁惩罚！</h3>
+        <h3>{{ $t('chain_punishment_title') }}</h3>
       </div>
 
       <!-- 提示阶段 -->
       <div v-if="phase === 'prompt'" class="chain-prompt">
-        <p class="chain-description">掷骰决定命运：奇数继续受罚，偶数逃过一劫</p>
+        <p class="chain-description">{{ $t('chain_punishment_desc') }}</p>
         <button class="btn btn-roll" @click="rollDice">
           <Dices :size="20" />
-          掷骰子
+          {{ $t('chain_punishment_roll_btn') }}
         </button>
       </div>
 
@@ -66,7 +66,7 @@
         <div class="dice-animation">
           <Dices :size="48" class="spinning-dice" />
         </div>
-        <p class="rolling-text">命运之骰旋转中...</p>
+        <p class="rolling-text">{{ $t('chain_punishment_rolling') }}</p>
       </div>
 
       <!-- 结果阶段 -->
@@ -75,10 +75,10 @@
           {{ diceValue }}
         </div>
         <p class="result-text" :class="{ punishment: continueChain, escape: !continueChain }">
-          {{ continueChain ? '继续受罚！' : '逃过一劫！' }}
+          {{ continueChain ? $t('chain_punishment_continue') : $t('chain_punishment_escape') }}
         </p>
         <button class="btn" :class="continueChain ? 'btn-danger' : 'btn-success'" @click="confirm">
-          {{ continueChain ? '接受命运' : '松一口气' }}
+          {{ continueChain ? $t('chain_punishment_accept') : $t('chain_punishment_relief') }}
         </button>
       </div>
     </div>

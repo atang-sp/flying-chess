@@ -27,17 +27,17 @@
   >
     <div class="session-pause-card">
       <Shield :size="48" aria-hidden="true" />
-      <h2 id="session-pause-title">本局已暂停</h2>
-      <p>当前回合和弹窗状态均已保留，可以随时继续。</p>
+      <h2 id="session-pause-title">{{ $t('session_pause_title') }}</h2>
+      <p>{{ $t('session_pause_desc') }}</p>
 
       <div class="session-pause-actions">
         <button class="resume-button" @click="resumeSession">
           <Play :size="18" aria-hidden="true" />
-          继续游戏
+          {{ $t('session_pause_resume') }}
         </button>
         <button class="end-button" @click="endSession">
           <LogOut :size="18" aria-hidden="true" />
-          结束本局
+          {{ $t('session_pause_end') }}
         </button>
       </div>
     </div>

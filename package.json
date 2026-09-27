@@ -39,7 +39,8 @@
     "test:safe-diagnostics": "vitest run scripts/collect-safe-production-diagnostics.test.mjs",
     "verify:online-acceptance": "node scripts/online-acceptance-evidence.mjs",
     "test:e2e": "playwright test tests/e2e",
-    "test:e2e:webkit-smoke": "playwright test --config=playwright.webkit.config.ts"
+    "test:e2e:webkit-smoke": "playwright test --config=playwright.webkit.config.ts",
+    "i18n:check": "node scripts/check-i18n.js"
   },
   "lint-staged": {
     "*.{js,ts,vue}": [

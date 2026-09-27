@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { ref, computed } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { User, X as CloseIcon, Mail, LogOut, Loader } from '@lucide/vue'
   import type { Provider } from '@supabase/supabase-js'
   import { supabase } from '../services/supabaseClient'
@@ -17,6 +18,7 @@
   defineProps<Props>()
   const emit = defineEmits<Emits>()
 
+  const { t } = useI18n()
   const { currentUser, signOut } = useAuth()
 
   // ============================================================
@@ -34,8 +36,8 @@
     return prov === 'twitter' || prov === 'x'
       ? 'X (Twitter)'
       : prov === 'discourse'
-        ? 'SP 社区论坛'
-        : '邮箱'
+        ? t('auth_provider_forum')
+        : t('auth_provider_email')
   })
 
   const userAvatar = computed(() => currentUser.value?.user_metadata?.avatar_url ?? '')
@@ -44,7 +46,7 @@
       currentUser.value?.user_metadata?.full_name ??
       currentUser.value?.user_metadata?.name ??
       currentUser.value?.email ??
-      '未命名用户'
+      t('auth_unnamed_user')
   )
 
   // ============================================================
@@ -67,7 +69,7 @@
 
   const loginWithEmail = async () => {
     if (!email.value || !password.value) {
-      errorMsg.value = '请输入邮箱和密码'
+      errorMsg.value = t('auth_error_enter_credentials')
       return
     }
     loading.value = true
@@ -88,7 +90,7 @@
         if (signUpErr) {
           errorMsg.value = signUpErr.message
         } else {
-          errorMsg.value = '注册成功！请检查邮箱完成验证。'
+          errorMsg.value = t('auth_signup_success_check_email')
         }
       } else {
         errorMsg.value = error.message
@@ -140,9 +142,9 @@
         <div class="modal-header">
           <h3 id="auth-title">
             <User :size="20" />
-            {{ currentUser ? '账户信息' : '云端账户登录' }}
+            {{ currentUser ? t('auth_title_account') : t('auth_title_login') }}
           </h3>
-          <button class="close-btn" aria-label="关闭" @click="closeModal">
+          <button class="close-btn" :aria-label="t('auth_close_aria')" @click="closeModal">
             <CloseIcon :size="18" />
           </button>
         </div>
@@ -152,27 +154,29 @@
           <!-- ——— 已登录视图 ——— -->
           <template v-if="currentUser">
             <div class="user-info">
-              <img v-if="userAvatar" :src="userAvatar" alt="头像" class="avatar" />
+              <img v-if="userAvatar" :src="userAvatar" :alt="t('auth_avatar_alt')" class="avatar" />
               <div v-else class="avatar-placeholder">{{ userNickname[0] }}</div>
               <div class="user-meta">
                 <span class="nickname">{{ userNickname }}</span>
-                <span class="provider-badge">{{ providerLabel }} 登录</span>
+                <span class="provider-badge">
+                  {{ t('auth_logged_in_with', { provider: providerLabel }) }}
+                </span>
               </div>
             </div>
-            <p class="sync-tip">✅ 游戏配置和成就进度将在设备间自动同步。</p>
+            <p class="sync-tip">{{ t('auth_sync_tip') }}</p>
             <button class="btn btn-danger" :disabled="loading" @click="handleSignOut">
               <Loader v-if="loading" :size="16" class="spin" />
               <LogOut v-else :size="16" />
-              退出登录
+              {{ t('auth_btn_logout') }}
             </button>
           </template>
 
           <!-- ——— 未登录视图 ——— -->
           <template v-else>
             <p class="description">
-              登录后可跨设备同步「游戏配置」与「成就进度」。
+              {{ t('auth_desc_line1') }}
               <br />
-              未登录时完全不受影响，所有数据仅保存在本地。
+              {{ t('auth_desc_line2') }}
             </p>
 
             <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
@@ -185,18 +189,20 @@
                     d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.259 5.633 5.905-5.633Zm-1.161 17.52h1.833L7.084 4.126H5.117z"
                   />
                 </svg>
-                X (Twitter) 登录
+                {{ t('auth_btn_x') }}
               </button>
 
               <button class="btn btn-forum" :disabled="loading" @click="loginWithForum">
-                🏠 SP 专属社区登录
+                {{ t('auth_btn_forum') }}
               </button>
 
-              <div class="divider"><span>或</span></div>
+              <div class="divider">
+                <span>{{ t('auth_divider_or') }}</span>
+              </div>
 
               <button class="btn btn-outline" :disabled="loading" @click="view = 'email'">
                 <Mail :size="16" />
-                使用邮箱密码
+                {{ t('auth_btn_use_email') }}
               </button>
             </div>
 
@@ -205,7 +211,7 @@
               <input
                 v-model="email"
                 type="email"
-                placeholder="邮箱"
+                :placeholder="t('auth_input_email')"
                 class="input-field"
                 :disabled="loading"
                 autocomplete="email"
@@ -214,7 +220,7 @@
               <input
                 v-model="password"
                 type="password"
-                placeholder="密码（新用户将自动注册）"
+                :placeholder="t('auth_input_password')"
                 class="input-field"
                 :disabled="loading"
                 autocomplete="current-password"
@@ -222,10 +228,10 @@
               />
               <button class="btn btn-primary" :disabled="loading" @click="loginWithEmail">
                 <Loader v-if="loading" :size="16" class="spin" />
-                {{ loading ? '处理中…' : '登录 / 注册' }}
+                {{ loading ? t('auth_loading') : t('auth_btn_submit') }}
               </button>
               <button class="btn btn-text" :disabled="loading" @click="view = 'options'">
-                ← 返回
+                {{ t('auth_btn_back') }}
               </button>
             </div>
           </template>

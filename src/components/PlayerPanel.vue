@@ -43,7 +43,9 @@
       >
         <div class="pill-color" :style="{ backgroundColor: player.color }"></div>
         <span class="pill-name">{{ player.name }}</span>
-        <span class="pill-pos">{{ player.position === 0 ? '起点' : player.position }}</span>
+        <span class="pill-pos">
+          {{ player.position === 0 ? $t('player_panel_start') : player.position }}
+        </span>
         <span
           v-if="player.pendingMercyMultiplier && player.pendingMercyMultiplier > 1"
           class="pill-mercy"

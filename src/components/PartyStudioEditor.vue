@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { computed, ref } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { GripVertical, Palette, SlidersHorizontal } from '@lucide/vue'
   import type { BoardConfig } from '@flying-chess/game-core/types'
   import { applyBoardConfigOverlay } from '@flying-chess/game-core/config'
@@ -12,34 +13,47 @@
   } from '../services/partyStudio'
   import type { PartyAct, PartyDirectorConfig } from '@flying-chess/game-core/party-mode'
 
+  const { t } = useI18n()
+
   const props = defineProps<{ config: PartyStudioConfig }>()
   const emit = defineEmits<{ (event: 'update', config: PartyStudioConfig): void }>()
   const draggedIndex = ref<number | null>(null)
   const validation = computed(() => validatePartyStudioConfig(props.config))
 
-  const boardFields: readonly { key: keyof BoardConfig; label: string }[] = [
-    { key: 'totalCells', label: '总格数' },
-    { key: 'punishmentCells', label: '惩罚' },
-    { key: 'chainPunishmentCells', label: '连锁' },
-    { key: 'trapCells', label: '机关' },
-    { key: 'qaCells', label: '问答' },
-    { key: 'dareCells', label: '指令' },
-    { key: 'bonusCells', label: '奖励' },
-    { key: 'reverseCells', label: '后退' },
-    { key: 'restCells', label: '休息' },
-    { key: 'restartCells', label: '重启' },
-  ]
-  const cellLabels: Record<PartyStudioCellKind, string> = {
-    punishment: '惩',
-    chain_punishment: '链',
-    bonus: '奖',
-    reverse: '退',
-    rest: '休',
-    restart: '启',
-    trap: '机',
-    qa: '问',
-    dare: '令',
-  }
+  const boardFields = computed<readonly { key: keyof BoardConfig; label: string }[]>(() => [
+    { key: 'totalCells', label: t('party_studio_cell_total') },
+    { key: 'punishmentCells', label: t('party_studio_cell_punish') },
+    { key: 'chainPunishmentCells', label: t('party_studio_cell_chain') },
+    { key: 'trapCells', label: t('party_studio_cell_trap') },
+    { key: 'qaCells', label: t('party_studio_cell_qa') },
+    { key: 'dareCells', label: t('party_studio_cell_dare') },
+    { key: 'bonusCells', label: t('party_studio_cell_bonus') },
+    { key: 'reverseCells', label: t('party_studio_cell_reverse') },
+    { key: 'restCells', label: t('party_studio_cell_rest') },
+    { key: 'restartCells', label: t('party_studio_cell_restart') },
+  ])
+  const cellKindLabels = computed<Record<PartyStudioCellKind, string>>(() => ({
+    punishment: t('party_studio_cell_punish'),
+    chain_punishment: t('party_studio_cell_chain'),
+    bonus: t('party_studio_cell_bonus'),
+    reverse: t('party_studio_cell_reverse'),
+    rest: t('party_studio_cell_rest'),
+    restart: t('party_studio_cell_restart'),
+    trap: t('party_studio_cell_trap'),
+    qa: t('party_studio_cell_qa'),
+    dare: t('party_studio_cell_dare'),
+  }))
+  const cellLabels = computed<Record<PartyStudioCellKind, string>>(() => ({
+    punishment: cellKindLabels.value.punishment.slice(0, 1),
+    chain_punishment: cellKindLabels.value.chain_punishment.slice(0, 1),
+    bonus: cellKindLabels.value.bonus.slice(0, 1),
+    reverse: cellKindLabels.value.reverse.slice(0, 1),
+    rest: cellKindLabels.value.rest.slice(0, 1),
+    restart: cellKindLabels.value.restart.slice(0, 1),
+    trap: cellKindLabels.value.trap.slice(0, 1),
+    qa: cellKindLabels.value.qa.slice(0, 1),
+    dare: cellKindLabels.value.dare.slice(0, 1),
+  }))
 
   const update = (patch: Partial<PartyStudioConfig>) => {
     emit('update', { ...props.config, ...patch })
@@ -91,9 +105,9 @@
     <summary>
       <span>
         <SlidersHorizontal :size="19" />
-        Party Studio 场景编辑器
+        {{ t('party_studio_title') }}
       </span>
-      <small>{{ config.enabled ? config.name : '未启用，内置场景保持不变' }}</small>
+      <small>{{ config.enabled ? config.name : t('party_studio_disabled_hint') }}</small>
     </summary>
 
     <div class="studio-body">
@@ -104,13 +118,13 @@
           @change="update({ enabled: ($event.target as HTMLInputElement).checked })"
         />
         <span>
-          <strong>本局使用自定义场景</strong>
-          <small>关闭时继续使用上方四个内置预设。</small>
+          <strong>{{ t('party_studio_enable_title') }}</strong>
+          <small>{{ t('party_studio_enable_subtitle') }}</small>
         </span>
       </label>
 
       <label class="field">
-        <span>场景名称</span>
+        <span>{{ t('party_studio_name_label') }}</span>
         <input
           :value="config.name"
           maxlength="60"
@@ -119,28 +133,28 @@
       </label>
 
       <section>
-        <h3>幕数与时间门控</h3>
+        <h3>{{ t('party_studio_acts_time_heading') }}</h3>
         <div class="field-grid">
           <label class="field">
-            <span>幕数</span>
+            <span>{{ t('party_studio_act_count_label') }}</span>
             <select
               :value="config.director.actCount"
               @change="
                 updateDirector('actCount', Number(($event.target as HTMLSelectElement).value))
               "
             >
-              <option :value="1">1 幕</option>
-              <option :value="2">2 幕</option>
-              <option :value="3">3 幕</option>
+              <option :value="1">{{ t('party_studio_act_1') }}</option>
+              <option :value="2">{{ t('party_studio_act_2') }}</option>
+              <option :value="3">{{ t('party_studio_act_3') }}</option>
             </select>
           </label>
           <label
             v-for="field in [
-              ['heatingRound', '升温轮次'],
-              ['finaleRound', '终局轮次'],
-              ['heatingAfterMinutes', '升温分钟'],
-              ['finaleAfterMinutes', '终局分钟'],
-              ['endAfterMinutes', '结束分钟'],
+              ['heatingRound', t('party_studio_heating_round')],
+              ['finaleRound', t('party_studio_finale_round')],
+              ['heatingAfterMinutes', t('party_studio_heating_minutes')],
+              ['finaleAfterMinutes', t('party_studio_finale_minutes')],
+              ['endAfterMinutes', t('party_studio_end_minutes')],
             ] as const"
             :key="field[0]"
             class="field"
@@ -157,7 +171,7 @@
       </section>
 
       <section>
-        <h3>格子比例</h3>
+        <h3>{{ t('party_studio_cell_ratios') }}</h3>
         <div class="board-fields">
           <label v-for="field in boardFields" :key="field.key" class="field">
             <span>{{ field.label }}</span>
@@ -175,16 +189,16 @@
       <section>
         <h3>
           <GripVertical :size="17" />
-          可视化棋盘（拖拽交换格子类型）
+          {{ t('party_studio_visual_board_heading') }}
         </h3>
-        <div class="cell-layout" aria-label="自定义棋盘布局">
+        <div class="cell-layout" :aria-label="t('party_studio_board_layout_aria')">
           <button
             v-for="(kind, index) in config.cellLayout"
             :key="index"
             type="button"
             draggable="true"
             :class="`cell--${kind}`"
-            :title="`第 ${index + 2} 格：${kind}`"
+            :title="t('party_studio_cell_tooltip', { num: index + 2, kind: cellKindLabels[kind] })"
             @dragstart="draggedIndex = index"
             @dragover.prevent
             @drop="dropCell(index)"
@@ -196,11 +210,11 @@
       </section>
 
       <section>
-        <h3>Q&A 与 Dare 内容池</h3>
+        <h3>{{ t('party_studio_pools_heading') }}</h3>
         <div class="content-pools">
           <template v-for="act in ['warmup', 'heating', 'finale'] as const" :key="act">
             <label class="field">
-              <span>{{ act }} · Q&A（每行一条）</span>
+              <span>{{ t('party_studio_qa_line_label', { act }) }}</span>
               <textarea
                 :value="config.qaQuestions[act].join('\n')"
                 rows="4"
@@ -210,7 +224,7 @@
               ></textarea>
             </label>
             <label class="field">
-              <span>{{ act }} · Dare（每行一条）</span>
+              <span>{{ t('party_studio_dare_line_label', { act }) }}</span>
               <textarea
                 :value="config.dareInstructions[act].join('\n')"
                 rows="4"
@@ -226,7 +240,7 @@
       <section>
         <h3>
           <Palette :size="17" />
-          主题
+          {{ t('party_studio_theme_heading') }}
         </h3>
         <div class="theme-fields">
           <select
@@ -237,21 +251,21 @@
               })
             "
           >
-            <option value="aurora">极光紫</option>
-            <option value="ember">余烬红</option>
-            <option value="midnight">午夜蓝</option>
+            <option value="aurora">{{ t('party_studio_theme_aurora') }}</option>
+            <option value="ember">{{ t('party_studio_theme_ember') }}</option>
+            <option value="midnight">{{ t('party_studio_theme_midnight') }}</option>
           </select>
           <input
             :value="config.theme.accentColor"
             type="color"
-            aria-label="主题强调色"
+            :aria-label="t('party_studio_accent_color_aria')"
             @input="updateTheme({ accentColor: ($event.target as HTMLInputElement).value })"
           />
         </div>
       </section>
 
       <p class="validation" :class="{ invalid: !validation.ok }">
-        {{ validation.ok ? '配置有效，可用于下一局升温局。' : validation.error }}
+        {{ validation.ok ? t('party_studio_config_valid') : validation.error }}
       </p>
     </div>
   </details>

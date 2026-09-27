@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { computed } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { Gift, ArrowLeft, RotateCcw, Moon, Sparkles } from '@lucide/vue'
 
   interface Effect {
@@ -30,6 +31,7 @@
 
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
+  const { t } = useI18n()
 
   const showMovePath = computed(() => {
     return (
@@ -53,13 +55,19 @@
   })
 
   const getFromPositionText = (): string => {
-    if (props.fromPosition === undefined || props.fromPosition === null) return '当前位置'
-    return props.fromPosition === 0 ? '起点' : `第${props.fromPosition}格`
+    if (props.fromPosition === undefined || props.fromPosition === null)
+      return t('effect_display_from_position')
+    return props.fromPosition === 0
+      ? t('effect_display_origin')
+      : t('effect_display_cell_n', { n: props.fromPosition })
   }
 
   const getToPositionText = (): string => {
-    if (props.toPosition === undefined || props.toPosition === null) return '目标位置'
-    return props.toPosition === 0 ? '起点' : `第${props.toPosition}格`
+    if (props.toPosition === undefined || props.toPosition === null)
+      return t('effect_display_to_position')
+    return props.toPosition === 0
+      ? t('effect_display_origin')
+      : t('effect_display_cell_n', { n: props.toPosition })
   }
 
   const getFinalPositionText = (): string => {
@@ -91,20 +99,22 @@
   }
 
   const getEffectTitle = (): string => {
-    if (!props.effect) return '效果'
+    if (!props.effect) return t('effect_display_title_default')
 
     switch (props.effect.type) {
       case 'move':
-        return props.effect.value > 0 ? '前进效果' : '后退效果'
+        return props.effect.value > 0
+          ? t('effect_display_title_forward')
+          : t('effect_display_title_backward')
       case 'restart':
-        return '回到起点'
+        return t('effect_display_title_restart')
       case 'rest':
-        return '休息一回合'
+        return t('effect_display_title_rest')
       case 'reverse':
-        return '后退效果'
+        return t('effect_display_title_backward')
 
       default:
-        return '特殊效果'
+        return t('effect_display_title_special')
     }
   }
 
@@ -128,7 +138,7 @@
 
         <!-- 移动路径信息 -->
         <div v-if="showMovePath" class="move-path-info">
-          <div class="path-label">移动路径：</div>
+          <div class="path-label">{{ $t('effect_display_path_label') }}</div>
           <div class="path-details">
             <span class="from-position">{{ getFromPositionText() }}</span>
             <span class="path-arrow">→</span>
@@ -141,30 +151,36 @@
         <div v-if="effect?.type === 'move'" class="move-effect">
           <div class="effect-value">
             <span class="value-number">{{ effect.value > 0 ? '+' : '' }}{{ effect.value }}</span>
-            <span class="value-unit">步</span>
+            <span class="value-unit">{{ $t('effect_display_step_unit') }}</span>
           </div>
           <div class="effect-direction">
-            {{ effect.value > 0 ? '前进' : '后退' }}
+            {{
+              effect.value > 0
+                ? $t('effect_display_forward_text')
+                : $t('effect_display_backward_text')
+            }}
           </div>
         </div>
 
         <div v-else-if="effect?.type === 'restart'" class="restart-effect">
           <div class="effect-value">
             <span class="value-icon"><RotateCcw :size="36" /></span>
-            <span class="value-text">回到起点</span>
+            <span class="value-text">{{ $t('effect_display_title_restart') }}</span>
           </div>
         </div>
 
         <div v-else-if="effect?.type === 'rest'" class="rest-effect">
           <div class="effect-value">
             <span class="value-icon"><Moon :size="36" /></span>
-            <span class="value-text">休息一回合</span>
+            <span class="value-text">{{ $t('effect_display_title_rest') }}</span>
           </div>
         </div>
       </div>
 
       <div class="effect-footer">
-        <button class="btn confirm-btn" @click="handleConfirm">确认</button>
+        <button class="btn confirm-btn" @click="handleConfirm">
+          {{ $t('effect_display_confirm') }}
+        </button>
       </div>
     </div>
   </div>

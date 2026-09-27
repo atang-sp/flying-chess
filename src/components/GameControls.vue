@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { computed } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { Gamepad2, Trophy } from '@lucide/vue'
   import type { Player } from '@flying-chess/game-core/types'
 
@@ -29,6 +30,7 @@
 
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
+  const { t } = useI18n()
 
   const currentPlayer = computed(() => {
     return props.players[props.currentPlayerIndex] || null
@@ -37,25 +39,25 @@
   const gameStatusText = computed(() => {
     switch (props.gameStatus) {
       case 'waiting':
-        return '等待玩家操作'
+        return t('game_controls_status_waiting')
       case 'rolling':
-        return '骰子滚动中'
+        return t('game_controls_status_rolling')
       case 'moving':
-        return '棋子移动中'
+        return t('game_controls_status_moving')
       case 'showing_effect':
-        return '显示效果中'
+        return t('game_controls_status_showing_effect')
       case 'finished':
-        return '游戏结束'
+        return t('game_controls_status_finished')
       case 'configuring':
-        return '配置中'
+        return t('game_controls_status_configuring')
       case 'intro':
-        return '开始页面'
+        return t('game_controls_status_intro')
       case 'board_settings':
-        return '棋盘设置'
+        return t('game_controls_status_board_settings')
       case 'settings':
-        return '惩罚设置'
+        return t('game_controls_status_settings')
       default:
-        return '未知状态'
+        return t('game_controls_status_unknown')
     }
   })
 
@@ -83,15 +85,15 @@
 
     <div v-if="gameStarted" class="game-status">
       <div class="status-item">
-        <span class="label">游戏状态:</span>
+        <span class="label">{{ $t('game_controls_label_status') }}</span>
         <span class="value" :class="gameStatusClass">{{ gameStatusText }}</span>
       </div>
       <div class="status-item">
-        <span class="label">回合数:</span>
+        <span class="label">{{ $t('game_controls_label_turns') }}</span>
         <span class="value">{{ turnCount }}</span>
       </div>
       <div v-if="currentPlayer" class="status-item current-player-info">
-        <span class="label">当前玩家:</span>
+        <span class="label">{{ $t('game_controls_label_current_player') }}</span>
         <div class="player-info">
           <div class="player-avatar" :style="{ backgroundColor: currentPlayer.color }"></div>
           <span class="player-name">{{ currentPlayer.name }}</span>
@@ -104,7 +106,7 @@
         <Trophy :size="24" />
         {{ $t('game_over') }}
       </h3>
-      <p v-if="winner">{{ winner.name }} 获胜！</p>
+      <p v-if="winner">{{ $t('game_controls_winner', { name: winner.name }) }}</p>
       <button class="btn btn-primary" @click="resetGame">
         <Gamepad2 :size="20" />
         {{ $t('play_again') }}

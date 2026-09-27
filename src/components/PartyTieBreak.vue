@@ -77,10 +77,10 @@
     <section class="tie-card" role="dialog" aria-modal="true">
       <p class="tie-kicker">
         <Trophy :size="18" />
-        终局同位置 · 第 {{ tieRound }} 轮决胜
+        {{ $t('party_tie_kicker', { round: tieRound }) }}
       </p>
-      <h2>{{ currentPlayer?.name }} 点击掷骰</h2>
-      <p>所有并列玩家各掷一次，最高点获胜；再次并列就继续。</p>
+      <h2>{{ $t('party_tie_title', { name: currentPlayer?.name }) }}</h2>
+      <p>{{ $t('party_tie_desc') }}</p>
 
       <div class="tie-rolls">
         <div v-for="playerIndex in candidates" :key="playerIndex" class="tie-roll">
@@ -97,7 +97,7 @@
         @click="roll"
       >
         <Dices :size="20" />
-        掷骰
+        {{ $t('party_tie_roll_btn') }}
       </button>
     </section>
   </div>

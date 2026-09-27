@@ -39,9 +39,13 @@
   let pausedAt: number | undefined
   let submitted = false
 
+  import { useI18n } from 'vue-i18n'
+
+  const { t } = useI18n()
+
   const actor = computed(() => props.players[props.actorPlayerIndex])
-  const quizPrompt = computed(
-    () => `请 ${actor.value?.name ?? '当前玩家'} 在倒计时内说出三个棋盘上的格子类型。`
+  const quizPrompt = computed(() =>
+    t('party_mini_quiz_prompt', { name: actor.value?.name ?? t('party_mini_current_player') })
   )
 
   const clearTimers = () => {
@@ -94,7 +98,10 @@
     finish({
       winnerPlayerIndices: [playerIndex],
       loserPlayerIndices: losers,
-      summary: `${props.players[playerIndex]?.name ?? '玩家'} 以 ${race.winningTimeMs}ms 赢得反应赛并获得一次免罚`,
+      summary: t('party_mini_reaction_summary', {
+        name: props.players[playerIndex]?.name ?? t('party_mini_player'),
+        time: race.winningTimeMs,
+      }),
     })
   }
 
@@ -110,8 +117,12 @@
       winnerPlayerIndices: correct ? [actorIndex] : [],
       loserPlayerIndices: correct ? [] : [actorIndex],
       summary: correct
-        ? `${actor.value?.name ?? '当前玩家'} 记忆挑战成功`
-        : `${actor.value?.name ?? '当前玩家'} 记忆挑战失败，下一次惩罚加倍`,
+        ? t('party_mini_memory_success', {
+            name: actor.value?.name ?? t('party_mini_current_player'),
+          })
+        : t('party_mini_memory_failed', {
+            name: actor.value?.name ?? t('party_mini_current_player'),
+          }),
     })
   }
 
@@ -122,8 +133,12 @@
       winnerPlayerIndices: success ? [actorIndex] : [],
       loserPlayerIndices: success ? [] : [actorIndex],
       summary: success
-        ? `${actor.value?.name ?? '当前玩家'} 在倒计时内完成快速问答`
-        : `${actor.value?.name ?? '当前玩家'} 快速问答超时，下一次惩罚加倍`,
+        ? t('party_mini_quiz_success', {
+            name: actor.value?.name ?? t('party_mini_current_player'),
+          })
+        : t('party_mini_quiz_failed', {
+            name: actor.value?.name ?? t('party_mini_current_player'),
+          }),
     })
   }
 
@@ -232,17 +247,19 @@
     <section class="mini-game-card" role="dialog" aria-modal="true">
       <template v-if="kind === 'reaction'">
         <Gauge :size="42" aria-hidden="true" />
-        <h2>反应速度测试</h2>
-        <p v-if="reactionPhase === 'ready'">设备放在所有人都够得到的位置，准备抢按。</p>
-        <p v-else-if="reactionPhase === 'waiting'" class="waiting">等待绿色信号……提前按无效</p>
-        <p v-else class="go-signal">现在按！</p>
+        <h2>{{ $t('party_mini_reaction_title') }}</h2>
+        <p v-if="reactionPhase === 'ready'">{{ $t('party_mini_reaction_ready') }}</p>
+        <p v-else-if="reactionPhase === 'waiting'" class="waiting">
+          {{ $t('party_mini_reaction_waiting') }}
+        </p>
+        <p v-else class="go-signal">{{ $t('party_mini_reaction_go') }}</p>
         <button
           v-if="reactionPhase === 'ready'"
           class="start-button"
           :disabled="paused"
           @click="startReaction"
         >
-          全员准备好了
+          {{ $t('party_mini_reaction_all_ready') }}
         </button>
         <div v-else class="reaction-buttons">
           <button
@@ -252,15 +269,19 @@
             :style="{ borderColor: player.color }"
             @click="pressReaction(index)"
           >
-            {{ player.name }} 抢按
+            {{ $t('party_mini_reaction_press', { name: player.name }) }}
           </button>
         </div>
       </template>
 
       <template v-else-if="kind === 'memory'">
         <Brain :size="42" aria-hidden="true" />
-        <h2>记忆翻牌</h2>
-        <p>{{ actor?.name ?? '当前玩家' }} 记住顺序；失败后下一次惩罚加倍。</p>
+        <h2>{{ $t('party_mini_memory_title') }}</h2>
+        <p>
+          {{
+            $t('party_mini_memory_desc', { name: actor?.name ?? $t('party_mini_current_player') })
+          }}
+        </p>
         <div v-if="memoryRevealed" class="memory-sequence">
           <span v-for="(symbol, index) in memoryChallenge.sequence" :key="index">{{ symbol }}</span>
         </div>
@@ -275,21 +296,30 @@
           </button>
         </div>
         <small v-if="!memoryRevealed">
-          已选 {{ memoryAnswer.length }} / {{ memoryChallenge.sequence.length }}
+          {{
+            $t('party_mini_memory_progress', {
+              current: memoryAnswer.length,
+              total: memoryChallenge.sequence.length,
+            })
+          }}
         </small>
       </template>
 
       <template v-else>
         <HelpCircle :size="42" aria-hidden="true" />
-        <h2>快速问答</h2>
+        <h2>{{ $t('party_mini_quiz_title') }}</h2>
         <p>{{ quizPrompt }}</p>
         <strong class="quiz-timer">
           <Timer :size="19" />
-          {{ quizSeconds }} 秒
+          {{ $t('party_mini_quiz_seconds', { seconds: quizSeconds }) }}
         </strong>
         <div class="quiz-actions">
-          <button :disabled="paused" @click="finishQuiz(true)">已完成</button>
-          <button :disabled="paused" @click="finishQuiz(false)">放弃 / 判定失败</button>
+          <button :disabled="paused" @click="finishQuiz(true)">
+            {{ $t('party_mini_quiz_done') }}
+          </button>
+          <button :disabled="paused" @click="finishQuiz(false)">
+            {{ $t('party_mini_quiz_giveup') }}
+          </button>
         </div>
       </template>
     </section>

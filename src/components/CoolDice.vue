@@ -62,7 +62,13 @@
           'can-roll': canRoll && !isRolling,
           [getCurrentFaceClass()]: !isRolling,
         }"
-        :aria-label="isRolling ? '骰子滚动中' : canRoll ? '投掷骰子' : '当前不可投掷骰子'"
+        :aria-label="
+          isRolling
+            ? $t('dice_aria_rolling')
+            : canRoll
+              ? $t('dice_aria_roll')
+              : $t('dice_aria_disabled')
+        "
         :disabled="!canRoll || isRolling"
         @click="handleRoll"
       >
@@ -120,18 +126,18 @@
     <!-- 结果显示 -->
     <div v-if="value !== null && !isRolling" class="result-display">
       <div class="result-number">{{ value }}</div>
-      <div class="result-label">点</div>
+      <div class="result-label">{{ $t('dice_label') }}</div>
     </div>
 
     <!-- 状态信息 - 只在非移动端显示 -->
     <div class="dice-status desktop-status">
       <div v-if="isRolling" class="status-rolling">
         <span class="icon">🎲</span>
-        <span>骰子滚动中...</span>
+        <span>{{ $t('dice_rolling') }}</span>
       </div>
       <div v-else-if="value !== null" class="status-result">
         <span class="icon">🎯</span>
-        <span>点数: {{ value }}</span>
+        <span>{{ $t('dice_result', { value }) }}</span>
       </div>
       <div v-else-if="canRoll" class="status-prompt">
         <span class="icon">👆</span>

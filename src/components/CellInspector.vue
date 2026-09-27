@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { computed, ref, watchPostEffect } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { ChevronLeft, ChevronRight, LocateFixed, Users, X } from '@lucide/vue'
   import type { BoardCell, Player } from '@flying-chess/game-core/types'
   import { getBoardCellPresentation } from '../utils/boardPresentation'
@@ -21,11 +22,12 @@
 
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
+  const { t } = useI18n()
   const inspectorRef = ref<HTMLDialogElement | null>(null)
   const closeButtonRef = ref<HTMLButtonElement | null>(null)
 
   const presentation = computed(() =>
-    props.cell ? getBoardCellPresentation(props.cell, props.totalCells) : null
+    props.cell ? getBoardCellPresentation(props.cell, props.totalCells, t) : null
   )
   const occupants = computed(() =>
     props.cell ? props.players.filter(player => player.position === props.cell?.position) : []
@@ -61,7 +63,7 @@
     :role="mobile ? 'dialog' : 'complementary'"
     :aria-modal="mobile ? 'true' : undefined"
     :open="!mobile"
-    :aria-label="`第 ${cell.position} 格详情`"
+    :aria-label="$t('cell_inspector_close_aria')"
     :tabindex="mobile ? -1 : undefined"
     data-testid="cell-inspector"
     @cancel.prevent="emit('close')"
@@ -72,7 +74,7 @@
     <header class="inspector-header">
       <div>
         <span class="inspector-kicker">SPACE {{ String(cell.position).padStart(2, '0') }}</span>
-        <h2>第 {{ cell.position }} 格</h2>
+        <h2>{{ $t('cell_inspector_cell_title', { n: cell.position }) }}</h2>
       </div>
       <span class="type-badge">{{ presentation.label }}</span>
       <button
@@ -80,7 +82,7 @@
         ref="closeButtonRef"
         type="button"
         class="icon-button close-button"
-        aria-label="关闭格子详情"
+        :aria-label="$t('cell_inspector_close_aria')"
         autofocus
         @click="emit('close')"
       >
@@ -101,7 +103,7 @@
       <div v-if="occupants.length > 0" class="occupants">
         <span class="occupants-title">
           <Users :size="15" />
-          当前所在玩家
+          {{ $t('cell_inspector_occupants_title') }}
         </span>
         <div class="occupant-list">
           <span v-for="player in occupants" :key="player.id" class="occupant-chip">
@@ -113,16 +115,31 @@
     </div>
 
     <footer class="inspector-actions">
-      <button type="button" :disabled="isFirst" aria-label="上一格" @click="emit('previous')">
+      <button
+        type="button"
+        :disabled="isFirst"
+        :aria-label="$t('cell_inspector_prev')"
+        @click="emit('previous')"
+      >
         <ChevronLeft :size="18" />
-        <span>上一格</span>
+        <span>{{ $t('cell_inspector_prev') }}</span>
       </button>
-      <button type="button" class="locate-action" aria-label="在棋盘中定位" @click="emit('locate')">
+      <button
+        type="button"
+        class="locate-action"
+        :aria-label="$t('cell_inspector_locate')"
+        @click="emit('locate')"
+      >
         <LocateFixed :size="18" />
-        <span>定位</span>
+        <span>{{ $t('cell_inspector_locate') }}</span>
       </button>
-      <button type="button" :disabled="isLast" aria-label="下一格" @click="emit('next')">
-        <span>下一格</span>
+      <button
+        type="button"
+        :disabled="isLast"
+        :aria-label="$t('cell_inspector_next')"
+        @click="emit('next')"
+      >
+        <span>{{ $t('cell_inspector_next') }}</span>
         <ChevronRight :size="18" />
       </button>
     </footer>

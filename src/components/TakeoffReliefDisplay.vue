@@ -25,17 +25,19 @@
         <div class="relief-icon">
           <Frown :size="48" />
         </div>
-        <div class="relief-title">运气太差！</div>
+        <div class="relief-title">{{ $t('takeoff_relief_title') }}</div>
       </div>
 
       <div class="relief-content">
         <p class="relief-text">
-          你已经连续 {{ failedCount }} 次掷骰都没能起飞了，开发者看不下去了，直接让你起飞到第1格！
+          {{ $t('takeoff_relief_desc', { n: failedCount }) }}
         </p>
       </div>
 
       <div class="relief-footer">
-        <button class="confirm-btn" @click="handleConfirm">好吧，继续游戏</button>
+        <button class="confirm-btn" @click="handleConfirm">
+          {{ $t('takeoff_relief_confirm') }}
+        </button>
       </div>
     </div>
   </div>

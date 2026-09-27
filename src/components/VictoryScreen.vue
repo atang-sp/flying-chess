@@ -53,8 +53,8 @@
           <span>FINISH</span>
         </div>
         <div class="victory-copy">
-          <p>FLIGHT LOG · 本局结算</p>
-          <h1 id="victory-title">游戏胜利！</h1>
+          <p>{{ $t('victory_screen_log') }}</p>
+          <h1 id="victory-title">{{ $t('victory_screen_title') }}</h1>
         </div>
       </header>
 
@@ -66,22 +66,27 @@
           size="large"
         />
         <div>
-          <span>冠军飞行员</span>
+          <span>{{ $t('victory_screen_champion') }}</span>
           <strong>{{ winner.name }}</strong>
-          <small>率先抵达终点，完成本局航线</small>
+          <small>{{ $t('victory_screen_champion_desc') }}</small>
         </div>
         <Sparkles class="winner-sparkle" :size="24" aria-hidden="true" />
       </div>
 
       <div class="victory-content">
         <section class="reward-section">
-          <p class="section-kicker">胜利奖励</p>
-          <p>恭喜 {{ winner.name }} 获得胜利！</p>
+          <p class="section-kicker">{{ $t('victory_screen_reward_kicker') }}</p>
+          <p>{{ $t('victory_screen_congrats', { winner: winner.name }) }}</p>
           <p class="reward-action">
-            作为奖励，{{ winner.name }} 对其他玩家{{ resolvedVictoryConfig.actionText }}：
+            {{
+              $t('victory_screen_reward_action', {
+                winner: winner.name,
+                action: resolvedVictoryConfig.actionText,
+              })
+            }}
           </p>
 
-          <div class="players-grid" aria-label="其他玩家列表">
+          <div class="players-grid" :aria-label="$t('victory_screen_other_players_aria')">
             <article v-for="entry in settlement" :key="entry.playerIndex" class="player-item">
               <PlayerMeeple
                 :color="allPlayers[entry.playerIndex].color"
@@ -90,7 +95,12 @@
                 size="small"
               />
               <span class="player-name">
-                {{ allPlayers[entry.playerIndex].name }} · 第 {{ entry.place }} 名
+                {{
+                  $t('victory_screen_player_place', {
+                    name: allPlayers[entry.playerIndex].name,
+                    place: entry.place,
+                  })
+                }}
               </span>
               <span class="punishment-count">
                 {{ entry.count }} {{ resolvedVictoryConfig.countUnit }}
@@ -104,8 +114,14 @@
           class="party-highlight-card"
           data-testid="party-highlight-card"
         >
-          <p class="party-highlight-kicker">本地高光卡 · 不上传</p>
-          <h2>{{ partyHighlight.act === 'finale' ? '终局高光' : '本局高光' }}</h2>
+          <p class="party-highlight-kicker">{{ $t('victory_screen_highlight_kicker') }}</p>
+          <h2>
+            {{
+              partyHighlight.act === 'finale'
+                ? $t('victory_screen_finale_highlight')
+                : $t('victory_screen_game_highlight')
+            }}
+          </h2>
           <div class="party-highlight-grid">
             <span>{{ partyHighlight.keyDecision }}</span>
             <span>{{ partyHighlight.reactionSummary }}</span>
@@ -117,7 +133,7 @@
       <footer class="victory-actions">
         <button type="button" class="play-again-button" @click="emit('play-again')">
           <Gamepad2 :size="19" aria-hidden="true" />
-          再来一局
+          {{ $t('victory_screen_play_again') }}
         </button>
       </footer>
     </section>

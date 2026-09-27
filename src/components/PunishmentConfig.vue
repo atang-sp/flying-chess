@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { ref, watch, nextTick, computed } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { Settings, Target, ChevronRight, Minus, Plus, RotateCcw } from '@lucide/vue'
   import type {
     PunishmentConfig,
@@ -23,6 +24,7 @@
 
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
+  const { t } = useI18n()
 
   const cloneConfig = (config: PunishmentConfig): PunishmentConfig => ({
     ...config,
@@ -73,7 +75,7 @@
   }
 
   function showError(validation: { errorMessage?: string; requiredSensitivity?: number }) {
-    errorMessage.value = validation.errorMessage || '配置验证失败'
+    errorMessage.value = validation.errorMessage || t('punishment_config_validation_failed')
     requiredSensitivity.value = validation.requiredSensitivity
     showErrorModal.value = true
     emit('validation-failed', errorMessage.value, validation.requiredSensitivity)
@@ -446,7 +448,7 @@
     <div class="config-header">
       <h3>
         <Settings :size="22" />
-        惩罚设置
+        {{ $t('punishment_config_title') }}
       </h3>
     </div>
 
@@ -455,7 +457,7 @@
       <RatioDistributor
         ref="toolDistributorRef"
         :items="toolItems"
-        title="工具设置"
+        :title="$t('punishment_config_tools_title')"
         :icon="Settings"
         :hue-offset="0"
         @update:ratio="onToolRatioUpdate"
@@ -464,7 +466,7 @@
       >
         <template #detail="{ item }">
           <div class="detail-stat-row">
-            <span class="detail-stat-label">强度</span>
+            <span class="detail-stat-label">{{ $t('punishment_config_col_intensity') }}</span>
             <div class="detail-stat-controls">
               <button
                 :disabled="(item.intensity ?? 1) <= 1"
@@ -488,22 +490,28 @@
         <template #add-form="{ close }">
           <div class="add-form-content">
             <div class="add-form-row">
-              <input v-model="newToolName" placeholder="工具名称" class="input-field" />
+              <input
+                v-model="newToolName"
+                :placeholder="$t('punishment_config_placeholder_tool')"
+                class="input-field"
+              />
               <input
                 v-model.number="newToolIntensity"
                 type="number"
                 min="1"
                 max="10"
                 class="input-mini"
-                placeholder="强度"
+                :placeholder="$t('punishment_config_placeholder_intensity')"
               />
             </div>
             <div class="add-form-actions">
               <button :disabled="!newToolName.trim()" class="btn-confirm" @click="addTool">
                 <Plus :size="14" />
-                添加
+                {{ $t('punishment_config_add') }}
               </button>
-              <button class="btn-cancel" @click="close">取消</button>
+              <button class="btn-cancel" @click="close">
+                {{ $t('punishment_config_cancel') }}
+              </button>
             </div>
           </div>
         </template>
@@ -513,7 +521,7 @@
       <RatioDistributor
         ref="bodyPartDistributorRef"
         :items="bodyPartItems"
-        title="部位设置"
+        :title="$t('punishment_config_body_parts_title')"
         :icon="Target"
         :hue-offset="120"
         @update:ratio="onBodyPartRatioUpdate"
@@ -522,7 +530,7 @@
       >
         <template #detail="{ item }">
           <div class="detail-stat-row">
-            <span class="detail-stat-label">耐受度</span>
+            <span class="detail-stat-label">{{ $t('punishment_config_col_sensitivity') }}</span>
             <div class="detail-stat-controls">
               <button
                 :disabled="(item.sensitivity ?? 1) <= 1"
@@ -546,22 +554,28 @@
         <template #add-form="{ close }">
           <div class="add-form-content">
             <div class="add-form-row">
-              <input v-model="newBodyPartName" placeholder="部位名称" class="input-field" />
+              <input
+                v-model="newBodyPartName"
+                :placeholder="$t('punishment_config_placeholder_body_part')"
+                class="input-field"
+              />
               <input
                 v-model.number="newBodyPartSensitivity"
                 type="number"
                 min="1"
                 max="10"
                 class="input-mini"
-                placeholder="耐受度"
+                :placeholder="$t('punishment_config_placeholder_sensitivity')"
               />
             </div>
             <div class="add-form-actions">
               <button :disabled="!newBodyPartName.trim()" class="btn-confirm" @click="addBodyPart">
                 <Plus :size="14" />
-                添加
+                {{ $t('punishment_config_add') }}
               </button>
-              <button class="btn-cancel" @click="close">取消</button>
+              <button class="btn-cancel" @click="close">
+                {{ $t('punishment_config_cancel') }}
+              </button>
             </div>
           </div>
         </template>
@@ -571,7 +585,7 @@
       <RatioDistributor
         ref="positionDistributorRef"
         :items="positionItems"
-        title="姿势设置"
+        :title="$t('punishment_config_positions_title')"
         :icon="ChevronRight"
         :hue-offset="240"
         @update:ratio="onPositionRatioUpdate"
@@ -580,7 +594,7 @@
       >
         <template #detail="{ item }">
           <div class="detail-compatible-section">
-            <span class="detail-stat-label">兼容部位</span>
+            <span class="detail-stat-label">{{ $t('punishment_config_col_compatible') }}</span>
             <div class="body-part-chips">
               <label
                 v-for="bp in Object.values(localConfig.bodyParts)"
@@ -602,14 +616,20 @@
         <template #add-form="{ close }">
           <div class="add-form-content">
             <div class="add-form-row">
-              <input v-model="newPositionName" placeholder="姿势名称" class="input-field" />
+              <input
+                v-model="newPositionName"
+                :placeholder="$t('punishment_config_placeholder_position')"
+                class="input-field"
+              />
             </div>
             <div class="add-form-actions">
               <button :disabled="!newPositionName.trim()" class="btn-confirm" @click="addPosition">
                 <Plus :size="14" />
-                添加
+                {{ $t('punishment_config_add') }}
               </button>
-              <button class="btn-cancel" @click="close">取消</button>
+              <button class="btn-cancel" @click="close">
+                {{ $t('punishment_config_cancel') }}
+              </button>
             </div>
           </div>
         </template>
@@ -619,11 +639,11 @@
       <div class="quantity-section">
         <div class="quantity-header">
           <Settings :size="18" />
-          <h4>惩罚数量设置</h4>
+          <h4>{{ $t('punishment_config_count_title') }}</h4>
         </div>
         <div class="quantity-grid">
           <div class="quantity-cell">
-            <span class="quantity-label">最小次数</span>
+            <span class="quantity-label">{{ $t('punishment_config_min_count') }}</span>
             <div class="quantity-controls">
               <button
                 :disabled="localConfig.minStrikes <= 1"
@@ -644,7 +664,7 @@
           </div>
 
           <div class="quantity-cell">
-            <span class="quantity-label">最大次数</span>
+            <span class="quantity-label">{{ $t('punishment_config_max_count') }}</span>
             <div class="quantity-controls">
               <button
                 :disabled="localConfig.maxStrikes <= localConfig.minStrikes"
@@ -665,7 +685,7 @@
           </div>
 
           <div class="quantity-cell">
-            <span class="quantity-label">起飞失败上限</span>
+            <span class="quantity-label">{{ $t('punishment_config_takeoff_limit') }}</span>
             <div class="quantity-controls">
               <button
                 :disabled="localConfig.maxTakeoffFailures <= 1"
@@ -686,7 +706,7 @@
           </div>
 
           <div class="quantity-cell">
-            <span class="quantity-label">翻倍概率</span>
+            <span class="quantity-label">{{ $t('punishment_config_double_chance') }}</span>
             <div class="quantity-controls">
               <button
                 :disabled="(localConfig.doublePunishmentChance ?? 0) <= 0"
@@ -707,7 +727,12 @@
           </div>
         </div>
         <div class="quantity-summary">
-          {{ localConfig.minStrikes }} - {{ localConfig.maxStrikes }} 次随机
+          {{
+            $t('punishment_config_count_hint', {
+              min: localConfig.minStrikes,
+              max: localConfig.maxStrikes,
+            })
+          }}
         </div>
       </div>
     </div>
@@ -715,7 +740,7 @@
     <div class="config-actions">
       <button class="btn btn-secondary" @click="resetToDefault">
         <RotateCcw :size="16" />
-        <span class="btn-text">重置默认</span>
+        <span class="btn-text">{{ $t('punishment_config_reset') }}</span>
       </button>
     </div>
 

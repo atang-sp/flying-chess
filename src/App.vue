@@ -4033,9 +4033,9 @@
         <div class="settings-header">
           <h2>
             <Settings :size="24" />
-            游戏设置
+            {{ $t('app_settings_title') }}
           </h2>
-          <p>配置棋盘、惩罚和陷阱</p>
+          <p>{{ $t('app_settings_desc') }}</p>
         </div>
 
         <!-- Stepper 步骤指示器 -->
@@ -4054,7 +4054,7 @@
               <AlertCircle v-else-if="!stepCompleted.board && settingsTab !== 'board'" :size="14" />
               <span v-else>1</span>
             </span>
-            <span class="stepper-label">棋盘</span>
+            <span class="stepper-label">{{ $t('app_settings_step_board') }}</span>
           </button>
 
           <span
@@ -4079,7 +4079,7 @@
               />
               <span v-else>2</span>
             </span>
-            <span class="stepper-label">惩罚</span>
+            <span class="stepper-label">{{ $t('app_settings_step_punishment') }}</span>
           </button>
 
           <span
@@ -4101,7 +4101,7 @@
               <AlertCircle v-else-if="!stepCompleted.trap && settingsTab !== 'trap'" :size="14" />
               <span v-else>3</span>
             </span>
-            <span class="stepper-label">陷阱</span>
+            <span class="stepper-label">{{ $t('app_settings_step_trap') }}</span>
           </button>
         </div>
 
@@ -4140,11 +4140,11 @@
         <div v-if="punishmentStep === 'config'" class="page-actions">
           <button v-if="settingsTab !== 'board'" class="btn btn-secondary" @click="prevStep">
             <ArrowLeft :size="16" />
-            <span class="btn-text">上一步</span>
+            <span class="btn-text">{{ $t('app_settings_prev') }}</span>
           </button>
           <button v-else class="btn btn-secondary" @click="showIntro">
             <ArrowLeft :size="16" />
-            <span class="btn-text">返回首页</span>
+            <span class="btn-text">{{ $t('app_settings_back_home') }}</span>
           </button>
 
           <button
@@ -4154,10 +4154,10 @@
             @click="generatePunishmentCombinations"
           >
             <Target :size="16" />
-            <span class="btn-text">生成惩罚组合</span>
+            <span class="btn-text">{{ $t('app_settings_generate') }}</span>
           </button>
           <button v-else class="btn btn-primary" @click="nextStep">
-            <span class="btn-text">下一步</span>
+            <span class="btn-text">{{ $t('app_settings_next') }}</span>
             <ArrowRight :size="16" />
           </button>
         </div>
@@ -4170,7 +4170,7 @@
         <div class="header-content">
           <h1>
             <Dices :size="20" />
-            惩罚飞行棋
+            {{ $t('game_title') }}
           </h1>
 
           <div v-if="gameStarted" class="header-status">
@@ -4200,38 +4200,48 @@
             <span
               v-if="multiDeviceEnabled"
               class="multi-device-badge"
-              :title="`多设备模式 - ${multiDevice.getConnectedPlayerCount()}/${gameState.players.length} 已连接`"
+              :title="
+                $t('app_settings_multi_device_title', {
+                  n: multiDevice.getConnectedPlayerCount(),
+                  total: gameState.players.length,
+                })
+              "
             >
               📱 {{ multiDevice.getConnectedPlayerCount() }}/{{ gameState.players.length }}
             </span>
             <button
               v-if="gameStarted"
               class="header-icon-btn"
-              title="查看设置"
+              :title="$t('app_settings_view_settings')"
               @click="showSettingsModal = true"
             >
               <Settings :size="18" />
             </button>
-            <button v-if="gameStarted" class="header-icon-btn" title="返回主页" @click="exitToHome">
+            <button
+              v-if="gameStarted"
+              class="header-icon-btn"
+              :title="$t('app_settings_back_main')"
+              @click="exitToHome"
+            >
               <Home :size="18" />
             </button>
             <PButton
               v-if="!gameStarted"
-              label="开始游戏"
+              :label="$t('start_game')"
               icon="pi pi-play"
               class="p-button-success p-button-sm"
               @click="handleGameControlsStart"
             />
             <PButton
               v-if="gameFinished"
-              label="再来一局"
+              :label="$t('play_again')"
               icon="pi pi-refresh"
               class="p-button-info p-button-sm"
               @click="handleVictoryPlayAgain"
             />
             <button
               class="audio-toggle-btn"
-              :title="audioEnabled ? '静音' : '开启声音'"
+              :title="audioEnabled ? $t('app_settings_mute') : $t('app_settings_unmute')"
               @click="toggleAudio"
             >
               <Volume2 v-if="audioEnabled" :size="18" />
@@ -4272,7 +4282,11 @@
             />
           </div>
 
-          <aside v-if="!isMobileView" class="game-sidecar" aria-label="回合与格子信息">
+          <aside
+            v-if="!isMobileView"
+            class="game-sidecar"
+            :aria-label="$t('app_settings_board_aria')"
+          >
             <GameTurnDock
               :players="gameState.players"
               :current-player-index="gameState.currentPlayerIndex"
@@ -4443,7 +4457,10 @@
     <PartyDiceDecision
       v-if="!multiDeviceEnabled || !multiDevice.isRemotePlayer(gameState.currentPlayerIndex)"
       :visible="partyDiceDecisionVisible"
-      :player-name="gameState.players[gameState.currentPlayerIndex]?.name ?? '当前玩家'"
+      :player-name="
+        gameState.players[gameState.currentPlayerIndex]?.name ??
+        $t('app_settings_current_player_fallback')
+      "
       :dice-value="gameState.diceValue ?? 1"
       :tokens-remaining="currentPartyTokens"
       :can-reroll="canCurrentPlayerReroll"
@@ -4524,27 +4541,27 @@
       class="multi-device-lobby"
     >
       <div class="multi-device-lobby-card">
-        <h2>等待玩家连接</h2>
-        <p class="room-code-label">房间码</p>
+        <h2>{{ $t('app_lan_waiting') }}</h2>
+        <p class="room-code-label">{{ $t('app_lan_room_code') }}</p>
         <p class="room-code">{{ multiDevice.roomInfo.value.roomId }}</p>
         <p class="room-url">{{ multiDevice.roomInfo.value.gameUrl }}</p>
         <div class="lan-pairing-panel">
-          <p>1. 手机打开上方手柄地址；2. 将邀请粘贴到手机；3. 把手机生成的应答粘贴回来。</p>
-          <small>原生 WebRTC 局域网直连：不使用默认云端信令或外部中继。</small>
+          <p>{{ $t('app_lan_instruction_detail') }}</p>
+          <small>{{ $t('app_lan_webrtc_detail') }}</small>
           <label>
-            <span>局域网配对邀请</span>
+            <span>{{ $t('app_lan_invite') }}</span>
             <textarea
               :value="multiDevice.pairingOffer.value"
               readonly
-              placeholder="正在收集局域网连接信息..."
+              :placeholder="$t('app_lan_collecting')"
               data-testid="lan-pairing-offer"
             />
           </label>
           <label>
-            <span>手机配对应答</span>
+            <span>{{ $t('app_lan_pairing') }}</span>
             <textarea
               v-model="lanPairingAnswerInput"
-              placeholder="粘贴手机生成的配对应答 JSON"
+              :placeholder="$t('app_lan_answer_placeholder')"
               data-testid="lan-pairing-answer-input"
             />
           </label>
@@ -4554,7 +4571,7 @@
             data-testid="lan-pairing-submit"
             @click="submitLanPairingAnswer"
           >
-            建立局域网直连
+            {{ $t('app_lan_connect_btn') }}
           </button>
           <p v-if="multiDevice.pairingError.value" class="lan-pairing-error">
             {{ multiDevice.pairingError.value }}
@@ -4591,11 +4608,11 @@
       v-if="canPauseSession && !sessionPaused"
       class="session-pause-trigger"
       :class="{ 'session-pause-trigger--blocked': hasActiveForcedOverlay }"
-      aria-label="暂停本局"
+      :aria-label="$t('app_pause_game')"
       @click="pauseSession"
     >
       <Pause :size="18" aria-hidden="true" />
-      <span>暂停本局</span>
+      <span>{{ $t('app_pause_game') }}</span>
     </button>
 
     <SessionPauseOverlay
@@ -4607,14 +4624,18 @@
     <!-- 用户引导按钮和设置 -->
     <div class="guide-controls">
       <!-- 配置导出按钮 -->
-      <button class="export-btn" title="导出配置" @click="openConfigExport">
+      <button class="export-btn" :title="$t('config_export_title')" @click="openConfigExport">
         <Upload :size="20" />
       </button>
 
       <!-- 账户 / 云同步按钮 -->
       <button
         class="export-btn auth-btn"
-        :title="currentUser ? '账户：' + (currentUser.email ?? '已登录') : '登录 · 云端同步'"
+        :title="
+          currentUser
+            ? $t('app_account_logged_in', { email: currentUser.email ?? '' })
+            : $t('app_account_login')
+        "
         @click="showAuthModal = true"
       >
         <span v-if="currentUser" class="auth-avatar-badge">
@@ -4624,7 +4645,7 @@
       </button>
 
       <!-- 主要引导按钮 -->
-      <button class="guide-btn" title="查看当前页面引导" @click="startGuide">
+      <button class="guide-btn" :title="$t('app_guide_btn')" @click="startGuide">
         <HelpCircle :size="20" />
       </button>
 
@@ -4632,7 +4653,7 @@
       <div class="guide-settings">
         <button
           class="settings-toggle"
-          title="引导设置"
+          :title="$t('app_guide_settings')"
           @click="showGuideSettings = !showGuideSettings"
         >
           <Settings :size="18" />
@@ -4648,19 +4669,23 @@
                 class="setting-checkbox"
                 @change="persistAutoGuideSetting"
               />
-              <span class="checkbox-text">自动显示引导</span>
+              <span class="checkbox-text">{{ $t('app_guide_auto') }}</span>
             </label>
           </div>
 
           <div class="settings-item">
-            <button class="reset-btn" title="重置引导状态" @click="resetGuideStatus">
+            <button
+              class="reset-btn"
+              :title="$t('app_guide_reset_status')"
+              @click="resetGuideStatus"
+            >
               <RotateCcw :size="16" />
-              <span class="reset-text">重置引导</span>
+              <span class="reset-text">{{ $t('app_guide_reset') }}</span>
             </button>
           </div>
 
           <div class="settings-footer">
-            <small>首次访问页面时显示引导</small>
+            <small>{{ $t('app_guide_first_visit') }}</small>
           </div>
         </div>
       </div>
@@ -4683,7 +4708,7 @@
     <!-- 游戏设置查看对话框 -->
     <PDialog
       v-model:visible="showSettingsModal"
-      header="游戏规则及设置查看"
+      :header="$t('app_settings_view_rules')"
       :modal="true"
       :style="{ width: '90vw', maxWidth: '600px' }"
     >
@@ -4694,7 +4719,7 @@
             :class="{ 'stepper-item--active': viewerTab === 'board' }"
             @click="viewerTab = 'board'"
           >
-            <span class="stepper-label">棋盘</span>
+            <span class="stepper-label">{{ $t('app_settings_step_board') }}</span>
           </button>
           <span class="stepper-connector"></span>
           <button
@@ -4702,7 +4727,7 @@
             :class="{ 'stepper-item--active': viewerTab === 'punishment' }"
             @click="viewerTab = 'punishment'"
           >
-            <span class="stepper-label">惩罚</span>
+            <span class="stepper-label">{{ $t('app_settings_step_punishment') }}</span>
           </button>
           <span class="stepper-connector"></span>
           <button
@@ -4710,7 +4735,7 @@
             :class="{ 'stepper-item--active': viewerTab === 'trap' }"
             @click="viewerTab = 'trap'"
           >
-            <span class="stepper-label">陷阱</span>
+            <span class="stepper-label">{{ $t('app_settings_step_trap') }}</span>
           </button>
         </div>
         <div class="viewer-content" style="max-height: 60vh; overflow-y: auto">

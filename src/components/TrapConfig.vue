@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { Skull, Trash2, Plus, Check, X, Info, RotateCcw } from '@lucide/vue'
   import type { TrapAction } from '@flying-chess/game-core/types'
   import { GAME_CONFIG } from '../config/gameConfig'
@@ -15,6 +16,7 @@
 
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
+  const { t } = useI18n()
 
   // 本地机关状态
   const cloneTraps = (traps: readonly TrapAction[]): TrapAction[] =>
@@ -32,8 +34,8 @@
   // 添加新机关
   const addTrap = () => {
     const newTrap: TrapAction = {
-      name: `新机关${localTraps.value.length + 1}`,
-      description: '请输入机关描述',
+      name: t('trap_config_item_title', { n: localTraps.value.length + 1 }),
+      description: t('trap_config_desc_placeholder'),
     }
     localTraps.value.push(newTrap)
     updateTraps()
@@ -70,17 +72,17 @@
     <div class="config-section">
       <h3>
         <Skull :size="20" />
-        机关格子配置
+        {{ $t('trap_config_title') }}
       </h3>
       <p class="section-description">
-        自定义机关格子的内容。每次踩到机关格子时，会从所有机关中随机选择一个触发。
+        {{ $t('trap_config_desc') }}
       </p>
 
       <!-- 机关列表 -->
       <div class="traps-list">
         <div v-for="(trap, index) in localTraps" :key="index" class="trap-item">
           <div class="trap-header">
-            <h4>机关 {{ index + 1 }}</h4>
+            <h4>{{ $t('trap_config_item_title', { n: index + 1 }) }}</h4>
             <button
               class="btn-remove"
               :disabled="localTraps.length <= 1"
@@ -93,23 +95,23 @@
           <div class="trap-content">
             <!-- 机关名称 -->
             <div class="input-group">
-              <label class="input-label">机关名称</label>
+              <label class="input-label">{{ $t('trap_config_name_label') }}</label>
               <input
                 v-model="trap.name"
                 type="text"
                 class="config-input"
-                placeholder="输入机关名称，例如：晾臀机关"
+                :placeholder="$t('trap_config_name_placeholder')"
                 @input="updateTraps"
               />
             </div>
 
             <!-- 机关描述 -->
             <div class="input-group">
-              <label class="input-label">机关描述</label>
+              <label class="input-label">{{ $t('trap_config_desc_label') }}</label>
               <textarea
                 v-model="trap.description"
                 class="config-textarea"
-                placeholder="输入机关描述，例如：晾臀5分钟"
+                :placeholder="$t('trap_config_desc_placeholder')"
                 @input="updateTraps"
               ></textarea>
             </div>
@@ -121,7 +123,7 @@
       <div class="add-trap-section">
         <button class="btn btn-primary" @click="addTrap">
           <Plus :size="18" />
-          添加机关
+          {{ $t('trap_config_add') }}
         </button>
       </div>
 
@@ -135,11 +137,19 @@
             <Check v-if="isConfigValid" :size="16" />
             <X v-else :size="16" />
           </span>
-          <span class="status-text">配置状态：{{ isConfigValid ? '有效' : '无效' }}</span>
+          <span class="status-text">
+            {{
+              $t('trap_config_status', {
+                status: isConfigValid ? $t('board_config_valid') : $t('board_config_invalid'),
+              })
+            }}
+          </span>
         </div>
         <div class="status-item status-info">
           <span class="status-icon"><Info :size="16" /></span>
-          <span class="status-text">机关数量：{{ localTraps.length }} 个（等概率出现）</span>
+          <span class="status-text">
+            {{ $t('trap_config_count_info', { count: localTraps.length }) }}
+          </span>
         </div>
       </div>
 
@@ -147,7 +157,7 @@
       <div class="quick-actions">
         <button class="btn btn-secondary" @click="resetToDefault">
           <RotateCcw :size="16" />
-          重置默认
+          {{ $t('trap_config_reset') }}
         </button>
       </div>
     </div>

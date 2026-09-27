@@ -39,10 +39,10 @@
         <div class="dare-icon">
           <Flame :size="48" />
         </div>
-        <h2 class="dare-title">执行指令</h2>
+        <h2 class="dare-title">{{ $t('dare_display_title') }}</h2>
         <p v-if="player" class="dare-player">
           <span class="player-dot" :style="{ backgroundColor: player.color }"></span>
-          {{ player.name }}，请执行：
+          {{ $t('dare_display_player_prompt', { player: player.name }) }}
         </p>
       </div>
 
@@ -55,7 +55,7 @@
       <div class="dare-actions">
         <button class="btn dare-confirm-btn" :disabled="submitted" @click="confirm">
           <Check :size="18" />
-          <span>已完成</span>
+          <span>{{ $t('dare_display_confirm') }}</span>
         </button>
       </div>
     </div>

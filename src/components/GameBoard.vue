@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import type { Component } from 'vue'
   import {
     Circle,
@@ -51,6 +52,7 @@
     interactionDisabled: false,
   })
   const emit = defineEmits<Emits>()
+  const { t } = useI18n()
 
   const iconComponents: Record<CellIconName, Component> = {
     Circle,
@@ -98,7 +100,7 @@
   const presentedCells = computed<PresentedCell[]>(() =>
     props.board.map((cell, index) => ({
       cell,
-      presentation: getBoardCellPresentation(cell, props.board.length),
+      presentation: getBoardCellPresentation(cell, props.board.length, t),
       grid: getSnakeGridPosition(cell.position, columns.value),
       hasNext: index < props.board.length - 1,
     }))
@@ -293,29 +295,33 @@
     ref="boardRef"
     class="game-board"
     :class="{ 'board-disabled': interactionDisabled, 'board-shaking': isShaking }"
-    aria-label="飞行棋赛道"
+    :aria-label="$t('game_board_track_aria')"
   >
     <div class="board-toolbar">
       <div class="board-title">
         <span class="board-title-kicker">FLIGHT PATH</span>
-        <strong>{{ board.length }} 格赛道</strong>
+        <strong>{{ $t('game_board_track_cells', { count: board.length }) }}</strong>
       </div>
       <button
         type="button"
         class="locate-button"
         :disabled="players.length === 0"
-        aria-label="定位当前玩家"
+        :aria-label="$t('game_board_locate_current_aria')"
         @click="locateCurrentPlayer"
       >
         <LocateFixed aria-hidden="true" />
-        <span>定位玩家</span>
+        <span>{{ $t('game_board_locate_player') }}</span>
       </button>
     </div>
 
-    <div v-if="playersAtLaunch.length > 0" class="launch-bay" aria-label="待起飞玩家">
+    <div
+      v-if="playersAtLaunch.length > 0"
+      class="launch-bay"
+      :aria-label="$t('game_board_launch_bay_aria')"
+    >
       <span class="launch-label">
         <Rocket :size="16" />
-        起飞区
+        {{ $t('game_board_launch_bay') }}
       </span>
       <div class="launch-players">
         <PlayerMeeple
@@ -342,7 +348,9 @@
           :style="getCellStyle(item.grid)"
           :disabled="interactionDisabled"
           :tabindex="focusedPosition === item.cell.position ? 0 : -1"
-          :aria-label="`第 ${item.cell.position} 格，${item.presentation.label}`"
+          :aria-label="
+            $t('game_board_cell_aria', { n: item.cell.position, label: item.presentation.label })
+          "
           :aria-pressed="selectedPosition === item.cell.position"
           :data-testid="`board-cell-${item.cell.position}`"
           :data-kind="item.presentation.kind"
@@ -397,9 +405,7 @@
     </div>
 
     <p class="board-hint">
-      {{
-        interactionDisabled ? '棋盘由房间服务器实时同步' : '轻点格子查看完整内容 · 方向键可逐格浏览'
-      }}
+      {{ interactionDisabled ? $t('game_board_synced_by_server') : $t('game_board_tap_hint') }}
     </p>
   </section>
 </template>

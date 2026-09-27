@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import {
     Upload,
     Download,
@@ -46,9 +47,10 @@
 
   defineProps<Props>()
   const emit = defineEmits<Emits>()
+  const { t } = useI18n()
 
   const importSuccessMessage = (warnings?: string[]) =>
-    ['配置导入成功！', ...(warnings ?? [])].join('\n')
+    [t('config_import_success_toast'), ...(warnings ?? [])].join('\n')
 
   // 当前模式：export 或 import
   const currentMode = ref<'export' | 'import'>('export')
@@ -105,7 +107,7 @@
     if (!qrCapacityExceeded.value) {
       return ''
     }
-    return '当前选择的数据超过二维码容量，请减少导出项后重试。'
+    return t('config_export_qr_overflow')
   })
 
   const canGenerateQRCode = computed(() => canExport.value && !qrCapacityExceeded.value)
@@ -311,7 +313,11 @@
           <h3>
             <Upload v-if="currentMode === 'export'" :size="20" />
             <Download v-else :size="20" />
-            {{ currentMode === 'export' ? '导出配置' : '导入配置' }}
+            {{
+              currentMode === 'export'
+                ? $t('config_export_title')
+                : $t('config_export_import_title')
+            }}
           </h3>
           <div class="mode-tabs">
             <button
@@ -319,19 +325,23 @@
               :class="{ active: currentMode === 'export' }"
               @click="switchMode('export')"
             >
-              导出
+              {{ $t('config_export_btn') }}
             </button>
             <button
               class="mode-tab"
               :class="{ active: currentMode === 'import' }"
               @click="switchMode('import')"
             >
-              导入
+              {{ $t('config_export_import_btn') }}
             </button>
           </div>
         </div>
         <div class="header-actions">
-          <button class="doc-btn" title="查看配置文档" @click="showDocumentation = true">
+          <button
+            class="doc-btn"
+            :title="$t('config_export_docs_link')"
+            @click="showDocumentation = true"
+          >
             <BookOpen :size="18" />
           </button>
           <button class="close-btn" @click="handleClose">
@@ -344,14 +354,18 @@
         <!-- 导出模式 -->
         <div v-if="currentMode === 'export'">
           <div class="export-description">
-            <p>选择要导出的配置项，可以生成JSON文件或二维码供分享或备份使用。</p>
+            <p>{{ $t('config_export_desc') }}</p>
           </div>
 
           <div class="export-options">
             <div class="options-header">
-              <h4>选择导出内容</h4>
+              <h4>{{ $t('config_export_select_title') }}</h4>
               <button class="toggle-all-btn" @click="toggleAll">
-                {{ Object.values(exportOptions).every(Boolean) ? '全不选' : '全选' }}
+                {{
+                  Object.values(exportOptions).every(Boolean)
+                    ? $t('config_export_select_none')
+                    : $t('config_export_select_all')
+                }}
               </button>
             </div>
 
@@ -364,10 +378,12 @@
                 />
                 <span class="option-icon"><Users :size="20" /></span>
                 <div class="option-info">
-                  <div class="option-title">玩家设置</div>
-                  <div class="option-desc">玩家数量和姓名配置</div>
+                  <div class="option-title">{{ $t('config_export_players_label') }}</div>
+                  <div class="option-desc">{{ $t('config_export_players_desc') }}</div>
                 </div>
-                <div v-if="!availableOptions.playerSettings" class="option-status">未配置</div>
+                <div v-if="!availableOptions.playerSettings" class="option-status">
+                  {{ $t('config_export_players_empty') }}
+                </div>
               </label>
 
               <label class="option-item" :class="{ disabled: !availableOptions.punishmentConfig }">
@@ -378,10 +394,12 @@
                 />
                 <span class="option-icon"><Settings :size="20" /></span>
                 <div class="option-info">
-                  <div class="option-title">惩罚设置</div>
-                  <div class="option-desc">工具、部位、姿势等惩罚配置</div>
+                  <div class="option-title">{{ $t('config_export_punishment_label') }}</div>
+                  <div class="option-desc">{{ $t('config_export_punishment_desc') }}</div>
                 </div>
-                <div v-if="!availableOptions.punishmentConfig" class="option-status">未配置</div>
+                <div v-if="!availableOptions.punishmentConfig" class="option-status">
+                  {{ $t('config_export_players_empty') }}
+                </div>
               </label>
 
               <label class="option-item" :class="{ disabled: !availableOptions.boardConfig }">
@@ -392,10 +410,12 @@
                 />
                 <span class="option-icon"><Target :size="20" /></span>
                 <div class="option-info">
-                  <div class="option-title">棋盘设置</div>
-                  <div class="option-desc">各种格子数量的配置</div>
+                  <div class="option-title">{{ $t('config_export_board_label') }}</div>
+                  <div class="option-desc">{{ $t('board_config_desc', { n: '' }) }}</div>
                 </div>
-                <div v-if="!availableOptions.boardConfig" class="option-status">未配置</div>
+                <div v-if="!availableOptions.boardConfig" class="option-status">
+                  {{ $t('config_export_players_empty') }}
+                </div>
               </label>
 
               <label class="option-item" :class="{ disabled: !availableOptions.trapConfig }">
@@ -406,43 +426,47 @@
                 />
                 <span class="option-icon"><Wrench :size="20" /></span>
                 <div class="option-info">
-                  <div class="option-title">机关设置</div>
-                  <div class="option-desc">机关格子的配置</div>
+                  <div class="option-title">{{ $t('trap_config_title') }}</div>
+                  <div class="option-desc">{{ $t('trap_config_desc') }}</div>
                 </div>
-                <div v-if="!availableOptions.trapConfig" class="option-status">未配置</div>
+                <div v-if="!availableOptions.trapConfig" class="option-status">
+                  {{ $t('config_export_players_empty') }}
+                </div>
               </label>
 
               <div class="option-item disabled" aria-disabled="true">
                 <span class="option-icon"><Dices :size="20" /></span>
                 <div class="option-info">
-                  <div class="option-title">棋盘布局</div>
-                  <div class="option-desc">当前版本暂不支持可靠恢复，已停止导出该项</div>
+                  <div class="option-title">{{ $t('config_export_layout_title') }}</div>
+                  <div class="option-desc">{{ $t('config_export_layout_desc') }}</div>
                 </div>
-                <div class="option-status">暂不支持</div>
+                <div class="option-status">{{ $t('config_export_unsupported') }}</div>
               </div>
             </div>
           </div>
 
           <div v-if="exportStats" class="export-stats">
-            <h4>导出信息</h4>
+            <h4>{{ $t('config_export_info_title') }}</h4>
             <div class="stats-grid">
               <div class="stat-item">
-                <span class="stat-label">配置项数量</span>
-                <span class="stat-value">{{ exportStats.itemCount }} 项</span>
+                <span class="stat-label">{{ $t('config_export_stat_items') }}</span>
+                <span class="stat-value">
+                  {{ $t('config_export_item_format', { count: exportStats.itemCount }) }}
+                </span>
               </div>
               <div class="stat-item">
-                <span class="stat-label">文件大小</span>
+                <span class="stat-label">{{ $t('config_export_stat_file_size') }}</span>
                 <span class="stat-value">{{ formatFileSize(exportStats.totalSize) }}</span>
               </div>
               <div v-if="exportStats.estimatedQRCodeSize !== undefined" class="stat-item">
-                <span class="stat-label">二维码大小</span>
+                <span class="stat-label">{{ $t('config_export_stat_qr_size') }}</span>
                 <span
                   class="stat-value"
                   :class="{ danger: exportStats.estimatedQRCodeSize === -1 }"
                 >
                   {{
                     exportStats.estimatedQRCodeSize === -1
-                      ? '超限'
+                      ? $t('config_export_stat_exceeded')
                       : formatFileSize(exportStats.estimatedQRCodeSize)
                   }}
                 </span>
@@ -453,10 +477,10 @@
 
           <!-- 二维码预览 -->
           <div v-if="showQRCode && qrCodeDataURL" class="qrcode-preview">
-            <h4>二维码预览</h4>
+            <h4>{{ $t('config_export_qr_preview') }}</h4>
             <div class="qrcode-container">
-              <img :src="qrCodeDataURL" alt="配置二维码" class="qrcode-image" />
-              <p class="qrcode-tip">扫描此二维码或保存图片以分享配置</p>
+              <img :src="qrCodeDataURL" alt="QR Code" class="qrcode-image" />
+              <p class="qrcode-tip">{{ $t('config_export_qr_tip') }}</p>
             </div>
           </div>
         </div>
@@ -464,14 +488,14 @@
         <!-- 导入模式 -->
         <div v-else-if="currentMode === 'import'">
           <div class="import-description">
-            <p>支持导入JSON配置文件或二维码图片，也可以直接粘贴配置数据。</p>
+            <p>{{ $t('config_export_import_desc') }}</p>
           </div>
 
           <div class="import-methods">
             <div class="import-method">
               <h4>
                 <FolderOpen :size="18" />
-                文件导入
+                {{ $t('config_export_file_import') }}
               </h4>
               <div class="file-upload">
                 <input
@@ -483,22 +507,22 @@
                   @change="handleFileImport"
                 />
                 <label for="import-file" class="file-label">
-                  <span v-if="isImporting">导入中...</span>
-                  <span v-else>选择JSON文件或二维码图片</span>
+                  <span v-if="isImporting">{{ $t('config_export_importing') }}</span>
+                  <span v-else>{{ $t('config_export_select_file') }}</span>
                 </label>
               </div>
-              <p class="method-desc">支持 .json 文件和二维码图片（PNG、JPG等格式）</p>
+              <p class="method-desc">{{ $t('config_export_file_hint') }}</p>
             </div>
 
             <div class="import-method">
               <h4>
                 <FileText :size="18" />
-                文本导入
+                {{ $t('config_export_text_import') }}
               </h4>
               <div class="text-import">
                 <textarea
                   v-model="importJsonText"
-                  placeholder="请粘贴配置数据（JSON格式）..."
+                  :placeholder="$t('config_export_text_placeholder')"
                   class="json-textarea"
                   :disabled="isImporting"
                   rows="8"
@@ -508,11 +532,11 @@
                   :disabled="!importJsonText.trim() || isImporting"
                   @click="handleJsonTextImport"
                 >
-                  <span v-if="isImporting">导入中...</span>
-                  <span v-else>导入配置</span>
+                  <span v-if="isImporting">{{ $t('config_export_importing') }}</span>
+                  <span v-else>{{ $t('config_export_import_btn') }}</span>
                 </button>
               </div>
-              <p class="method-desc">直接粘贴从其他地方复制的配置数据</p>
+              <p class="method-desc">{{ $t('config_export_text_hint') }}</p>
             </div>
           </div>
         </div>
@@ -524,7 +548,7 @@
           :disabled="isExporting || isImporting"
           @click="handleClose"
         >
-          取消
+          {{ $t('config_export_cancel') }}
         </button>
 
         <!-- 导出模式按钮 -->
@@ -535,10 +559,10 @@
             :class="{ loading: isExporting }"
             @click="handleGenerateQRCode"
           >
-            <span v-if="isExporting">生成中...</span>
+            <span v-if="isExporting">{{ $t('config_export_generating') }}</span>
             <span v-else class="btn-content">
               <QrCode :size="16" />
-              生成二维码
+              {{ $t('config_export_generate_qr') }}
             </span>
           </button>
           <button
@@ -547,10 +571,10 @@
             :class="{ loading: isExporting }"
             @click="handleExportJson"
           >
-            <span v-if="isExporting">导出中...</span>
+            <span v-if="isExporting">{{ $t('config_export_generating') }}</span>
             <span v-else class="btn-content">
               <FileJson :size="16" />
-              导出 JSON
+              {{ $t('config_export_download_json') }}
             </span>
           </button>
           <button
@@ -561,7 +585,7 @@
           >
             <span class="btn-content">
               <Save :size="16" />
-              保存二维码
+              {{ $t('config_export_save_qr') }}
             </span>
           </button>
         </div>

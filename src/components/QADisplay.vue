@@ -45,10 +45,10 @@
         <div class="qa-icon">
           <MessageCircleQuestion :size="48" />
         </div>
-        <h2 class="qa-title">问答时间</h2>
+        <h2 class="qa-title">{{ $t('qa_display_title') }}</h2>
         <p v-if="player" class="qa-player">
           <span class="player-dot" :style="{ backgroundColor: player.color }"></span>
-          {{ player.name }}，请回答：
+          {{ $t('qa_display_player_prompt', { player: player.name }) }}
         </p>
       </div>
 
@@ -61,11 +61,11 @@
       <div class="qa-actions">
         <button class="btn qa-answer-btn" :disabled="submitted" @click="answer">
           <Check :size="18" />
-          <span>已回答</span>
+          <span>{{ $t('qa_display_answer') }}</span>
         </button>
         <button class="btn qa-refuse-btn" :disabled="submitted" @click="refuse">
           <Zap :size="18" />
-          <span>拒绝回答（接受惩罚）</span>
+          <span>{{ $t('qa_display_refuse') }}</span>
         </button>
       </div>
     </div>

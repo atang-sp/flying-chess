@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { onMounted, ref } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { CloudDownload, Link, Star } from '@lucide/vue'
   import {
     loadCommunityCatalog,
@@ -7,6 +8,8 @@
     type CommunityCatalogEntry,
     type CommunityPack,
   } from '../services/communityPacks'
+
+  const { t } = useI18n()
 
   const emit = defineEmits<{ (event: 'apply', pack: CommunityPack): void }>()
   const catalog = ref<readonly CommunityCatalogEntry[]>([])
@@ -17,13 +20,13 @@
   const applyFromUrl = async (url: string) => {
     if (!url.trim() || loadingUrl.value) return
     loadingUrl.value = url
-    status.value = '正在校验远程配置…'
+    status.value = t('community_validating')
     try {
       const pack = await loadRemoteCommunityPack(url)
       emit('apply', pack)
-      status.value = `已加载“${pack.title}”，开局前仍可继续调整`
+      status.value = t('community_loaded', { title: pack.title })
     } catch (error) {
-      status.value = error instanceof Error ? error.message : '远程配置加载失败'
+      status.value = error instanceof Error ? error.message : t('community_load_failed')
     } finally {
       loadingUrl.value = ''
     }
@@ -33,7 +36,7 @@
     try {
       catalog.value = await loadCommunityCatalog(`${import.meta.env.BASE_URL}community/index.json`)
     } catch (error) {
-      status.value = error instanceof Error ? error.message : '社区目录暂时不可用'
+      status.value = error instanceof Error ? error.message : t('community_catalog_unavailable')
     }
   })
 </script>
@@ -43,9 +46,9 @@
     <summary>
       <span>
         <CloudDownload :size="19" />
-        社区配置市场
+        {{ t('community_market_title') }}
       </span>
-      <small>静态索引 · 无需账号或后端</small>
+      <small>{{ t('community_market_subtitle') }}</small>
     </summary>
 
     <div class="browser-body">
@@ -67,17 +70,19 @@
             :disabled="Boolean(loadingUrl)"
             @click="applyFromUrl(entry.packUrl)"
           >
-            {{ loadingUrl === entry.packUrl ? '加载中…' : '一键加载' }}
+            {{
+              loadingUrl === entry.packUrl ? t('community_loading') : t('community_apply_one_click')
+            }}
           </button>
         </article>
       </div>
-      <p v-else class="empty-catalog">目录未加载时仍可使用远程 JSON 地址。</p>
+      <p v-else class="empty-catalog">{{ t('community_empty_catalog') }}</p>
 
       <div class="remote-loader">
         <label>
           <span>
             <Link :size="15" />
-            远程配置 URL（GitHub Gist / JSON 文件）
+            {{ t('community_remote_url_label') }}
           </span>
           <input v-model.trim="remoteUrl" type="url" placeholder="https://…/pack.json" />
         </label>
@@ -86,7 +91,7 @@
           :disabled="!remoteUrl || Boolean(loadingUrl)"
           @click="applyFromUrl(remoteUrl)"
         >
-          校验并加载
+          {{ t('community_validate_and_load') }}
         </button>
       </div>
       <p v-if="status" class="status">{{ status }}</p>
