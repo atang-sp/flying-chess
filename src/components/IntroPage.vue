@@ -37,6 +37,7 @@
   } from '../utils/cache'
   import { SecureRandom } from '../utils/secureRandom'
   import { devLog } from '../utils/logger'
+  import { localeContent } from '../utils/locale'
   import VersionDisplay from './VersionDisplay.vue'
   import PartySceneSelector from './PartySceneSelector.vue'
   import VictoryConfigPanel from './VictoryConfig.vue'
@@ -75,7 +76,7 @@
 
   // 玩家配置状态（默认2人以兼容既有端到端测试与快速对决）
   const playerCount = ref(2)
-  const playerNames = ref<string[]>(['玩家1', '玩家2'])
+  const playerNames = ref<string[]>([localeContent.defaultPlayerName(0), localeContent.defaultPlayerName(1)])
   const selectedMode = ref<GameMode>(props.initialMode)
   const onlinePartyUrl = `${import.meta.env.BASE_URL}online.html`
   const applicationVersion = VERSION
@@ -115,7 +116,7 @@
       badge: '最经典',
       desc: '4人满员起飞 · 撞子回航 · 原汁原味的经典飞行棋对战',
       playerCount: 4,
-      defaultNames: ['玩家1', '玩家2', '玩家3', '玩家4'],
+      defaultNames: [0, 1, 2, 3].map(i => localeContent.defaultPlayerName(i)),
       mode: 'classic',
       featured: true,
       icon: Trophy,
@@ -127,7 +128,7 @@
       badge: '快节奏',
       desc: '双人面对面较量 · 快速起飞 · 轻松休闲的策略博弈',
       playerCount: 2,
-      defaultNames: ['玩家1', '玩家2'],
+      defaultNames: [0, 1].map(i => localeContent.defaultPlayerName(i)),
       mode: 'classic',
       icon: Zap,
     },
@@ -138,7 +139,7 @@
       badge: '好友局',
       desc: '三人环形棋盘 · 攻防牵制 · 欢乐互动的经典对弈',
       playerCount: 3,
-      defaultNames: ['玩家1', '玩家2', '玩家3'],
+      defaultNames: [0, 1, 2].map(i => localeContent.defaultPlayerName(i)),
       mode: 'classic',
       icon: Users,
     },
@@ -149,7 +150,7 @@
       badge: '拓展玩法',
       desc: '真心话大冒险、筹码干预与同场反应 · 破冰酒局必备',
       playerCount: 4,
-      defaultNames: ['玩家1', '玩家2', '玩家3', '玩家4'],
+      defaultNames: [0, 1, 2, 3].map(i => localeContent.defaultPlayerName(i)),
       mode: 'party',
       scenePreset: 'icebreaker',
       icon: Flame,
@@ -167,7 +168,13 @@
       selectedScenePreset.value = preset.scenePreset
     }
     const isGeneric = playerNames.value.every(
-      (name, idx) => !name || name === `玩家${idx + 1}` || name === '男生' || name === '女生'
+      (name, idx) =>
+        !name ||
+        name === localeContent.defaultPlayerName(idx) ||
+        name === `玩家${idx + 1}` ||
+        name === `Player ${idx + 1}` ||
+        name === '男生' ||
+        name === '女生'
     )
     if (isGeneric) {
       playerNames.value = [...preset.defaultNames]
@@ -177,7 +184,7 @@
     presetFeedback.value = `已选定【${preset.title}】，可点击「立即开局」直接掷骰，或在下方调整玩家昵称与规则`
   }
 
-  // 点击卡片上的“一键开局”按钮直接开局
+  // 点击卡片上的"一键开局"按钮直接开局
   const quickStartPreset = (preset: ScenarioPreset) => {
     applyScenarioPreset(preset)
     emit('start', {
@@ -285,7 +292,7 @@
       if (i < currentNames.length) {
         newNames.push(currentNames[i])
       } else {
-        newNames.push(`玩家${i + 1}`)
+        newNames.push(localeContent.defaultPlayerName(i))
       }
     }
 

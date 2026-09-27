@@ -114,6 +114,7 @@
     validateConfigSnapshot,
     validateTrapConfig,
   } from '@flying-chess/game-core/config'
+  import { localeContent } from './utils/locale'
   import {
     createPartyPunishmentChoices,
     getActConstraints,
@@ -1663,10 +1664,11 @@
     gameState.diceValue = null
     gameState.gameStatus = 'intro'
     gameState.winner = null
-    gameState.punishmentConfig = GameService.createPunishmentConfig()
+    // Use locale-appropriate defaults so non-Chinese players get English content
+    gameState.punishmentConfig = { ...localeContent.punishmentConfig }
     gameState.boardConfig = GameService.createBoardConfig()
     gameState.pendingEffect = null
-    trapConfig.value = GameService.trapsToArray(GAME_CONFIG.DEFAULT_TRAPS)
+    trapConfig.value = localeContent.standardTraps.map(trap => ({ ...trap }))
 
     // 在配置设置后创建棋盘
     gameState.board = GameService.createBoard(
@@ -1778,10 +1780,12 @@
     const nextPunishmentConfig = cloneConfig(partySnapshot.punishmentConfig)
 
     const unlockedPartyContent = getUnlockedPartyContent(localProgress.value)
+    // Use locale-appropriate party traps so English-locale players see English descriptions
+    const localePartyTraps = localeContent.partyTraps
     const partyTraps =
       sceneKey === 'intimate'
-        ? partySnapshot.traps.filter(trap => trap.trapVariant !== 'all_players')
-        : [...partySnapshot.traps]
+        ? localePartyTraps.filter(trap => trap.trapVariant !== 'all_players')
+        : [...localePartyTraps]
     const nextTraps = partyTraps.filter(
       trap =>
         !trap.trapVariant?.startsWith('mini_game_') ||
@@ -1803,8 +1807,21 @@
         boardConfig: cloneConfig(nextBoardConfig),
         punishmentConfig: cloneConfig(nextPunishmentConfig),
         traps: cloneConfig(nextTraps),
-        qaQuestions: studio ? Object.values(studio.qaQuestions).flat() : undefined,
-        dareInstructions: studio ? Object.values(studio.dareInstructions).flat() : undefined,
+        // Use locale-appropriate Q&A and Dare when no Studio content overrides them
+        qaQuestions: studio
+          ? Object.values(studio.qaQuestions).flat()
+          : [
+              ...localeContent.partyQaQuestions.warmup,
+              ...localeContent.partyQaQuestions.heating,
+              ...localeContent.partyQaQuestions.finale,
+            ],
+        dareInstructions: studio
+          ? Object.values(studio.dareInstructions).flat()
+          : [
+              ...localeContent.partyDareInstructions.warmup,
+              ...localeContent.partyDareInstructions.heating,
+              ...localeContent.partyDareInstructions.finale,
+            ],
       })
     )
     partyBoardConfig.boardConfig = cloneConfig(nextBoardConfig)
@@ -1834,7 +1851,18 @@
             qaQuestions: Object.values(studio.qaQuestions).flat(),
             dareInstructions: Object.values(studio.dareInstructions).flat(),
           }
-        : undefined,
+        : {
+            qaQuestions: [
+              ...localeContent.partyQaQuestions.warmup,
+              ...localeContent.partyQaQuestions.heating,
+              ...localeContent.partyQaQuestions.finale,
+            ],
+            dareInstructions: [
+              ...localeContent.partyDareInstructions.warmup,
+              ...localeContent.partyDareInstructions.heating,
+              ...localeContent.partyDareInstructions.finale,
+            ],
+          },
       undefined,
       partyBoardConfig
     )

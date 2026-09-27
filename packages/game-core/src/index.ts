@@ -78,11 +78,13 @@ export {
   validateConfigSnapshot,
   validatePunishmentConfig,
   validateTrapConfig,
+  getLocaleContent,
 } from './sharedConfig'
 export type {
   BoardRandomSource,
   ConfigOverrides,
   ConfigSnapshot,
+  LocaleContent,
   ModeId,
   ModePolicy,
   PublicConfigProjection,

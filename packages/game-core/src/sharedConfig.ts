@@ -1777,3 +1777,245 @@ export function createSharedBoard(
     return cell
   })
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// English-locale default content
+// ─────────────────────────────────────────────────────────────────────────────
+
+const EN_STANDARD_TOOLS = {
+  Hand: { intensity: 2, ratio: 8 },
+  Ruler: { intensity: 3, ratio: 8 },
+  Paddle: { intensity: 5, ratio: 8 },
+  Cane: { intensity: 7, ratio: 8 },
+  Strap: { intensity: 6, ratio: 8 },
+  Belt: { intensity: 7, ratio: 8 },
+  Hairbrush: { intensity: 5, ratio: 8 },
+  'Ping-pong paddle': { intensity: 4, ratio: 8 },
+  'Loopy Johnny': { intensity: 8, ratio: 6 },
+  'Bath brush': { intensity: 6, ratio: 8 },
+  Switch: { intensity: 8, ratio: 6 },
+  'Riding crop': { intensity: 5, ratio: 6 },
+} as const
+
+const EN_STANDARD_BODY_PARTS = {
+  Bottom: { sensitivity: 10, ratio: 80 },
+  Thighs: { sensitivity: 5, ratio: 5 },
+  Back: { sensitivity: 7, ratio: 5 },
+  Palms: { sensitivity: 3, ratio: 5 },
+  'Sit-spot': { sensitivity: 8, ratio: 5 },
+} as const
+
+const EN_STANDARD_POSITIONS = {
+  Standing: {
+    ratio: 20,
+    compatibleBodyParts: ['Bottom', 'Back', 'Thighs', 'Sit-spot', 'Palms'],
+  },
+  'Hands on wall': {
+    ratio: 20,
+    compatibleBodyParts: ['Bottom', 'Back', 'Thighs', 'Sit-spot'],
+  },
+  'Bent over a table': {
+    ratio: 20,
+    compatibleBodyParts: ['Bottom', 'Back', 'Thighs', 'Sit-spot'],
+  },
+  'Touching toes': {
+    ratio: 20,
+    compatibleBodyParts: ['Bottom', 'Thighs', 'Sit-spot'],
+  },
+  'Over-the-knee (OTK)': {
+    ratio: 20,
+    compatibleBodyParts: ['Bottom', 'Sit-spot', 'Thighs'],
+  },
+} as const
+
+const EN_STANDARD_TRAPS: TrapAction[] = [
+  {
+    name: 'Display trap',
+    description: 'Bare and display your bottom for 5 minutes',
+  },
+  {
+    name: 'Beg for it',
+    description:
+      'Must ask for punishment yourself — say aloud "Please spank my bottom" to the previous spanker',
+  },
+]
+
+const EN_PARTY_TRAPS: TrapAction[] = [
+  {
+    name: 'Display trap',
+    description: 'Bare and display your bottom for 5 minutes',
+    trapVariant: 'text',
+  },
+  {
+    name: 'Beg for it',
+    description: 'Must request your own punishment — say aloud "Please spank me"',
+    trapVariant: 'text',
+  },
+  {
+    name: 'Group trap',
+    description:
+      'Everyone lines up. The player who landed here gives each person 3 hand spanks on the bottom',
+    trapVariant: 'all_players',
+  },
+  {
+    name: 'Reaction race',
+    description: 'Everyone takes the reaction speed test — the fastest wins one free pass',
+    trapVariant: 'mini_game_reaction',
+  },
+  {
+    name: 'Memory flip',
+    description: 'Memorise the order of three symbols — fail and your next punishment is doubled',
+    trapVariant: 'mini_game_memory',
+  },
+  {
+    name: 'Quick quiz',
+    description: 'Answer before the timer runs out — time out and your next punishment is doubled',
+    trapVariant: 'mini_game_quiz',
+  },
+  {
+    name: 'Choose your fate',
+    description: 'Pick one:',
+    trapVariant: 'choice',
+    choiceA: '15 hand spanks on the bottom',
+    choiceB: 'Hold the OTK position for 2 minutes',
+  },
+  {
+    name: 'High-stakes choice',
+    description: 'Pick one:',
+    trapVariant: 'choice',
+    choiceA: '10 cane strokes on the bottom',
+    choiceB: 'Move back 5 spaces',
+  },
+  {
+    name: 'Roulette trap',
+    description: 'Spin the wheel! A random player receives the punishment — might not be you!',
+    trapVariant: 'roulette',
+  },
+  {
+    name: 'Shared roulette',
+    description:
+      'Spin the wheel! A random player is chosen — you both exchange 5 hand spanks on the bottom',
+    trapVariant: 'roulette',
+  },
+]
+
+const EN_PARTY_QA_QUESTIONS = {
+  warmup: [
+    'What is your safeword?',
+    'Which implement do you find the most intense?',
+    'When did you first encounter the spanking lifestyle?',
+    'Do you make sounds during a spanking?',
+    'Are you more afraid of pain or of anticipation?',
+    'What is the highest-intensity implement you can handle?',
+    'Is there a particular punishment position you have always wanted to try?',
+    'Which is more nerve-racking — waiting before a spanking or the spanking itself?',
+  ],
+  heating: [
+    'Describe your most memorable punishment experience',
+    'What is one type of punishment you cannot accept?',
+    'Have you ever cried during a spanking? What was the situation?',
+    'Have you ever been made to stand in the corner or kneel? How did it feel?',
+    'How long do you usually need to recover after a punishment?',
+    'Has there been a moment mid-punishment when you wanted to use your safeword?',
+    'Do you think a formal "scolding" before punishment adds to the experience?',
+  ],
+  finale: [
+    'Do you prefer giving or receiving spankings?',
+    'What does your ideal spanking relationship look like?',
+    'Would you like discipline to be part of everyday life together?',
+    'What is the absolute limit you would not cross for a partner?',
+    'Is the physical sensation or the ritual/ceremony more important to you in a spanking?',
+    'If you could design the perfect punishment scenario, what would it look like?',
+  ],
+} as const
+
+const EN_PARTY_DARE_INSTRUCTIONS = {
+  warmup: [
+    'Close your eyes. Let anyone lightly touch the back of your hand with one implement — guess what it is',
+    'Mimic the face you make when you\'re being spanked. Hold it for 10 seconds',
+    'Give the person on your left a 30-second shoulder massage',
+    'Say to the person on your right in your sternest voice: "Come here right now."',
+    'Stand up and demonstrate a punishment position. Hold it for 15 seconds',
+  ],
+  heating: [
+    'Let the person on your right choose your punishment position for the next round',
+    'Close your eyes and extend your palm — let anyone give it 3 light slaps and guess who it was',
+    'Choose one person and maintain eye contact for 30 seconds without laughing',
+    'Mime begging for forgiveness convincingly enough to satisfy everyone',
+    'Swap board positions with the person on your right',
+  ],
+  finale: [
+    'Everyone votes on who showed the best endurance this game',
+    'Pick one person and give the back of their hand 5 light taps with your chosen implement',
+    'Perform a formal punishment request: say aloud which implement and body part you choose for yourself',
+    'Let the person on your left give your palm 3 light spanks — you may not pull away',
+    'Describe your perfect punishment scenario. Everyone votes whether to carry it out right now',
+  ],
+} as const
+
+export const EN_STANDARD_PUNISHMENT_CONFIG: PunishmentConfig = {
+  tools: Object.fromEntries(
+    Object.entries(EN_STANDARD_TOOLS).map(([name, value]) => [name, { ...value, name }])
+  ),
+  bodyParts: Object.fromEntries(
+    Object.entries(EN_STANDARD_BODY_PARTS).map(([name, value]) => [name, { ...value, name }])
+  ),
+  positions: Object.fromEntries(
+    Object.entries(EN_STANDARD_POSITIONS).map(([name, value]) => [
+      name,
+      { ...value, name, compatibleBodyParts: [...value.compatibleBodyParts] },
+    ])
+  ) as Record<string, PunishmentPosition>,
+  minStrikes: 10,
+  maxStrikes: 30,
+  step: 5,
+  maxTakeoffFailures: 5,
+  doublePunishmentChance: 20,
+}
+
+export interface LocaleContent {
+  punishmentConfig: PunishmentConfig
+  standardTraps: TrapAction[]
+  partyTraps: TrapAction[]
+  partyQaQuestions: {
+    warmup: readonly string[]
+    heating: readonly string[]
+    finale: readonly string[]
+  }
+  partyDareInstructions: {
+    warmup: readonly string[]
+    heating: readonly string[]
+    finale: readonly string[]
+  }
+  defaultPlayerName: (index: number) => string
+}
+
+const ZH_LOCALE_CONTENT: LocaleContent = {
+  punishmentConfig: STANDARD_PUNISHMENT_CONFIG,
+  standardTraps: STANDARD_TRAPS,
+  partyTraps: PARTY_TRAPS,
+  partyQaQuestions: PARTY_QA_QUESTIONS,
+  partyDareInstructions: PARTY_DARE_INSTRUCTIONS,
+  defaultPlayerName: (index: number) => `玩家${index + 1}`,
+}
+
+const EN_LOCALE_CONTENT: LocaleContent = {
+  punishmentConfig: EN_STANDARD_PUNISHMENT_CONFIG,
+  standardTraps: EN_STANDARD_TRAPS,
+  partyTraps: EN_PARTY_TRAPS,
+  partyQaQuestions: EN_PARTY_QA_QUESTIONS,
+  partyDareInstructions: EN_PARTY_DARE_INSTRUCTIONS,
+  defaultPlayerName: (index: number) => `Player ${index + 1}`,
+}
+
+/**
+ * Returns the appropriate locale content for the given BCP-47 language tag
+ * (e.g. navigator.language). Falls back to English for any non-Chinese locale.
+ */
+export function getLocaleContent(language: string): LocaleContent {
+  const normalized = language.toLowerCase()
+  if (normalized.startsWith('zh')) return ZH_LOCALE_CONTENT
+  return EN_LOCALE_CONTENT
+}
+
+export { EN_STANDARD_TOOLS, EN_STANDARD_BODY_PARTS, EN_STANDARD_POSITIONS }
