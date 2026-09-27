@@ -33,6 +33,7 @@
     VolumeX,
     AlertCircle,
     Pause,
+    Home,
   } from '@lucide/vue'
   import type {
     Player,
@@ -3346,6 +3347,20 @@
     }
   }
 
+  const showSettingsModal = ref(false)
+  const viewerTab = ref<'board' | 'punishment' | 'trap'>('board')
+
+  const exitToHome = () => {
+    if (gameStarted.value && !gameFinished.value) {
+      if (!confirm('确定要退出当前游戏返回主页吗？未保存的进度将会丢失。')) {
+        return
+      }
+    }
+    multiDevice.stopHost()
+    clearLocalGameSnapshot()
+    initializeGame()
+  }
+
   // 处理胜利结算画面的"再来一局"按钮
   const handleVictoryPlayAgain = async () => {
     const completedMode = activeMode.value
@@ -4178,6 +4193,22 @@
             >
               📱 {{ multiDevice.getConnectedPlayerCount() }}/{{ gameState.players.length }}
             </span>
+            <button
+              v-if="gameStarted"
+              class="header-icon-btn"
+              title="查看设置"
+              @click="showSettingsModal = true"
+            >
+              <Settings :size="18" />
+            </button>
+            <button
+              v-if="gameStarted"
+              class="header-icon-btn"
+              title="返回主页"
+              @click="exitToHome"
+            >
+              <Home :size="18" />
+            </button>
             <PButton
               v-if="!gameStarted"
               label="开始游戏"
@@ -4628,6 +4659,59 @@
       @import-error="handleImportError"
     />
 
+    <!-- 游戏设置查看对话框 -->
+    <PDialog
+      v-model:visible="showSettingsModal"
+      header="游戏规则及设置查看"
+      :modal="true"
+      :style="{ width: '90vw', maxWidth: '600px' }"
+    >
+      <div class="settings-viewer">
+        <div class="settings-stepper" style="margin-bottom: 1rem; justify-content: center;">
+          <button
+            class="stepper-item"
+            :class="{ 'stepper-item--active': viewerTab === 'board' }"
+            @click="viewerTab = 'board'"
+          >
+            <span class="stepper-label">棋盘</span>
+          </button>
+          <span class="stepper-connector"></span>
+          <button
+            class="stepper-item"
+            :class="{ 'stepper-item--active': viewerTab === 'punishment' }"
+            @click="viewerTab = 'punishment'"
+          >
+            <span class="stepper-label">惩罚</span>
+          </button>
+          <span class="stepper-connector"></span>
+          <button
+            class="stepper-item"
+            :class="{ 'stepper-item--active': viewerTab === 'trap' }"
+            @click="viewerTab = 'trap'"
+          >
+            <span class="stepper-label">陷阱</span>
+          </button>
+        </div>
+        <div class="viewer-content" style="max-height: 60vh; overflow-y: auto;">
+          <div style="pointer-events: none; opacity: 0.95;">
+            <BoardConfigPanel
+              v-if="viewerTab === 'board'"
+              :config="gameState.boardConfig"
+            />
+            <PunishmentConfigPanel
+              v-else-if="viewerTab === 'punishment'"
+              :config="gameState.punishmentConfig"
+            />
+            <TrapConfigPanel
+              v-else-if="viewerTab === 'trap'"
+              :config="trapConfig"
+              :punishment-config="gameState.punishmentConfig"
+            />
+          </div>
+        </div>
+      </div>
+    </PDialog>
+
     <PDialog
       v-model:visible="importFeedbackVisible"
       modal
@@ -4918,6 +5002,7 @@
     flex-shrink: 0;
   }
 
+  .header-icon-btn,
   .audio-toggle-btn {
     background: rgba(236, 218, 180, 0.07);
     border: 1px solid rgba(218, 181, 112, 0.2);
@@ -4933,6 +5018,7 @@
     min-width: 44px;
   }
 
+  .header-icon-btn:hover,
   .audio-toggle-btn:hover {
     color: #fff5df;
     background: rgba(236, 218, 180, 0.13);
