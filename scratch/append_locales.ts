@@ -1,4 +1,4 @@
-import * as fs from 'fs';
+import * as fs from 'fs'
 
 const jaContent = `
 
@@ -256,28 +256,28 @@ const KO_LOCALE_CONTENT: LocaleContent = {
   defaultPlayerName: (index: number) => \`플레이어 \${index + 1}\`,
 }
 
-`;
+`
 
-const path = 'packages/game-core/src/sharedConfig.ts';
-let content = fs.readFileSync(path, 'utf8');
+const path = 'packages/game-core/src/sharedConfig.ts'
+let content = fs.readFileSync(path, 'utf8')
 
 // replace getLocaleContent
 const originalFunc = `export function getLocaleContent(language: string): LocaleContent {
   const normalized = language.toLowerCase()
   if (normalized.startsWith('zh')) return ZH_LOCALE_CONTENT
   return EN_LOCALE_CONTENT
-}`;
+}`
 const newFunc = `export function getLocaleContent(language: string): LocaleContent {
   const normalized = language.toLowerCase()
   if (normalized.startsWith('zh')) return ZH_LOCALE_CONTENT
   if (normalized.startsWith('ja')) return JA_LOCALE_CONTENT
   if (normalized.startsWith('ko')) return KO_LOCALE_CONTENT
   return EN_LOCALE_CONTENT
-}`;
+}`
 
 if (!content.includes(newFunc)) {
-  content = content.replace(originalFunc, newFunc);
-  const insertIndex = content.indexOf('/**\n * Returns the appropriate locale content');
-  content = content.slice(0, insertIndex) + jaContent + content.slice(insertIndex);
-  fs.writeFileSync(path, content);
+  content = content.replace(originalFunc, newFunc)
+  const insertIndex = content.indexOf('/**\n * Returns the appropriate locale content')
+  content = content.slice(0, insertIndex) + jaContent + content.slice(insertIndex)
+  fs.writeFileSync(path, content)
 }

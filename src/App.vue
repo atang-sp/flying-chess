@@ -4201,12 +4201,7 @@
             >
               <Settings :size="18" />
             </button>
-            <button
-              v-if="gameStarted"
-              class="header-icon-btn"
-              title="返回主页"
-              @click="exitToHome"
-            >
+            <button v-if="gameStarted" class="header-icon-btn" title="返回主页" @click="exitToHome">
               <Home :size="18" />
             </button>
             <PButton
@@ -4667,7 +4662,7 @@
       :style="{ width: '90vw', maxWidth: '600px' }"
     >
       <div class="settings-viewer">
-        <div class="settings-stepper" style="margin-bottom: 1rem; justify-content: center;">
+        <div class="settings-stepper" style="margin-bottom: 1rem; justify-content: center">
           <button
             class="stepper-item"
             :class="{ 'stepper-item--active': viewerTab === 'board' }"
@@ -4692,12 +4687,9 @@
             <span class="stepper-label">陷阱</span>
           </button>
         </div>
-        <div class="viewer-content" style="max-height: 60vh; overflow-y: auto;">
-          <div style="pointer-events: none; opacity: 0.95;">
-            <BoardConfigPanel
-              v-if="viewerTab === 'board'"
-              :config="gameState.boardConfig"
-            />
+        <div class="viewer-content" style="max-height: 60vh; overflow-y: auto">
+          <div style="pointer-events: none; opacity: 0.95">
+            <BoardConfigPanel v-if="viewerTab === 'board'" :config="gameState.boardConfig" />
             <PunishmentConfigPanel
               v-else-if="viewerTab === 'punishment'"
               :config="gameState.punishmentConfig"

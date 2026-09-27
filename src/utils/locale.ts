@@ -43,6 +43,7 @@ export function setActiveLanguage(language: string): LocaleContent {
   localeContent = getLocaleContent(language)
   saveLocalePreference(language)
   if (i18n.global) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     i18n.global.locale.value = language as any
   }
   return localeContent

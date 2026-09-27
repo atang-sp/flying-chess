@@ -77,7 +77,10 @@
 
   // 玩家配置状态（默认2人以兼容既有端到端测试与快速对决）
   const playerCount = ref(2)
-  const playerNames = ref<string[]>([localeContent.defaultPlayerName(0), localeContent.defaultPlayerName(1)])
+  const playerNames = ref<string[]>([
+    localeContent.defaultPlayerName(0),
+    localeContent.defaultPlayerName(1),
+  ])
   const selectedMode = ref<GameMode>(props.initialMode)
   const onlinePartyUrl = `${import.meta.env.BASE_URL}online.html`
   const applicationVersion = VERSION
@@ -101,7 +104,7 @@
     { code: 'de', name: '🇩🇪 Deutsch' },
     { code: 'ru', name: '🇷🇺 Русский' },
     { code: 'pt', name: '🇵🇹 Português' },
-    { code: 'it', name: '🇮🇹 Italiano' }
+    { code: 'it', name: '🇮🇹 Italiano' },
   ]
 
   const switchLanguage = (lang: string) => {
@@ -121,18 +124,18 @@
         name === `Spieler ${idx + 1}` ||
         name === `Игрок ${idx + 1}` ||
         name === `Jogador ${idx + 1}` ||
-        name === `Giocatore ${idx + 1}`,
+        name === `Giocatore ${idx + 1}`
     )
     if (isGeneric) {
       playerNames.value = Array.from({ length: playerCount.value }, (_, i) =>
-        localeContent.defaultPlayerName(i),
+        localeContent.defaultPlayerName(i)
       )
     }
 
     // Update scenario preset default names
     scenarioPresets.forEach(preset => {
       preset.defaultNames = Array.from({ length: preset.playerCount }, (_, i) =>
-        localeContent.defaultPlayerName(i),
+        localeContent.defaultPlayerName(i)
       )
     })
 
@@ -520,10 +523,10 @@
       <!-- 语言选择器 / Language Switcher -->
       <div class="language-switcher" data-testid="language-switcher">
         <select
-          class="lang-select"
           v-model="currentLanguage"
-          @change="switchLanguage(currentLanguage)"
+          class="lang-select"
           data-testid="lang-select"
+          @change="switchLanguage(currentLanguage)"
         >
           <option v-for="lang in supportedLanguages" :key="lang.code" :value="lang.code">
             {{ lang.name }}
@@ -1012,7 +1015,7 @@
     -webkit-backdrop-filter: blur(6px);
     appearance: none;
     outline: none;
-    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
     background-repeat: no-repeat;
     background-position: right 10px top 50%;
     background-size: 10px auto;
