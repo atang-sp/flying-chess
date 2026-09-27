@@ -1,0 +1,11 @@
+{
+  "classic_mode": "클래식 모드",
+  "party_mode": "파티 모드",
+  "lan_multiplayer": "LAN 멀티플레이",
+  "start_game": "게임 시작",
+  "roll_dice": "주사위 굴리기",
+  "end_turn": "턴 종료",
+  "your_turn": "당신의 턴",
+  "game_over": "게임 오버",
+  "play_again": "다시 하기"
+}

@@ -1,0 +1,11 @@
+{
+  "classic_mode": "经典局",
+  "party_mode": "升温局",
+  "lan_multiplayer": "局域网联机",
+  "start_game": "开始游戏",
+  "roll_dice": "掷骰子",
+  "end_turn": "回合结束",
+  "your_turn": "你的回合",
+  "game_over": "游戏结束",
+  "play_again": "再来一局"
+}

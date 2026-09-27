@@ -1,0 +1,11 @@
+{
+  "classic_mode": "Classic Mode",
+  "party_mode": "Party Mode",
+  "lan_multiplayer": "LAN Multiplayer",
+  "start_game": "Start Game",
+  "roll_dice": "Roll Dice",
+  "end_turn": "End Turn",
+  "your_turn": "Your Turn",
+  "game_over": "Game Over",
+  "play_again": "Play Again"
+}

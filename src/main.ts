@@ -20,7 +20,12 @@ import Sidebar from 'primevue/sidebar'
 import ProgressBar from 'primevue/progressbar'
 import Divider from 'primevue/divider'
 
+// i18n
+import { i18n } from './i18n'
+
 const app = createApp(App)
+
+app.use(i18n)
 
 // Configure PrimeVue
 app.use(PrimeVue, {

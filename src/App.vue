@@ -1751,6 +1751,14 @@
     gameTelemetry.selectMode(mode)
   }
 
+  const handleLanguageChanged = (lang: string) => {
+    devLog('语言已切换:', lang)
+    // 如果没有本地保存的配置（首次运行），则重新初始化以应用新语言的默认配置
+    if (!loadConfig()) {
+      initializeGame()
+    }
+  }
+
   const cloneConfig = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
   const startPartyGame = (playerConfig: PartyStartConfig): boolean => {
@@ -3987,6 +3995,7 @@
       :initial-mode="selectedMode"
       @start="handleIntroStart"
       @mode-selected="handleModeSelected"
+      @language-changed="handleLanguageChanged"
     />
 
     <!-- 统一设置页面（Stepper 引导布局） -->

@@ -1,0 +1,11 @@
+{
+  "classic_mode": "クラシック",
+  "party_mode": "パーティー",
+  "lan_multiplayer": "LAN対戦",
+  "start_game": "ゲーム開始",
+  "roll_dice": "サイコロを振る",
+  "end_turn": "ターン終了",
+  "your_turn": "あなたのターン",
+  "game_over": "ゲームオーバー",
+  "play_again": "もう一回"
+}

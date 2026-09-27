@@ -37,7 +37,7 @@
   } from '../utils/cache'
   import { SecureRandom } from '../utils/secureRandom'
   import { devLog } from '../utils/logger'
-  import { localeContent } from '../utils/locale'
+  import { localeContent, setActiveLanguage, activeLanguage } from '../utils/locale'
   import VersionDisplay from './VersionDisplay.vue'
   import PartySceneSelector from './PartySceneSelector.vue'
   import VictoryConfigPanel from './VictoryConfig.vue'
@@ -69,6 +69,7 @@
       }
     ): void
     (e: 'mode-selected', mode: GameMode): void
+    (e: 'language-changed', lang: string): void
   }
 
   const props = defineProps<{ initialMode: GameMode }>()
@@ -86,6 +87,59 @@
   const eventDeck = ref<readonly PartyEventCard[]>(loadPartyEventDeck())
   const localProgress = loadLocalProgress()
   const studioConfig = ref<PartyStudioConfig>(loadPartyStudioConfig())
+
+  // ---- Language selector state ----
+  const currentLanguage = ref(activeLanguage)
+
+  const supportedLanguages = [
+    { code: 'zh', name: '🇨🇳 中文' },
+    { code: 'en', name: '🌐 English' },
+    { code: 'ja', name: '🇯🇵 日本語' },
+    { code: 'ko', name: '🇰🇷 한국어' },
+    { code: 'es', name: '🇪🇸 Español' },
+    { code: 'fr', name: '🇫🇷 Français' },
+    { code: 'de', name: '🇩🇪 Deutsch' },
+    { code: 'ru', name: '🇷🇺 Русский' },
+    { code: 'pt', name: '🇵🇹 Português' },
+    { code: 'it', name: '🇮🇹 Italiano' }
+  ]
+
+  const switchLanguage = (lang: string) => {
+    setActiveLanguage(lang)
+    currentLanguage.value = lang
+
+    // Re-derive default player names using the new locale
+    const isGeneric = playerNames.value.every(
+      (name, idx) =>
+        !name ||
+        name === `玩家${idx + 1}` ||
+        name === `Player ${idx + 1}` ||
+        name === `プレイヤー${idx + 1}` ||
+        name === `플레이어 ${idx + 1}` ||
+        name === `Jugador ${idx + 1}` ||
+        name === `Joueur ${idx + 1}` ||
+        name === `Spieler ${idx + 1}` ||
+        name === `Игрок ${idx + 1}` ||
+        name === `Jogador ${idx + 1}` ||
+        name === `Giocatore ${idx + 1}`,
+    )
+    if (isGeneric) {
+      playerNames.value = Array.from({ length: playerCount.value }, (_, i) =>
+        localeContent.defaultPlayerName(i),
+      )
+    }
+
+    // Update scenario preset default names
+    scenarioPresets.forEach(preset => {
+      preset.defaultNames = Array.from({ length: preset.playerCount }, (_, i) =>
+        localeContent.defaultPlayerName(i),
+      )
+    })
+
+    // Notify parent (App.vue) so it can reinitialize game defaults
+    emit('language-changed', lang)
+  }
+
   const canStart = computed(
     () =>
       selectedMode.value === 'classic' ||
@@ -462,6 +516,21 @@
 
     <!-- 主内容 -->
     <div class="intro-content">
+      <!-- 语言选择器 / Language Switcher -->
+      <!-- 语言选择器 / Language Switcher -->
+      <div class="language-switcher" data-testid="language-switcher">
+        <select
+          class="lang-select"
+          v-model="currentLanguage"
+          @change="switchLanguage(currentLanguage)"
+          data-testid="lang-select"
+        >
+          <option v-for="lang in supportedLanguages" :key="lang.code" :value="lang.code">
+            {{ lang.name }}
+          </option>
+        </select>
+      </div>
+
       <!-- 标题区域 -->
       <div class="intro-header">
         <div class="title-container">
@@ -628,7 +697,7 @@
             </span>
             <span class="mode-card__content">
               <div class="mode-card__title-row">
-                <strong>经典局</strong>
+                <strong>{{ $t('classic_mode') }}</strong>
                 <span class="mode-card__badge mode-card__badge--featured">
                   👑 官方推荐 · 核心玩法
                 </span>
@@ -652,7 +721,7 @@
             </span>
             <span class="mode-card__content">
               <div class="mode-card__title-row">
-                <strong>升温局</strong>
+                <strong>{{ $t('party_mode') }}</strong>
                 <span class="mode-card__badge mode-card__badge--party">🔥 聚会拓展</span>
               </div>
               <span class="mode-card__desc">
@@ -918,6 +987,45 @@
     overflow-x: hidden;
     overflow-y: auto;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  /* 语言选择器 / Language Switcher */
+  .language-switcher {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 12px 20px 0;
+    z-index: 10;
+  }
+
+  .lang-select {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: white;
+    font-size: 0.95rem;
+    padding: 6px 30px 6px 14px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    appearance: none;
+    outline: none;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px top 50%;
+    background-size: 10px auto;
+  }
+
+  .lang-select:hover {
+    background-color: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  .lang-select option {
+    background: #1a1a2e;
+    color: white;
   }
 
   /* 粒子背景 */

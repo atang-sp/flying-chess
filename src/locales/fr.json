@@ -1,0 +1,11 @@
+{
+  "classic_mode": "Mode Classique",
+  "party_mode": "Mode Fête",
+  "lan_multiplayer": "Multijoueur LAN",
+  "start_game": "Commencer",
+  "roll_dice": "Lancer les Dés",
+  "end_turn": "Fin du Tour",
+  "your_turn": "À Ton Tour",
+  "game_over": "Fin du Jeu",
+  "play_again": "Rejouer"
+}

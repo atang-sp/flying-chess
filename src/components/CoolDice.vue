@@ -135,7 +135,7 @@
       </div>
       <div v-else-if="canRoll" class="status-prompt">
         <span class="icon">👆</span>
-        <span>点击投掷骰子</span>
+        <span>{{ $t('roll_dice') }}</span>
       </div>
     </div>
   </div>

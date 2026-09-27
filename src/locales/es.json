@@ -1,0 +1,11 @@
+{
+  "classic_mode": "Modo Clásico",
+  "party_mode": "Modo Fiesta",
+  "lan_multiplayer": "Multijugador LAN",
+  "start_game": "Empezar Juego",
+  "roll_dice": "Tirar Dados",
+  "end_turn": "Terminar Turno",
+  "your_turn": "Tu Turno",
+  "game_over": "Fin del Juego",
+  "play_again": "Jugar de Nuevo"
+}

@@ -77,7 +77,7 @@
     <div class="control-buttons">
       <button v-if="!gameStarted" class="btn btn-primary" @click="startGame">
         <Gamepad2 :size="20" />
-        开始游戏
+        {{ $t('start_game') }}
       </button>
     </div>
 
@@ -102,12 +102,12 @@
     <div v-if="gameFinished" class="game-over">
       <h3>
         <Trophy :size="24" />
-        游戏结束！
+        {{ $t('game_over') }}
       </h3>
       <p v-if="winner">{{ winner.name }} 获胜！</p>
       <button class="btn btn-primary" @click="resetGame">
         <Gamepad2 :size="20" />
-        再来一局
+        {{ $t('play_again') }}
       </button>
     </div>
   </div>
