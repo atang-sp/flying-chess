@@ -64,5 +64,17 @@
   "quick_start_classic": "⚡ 立即开始经典局（{count}人）",
   "classic_2_tag": "⚡ 双人速战",
   "classic_3_tag": "🎯 三人同行",
-  "party_4_tag": "🔥 派对自选"
+  "party_4_tag": "🔥 派对自选",
+  "progress_achievements_title": "进度、成就与本地耻辱墙",
+  "achievements_count": "项成就",
+  "completed_games": "完成局数",
+  "total_punishments": "累计受罚",
+  "total_mercy_requests": "累计求饶",
+  "longest_chain": "最长连锁",
+  "achievements_header": "成就",
+  "unlocked_content": "已解锁内容",
+  "punishment_variants_desc": "惩罚变体 {variants}/5（核心 4 种常驻，返场需解锁） · 小游戏机关 {traps}/3",
+  "local_shame_wall": "本地耻辱墙",
+  "shame_wall_stats": "{count} 次 · 求饶 {mercy}",
+  "privacy_copy": "这些记录仅保存在当前设备，可用首页“清除本地游戏数据”一并删除。"
 }

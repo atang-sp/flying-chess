@@ -135,7 +135,7 @@
     }
 
     // Update scenario preset default names
-    scenarioPresets.forEach(preset => {
+    scenarioPresets.value.forEach(preset => {
       preset.defaultNames = Array.from({ length: preset.playerCount }, (_, i) =>
         localeContent.defaultPlayerName(i)
       )
@@ -167,7 +167,7 @@
   }
 
   // 快捷对局预设：优先推广经典局（3款经典对决 + 1款派对拓展）
-  const scenarioPresets: ScenarioPreset[] = [
+  const scenarioPresets = computed<ScenarioPreset[]>(() => [
     {
       id: 'classic',
       title: t('classic_4_title'),
@@ -214,7 +214,7 @@
       scenePreset: 'icebreaker',
       icon: Flame,
     },
-  ]
+  ])
 
   const activeScenarioId = ref<string | null>('classic-2')
   const presetFeedback = ref<string>('')
@@ -296,7 +296,7 @@
     if (selectedMode.value === 'party') {
       return t('quick_start_party')
     }
-    const currentPreset = scenarioPresets.find(p => p.id === activeScenarioId.value)
+    const currentPreset = scenarioPresets.value.find(p => p.id === activeScenarioId.value)
     if (currentPreset && currentPreset.mode === 'classic') {
       return t('quick_start_preset', { title: currentPreset.title })
     }

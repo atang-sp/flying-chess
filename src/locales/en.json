@@ -64,5 +64,17 @@
   "quick_start_classic": "⚡ Quick Start Classic ({count} players)",
   "classic_2_tag": "⚡ 2-Player Fast",
   "classic_3_tag": "🎯 3-Player Friends",
-  "party_4_tag": "🔥 Party Custom"
+  "party_4_tag": "🔥 Party Custom",
+  "progress_achievements_title": "Progress, Achievements & Local Hall of Shame",
+  "achievements_count": "Achievements",
+  "completed_games": "Games Completed",
+  "total_punishments": "Total Punishments",
+  "total_mercy_requests": "Total Mercy Requests",
+  "longest_chain": "Longest Chain",
+  "achievements_header": "Achievements",
+  "unlocked_content": "Unlocked Content",
+  "punishment_variants_desc": "Punishment Variants {variants}/5 (4 core permanent) · Mini-game Traps {traps}/3",
+  "local_shame_wall": "Local Hall of Shame",
+  "shame_wall_stats": "{count} times · Mercy {mercy}",
+  "privacy_copy": "These records are only saved on this device, clear them via 'Clear Local Game Data' on the home page."
 }
