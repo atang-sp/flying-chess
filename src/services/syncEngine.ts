@@ -10,7 +10,7 @@
  *  - 所有推送操作都是 fire-and-forget，绝不阻塞本地游戏逻辑
  *  - 仅在用户已登录时执行网络操作
  */
-import { supabase } from './supabaseClient'
+import { supabase, isSupabaseConfigured } from './supabaseClient'
 import { useAuth } from '../composables/useAuth'
 import { loadConfig, saveConfig, loadLocalProgress } from '../utils/cache'
 import {
@@ -27,6 +27,7 @@ import type { BoardConfig, PunishmentConfig, TrapAction } from '@flying-chess/ga
 
 /** 仅在已登录时执行 fn，否则静默跳过 */
 async function withUser<T>(fn: (userId: string) => Promise<T>): Promise<T | null> {
+  if (!isSupabaseConfigured) return null
   const { currentUser } = useAuth()
   if (!currentUser.value) return null
   try {

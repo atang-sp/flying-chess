@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import type { User, Session } from '@supabase/supabase-js'
-import { supabase } from '../services/supabaseClient'
+import { supabase, isSupabaseConfigured } from '../services/supabaseClient'
 
 // ============================================================
 // 全局单例 Auth 状态（在所有 composable 调用间共享）
@@ -18,39 +18,56 @@ let listenerAttached = false
 export function useAuth() {
   const initAuth = async () => {
     if (isInitialized.value) return
-
-    // 取当前 session（页面刷新后恢复）
-    const { data } = await supabase.auth.getSession()
-    currentSession.value = data.session
-    currentUser.value = data.session?.user ?? null
-
-    // 挂载全局监听器（只挂一次）
-    if (!listenerAttached) {
-      listenerAttached = true
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        currentSession.value = session
-        currentUser.value = session?.user ?? null
-
-        if (event === 'SIGNED_IN') {
-          // 登录时从云端拉取并合并数据
-          const { syncEngine } = await import('../services/syncEngine')
-          await syncEngine.pullAndMerge()
-        }
-      })
+    if (!isSupabaseConfigured) {
+      isInitialized.value = true
+      return
     }
 
-    isInitialized.value = true
+    try {
+      // 取当前 session（页面刷新后恢复）
+      const { data } = await supabase.auth.getSession()
+      currentSession.value = data.session
+      currentUser.value = data.session?.user ?? null
+
+      // 挂载全局监听器（只挂一次）
+      if (!listenerAttached) {
+        listenerAttached = true
+        supabase.auth.onAuthStateChange(async (event, session) => {
+          currentSession.value = session
+          currentUser.value = session?.user ?? null
+
+          if (event === 'SIGNED_IN') {
+            // 登录时从云端拉取并合并数据
+            const { syncEngine } = await import('../services/syncEngine')
+            await syncEngine.pullAndMerge()
+          }
+        })
+      }
+    } catch (err) {
+      console.warn('[useAuth] 初始化失败:', err)
+    } finally {
+      isInitialized.value = true
+    }
   }
 
   /** 退出登录 */
   const signOut = async () => {
-    await supabase.auth.signOut()
+    if (!isSupabaseConfigured) return
+    try {
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.warn('[useAuth] 登出失败:', err)
+    } finally {
+      currentUser.value = null
+      currentSession.value = null
+    }
   }
 
   return {
     currentUser,
     currentSession,
     isInitialized,
+    isSupabaseConfigured,
     initAuth,
     signOut,
   }

@@ -3,7 +3,7 @@
   import { useI18n } from 'vue-i18n'
   import { User, X as CloseIcon, Mail, LogOut, Loader } from '@lucide/vue'
   import type { Provider } from '@supabase/supabase-js'
-  import { supabase } from '../services/supabaseClient'
+  import { supabase, isSupabaseConfigured } from '../services/supabaseClient'
   import { useAuth } from '../composables/useAuth'
 
   // ============================================================
@@ -68,6 +68,10 @@
   }
 
   const loginWithEmail = async () => {
+    if (!isSupabaseConfigured) {
+      errorMsg.value = '云同步服务未配置'
+      return
+    }
     if (!email.value || !password.value) {
       errorMsg.value = t('auth_error_enter_credentials')
       return
@@ -103,6 +107,10 @@
 
   /** X (Twitter) OAuth 2.0 */
   const loginWithX = async () => {
+    if (!isSupabaseConfigured) {
+      errorMsg.value = '云同步服务未配置'
+      return
+    }
     loading.value = true
     errorMsg.value = ''
     const { error } = await supabase.auth.signInWithOAuth({
@@ -117,6 +125,10 @@
 
   /** Discourse OAuth (custom provider) */
   const loginWithForum = async () => {
+    if (!isSupabaseConfigured) {
+      errorMsg.value = '云同步服务未配置'
+      return
+    }
     loading.value = true
     errorMsg.value = ''
     const { error } = await supabase.auth.signInWithOAuth({
