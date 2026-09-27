@@ -14,6 +14,7 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:4175',
     channel: 'chrome',
+    locale: 'zh-CN',
     trace: 'retain-on-failure',
   },
   webServer: [
