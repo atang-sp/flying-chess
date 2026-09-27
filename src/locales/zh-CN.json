@@ -238,7 +238,7 @@
   "app_settings_back_home": "返回首页",
   "app_settings_generate": "生成惩罚组合",
   "app_settings_next": "下一步",
-  "app_settings_multi_device_title": "多设备模式 - {n}/{total}",
+  "app_settings_multi_device_title": "多设备模式 - {n}/{total} 已连接",
   "app_settings_view_settings": "查看设置",
   "app_settings_back_main": "返回主页",
   "app_settings_mute": "静音",
@@ -664,5 +664,6 @@
   "auth_loading": "处理中…",
   "auth_btn_submit": "登录 / 注册",
   "auth_btn_back": "← 返回",
-  "auth_close_aria": "关闭"
+  "auth_close_aria": "关闭",
+  "official_recommended": "👑 官方推荐"
 }

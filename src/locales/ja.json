@@ -238,7 +238,7 @@
   "app_settings_back_home": "Back to Home",
   "app_settings_generate": "Generate Combinations",
   "app_settings_next": "Next",
-  "app_settings_multi_device_title": "Multi-Device - {n}/{total}",
+  "app_settings_multi_device_title": "マルチデバイス - {n}/{total} 接続済み",
   "app_settings_view_settings": "View Settings",
   "app_settings_back_main": "Back to Main",
   "app_settings_mute": "Mute",
@@ -664,5 +664,6 @@
   "auth_loading": "処理中…",
   "auth_btn_submit": "ログイン / 新規登録",
   "auth_btn_back": "← 戻る",
-  "auth_close_aria": "閉じる"
+  "auth_close_aria": "閉じる",
+  "official_recommended": "👑 公式おすすめ"
 }

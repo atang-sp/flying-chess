@@ -238,7 +238,7 @@
   "app_settings_back_home": "Back to Home",
   "app_settings_generate": "Generate Combinations",
   "app_settings_next": "Next",
-  "app_settings_multi_device_title": "Multi-Device - {n}/{total}",
+  "app_settings_multi_device_title": "Multi-Device - {n}/{total} Connesso",
   "app_settings_view_settings": "View Settings",
   "app_settings_back_main": "Back to Main",
   "app_settings_mute": "Mute",
@@ -664,5 +664,6 @@
   "auth_loading": "Elaborazione in corso…",
   "auth_btn_submit": "Accedi / Registrati",
   "auth_btn_back": "← Indietro",
-  "auth_close_aria": "Chiudi"
+  "auth_close_aria": "Chiudi",
+  "official_recommended": "👑 Consigliato ufficiale"
 }

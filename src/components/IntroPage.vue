@@ -171,7 +171,7 @@
     {
       id: 'classic',
       title: t('classic_4_title'),
-      tag: t('classic_priority'),
+      tag: t('official_recommended'),
       badge: t('classic_4_badge'),
       desc: t('classic_4_desc'),
       playerCount: 4,

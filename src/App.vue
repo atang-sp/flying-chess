@@ -4630,7 +4630,7 @@
 
       <!-- 账户 / 云同步按钮 -->
       <button
-        class="export-btn auth-btn"
+        class="auth-btn"
         :title="
           currentUser
             ? $t('app_account_logged_in', { email: currentUser.email ?? '' })
@@ -5281,7 +5281,8 @@
     z-index: 1100;
   }
 
-  .export-btn {
+  .export-btn,
+  .auth-btn {
     background: rgba(59, 130, 246, 0.75);
     color: white;
     border: 1px solid rgba(59, 130, 246, 0.35);
@@ -5299,7 +5300,8 @@
     font-weight: 600;
   }
 
-  .export-btn:hover {
+  .export-btn:hover,
+  .auth-btn:hover {
     transform: translateY(-2px);
     background: rgba(59, 130, 246, 0.9);
     border-color: rgba(59, 130, 246, 0.5);
