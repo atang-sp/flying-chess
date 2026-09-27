@@ -727,7 +727,9 @@
             <span class="mode-card__content">
               <div class="mode-card__title-row">
                 <strong>{{ $t('party_mode') }}</strong>
-                <span class="mode-card__badge mode-card__badge--party">{{ $t('party_badge') }}</span>
+                <span class="mode-card__badge mode-card__badge--party">
+                  {{ $t('party_badge') }}
+                </span>
               </div>
               <span class="mode-card__desc">
                 {{ $t('party_desc') }}
@@ -799,7 +801,7 @@
               </button>
               <div class="count-display">
                 <span class="count-number">{{ playerCount }}</span>
-                <span class="count-unit" v-if="$t('unit_people')">{{ $t('unit_people') }}</span>
+                <span v-if="$t('unit_people')" class="count-unit">{{ $t('unit_people') }}</span>
               </div>
               <button
                 class="btn btn-secondary count-btn plus"
@@ -858,7 +860,11 @@
           >
             <Settings :size="18" />
             <span class="btn-text">
-              {{ selectedMode === 'party' ? $t('advanced_settings_workshop') : $t('custom_rules_config') }}
+              {{
+                selectedMode === 'party'
+                  ? $t('advanced_settings_workshop')
+                  : $t('custom_rules_config')
+              }}
             </span>
           </button>
         </div>
@@ -874,7 +880,8 @@
           <div class="info-item">
             <Clock :size="16" class="info-icon" />
             <span class="info-text">
-              {{ $t('game_duration_label') }}{{
+              {{ $t('game_duration_label')
+              }}{{
                 selectedMode === 'party'
                   ? $t('game_duration_20m')
                   : playerCount === 2
@@ -886,9 +893,7 @@
           <div class="info-item">
             <Target :size="16" class="info-icon" />
             <span class="info-text">
-              {{
-                selectedMode === 'party' ? $t('game_target_adult') : $t('game_target_all')
-              }}
+              {{ selectedMode === 'party' ? $t('game_target_adult') : $t('game_target_all') }}
             </span>
           </div>
         </div>
