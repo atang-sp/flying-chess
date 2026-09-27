@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { computed } from 'vue'
+
   import { Award, Lock, Trophy } from '@lucide/vue'
   import {
     getLocalAchievements,
@@ -22,35 +23,37 @@
     <summary>
       <span>
         <Trophy :size="19" />
-        进度、成就与本地耻辱墙
+        {{ $t('progress_achievements_title') }}
       </span>
-      <small>{{ unlockedAchievementCount }}/{{ achievements.length }} 项成就</small>
+      <small>
+        {{ unlockedAchievementCount }}/{{ achievements.length }} {{ $t('achievements_count') }}
+      </small>
     </summary>
 
     <div class="progress-body">
       <div class="totals-grid">
         <article>
           <strong>{{ progress.totals.completedGames }}</strong>
-          <span>完成局数</span>
+          <span>{{ $t('completed_games') }}</span>
         </article>
         <article>
           <strong>{{ progress.totals.punishmentCount }}</strong>
-          <span>累计受罚</span>
+          <span>{{ $t('total_punishments') }}</span>
         </article>
         <article>
           <strong>{{ progress.totals.mercyRequests }}</strong>
-          <span>累计求饶</span>
+          <span>{{ $t('total_mercy_requests') }}</span>
         </article>
         <article>
           <strong>{{ progress.totals.longestChain }}</strong>
-          <span>最长连锁</span>
+          <span>{{ $t('longest_chain') }}</span>
         </article>
       </div>
 
       <section>
         <h3>
           <Award :size="17" />
-          成就
+          {{ $t('achievements_header') }}
         </h3>
         <div class="achievement-list">
           <article
@@ -69,23 +72,34 @@
       </section>
 
       <section>
-        <h3>已解锁内容</h3>
+        <h3>{{ $t('unlocked_content') }}</h3>
         <p>
-          惩罚变体 {{ unlocked.punishmentVariants.length }}/5（核心 4 种常驻，返场需解锁） ·
-          小游戏机关 {{ unlocked.miniGameTraps.length }}/3
+          {{
+            $t('punishment_variants_desc', {
+              variants: unlocked.punishmentVariants.length,
+              traps: unlocked.miniGameTraps.length,
+            })
+          }}
         </p>
       </section>
 
       <section v-if="shameWall.length">
-        <h3>本地耻辱墙</h3>
+        <h3>{{ $t('local_shame_wall') }}</h3>
         <ol>
           <li v-for="player in shameWall" :key="player.playerName">
             <span>{{ player.playerName }}</span>
-            <strong>{{ player.punishmentCount }} 次 · 求饶 {{ player.mercyRequests }}</strong>
+            <strong>
+              {{
+                $t('shame_wall_stats', {
+                  count: player.punishmentCount,
+                  mercy: player.mercyRequests,
+                })
+              }}
+            </strong>
           </li>
         </ol>
       </section>
-      <p class="privacy-copy">这些记录仅保存在当前设备，可用首页“清除本地游戏数据”一并删除。</p>
+      <p class="privacy-copy">{{ $t('privacy_copy') }}</p>
     </div>
   </details>
 </template>

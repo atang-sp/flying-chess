@@ -164,6 +164,10 @@ export function saveConfig(data: Omit<CachedConfig, 'savedAt'>): boolean {
   }
   try {
     localStorage.setItem(GAME_CONFIG_STORAGE_KEY, JSON.stringify(payload))
+    // 异步云端同步，失败不阻塞本地游戏
+    import('../services/syncEngine').then(({ syncEngine }) => {
+      syncEngine.pushConfig(payload)
+    }).catch(() => {})
     return true
   } catch (err) {
     console.warn('保存配置到 localStorage 失败:', err)
@@ -384,6 +388,10 @@ export function saveLocalProgress(
   if (!validateLocalProgress(progress)) return false
   try {
     storage.setItem(LOCAL_PROGRESS_STORAGE_KEY, JSON.stringify(progress))
+    // 异步云端同步，失败不阻塞本地游戏
+    import('../services/syncEngine').then(({ syncEngine }) => {
+      syncEngine.pushProgress(progress)
+    }).catch(() => {})
     return true
   } catch (error) {
     console.warn('保存本地成就进度失败:', error)

@@ -15,13 +15,15 @@ const savedLanguage = loadLocalePreference()
 const browserLanguage = navigator.language.split('-')[0]
 const supportedLanguages = ['zh', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'ru', 'pt', 'it']
 
-const initialLocale = savedLanguage 
-  ? savedLanguage 
-  : supportedLanguages.includes(browserLanguage) ? browserLanguage : 'zh'
+const initialLocale = savedLanguage
+  ? savedLanguage
+  : supportedLanguages.includes(browserLanguage)
+    ? browserLanguage
+    : 'zh'
 
 export const i18n = createI18n({
   legacy: false,
   locale: initialLocale,
   fallbackLocale: 'en',
-  messages: { zh, en, ja, ko, es, fr, de, ru, pt, it }
+  messages: { zh, en, ja, ko, es, fr, de, ru, pt, it },
 })
