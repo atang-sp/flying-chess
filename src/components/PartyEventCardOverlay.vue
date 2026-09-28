@@ -10,7 +10,7 @@
     type PartyRockPaperScissorsChoice,
   } from '@flying-chess/game-core/party-events'
 
-  const { t } = useI18n()
+  const { t, te, locale } = useI18n()
 
   const props = defineProps<{
     card: PartyEventCard | null
@@ -36,6 +36,50 @@
   const canBind = computed(
     () => firstPlayerIndex.value !== secondPlayerIndex.value && props.players.length >= 2
   )
+
+  const cardKey = computed(() => props.card?.id?.replace(/-/g, '_') ?? '')
+
+  const localizedTitle = computed(() => {
+    if (!props.card) return ''
+    if (props.card.title_i18n?.[locale.value]) return props.card.title_i18n[locale.value]
+    const short = locale.value.split('-')[0]
+    if (props.card.title_i18n?.[short]) return props.card.title_i18n[short]
+    const i18nKey = `party_event_card_${cardKey.value}_title`
+    if (te(i18nKey)) return t(i18nKey)
+    return props.card.title
+  })
+
+  const localizedDescription = computed(() => {
+    if (!props.card) return ''
+    if (props.card.description_i18n?.[locale.value])
+      return props.card.description_i18n[locale.value]
+    const short = locale.value.split('-')[0]
+    if (props.card.description_i18n?.[short]) return props.card.description_i18n[short]
+    const i18nKey = `party_event_card_${cardKey.value}_desc`
+    if (te(i18nKey)) return t(i18nKey)
+    return props.card.description
+  })
+
+  const localizedTags = computed(() => {
+    if (!props.card) return []
+    if (props.card.tags_i18n?.[locale.value]) return props.card.tags_i18n[locale.value]
+    const short = locale.value.split('-')[0]
+    if (props.card.tags_i18n?.[short]) return props.card.tags_i18n[short]
+    return props.card.tags
+  })
+
+  const localizedPrompt = computed(() => {
+    if (!props.card || props.card.effect.kind !== 'vote') return ''
+    const i18nKey = `party_event_card_${cardKey.value}_prompt`
+    if (te(i18nKey)) return t(i18nKey)
+    return props.card.effect.prompt
+  })
+
+  const getLocalizedOption = (optionIndex: number, fallback: string) => {
+    const i18nKey = `party_event_card_${cardKey.value}_opt${optionIndex + 1}`
+    if (te(i18nKey)) return t(i18nKey)
+    return fallback
+  }
   const triggerLabel = computed(() => {
     const trigger = props.card?.trigger
     if (!trigger) return ''
@@ -106,10 +150,10 @@
         <Sparkles :size="18" />
         {{ t('party_event_kicker', { trigger: triggerLabel }) }}
       </p>
-      <h2>{{ card.title }}</h2>
-      <p class="description">{{ card.description }}</p>
+      <h2>{{ localizedTitle }}</h2>
+      <p class="description">{{ localizedDescription }}</p>
       <div class="tags">
-        <span v-for="tag in card.tags" :key="tag">#{{ tag }}</span>
+        <span v-for="tag in localizedTags" :key="tag">#{{ tag }}</span>
       </div>
 
       <div v-if="card.effect.kind === 'bind_players'" class="binding-choice">
@@ -144,7 +188,7 @@
       <div v-else-if="card.effect.kind === 'vote'" class="vote-choice">
         <p>
           <Vote :size="17" />
-          {{ card.effect.prompt }}
+          {{ localizedPrompt }}
         </p>
         <template v-if="!voteResult">
           <strong>
@@ -161,12 +205,17 @@
             type="button"
             @click="castVote(optionIndex)"
           >
-            {{ option }}
+            {{ getLocalizedOption(optionIndex, option) }}
           </button>
         </template>
         <template v-else>
           <p v-for="(option, optionIndex) in card.effect.options" :key="option" class="vote-result">
-            {{ t('party_event_vote_count', { option, count: voteResult.counts[optionIndex] }) }}
+            {{
+              t('party_event_vote_count', {
+                option: getLocalizedOption(optionIndex, option),
+                count: voteResult.counts[optionIndex],
+              })
+            }}
           </p>
           <button type="button" class="primary-action" @click="confirmVote">
             {{ t('party_event_vote_confirm') }}

@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  getLocalizedPackDescription,
+  getLocalizedPackTags,
+  getLocalizedPackTitle,
   loadCommunityCatalog,
   loadRemoteCommunityPack,
   validateCommunityPack,
@@ -7,7 +10,7 @@ import {
 import { DEFAULT_PARTY_EVENT_DECK } from '@flying-chess/game-core/party-events'
 
 const pack = {
-  schemaVersion: 1,
+  schemaVersion: 1 as const,
   id: 'icebreaker-plus',
   title: '破冰加量包',
   description: '适合新朋友的轻量事件卡。',
@@ -66,5 +69,44 @@ describe('静态社区配置包', () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify(catalog), { status: 200 }))
 
     await expect(loadCommunityCatalog('/community/index.json', fetcher)).resolves.toEqual(catalog)
+  })
+
+  it('支持多语言字段校验与回退获取', () => {
+    const packWithI18n = {
+      ...pack,
+      title_i18n: {
+        en: 'Icebreaker Plus Pack',
+        'zh-CN': '破冰加量包',
+      },
+      description_i18n: {
+        en: 'Lightweight events.',
+        'zh-CN': '轻量事件。',
+      },
+      tags_i18n: {
+        en: ['Icebreaker', 'Light'],
+        'zh-CN': ['破冰局', '轻度'],
+      },
+    }
+
+    expect(validateCommunityPack(packWithI18n)).toEqual({ ok: true })
+    expect(
+      validateCommunityPack({
+        ...packWithI18n,
+        title_i18n: { en: '' },
+      })
+    ).toMatchObject({ ok: false, error: '社区配置包 title_i18n 无效' })
+    expect(
+      validateCommunityPack({
+        ...packWithI18n,
+        tags_i18n: { en: [] },
+      })
+    ).toMatchObject({ ok: false, error: '社区配置包 tags_i18n 无效' })
+
+    expect(getLocalizedPackTitle(packWithI18n, 'en')).toBe('Icebreaker Plus Pack')
+    expect(getLocalizedPackTitle(packWithI18n, 'en-US')).toBe('Icebreaker Plus Pack')
+    expect(getLocalizedPackTitle(packWithI18n, 'ja')).toBe('破冰加量包')
+    expect(getLocalizedPackDescription(packWithI18n, 'en')).toBe('Lightweight events.')
+    expect(getLocalizedPackTags(packWithI18n, 'en')).toEqual(['Icebreaker', 'Light'])
+    expect(getLocalizedPackTags(packWithI18n, 'ja')).toEqual(['破冰局', '轻度'])
   })
 })

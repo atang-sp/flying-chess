@@ -19,8 +19,11 @@ export type PartyEventEffect =
 export interface PartyEventCard {
   readonly id: string
   readonly title: string
+  readonly title_i18n?: Readonly<Record<string, string>>
   readonly description: string
+  readonly description_i18n?: Readonly<Record<string, string>>
   readonly tags: readonly string[]
+  readonly tags_i18n?: Readonly<Record<string, readonly string[]>>
   readonly trigger: PartyEventTrigger
   readonly effect: PartyEventEffect
 }
@@ -366,8 +369,40 @@ export function validatePartyEventDeck(value: unknown): PartyEventDeckValidation
     ) {
       return { ok: false, error: `事件卡 ${id} 的标题或描述无效` }
     }
+    if (rawCard.title_i18n !== undefined) {
+      if (
+        !isRecord(rawCard.title_i18n) ||
+        Object.values(rawCard.title_i18n).some(
+          t => typeof t !== 'string' || !t.trim() || t.length > 60
+        )
+      ) {
+        return { ok: false, error: `事件卡 ${id} 的 title_i18n 无效` }
+      }
+    }
+    if (rawCard.description_i18n !== undefined) {
+      if (
+        !isRecord(rawCard.description_i18n) ||
+        Object.values(rawCard.description_i18n).some(
+          d => typeof d !== 'string' || !d.trim() || d.length > 240
+        )
+      ) {
+        return { ok: false, error: `事件卡 ${id} 的 description_i18n 无效` }
+      }
+    }
     if (!Array.isArray(tags) || tags.some(tag => typeof tag !== 'string' || tag.length > 20)) {
       return { ok: false, error: `事件卡 ${id} 的标签无效` }
+    }
+    if (rawCard.tags_i18n !== undefined) {
+      if (
+        !isRecord(rawCard.tags_i18n) ||
+        Object.values(rawCard.tags_i18n).some(
+          tagsList =>
+            !Array.isArray(tagsList) ||
+            tagsList.some(tag => typeof tag !== 'string' || tag.length > 20)
+        )
+      ) {
+        return { ok: false, error: `事件卡 ${id} 的 tags_i18n 无效` }
+      }
     }
     if (!isRecord(trigger) || typeof trigger.kind !== 'string') {
       return { ok: false, error: `事件卡 ${id} 的触发条件无效` }

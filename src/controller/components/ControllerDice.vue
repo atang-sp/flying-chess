@@ -34,7 +34,7 @@
       <span v-if="diceValue && !isAnimating" class="dice-value">{{ diceValue }}</span>
       <span v-else class="dice-value">🎲</span>
     </div>
-    <span class="dice-label">{{ disabled ? '等待中' : '点击掷骰子' }}</span>
+    <span class="dice-label">{{ disabled ? $t('ctrl_dice_waiting') : $t('ctrl_dice_click') }}</span>
   </button>
 </template>
 

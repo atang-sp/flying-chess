@@ -3,6 +3,7 @@ import {
   DEFAULT_PARTY_STUDIO_CONFIG,
   applyPartyBoardLayout,
   createLayoutFromBoardConfig,
+  getLocalizedStudioName,
   validatePartyStudioConfig,
 } from '../services/partyStudio'
 import type { BoardCell } from '@flying-chess/game-core/types'
@@ -65,5 +66,27 @@ describe('Party Studio 场景编辑器', () => {
         cellLayout: DEFAULT_PARTY_STUDIO_CONFIG.cellLayout.slice(1),
       })
     ).toMatchObject({ ok: false })
+  })
+
+  it('支持场景名称多语言字段与回退获取', () => {
+    const configWithI18n = {
+      ...DEFAULT_PARTY_STUDIO_CONFIG,
+      name_i18n: {
+        en: 'My Party Scene',
+        'zh-CN': '我的升温场景',
+      },
+    }
+
+    expect(validatePartyStudioConfig(configWithI18n)).toEqual({ ok: true })
+    expect(
+      validatePartyStudioConfig({
+        ...DEFAULT_PARTY_STUDIO_CONFIG,
+        name_i18n: { en: '' },
+      })
+    ).toMatchObject({ ok: false, error: '场景 name_i18n 包含无效翻译名称' })
+
+    expect(getLocalizedStudioName(configWithI18n, 'en')).toBe('My Party Scene')
+    expect(getLocalizedStudioName(configWithI18n, 'en-US')).toBe('My Party Scene')
+    expect(getLocalizedStudioName(configWithI18n, 'ja')).toBe('我的升温场景')
   })
 })

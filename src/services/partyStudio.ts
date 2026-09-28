@@ -25,6 +25,7 @@ export interface PartyStudioConfig {
   readonly version: 1
   readonly enabled: boolean
   readonly name: string
+  readonly name_i18n?: Readonly<Record<string, string>>
   readonly director: PartyDirectorConfig
   readonly boardConfig: BoardConfig
   readonly qaQuestions: Readonly<Record<PartyAct, readonly string[]>>
@@ -157,6 +158,18 @@ export function validatePartyStudioConfig(value: unknown): PartyStudioValidation
   ) {
     return { ok: false, error: '场景版本、开关或名称无效' }
   }
+  if (config.name_i18n !== undefined) {
+    if (
+      !config.name_i18n ||
+      typeof config.name_i18n !== 'object' ||
+      Array.isArray(config.name_i18n) ||
+      Object.values(config.name_i18n).some(
+        name => typeof name !== 'string' || !name.trim() || name.length > 60
+      )
+    ) {
+      return { ok: false, error: '场景 name_i18n 包含无效翻译名称' }
+    }
+  }
   if (!config.director || !validatePartyDirectorConfig(config.director)) {
     return { ok: false, error: '幕数或时间门控必须按升序且早于结束时间' }
   }
@@ -187,4 +200,13 @@ export function validatePartyStudioConfig(value: unknown): PartyStudioValidation
     return { ok: false, error: '主题预设或强调色无效' }
   }
   return { ok: true }
+}
+
+export function getLocalizedStudioName(config: PartyStudioConfig, locale: string): string {
+  if (config.name_i18n) {
+    if (config.name_i18n[locale]) return config.name_i18n[locale]
+    const short = locale.split('-')[0]
+    if (config.name_i18n[short]) return config.name_i18n[short]
+  }
+  return config.name
 }

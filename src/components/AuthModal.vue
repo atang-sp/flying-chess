@@ -69,7 +69,7 @@
 
   const loginWithEmail = async () => {
     if (!isSupabaseConfigured) {
-      errorMsg.value = '云同步服务未配置'
+      errorMsg.value = t('auth_error_service_unconfigured')
       return
     }
     if (!email.value || !password.value) {
@@ -108,7 +108,7 @@
   /** X (Twitter) OAuth 2.0 */
   const loginWithX = async () => {
     if (!isSupabaseConfigured) {
-      errorMsg.value = '云同步服务未配置'
+      errorMsg.value = t('auth_error_service_unconfigured')
       return
     }
     loading.value = true
@@ -126,7 +126,7 @@
   /** Discourse OAuth (custom provider) */
   const loginWithForum = async () => {
     if (!isSupabaseConfigured) {
-      errorMsg.value = '云同步服务未配置'
+      errorMsg.value = t('auth_error_service_unconfigured')
       return
     }
     loading.value = true

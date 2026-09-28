@@ -57,8 +57,14 @@
           <component :is="iconMap[key as string] || Flame" :size="32" />
         </div>
         <div class="scene-card-body">
-          <h4>{{ config.name }}</h4>
-          <p>{{ config.description }}</p>
+          <h4>
+            {{ $te(`party_scene_${key}_title`) ? $t(`party_scene_${key}_title`) : config.name }}
+          </h4>
+          <p>
+            {{
+              $te(`party_scene_${key}_desc`) ? $t(`party_scene_${key}_desc`) : config.description
+            }}
+          </p>
         </div>
       </button>
     </div>

@@ -2,8 +2,44 @@
   "schemaVersion": 1,
   "id": "icebreaker-plus",
   "title": "破冰加量包",
+  "title_i18n": {
+    "zh-CN": "破冰加量包",
+    "en": "Icebreaker Plus Pack",
+    "ja": "アイスブレイク増量パック",
+    "ko": "아이스브레이커 플러스 팩",
+    "es": "Pack Rompehielos Plus",
+    "fr": "Pack Brise-glace Plus",
+    "de": "Eisbrecher Plus Paket",
+    "ru": "Пак Ледокол Плюс",
+    "pt": "Pacote Quebra-gelo Plus",
+    "it": "Pacchetto Rompighiaccio Plus"
+  },
   "description": "适合新朋友的轻量投票、问答和反应事件。",
+  "description_i18n": {
+    "zh-CN": "适合新朋友的轻量投票、问答和反应事件。",
+    "en": "Lightweight voting, Q&A, and reaction events suitable for new friends.",
+    "ja": "新しい友人に最適な軽量の投票、Q&A、リアクションイベント。",
+    "ko": "새로운 친구들에게 적합한 가벼운 투표, Q&A 및 반응 이벤트.",
+    "es": "Eventos ligeros de votación, preguntas y respuestas, y reacción para nuevos amigos.",
+    "fr": "Événements légers de vote, Q/R et réaction adaptés aux nouveaux amis.",
+    "de": "Leichte Abstimmungen, Q&A und Reaktionsereignisse für neue Freunde.",
+    "ru": "Лёгкие голосования, викторины и реакции для новых друзей.",
+    "pt": "Eventos leves de votação, perguntas e respostas e reação para novos amigos.",
+    "it": "Eventi leggeri di voto, domande e risposte e reazione adatti a nuovi amici."
+  },
   "tags": ["破冰局", "轻度", "多人"],
+  "tags_i18n": {
+    "zh-CN": ["破冰局", "轻度", "多人"],
+    "en": ["Icebreaker", "Light", "Multiplayer"],
+    "ja": ["アイスブレイク", "ライト", "マルチ"],
+    "ko": ["아이스브레이킹", "라이트", "멀티플레이"],
+    "es": ["Rompehielos", "Ligero", "Multijugador"],
+    "fr": ["Brise-glace", "Léger", "Multijoueur"],
+    "de": ["Eisbrecher", "Leicht", "Mehrspieler"],
+    "ru": ["Ледокол", "Лёгкий", "Мультиплеер"],
+    "pt": ["Quebra-gelo", "Leve", "Multijogador"],
+    "it": ["Rompighiaccio", "Leggero", "Multigiocatore"]
+  },
   "rating": 4.8,
   "eventDeck": [
     {

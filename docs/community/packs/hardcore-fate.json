@@ -2,8 +2,44 @@
   "schemaVersion": 1,
   "id": "hardcore-fate",
   "title": "重口命运包",
+  "title_i18n": {
+    "zh-CN": "重口命运包",
+    "en": "Hardcore Fate Pack",
+    "ja": "ハードコア運命パック",
+    "ko": "하드코어 운명 팩",
+    "es": "Pack Destino Extremo",
+    "fr": "Pack Destin Hardcore",
+    "de": "Hardcore-Schicksalspaket",
+    "ru": "Пак Хардкорная судьба",
+    "pt": "Pacote Destino Intenso",
+    "it": "Pacchetto Destino Hardcore"
+  },
   "description": "更频繁的倍率、绑定和记忆挑战。",
+  "description_i18n": {
+    "zh-CN": "更频繁的倍率、绑定和记忆挑战。",
+    "en": "More frequent multipliers, player bindings, and memory challenges.",
+    "ja": "より頻繁な倍率、結束、記憶チャレンジ。",
+    "ko": "더 잦은 배율, 바인딩 및 기억력 챌린지.",
+    "es": "Multiplicadores más frecuentes, vínculos entre jugadores y desafíos de memoria.",
+    "fr": "Multiplicateurs plus fréquents, liens entre joueurs et défis de mémoire.",
+    "de": "Häufigere Multiplikatoren, Spieler-Verbindungen und Gedächtnis-Herausforderungen.",
+    "ru": "Более частые множители, связки игроков и испытания памяти.",
+    "pt": "Multiplicadores mais frequentes, vínculos entre jogadores e desafios de memória.",
+    "it": "Moltiplicatori più frequenti, legami tra giocatori e sfide di memoria."
+  },
   "tags": ["重口局", "高强度", "老友"],
+  "tags_i18n": {
+    "zh-CN": ["重口局", "高强度", "老友"],
+    "en": ["Hardcore", "Intense", "Close Friends"],
+    "ja": ["ハードコア", "高強度", "親友"],
+    "ko": ["하드코어", "고강도", "절친"],
+    "es": ["Extremo", "Intenso", "Amigos"],
+    "fr": ["Hardcore", "Intense", "Amis proches"],
+    "de": ["Hardcore", "Intensiv", "Enge Freunde"],
+    "ru": ["Хардкор", "Интенсивный", "Близкие друзья"],
+    "pt": ["Intenso", "Alta Intensidade", "Amigos"],
+    "it": ["Hardcore", "Intenso", "Vecchi amici"]
+  },
   "rating": 4.7,
   "eventDeck": [
     {
