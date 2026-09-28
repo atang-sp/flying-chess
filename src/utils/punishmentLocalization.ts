@@ -43,7 +43,7 @@ positionIndexMap.set('仰卧', 0)
 function normalizeLang(lang?: string | { value?: string }): string {
   let fallback: string | undefined
   try {
-    fallback = (i18n?.global?.locale as any)?.value
+    fallback = (i18n?.global?.locale as unknown as { value?: string })?.value
   } catch {
     // ignore
   }
