@@ -130,7 +130,8 @@
   .game-status {
     display: flex;
     justify-content: space-around;
-    gap: clamp(1rem, 4vw, 2rem);
+    flex-wrap: wrap;
+    gap: clamp(0.75rem, 3vw, 2rem);
     padding: clamp(0.8rem, 2.5vw, 1rem);
     background: var(--bg-surface);
     border: var(--glass-border);
@@ -141,6 +142,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    text-align: center;
     gap: clamp(0.2rem, 0.5vw, 0.25rem);
   }
 

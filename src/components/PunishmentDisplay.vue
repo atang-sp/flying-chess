@@ -569,7 +569,8 @@
   .punishment-item {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.5rem 1rem;
+    flex-wrap: wrap;
     padding: 1rem;
     background: var(--bg-glass);
     border-radius: var(--radius-sm);

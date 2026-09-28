@@ -492,6 +492,7 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
+    flex-wrap: wrap;
     padding: 0.5rem 0.6rem;
     cursor: pointer;
     transition: all var(--transition-fast);
