@@ -157,4 +157,56 @@ describe('棋盘呈现', () => {
       isTurn: false,
     })
   })
+
+  it('在英语语境下为惩罚格提供完全本地化的名称、描述和详情字段', () => {
+    const enDict: Record<string, string> = {
+      board_cell_punishment_label: 'Punishment Cell',
+      board_cell_punishment_short: 'Punish',
+      board_cell_detail_tool: 'Tool',
+      board_cell_detail_body_part: 'Target Area',
+      board_cell_detail_position: 'Position',
+      board_cell_detail_strikes: 'Strikes',
+      board_cell_detail_strikes_value: '{count} strikes',
+    }
+    const t = (key: string, values?: Record<string, unknown>) => {
+      let str = enDict[key] ?? key
+      if (values) {
+        for (const [k, v] of Object.entries(values)) {
+          str = str.replace(`{${k}}`, String(v))
+        }
+      }
+      return str
+    }
+
+    const testCell: BoardCell = {
+      id: 6,
+      position: 6,
+      type: 'punishment',
+      effect: {
+        type: 'punishment',
+        value: 0,
+        description: '用数据线打屁股10下，姿势：跪趴',
+        punishment: {
+          tool: { name: '数据线', intensity: 9, ratio: 8 },
+          bodyPart: { name: '屁股', sensitivity: 10, ratio: 80 },
+          position: { name: '跪趴', ratio: 20, compatibleBodyParts: ['屁股'] },
+          strikes: 10,
+          description: '用数据线打屁股10下，姿势：跪趴',
+        },
+      },
+    }
+
+    const presentation = getBoardCellPresentation(testCell, 40, t, 'en')
+
+    expect(presentation.label).toBe('Punishment Cell')
+    expect(presentation.description).toBe(
+      'Use Loopy Johnny on Bottom for 10 strikes, position: Over-the-knee (OTK)'
+    )
+    expect(presentation.details).toEqual([
+      { label: 'Tool', value: 'Loopy Johnny' },
+      { label: 'Target Area', value: 'Bottom' },
+      { label: 'Position', value: 'Over-the-knee (OTK)' },
+      { label: 'Strikes', value: '10 strikes' },
+    ])
+  })
 })

@@ -63,7 +63,7 @@
           </template>
           <template v-else>
             <div class="spinner" />
-            <p>正在收集本机局域网连接信息...</p>
+            <p>{{ $t('ctrl_collecting_candidates') }}</p>
           </template>
         </div>
       </template>
@@ -71,14 +71,14 @@
       <template v-else-if="status === 'connected'">
         <div class="connecting-indicator">
           <div class="spinner" />
-          <p>已连接，等待分配玩家...</p>
+          <p>{{ $t('ctrl_connected_waiting') }}</p>
         </div>
       </template>
 
       <template v-else-if="status === 'reconnecting'">
         <div class="connecting-indicator">
           <div class="spinner" />
-          <p>连接中断，正在重连...</p>
+          <p>{{ $t('ctrl_reconnecting_hint') }}</p>
         </div>
       </template>
     </div>

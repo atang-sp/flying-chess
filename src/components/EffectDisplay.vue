@@ -118,6 +118,25 @@
     }
   }
 
+  const localizedDescription = computed(() => {
+    if (!props.effect) return ''
+    if (props.effect.type === 'move' && props.effect.value !== 0) {
+      return props.effect.value > 0
+        ? t('board_cell_detail_forward', { n: props.effect.value })
+        : t('board_cell_detail_backward', { n: Math.abs(props.effect.value) })
+    }
+    if (props.effect.type === 'reverse') {
+      return t('board_cell_detail_backward', { n: props.effect.value })
+    }
+    if (props.effect.type === 'rest') {
+      return t('board_cell_detail_rest', { n: props.effect.value })
+    }
+    if (props.effect.type === 'restart') {
+      return t('board_cell_detail_restart')
+    }
+    return props.effect.description
+  })
+
   const handleConfirm = () => {
     emit('confirm')
   }
@@ -134,7 +153,7 @@
       </div>
 
       <div class="effect-content">
-        <div class="effect-description">{{ effect?.description || '' }}</div>
+        <div class="effect-description">{{ localizedDescription }}</div>
 
         <!-- 移动路径信息 -->
         <div v-if="showMovePath" class="move-path-info">

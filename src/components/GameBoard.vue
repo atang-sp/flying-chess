@@ -52,7 +52,7 @@
     interactionDisabled: false,
   })
   const emit = defineEmits<Emits>()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   const iconComponents: Record<CellIconName, Component> = {
     Circle,
@@ -100,7 +100,7 @@
   const presentedCells = computed<PresentedCell[]>(() =>
     props.board.map((cell, index) => ({
       cell,
-      presentation: getBoardCellPresentation(cell, props.board.length, t),
+      presentation: getBoardCellPresentation(cell, props.board.length, t, locale.value),
       grid: getSnakeGridPosition(cell.position, columns.value),
       hasNext: index < props.board.length - 1,
     }))

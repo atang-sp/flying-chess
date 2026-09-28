@@ -760,7 +760,7 @@
             <span>{{ $t('online_party_desc') }}</span>
           </span>
           <span class="mode-card__badge mode-card__badge--party">
-            应用 v{{ applicationVersion }} · party_v3
+            v{{ applicationVersion }} · party_v3
           </span>
         </a>
       </section>
@@ -785,7 +785,7 @@
             <div class="count-controls">
               <button
                 class="btn btn-secondary count-btn minus"
-                aria-label="减少玩家人数"
+                :aria-label="$t('decrease_player_count_aria')"
                 :disabled="playerCount <= 1"
                 @click="onPlayerCountChange(Math.max(1, playerCount - 1))"
               >
@@ -797,7 +797,7 @@
               </div>
               <button
                 class="btn btn-secondary count-btn plus"
-                aria-label="增加玩家人数"
+                :aria-label="$t('increase_player_count_aria')"
                 @click="onPlayerCountChange(playerCount + 1)"
               >
                 <Plus :size="18" />

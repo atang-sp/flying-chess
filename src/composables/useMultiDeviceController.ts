@@ -1,5 +1,6 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { ControllerNetworkManager } from '../services/networkService'
+import { i18n } from '../i18n'
 import type {
   ConnectionStatus,
   HostMessage,
@@ -44,7 +45,7 @@ export function useMultiDeviceController() {
         victorySettlement.value = msg.settlement ?? null
         break
       case 'room_closed':
-        errorMessage.value = '房间已关闭'
+        errorMessage.value = i18n.global.t('ctrl_room_closed')
         playerView.value = null
         assignedPlayerIndex.value = null
         break
@@ -79,7 +80,8 @@ export function useMultiDeviceController() {
     try {
       pairingAnswer.value = await network.connect(pairingOffer)
     } catch (error) {
-      errorMessage.value = error instanceof Error ? error.message : '无法创建局域网配对应答'
+      errorMessage.value =
+        error instanceof Error ? error.message : i18n.global.t('ctrl_pair_answer_failed')
       status.value = 'disconnected'
     }
   }

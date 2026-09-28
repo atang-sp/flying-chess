@@ -1,5 +1,6 @@
 import { ref, computed, watch, onUnmounted, type Ref, type ComputedRef } from 'vue'
 import { HostNetworkManager } from '../services/networkService'
+import { i18n } from '../i18n'
 import { projectPlayerView } from '../services/syncProtocol'
 import type {
   ConnectionStatus,
@@ -180,7 +181,7 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
         return i
       }
     }
-    network?.sendTo(peerId, { type: 'error', message: '房间已满' })
+    network?.sendTo(peerId, { type: 'error', message: i18n.global.t('ctrl_room_full') })
     return -1
   }
 
@@ -323,7 +324,10 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
       deps.acknowledgementPlayerIndex.value === playerIndex &&
       Object.values(deps.overlayState()).some(Boolean)
     ) {
-      return { type: 'acknowledge', message: deps.lastEffect.value || '请在主屏查看并确认当前操作' }
+      return {
+        type: 'acknowledge',
+        message: deps.lastEffect.value || i18n.global.t('ctrl_view_main_screen_hint'),
+      }
     }
     return null
   }
@@ -346,7 +350,8 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
         pairingOffer.value = offer
       })
       .catch(error => {
-        pairingError.value = error instanceof Error ? error.message : '无法生成局域网配对邀请'
+        pairingError.value =
+          error instanceof Error ? error.message : i18n.global.t('ctrl_pair_offer_failed')
       })
       .finally(() => {
         pairingOfferGeneration = null
@@ -362,7 +367,8 @@ export function useMultiDeviceHost(deps: MultiDeviceHostDeps) {
       pairingOffer.value = ''
       return true
     } catch (error) {
-      pairingError.value = error instanceof Error ? error.message : '无法接受局域网配对应答'
+      pairingError.value =
+        error instanceof Error ? error.message : i18n.global.t('ctrl_pair_answer_accept_failed')
       return false
     }
   }

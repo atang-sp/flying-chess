@@ -1,5 +1,16 @@
 # 飞行棋 Release Notes
 
+## v1.19.12 — 棋盘格子详情与核心对局流程全量国际化修补（2025-09-28）
+
+### 🌍 棋盘卡片与运行期文本彻底本地化 / Complete Localization Cleanup
+
+- **棋盘卡片详情与惩罚卡片全量本地化**：补齐全套 10 种语言中 18 个 `board_cell_detail_*` 键值，彻底消除非中文下卡片显示 `board_cell_detail_tool` 等 raw key 的问题；工具、部位、姿势、次数、动态翻倍后缀及上下玩家前缀全量适配 10 国语言并具备语言切换即时响应能力。
+- **手柄控制器多语言接入**：`ActionPanel`、`ConnectionScreen`、`ConnectionStatus`、`MiniBoard` 等手柄控制器组件与 `useMultiDeviceHost` / `useMultiDeviceController` 全面接入 i18n（新增 24 个 `ctrl_*` 键），局域网连接、房间状态及配对错误提示全量本地化。
+- **主流程运行期提示彻底去中文化**：消除 `App.vue` 中的中文字符串泄漏，涵盖单机对局恢复确认弹窗 (`resume_session_confirm`)、起飞成功移动提示 (`takeoff_success_move_1`)、三段移动路径格式化 (`effect_display_origin`、`effect_display_cell_n`、`app_rest_in_cell`)、派对模式配置无效弹窗以及投票票数统计。
+- **语言包权威对齐**：全套 10 种语言包词条对齐扩展至 882 条，`npm run i18n:check` 与 50 套测试套件（413 项测试）全数通过。
+
+---
+
 ## v1.19.11 — 默认惩罚工具/部位/姿势多语言动态适配（2025-09-28）
 
 ### 🌍 惩罚实体跨语言即时适配 / Multi-language Punishment Entity Localization

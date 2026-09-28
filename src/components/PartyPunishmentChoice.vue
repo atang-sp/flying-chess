@@ -1,11 +1,13 @@
 <script setup lang="ts">
   import { onBeforeUnmount, ref, watch } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { Coins, Flame, Timer } from '@lucide/vue'
   import type { PunishmentAction } from '@flying-chess/game-core/types'
   import {
     PARTY_DECISION_TIMEOUT_SECONDS,
     PARTY_DEFAULT_PUNISHMENT_DECISION,
   } from '@flying-chess/game-core/party-mode'
+  import { localizePunishmentDescription } from '../utils/punishmentLocalization'
 
   const props = defineProps<{
     visible: boolean
@@ -19,6 +21,7 @@
     (event: 'skip'): void
   }>()
 
+  const { locale } = useI18n()
   const secondsRemaining = ref(PARTY_DECISION_TIMEOUT_SECONDS)
   let timer: number | undefined
 
@@ -84,7 +87,7 @@
           @click="select(index)"
         >
           <span>{{ $t('party_choice_option_num', { num: index + 1 }) }}</span>
-          <strong>{{ choice.description }}</strong>
+          <strong>{{ localizePunishmentDescription(choice, locale) }}</strong>
         </button>
       </div>
       <button
