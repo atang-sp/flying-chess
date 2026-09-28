@@ -723,7 +723,7 @@
   "app_party_defer_queued": "{name} 的惩罚已延迟到其下一个回合开始前",
   "app_party_defer_executed": "{name} 的延迟惩罚现在执行",
   "app_chain_limit_exceeded": "连锁效果超过 {max} 次，已强制结束本回合",
-  "app_rest_skip_turn": "{name} 休息一回合，本回合已跳过",
+  "app_rest_skip_turn": "{name}休息一回合，本回合已跳过",
   "app_party_mutual_next": "双向惩罚第一次已完成，现在交换角色执行第二次",
   "app_party_encore_next": "返场惩罚第一次已完成，现在由同一玩家执行减半后的第二次",
   "app_confirm_exit_game": "确定要退出当前游戏返回主页吗？未保存的进度将会丢失。",
