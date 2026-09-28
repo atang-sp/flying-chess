@@ -440,12 +440,10 @@ export function savePartyStudioConfig(
 /**
  * Persist the user's manual language choice so it survives page reloads.
  */
-export function saveLocalePreference(
-  lang: string,
-  storage: Pick<Storage, 'setItem'> = localStorage
-): void {
+export function saveLocalePreference(lang: string, storage?: Pick<Storage, 'setItem'>): void {
   try {
-    storage.setItem(LOCALE_STORAGE_KEY, lang)
+    const targetStorage = storage ?? (typeof localStorage !== 'undefined' ? localStorage : null)
+    targetStorage?.setItem(LOCALE_STORAGE_KEY, lang)
   } catch (error) {
     console.warn('保存语言偏好失败:', error)
   }
@@ -454,11 +452,10 @@ export function saveLocalePreference(
 /**
  * Read the previously saved language preference, or `null` when none was set.
  */
-export function loadLocalePreference(
-  storage: Pick<Storage, 'getItem'> = localStorage
-): string | null {
+export function loadLocalePreference(storage?: Pick<Storage, 'getItem'>): string | null {
   try {
-    return storage.getItem(LOCALE_STORAGE_KEY)
+    const targetStorage = storage ?? (typeof localStorage !== 'undefined' ? localStorage : null)
+    return targetStorage?.getItem(LOCALE_STORAGE_KEY) ?? null
   } catch {
     return null
   }

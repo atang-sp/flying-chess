@@ -10,6 +10,12 @@
     ResolvedPunishmentCount,
   } from '@flying-chess/game-core/types'
   import { getPunishmentVariantPresentation } from '@flying-chess/game-core/punishment-variants'
+  import {
+    localizeToolName,
+    localizeBodyPartName,
+    localizePositionName,
+    localizePunishmentDescription,
+  } from '../utils/punishmentLocalization'
 
   type ExternalCountSelection = Extract<
     ResolvedPunishmentCount,
@@ -44,7 +50,12 @@
     countMultiplier: 1,
   })
   const emit = defineEmits<Emits>()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+
+  const localizedDescription = computed(() => {
+    if (!props.punishment) return ''
+    return localizePunishmentDescription(props.punishment, locale.value)
+  })
 
   const variantPresentation = computed(() =>
     props.variant ? getPunishmentVariantPresentation(props.variant) : null
@@ -222,7 +233,7 @@
           <div v-if="detailsVisible" class="punishment-details">
             <div class="punishment-item">
               <span class="label">{{ $t('punishment_display_tool_label') }}</span>
-              <span class="value tool">{{ punishment.tool.name }}</span>
+              <span class="value tool">{{ localizeToolName(punishment.tool.name, locale) }}</span>
               <span class="intensity">
                 {{ $t('punishment_display_intensity', { value: punishment.tool.intensity }) }}
               </span>
@@ -230,7 +241,9 @@
 
             <div class="punishment-item">
               <span class="label">{{ $t('punishment_display_body_part_label') }}</span>
-              <span class="value body-part">{{ punishment.bodyPart.name }}</span>
+              <span class="value body-part">
+                {{ localizeBodyPartName(punishment.bodyPart.name, locale) }}
+              </span>
               <span class="sensitivity">
                 {{
                   $t('punishment_display_sensitivity', { value: punishment.bodyPart.sensitivity })
@@ -240,7 +253,9 @@
 
             <div class="punishment-item">
               <span class="label">{{ $t('punishment_display_position_label') }}</span>
-              <span class="value position">{{ punishment.position.name }}</span>
+              <span class="value position">
+                {{ localizePositionName(punishment.position.name, locale) }}
+              </span>
             </div>
 
             <div v-if="punishment.strikes != null" class="punishment-item">
@@ -260,7 +275,7 @@
                   : $t('punishment_display_executor_decides_other')
               }}
             </p>
-            <p v-else class="summary-text">{{ punishment.description }}</p>
+            <p v-else class="summary-text">{{ localizedDescription }}</p>
           </div>
 
           <label v-if="detailsVisible && countSelection" class="count-selection">

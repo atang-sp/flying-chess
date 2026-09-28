@@ -52,6 +52,9 @@ if (typeof document !== 'undefined') {
 /** Stable singleton for the detected locale. */
 export let localeContent: LocaleContent = getLocaleContent(activeLanguage)
 
+/** Reactive ref that mirrors `localeContent` — use this in Vue components that need to react to language changes. */
+export const localeContentRef = ref<LocaleContent>(localeContent)
+
 /**
  * Force a specific locale (e.g. when the user switches language via the UI).
  * The choice is persisted to localStorage so it survives page reloads.
@@ -59,8 +62,11 @@ export let localeContent: LocaleContent = getLocaleContent(activeLanguage)
  */
 export function setActiveLanguage(language: string): LocaleContent {
   activeLanguage = language
-  currentLanguageRef.value = language
+  // Update localeContent BEFORE updating currentLanguageRef so that any
+  // watchers that fire on currentLanguageRef already see the new content.
   localeContent = getLocaleContent(language)
+  localeContentRef.value = localeContent
+  currentLanguageRef.value = language
   saveLocalePreference(language)
   if (typeof document !== 'undefined') {
     document.documentElement.lang = language
@@ -79,3 +85,10 @@ export function setActiveLanguage(language: string): LocaleContent {
 export function isChineseLocale(): boolean {
   return activeLanguage.toLowerCase().startsWith('zh')
 }
+
+export {
+  localizeToolName,
+  localizeBodyPartName,
+  localizePositionName,
+  localizePunishmentDescription,
+} from './punishmentLocalization'

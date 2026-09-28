@@ -1,6 +1,12 @@
 <script setup lang="ts">
   import { Plane, Info, HandHeart } from '@lucide/vue'
+  import { useI18n } from 'vue-i18n'
   import type { PunishmentAction } from '@flying-chess/game-core/types'
+  import {
+    localizeToolName,
+    localizeBodyPartName,
+    localizePositionName,
+  } from '../utils/punishmentLocalization'
 
   interface Props {
     visible: boolean
@@ -21,6 +27,7 @@
     canRequestMercy: true,
   })
   const emit = defineEmits<Emits>()
+  const { locale } = useI18n()
 
   const handleConfirm = () => {
     emit('confirm')
@@ -60,15 +67,19 @@
           </div>
           <div class="detail-item">
             <span class="detail-label">{{ $t('takeoff_punishment_tool') }}</span>
-            <span class="detail-value">{{ punishment.tool.name }}</span>
+            <span class="detail-value">{{ localizeToolName(punishment.tool.name, locale) }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">{{ $t('takeoff_punishment_body_part') }}</span>
-            <span class="detail-value">{{ punishment.bodyPart.name }}</span>
+            <span class="detail-value">
+              {{ localizeBodyPartName(punishment.bodyPart.name, locale) }}
+            </span>
           </div>
           <div class="detail-item">
             <span class="detail-label">{{ $t('takeoff_punishment_position') }}</span>
-            <span class="detail-value">{{ punishment.position.name }}</span>
+            <span class="detail-value">
+              {{ localizePositionName(punishment.position.name, locale) }}
+            </span>
           </div>
         </div>
 

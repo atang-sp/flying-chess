@@ -1,6 +1,12 @@
 <script setup lang="ts">
   import { HandHeart, Check, X } from '@lucide/vue'
+  import { useI18n } from 'vue-i18n'
   import type { PunishmentAction, Player } from '@flying-chess/game-core/types'
+  import {
+    localizeToolName,
+    localizeBodyPartName,
+    localizePositionName,
+  } from '../utils/punishmentLocalization'
 
   interface Props {
     visible: boolean
@@ -16,6 +22,7 @@
 
   defineProps<Props>()
   const emit = defineEmits<Emits>()
+  const { locale } = useI18n()
 
   const accept = () => emit('mercy-result', true)
   const reject = () => emit('mercy-result', false)
@@ -64,8 +71,9 @@
         </p>
 
         <div class="punishment-brief">
-          {{ punishment.tool.name }} · {{ punishment.bodyPart.name }} ·
-          {{ punishment.position.name }}
+          {{ localizeToolName(punishment.tool.name, locale) }} ·
+          {{ localizeBodyPartName(punishment.bodyPart.name, locale) }} ·
+          {{ localizePositionName(punishment.position.name, locale) }}
         </div>
       </div>
 
