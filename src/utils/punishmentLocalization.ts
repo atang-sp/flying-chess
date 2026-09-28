@@ -48,9 +48,11 @@ function normalizeLang(lang?: string | { value?: string }): string {
     // ignore
   }
   const raw =
-    typeof lang === 'object' && lang !== null && 'value' in lang
-      ? (lang as { value?: string }).value
-      : lang
+    typeof lang === 'string'
+      ? lang
+      : typeof lang === 'object' && lang !== null && typeof lang.value === 'string'
+        ? lang.value
+        : undefined
   const code = (raw || fallback || activeLanguage || 'zh').toLowerCase()
   for (const supported of SUPPORTED_LANGCODES_PREFIX) {
     if (code.startsWith(supported)) return supported
