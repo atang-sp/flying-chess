@@ -1,4 +1,9 @@
 import type { BoardCell } from '@flying-chess/game-core/types'
+import {
+  localizeToolName,
+  localizeBodyPartName,
+  localizePositionName,
+} from './punishmentLocalization'
 
 export type CellVisualKind =
   | 'start'
@@ -90,9 +95,18 @@ const getDetails = (
   const punishment = cell.effect?.punishment
   if ((kind === 'punishment' || kind === 'chain') && punishment) {
     return [
-      { label: t ? t('board_cell_detail_tool') : '工具', value: punishment.tool.name },
-      { label: t ? t('board_cell_detail_body_part') : '部位', value: punishment.bodyPart.name },
-      { label: t ? t('board_cell_detail_position') : '姿势', value: punishment.position.name },
+      {
+        label: t ? t('board_cell_detail_tool') : '工具',
+        value: localizeToolName(punishment.tool.name),
+      },
+      {
+        label: t ? t('board_cell_detail_body_part') : '部位',
+        value: localizeBodyPartName(punishment.bodyPart.name),
+      },
+      {
+        label: t ? t('board_cell_detail_position') : '姿势',
+        value: localizePositionName(punishment.position.name),
+      },
       {
         label: t ? t('board_cell_detail_strikes') : '次数',
         value:

@@ -1,5 +1,15 @@
 # 飞行棋 Release Notes
 
+## v1.19.11 — 默认惩罚工具/部位/姿势多语言动态适配（2025-09-28）
+
+### 🌍 惩罚实体跨语言即时适配 / Multi-language Punishment Entity Localization
+
+- **动态实体多语言转换**：新增 `punishmentLocalization.ts`，支持将 12 款默认工具、5 个受罚部位、5 种受罚姿势及其执行描述模板在 10 种支持语言（中文、英语、日语、韩语、西班牙语、法语、德语、俄语、葡萄牙语、意大利语）之间自动双向实时映射。
+- **展示层全局适配**：`PunishmentDisplay`、`PunishmentConfirmation`、`TakeoffPunishmentDisplay`、`MercyDecision` 及棋盘详情等展示层全面接入动态多语言转换，彻底解决非中文界面下受罚弹窗仍出现中文“尺子/屁股/跪趴”的问题，保证不同语言下完整母语沉浸感。
+- **配置与棋盘响应式同步**：切换语言时自动同步当前语言的默认惩罚与机关配置，并在未开始游戏时实时重构棋盘；惩罚配置面板中的“恢复默认”自适应跟随当前选择的界面语言。
+
+---
+
 ## v1.19.10 — 国际化里程碑版本（2025-09-28）
 
 > **International Localization Milestone Release**

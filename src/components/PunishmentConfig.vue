@@ -9,6 +9,7 @@
     PunishmentPosition,
   } from '@flying-chess/game-core/types'
   import { GameService } from '../services/gameService'
+  import { localeContentRef } from '../utils/locale'
   import ConfigErrorModal from './ConfigErrorModal.vue'
   import RatioDistributor from './RatioDistributor.vue'
   import type { RatioItem } from './RatioDistributor.vue'
@@ -437,7 +438,7 @@
 
   const resetToDefault = async () => {
     const originalConfig = cloneConfig(localConfig.value)
-    const defaultConfig = GameService.createPunishmentConfig()
+    const defaultConfig = cloneConfig(localeContentRef.value.punishmentConfig)
     localConfig.value = defaultConfig
     validateAndEmit(originalConfig)
   }

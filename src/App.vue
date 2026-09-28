@@ -122,6 +122,7 @@
   } from '@flying-chess/game-core/config'
   import {
     localeContent,
+    localeContentRef,
     setActiveLanguage,
     currentLanguageRef,
     SUPPORTED_LANGUAGES,
@@ -217,6 +218,18 @@
   const handleSwitchLanguage = (lang: string) => {
     setActiveLanguage(lang)
     showLanguageMenu.value = false
+    // Sync punishment config and traps to the new locale's defaults so that
+    // tool / body-part / position names shown in-game match the selected language.
+    // localeContent is already updated by setActiveLanguage() before this runs.
+    gameState.punishmentConfig = JSON.parse(JSON.stringify(localeContentRef.value.punishmentConfig))
+    trapConfig.value = localeContentRef.value.standardTraps.map(trap => ({ ...trap }))
+    if (!gameStarted.value) {
+      gameState.board = GameService.createBoard(
+        gameState.punishmentConfig,
+        gameState.boardConfig,
+        trapConfig.value
+      )
+    }
   }
   const canCurrentPlayerReroll = computed(
     () =>
@@ -1703,10 +1716,10 @@
     gameState.gameStatus = 'intro'
     gameState.winner = null
     // Use locale-appropriate defaults so non-Chinese players get English content
-    gameState.punishmentConfig = { ...localeContent.punishmentConfig }
+    gameState.punishmentConfig = JSON.parse(JSON.stringify(localeContentRef.value.punishmentConfig))
     gameState.boardConfig = GameService.createBoardConfig()
     gameState.pendingEffect = null
-    trapConfig.value = localeContent.standardTraps.map(trap => ({ ...trap }))
+    trapConfig.value = localeContentRef.value.standardTraps.map(trap => ({ ...trap }))
 
     // 在配置设置后创建棋盘
     gameState.board = GameService.createBoard(
@@ -1791,9 +1804,16 @@
 
   const handleLanguageChanged = (lang: string) => {
     devLog('语言已切换:', lang)
-    // 如果没有本地保存的配置（首次运行），则重新初始化以应用新语言的默认配置
-    if (!loadConfig()) {
-      initializeGame()
+    // Sync locale-appropriate punishment config and traps so tool/body-part/position
+    // names reflect the newly selected language immediately.
+    gameState.punishmentConfig = JSON.parse(JSON.stringify(localeContentRef.value.punishmentConfig))
+    trapConfig.value = localeContentRef.value.standardTraps.map(trap => ({ ...trap }))
+    if (!gameStarted.value) {
+      gameState.board = GameService.createBoard(
+        gameState.punishmentConfig,
+        gameState.boardConfig,
+        trapConfig.value
+      )
     }
   }
 

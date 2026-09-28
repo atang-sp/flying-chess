@@ -1,9 +1,16 @@
 <script setup lang="ts">
   import { ref, computed } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { Info, RotateCcw, Rocket, X, RotateCw } from '@lucide/vue'
   import type { PunishmentCombination } from '@flying-chess/game-core/types'
   import MiniDonut from './MiniDonut.vue'
   import type { DonutSegment } from './MiniDonut.vue'
+  import {
+    localizeToolName,
+    localizeBodyPartName,
+    localizePositionName,
+    localizePunishmentDescription,
+  } from '../utils/punishmentLocalization'
 
   interface Props {
     combinations: PunishmentCombination[]
@@ -17,6 +24,7 @@
 
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
+  const { locale } = useI18n()
 
   const removedCombinations = ref<Set<number>>(new Set())
   const selectedIndex = ref<number | null>(null)
@@ -70,7 +78,7 @@
   const toolDonutSegments = computed<DonutSegment[]>(() => {
     const counts = countBy(activeCombinations.value, c => c.tool.name)
     return uniqueToolNames.value.map((name, i) => ({
-      name,
+      name: localizeToolName(name, locale.value),
       value: counts.get(name) || 0,
       color: hueColor(TOOL_HUE, i, uniqueToolNames.value.length),
     }))
@@ -79,7 +87,7 @@
   const bodyPartDonutSegments = computed<DonutSegment[]>(() => {
     const counts = countBy(activeCombinations.value, c => c.bodyPart.name)
     return uniqueBodyPartNames.value.map((name, i) => ({
-      name,
+      name: localizeBodyPartName(name, locale.value),
       value: counts.get(name) || 0,
       color: hueColor(BODY_PART_HUE, i, uniqueBodyPartNames.value.length),
     }))
@@ -88,7 +96,7 @@
   const positionDonutSegments = computed<DonutSegment[]>(() => {
     const counts = countBy(activeCombinations.value, c => c.position.name)
     return uniquePositionNames.value.map((name, i) => ({
-      name,
+      name: localizePositionName(name, locale.value),
       value: counts.get(name) || 0,
       color: hueColor(POSITION_HUE, i, uniquePositionNames.value.length),
     }))
@@ -246,13 +254,13 @@
         >
           <span class="combo-index">#{{ index + 1 }}</span>
           <span class="chip" :style="toolChipStyle(combo.tool.name)">
-            {{ combo.tool.name }}
+            {{ localizeToolName(combo.tool.name, locale) }}
           </span>
           <span class="chip" :style="bodyPartChipStyle(combo.bodyPart.name)">
-            {{ combo.bodyPart.name }}
+            {{ localizeBodyPartName(combo.bodyPart.name, locale) }}
           </span>
           <span class="chip" :style="positionChipStyle(combo.position.name)">
-            {{ combo.position.name }}
+            {{ localizePositionName(combo.position.name, locale) }}
           </span>
         </div>
 
@@ -270,7 +278,7 @@
               </span>
             </div>
             <div v-if="combo.description" class="combo-detail-desc">
-              {{ combo.description }}
+              {{ localizePunishmentDescription(combo, locale) }}
             </div>
             <div class="combo-detail-footer">
               <button
