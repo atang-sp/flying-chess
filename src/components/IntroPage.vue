@@ -793,7 +793,7 @@
             <div class="count-controls">
               <button
                 class="btn btn-secondary count-btn minus"
-                :aria-label="$t('player_count_label')"
+                aria-label="减少玩家人数"
                 :disabled="playerCount <= 1"
                 @click="onPlayerCountChange(Math.max(1, playerCount - 1))"
               >
@@ -805,7 +805,7 @@
               </div>
               <button
                 class="btn btn-secondary count-btn plus"
-                :aria-label="$t('player_count_label')"
+                aria-label="增加玩家人数"
                 @click="onPlayerCountChange(playerCount + 1)"
               >
                 <Plus :size="18" />
