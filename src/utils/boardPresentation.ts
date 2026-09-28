@@ -3,6 +3,7 @@ import {
   localizeToolName,
   localizeBodyPartName,
   localizePositionName,
+  localizePunishmentDescription,
 } from './punishmentLocalization'
 
 export type CellVisualKind =
@@ -90,22 +91,23 @@ const getVisualKind = (cell: BoardCell, totalCells: number): CellVisualKind => {
 const getDetails = (
   cell: BoardCell,
   kind: CellVisualKind,
-  t?: (key: string, values?: Record<string, unknown>) => string
+  t?: (key: string, values?: Record<string, unknown>) => string,
+  targetLocale?: string | { value?: string }
 ): CellPresentationDetail[] => {
   const punishment = cell.effect?.punishment
   if ((kind === 'punishment' || kind === 'chain') && punishment) {
     return [
       {
         label: t ? t('board_cell_detail_tool') : '工具',
-        value: localizeToolName(punishment.tool.name),
+        value: localizeToolName(punishment.tool.name, targetLocale),
       },
       {
         label: t ? t('board_cell_detail_body_part') : '部位',
-        value: localizeBodyPartName(punishment.bodyPart.name),
+        value: localizeBodyPartName(punishment.bodyPart.name, targetLocale),
       },
       {
         label: t ? t('board_cell_detail_position') : '姿势',
-        value: localizePositionName(punishment.position.name),
+        value: localizePositionName(punishment.position.name, targetLocale),
       },
       {
         label: t ? t('board_cell_detail_strikes') : '次数',
@@ -183,8 +185,14 @@ const getDetails = (
 export const getBoardCellPresentation = (
   cell: BoardCell,
   totalCells: number,
-  t?: (key: string, values?: Record<string, unknown>) => string
+  t?: (key: string, values?: Record<string, unknown>) => string,
+  targetLocale?: string | { value?: string }
 ): CellPresentation => {
+  const rawLocale =
+    typeof targetLocale === 'object' && targetLocale !== null && 'value' in targetLocale
+      ? (targetLocale as { value?: string }).value
+      : targetLocale
+  const effectiveLocale = rawLocale ?? (t ? undefined : 'zh')
   const kind = getVisualKind(cell, totalCells)
   const meta = CELL_META[kind]
   const label = t ? t(`board_cell_${kind}_label`) : meta.label
@@ -199,7 +207,25 @@ export const getBoardCellPresentation = (
         ? t
           ? t('board_cell_finish_desc')
           : '率先抵达这里即可赢得本局。'
-        : cell.effect?.description || label
+        : (kind === 'punishment' || kind === 'chain') && cell.effect?.punishment
+          ? localizePunishmentDescription(cell.effect.punishment, effectiveLocale)
+          : kind === 'bonus' && cell.effect?.value
+            ? t
+              ? t('board_cell_detail_forward', { n: cell.effect.value })
+              : `前进 ${cell.effect.value} 步`
+            : kind === 'reverse' && cell.effect?.value
+              ? t
+                ? t('board_cell_detail_backward', { n: cell.effect.value })
+                : `后退 ${cell.effect.value} 步`
+              : kind === 'rest' && cell.effect?.value
+                ? t
+                  ? t('board_cell_detail_rest', { n: cell.effect.value })
+                  : `休息 ${cell.effect.value} 回合`
+                : kind === 'restart'
+                  ? t
+                    ? t('board_cell_detail_restart')
+                    : '回到起点'
+                  : cell.effect?.description || label
 
   return {
     kind,
@@ -207,7 +233,7 @@ export const getBoardCellPresentation = (
     shortLabel,
     iconName: meta.iconName,
     description,
-    details: getDetails(cell, kind, t),
+    details: getDetails(cell, kind, t, effectiveLocale),
   }
 }
 

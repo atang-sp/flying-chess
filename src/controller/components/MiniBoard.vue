@@ -36,8 +36,8 @@
       >
         <span class="marker-label">{{ marker.name[0] }}</span>
       </div>
-      <div class="track-start">起</div>
-      <div class="track-end">终</div>
+      <div class="track-start">{{ $t('ctrl_track_start') }}</div>
+      <div class="track-end">{{ $t('ctrl_track_end') }}</div>
     </div>
     <div class="position-labels">
       <span

@@ -11,11 +11,21 @@ import pt from './locales/pt.json'
 import it from './locales/it.json'
 import { loadLocalePreference } from './utils/cache'
 
-const savedLanguage = loadLocalePreference()
 const supportedLanguages = ['zh', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'ru', 'pt', 'it']
 
-const initialLocale =
-  savedLanguage && supportedLanguages.includes(savedLanguage) ? savedLanguage : 'zh'
+function resolveInitialLanguage(): string {
+  const saved = loadLocalePreference()
+  if (saved && supportedLanguages.includes(saved)) return saved
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    const nav = navigator.language.toLowerCase()
+    for (const lang of supportedLanguages) {
+      if (nav.startsWith(lang)) return lang
+    }
+  }
+  return 'zh'
+}
+
+const initialLocale = resolveInitialLanguage()
 
 export const i18n = createI18n({
   legacy: false,

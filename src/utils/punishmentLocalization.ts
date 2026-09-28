@@ -1,5 +1,6 @@
 import { getLocaleContent, type PunishmentAction } from '@flying-chess/game-core/config'
 import { activeLanguage } from './locale'
+import { i18n } from '../i18n'
 
 const SUPPORTED_LANG_CODES = ['zh', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'ru', 'pt', 'it'] as const
 type SupportedLangCode = (typeof SUPPORTED_LANG_CODES)[number]
@@ -39,8 +40,18 @@ bodyPartIndexMap.set('臀部', 0)
 positionIndexMap.set('俯卧', 2)
 positionIndexMap.set('仰卧', 0)
 
-function normalizeLang(lang?: string): string {
-  const code = (lang || activeLanguage || 'zh').toLowerCase()
+function normalizeLang(lang?: string | { value?: string }): string {
+  let fallback: string | undefined
+  try {
+    fallback = (i18n?.global?.locale as any)?.value
+  } catch {
+    // ignore
+  }
+  const raw =
+    typeof lang === 'object' && lang !== null && 'value' in lang
+      ? (lang as { value?: string }).value
+      : lang
+  const code = (raw || fallback || activeLanguage || 'zh').toLowerCase()
   for (const supported of SUPPORTED_LANGCODES_PREFIX) {
     if (code.startsWith(supported)) return supported
   }
@@ -64,7 +75,7 @@ const SUPPORTED_LANGCODES_PREFIX: SupportedLangCode[] = [
  * Translate a standard tool name to the target locale (defaults to current active locale).
  * If the name does not match any known standard tool, it is returned unchanged.
  */
-export function localizeToolName(name: string, targetLocale?: string): string {
+export function localizeToolName(name: string, targetLocale?: string | { value?: string }): string {
   if (!name) return ''
   const lang = normalizeLang(targetLocale)
   const idx = toolIndexMap.get(name)
@@ -78,7 +89,10 @@ export function localizeToolName(name: string, targetLocale?: string): string {
  * Translate a standard body part name to the target locale (defaults to current active locale).
  * If the name does not match any known standard body part, it is returned unchanged.
  */
-export function localizeBodyPartName(name: string, targetLocale?: string): string {
+export function localizeBodyPartName(
+  name: string,
+  targetLocale?: string | { value?: string }
+): string {
   if (!name) return ''
   const lang = normalizeLang(targetLocale)
   const idx = bodyPartIndexMap.get(name)
@@ -92,7 +106,10 @@ export function localizeBodyPartName(name: string, targetLocale?: string): strin
  * Translate a standard position name to the target locale (defaults to current active locale).
  * If the name does not match any known standard position, it is returned unchanged.
  */
-export function localizePositionName(name: string, targetLocale?: string): string {
+export function localizePositionName(
+  name: string,
+  targetLocale?: string | { value?: string }
+): string {
   if (!name) return ''
   const lang = normalizeLang(targetLocale)
   const idx = positionIndexMap.get(name)
@@ -150,12 +167,51 @@ const DESCRIPTION_TEMPLATES: Record<string, FormatTemplates> = {
   },
 }
 
+const MULTIPLIER_SUFFIXES: Record<string, (m: number) => string> = {
+  zh: m => `（骰点 × ${m}）`,
+  ja: m => `（サイコロ出目 × ${m}）`,
+  ko: m => ` (주사위 눈 × ${m})`,
+  es: m => ` (Tirada de dado × ${m})`,
+  fr: m => ` (Lancé de dé × ${m})`,
+  de: m => ` (Würfelwurf × ${m})`,
+  ru: m => ` (Бросок кубика × ${m})`,
+  pt: m => ` (Rolagem de dados × ${m})`,
+  it: m => ` (Lancio del dado × ${m})`,
+  en: m => ` (Dice roll × ${m})`,
+}
+
+const PREVIOUS_PLAYER_PREFIXES: Record<string, string> = {
+  zh: '上一个玩家：',
+  ja: '前のプレイヤー：',
+  ko: '이전 플레이어: ',
+  es: 'Jugador anterior: ',
+  fr: 'Joueur précédent : ',
+  de: 'Vorheriger Spieler: ',
+  ru: 'Предыдущий игрок: ',
+  pt: 'Jogador anterior: ',
+  it: 'Giocatore precedente: ',
+  en: 'Previous player: ',
+}
+
+const NEXT_PLAYER_PREFIXES: Record<string, string> = {
+  zh: '下一个玩家：',
+  ja: '次のプレイヤー：',
+  ko: '다음 플레이어: ',
+  es: 'Siguiente jugador: ',
+  fr: 'Joueur suivant : ',
+  de: 'Nächster Spieler: ',
+  ru: 'Следующий игрок: ',
+  pt: 'Próximo jogador: ',
+  it: 'Giocatore successivo: ',
+  en: 'Next player: ',
+}
+
 /**
  * Generate a localized description for a punishment action in the target locale.
  */
 export function localizePunishmentDescription(
   punishment: PunishmentAction,
-  targetLocale?: string
+  targetLocale?: string | { value?: string }
 ): string {
   if (!punishment || !punishment.tool || !punishment.bodyPart || !punishment.position) {
     return punishment?.description || ''
@@ -174,22 +230,16 @@ export function localizePunishmentDescription(
 
   if (punishment.dynamicType === 'dice_multiplier') {
     const mult = punishment.multiplier ?? 1
-    if (lang === 'zh') desc += `（骰点 × ${mult}）`
-    else if (lang === 'ja') desc += `（サイコロ出目 × ${mult}）`
-    else if (lang === 'ko') desc += ` (주사위 눈 × ${mult})`
-    else desc += ` (Dice roll × ${mult})`
+    const formatter = MULTIPLIER_SUFFIXES[lang] || MULTIPLIER_SUFFIXES.en
+    desc += formatter(mult)
   }
 
   if (punishment.targetPlayer === 'previous') {
-    if (lang === 'zh') desc = `上一个玩家：${desc}`
-    else if (lang === 'ja') desc = `前のプレイヤー：${desc}`
-    else if (lang === 'ko') desc = `이전 플레이어: ${desc}`
-    else desc = `Previous player: ${desc}`
+    const prefix = PREVIOUS_PLAYER_PREFIXES[lang] || PREVIOUS_PLAYER_PREFIXES.en
+    desc = `${prefix}${desc}`
   } else if (punishment.targetPlayer === 'next') {
-    if (lang === 'zh') desc = `下一个玩家：${desc}`
-    else if (lang === 'ja') desc = `次のプレイヤー：${desc}`
-    else if (lang === 'ko') desc = `다음 플레이어: ${desc}`
-    else desc = `Next player: ${desc}`
+    const prefix = NEXT_PLAYER_PREFIXES[lang] || NEXT_PLAYER_PREFIXES.en
+    desc = `${prefix}${desc}`
   }
 
   return desc

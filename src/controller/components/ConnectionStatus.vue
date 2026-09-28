@@ -5,18 +5,18 @@
     status: ConnectionStatus
   }>()
 
-  const statusMap: Record<ConnectionStatus, { label: string; color: string }> = {
-    connected: { label: '已连接', color: '#34d399' },
-    connecting: { label: '连接中', color: '#fbbf24' },
-    reconnecting: { label: '重连中', color: '#f97316' },
-    disconnected: { label: '未连接', color: '#ef4444' },
+  const statusColorMap: Record<ConnectionStatus, string> = {
+    connected: '#34d399',
+    connecting: '#fbbf24',
+    reconnecting: '#f97316',
+    disconnected: '#ef4444',
   }
 </script>
 
 <template>
   <div class="connection-status">
-    <span class="status-dot" :style="{ background: statusMap[status].color }" />
-    <span class="status-label">{{ statusMap[status].label }}</span>
+    <span class="status-dot" :style="{ background: statusColorMap[status] }" />
+    <span class="status-label">{{ $t(`ctrl_status_${status}`) }}</span>
   </div>
 </template>
 

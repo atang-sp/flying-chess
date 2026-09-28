@@ -22,12 +22,12 @@
 
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const inspectorRef = ref<HTMLDialogElement | null>(null)
   const closeButtonRef = ref<HTMLButtonElement | null>(null)
 
   const presentation = computed(() =>
-    props.cell ? getBoardCellPresentation(props.cell, props.totalCells, t) : null
+    props.cell ? getBoardCellPresentation(props.cell, props.totalCells, t, locale.value) : null
   )
   const occupants = computed(() =>
     props.cell ? props.players.filter(player => player.position === props.cell?.position) : []
@@ -73,7 +73,9 @@
 
     <header class="inspector-header">
       <div>
-        <span class="inspector-kicker">SPACE {{ String(cell.position).padStart(2, '0') }}</span>
+        <span class="inspector-kicker">
+          {{ $t('cell_inspector_kicker', { n: String(cell.position).padStart(2, '0') }) }}
+        </span>
         <h2>{{ $t('cell_inspector_cell_title', { n: cell.position }) }}</h2>
       </div>
       <span class="type-badge">{{ presentation.label }}</span>

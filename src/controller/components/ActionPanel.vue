@@ -67,7 +67,7 @@
           class="btn btn-primary action-btn"
           @click="send({ type: 'reaction_decision', decision: 'mirror' })"
         >
-          镜像 → {{ 7 - (pending.rolledValue ?? 0) }}
+          {{ $t('ctrl_mirror_action', { val: 7 - (pending.rolledValue ?? 0) }) }}
         </button>
       </div>
     </div>
@@ -75,26 +75,26 @@
     <!-- Dice decision: continue / reroll -->
     <div v-else-if="pending.type === 'dice_decision'" class="action-group">
       <p class="action-prompt">
-        骰子结果:
+        {{ $t('ctrl_dice_result') }}
         <strong>{{ pending.diceValue }}</strong>
       </p>
       <div class="action-buttons">
         <button class="btn btn-primary action-btn" @click="send({ type: 'continue_move' })">
-          继续移动
+          {{ $t('ctrl_continue_move') }}
         </button>
         <button
           v-if="pending.canReroll"
           class="btn btn-secondary action-btn"
           @click="send({ type: 'reroll' })"
         >
-          🎫 重掷
+          {{ $t('ctrl_reroll') }}
         </button>
       </div>
     </div>
 
     <!-- Punishment choice -->
     <div v-else-if="pending.type === 'punishment_choice'" class="action-group">
-      <p class="action-prompt">选择惩罚（消耗 1 筹码）</p>
+      <p class="action-prompt">{{ $t('ctrl_choice_prompt') }}</p>
       <div class="action-buttons vertical">
         <button
           class="btn btn-secondary action-btn"
@@ -109,7 +109,7 @@
           {{ pending.choiceB }}
         </button>
         <button class="btn-ghost" @click="send({ type: 'skip_punishment_choice' })">
-          跳过（不消耗筹码）
+          {{ $t('ctrl_skip_no_token') }}
         </button>
       </div>
     </div>
@@ -117,17 +117,21 @@
     <!-- Punishment intervention -->
     <div v-else-if="pending.type === 'punishment_intervention'" class="action-group">
       <p class="action-prompt">
-        {{ pending.targetName }} 将执行 {{ pending.countLabel }}，要使用筹码吗？
+        {{ $t('ctrl_interv_prompt', { name: pending.targetName, count: pending.countLabel }) }}
       </p>
       <div class="action-buttons vertical">
         <template v-if="pending.actions.includes('transfer')">
-          <select v-model.number="transferTargetIndex" aria-label="转嫁目标" class="action-select">
+          <select
+            v-model.number="transferTargetIndex"
+            :aria-label="$t('ctrl_transfer_target_aria')"
+            class="action-select"
+          >
             <option
               v-for="target in pending.transferTargets"
               :key="target.playerIndex"
               :value="target.playerIndex"
             >
-              转给 {{ target.playerName }}
+              {{ $t('ctrl_transfer_to', { name: target.playerName }) }}
             </option>
           </select>
           <button
@@ -141,7 +145,7 @@
               })
             "
           >
-            🔄 转嫁惩罚
+            {{ $t('ctrl_action_transfer') }}
           </button>
         </template>
         <button
@@ -149,17 +153,17 @@
           class="btn btn-primary action-btn"
           @click="send({ type: 'punishment_intervention', action: 'immunity' })"
         >
-          🛡️ 免疫本次惩罚
+          {{ $t('ctrl_action_immunity') }}
         </button>
         <button
           v-if="pending.actions.includes('amplify')"
           class="btn btn-primary action-btn"
           @click="send({ type: 'punishment_intervention', action: 'amplify' })"
         >
-          🔥 加码为 2 倍
+          {{ $t('ctrl_action_amplify') }}
         </button>
         <button class="btn-ghost" @click="send({ type: 'decline_punishment_intervention' })">
-          不使用筹码
+          {{ $t('ctrl_decline_token') }}
         </button>
       </div>
     </div>
@@ -168,22 +172,22 @@
     <div v-else-if="pending.type === 'acknowledge'" class="action-group">
       <p class="action-prompt">{{ pending.message }}</p>
       <button class="btn btn-primary action-btn" @click="send({ type: 'acknowledge' })">
-        确认
+        {{ $t('ctrl_confirm') }}
       </button>
     </div>
 
     <!-- Tiebreak roll -->
     <div v-else-if="pending.type === 'tiebreak_roll'" class="action-group">
-      <p class="action-prompt">并列决胜</p>
+      <p class="action-prompt">{{ $t('ctrl_tiebreak_prompt') }}</p>
       <button class="btn btn-primary action-btn dice-btn" @click="send({ type: 'tiebreak_roll' })">
-        🎲 掷骰子
+        {{ $t('ctrl_roll_dice') }}
       </button>
     </div>
 
     <!-- Roll dice (explicit action required) -->
     <div v-else-if="pending.type === 'roll_dice'" class="action-group">
       <button class="btn btn-primary action-btn dice-btn" @click="send({ type: 'roll_dice' })">
-        🎲 掷骰子
+        {{ $t('ctrl_roll_dice') }}
       </button>
     </div>
   </div>

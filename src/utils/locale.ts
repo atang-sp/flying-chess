@@ -34,10 +34,16 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'it', name: '🇮🇹 Italiano' },
 ] as const
 
-/** Resolve the initial language: saved preference > 'zh'. */
+/** Resolve the initial language: saved preference > browser language > 'zh'. */
 function resolveInitialLanguage(): string {
   const saved = loadLocalePreference()
   if (saved) return saved
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    const nav = navigator.language.toLowerCase()
+    for (const lang of SUPPORTED_LANGUAGES) {
+      if (nav.startsWith(lang.code)) return lang.code
+    }
+  }
   return 'zh'
 }
 

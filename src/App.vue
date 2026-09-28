@@ -591,7 +591,9 @@
     if (!isPartyPunishmentCompleted(resolution)) return
     recordProgress({
       kind: 'punishment_completed',
-      playerName: gameState.players[resolution.targetPlayerIndex]?.name ?? '未命名玩家',
+      playerName:
+        gameState.players[resolution.targetPlayerIndex]?.name ??
+        localeContent.defaultPlayerName(resolution.targetPlayerIndex),
       count: resolution.count.value,
       variant: resolution.variant,
     })
@@ -771,18 +773,20 @@
         const targetPlayer = gameState.players[resolvedPunishment.targetPlayerIndex]
         const countLabel =
           resolvedPunishment.count.kind === 'fixed'
-            ? `${resolvedPunishment.count.value} 下`
-            : '次数待选'
+            ? t('board_cell_detail_strikes_value', { count: resolvedPunishment.count.value })
+            : t('ctrl_count_pending')
         interventionOptions.forEach(option => {
           if (!multiDevice.isRemotePlayer(option.playerIndex)) return
           multiDevice.requestAction(option.playerIndex, {
             type: 'punishment_intervention',
-            targetName: targetPlayer?.name ?? '当前玩家',
+            targetName: targetPlayer?.name ?? t('app_current_player'),
             countLabel,
             actions: option.actions,
             transferTargets: option.transferTargetPlayerIndices.map(targetPlayerIndex => ({
               playerIndex: targetPlayerIndex,
-              playerName: gameState.players[targetPlayerIndex]?.name ?? '玩家',
+              playerName:
+                gameState.players[targetPlayerIndex]?.name ??
+                localeContent.defaultPlayerName(targetPlayerIndex),
             })),
           })
         })
@@ -804,7 +808,8 @@
         : gameState.players[gameState.currentPlayerIndex]
     recordProgress({
       kind: 'mercy_requested',
-      playerName: progressTarget?.name ?? '未命名玩家',
+      playerName:
+        progressTarget?.name ?? localeContent.defaultPlayerName(gameState.currentPlayerIndex),
     })
 
     mercySource.value = source
@@ -1016,7 +1021,7 @@
         effect: resolvedCellEffect,
       })
       pendingRuleResolution.value = trapResolution
-      currentTrapDescription.value = trapResolution.description || '未知机关'
+      currentTrapDescription.value = trapResolution.description || t('board_cell_detail_trap')
       currentTrapVariant.value = trapResolution.trapVariant
       currentTrapChoiceA.value = trapResolution.choiceA ?? ''
       currentTrapChoiceB.value = trapResolution.choiceB ?? ''
@@ -1546,7 +1551,7 @@
     // 尝试读取本地单机对局快照（具有最高恢复优先级）
     const gameSnapshot = loadLocalGameSnapshot()
     if (gameSnapshot) {
-      if (window.confirm('检测到未完成的单机对局，是否恢复进度？')) {
+      if (window.confirm(t('resume_session_confirm'))) {
         localGameSession.restoreSnapshot(gameSnapshot.gameState)
         activeMode.value = gameSnapshot.activeMode
         if (gameSnapshot.activeMode) {
@@ -1901,10 +1906,7 @@
     }
 
     if (!validateConfigSnapshot(partyBoardConfig)) {
-      showError(
-        '升温局配置无效',
-        '当前惩罚配置无法满足升温局的暖场、升温或终局阶段约束。请调整工具强度、兼容部位或惩罚次数后重试。'
-      )
+      showError(t('party_invalid_config_title'), t('party_invalid_config_desc'))
       return false
     }
 
@@ -2162,8 +2164,11 @@
     )
     if (result.voteChoice && card.effect.kind === 'vote') {
       const tally = card.effect.options
-        .map((option, index) => `${option} ${result.voteCounts?.[index] ?? 0} 票`)
-        .join('，')
+        .map(
+          (option, index) =>
+            `${option} ${t('vote_count_unit', { count: result.voteCounts?.[index] ?? 0 })}`
+        )
+        .join(isChineseLocale() ? '，' : ', ')
       lastEffect.value = t('app_party_event_vote_result', {
         title: card.title,
         choice: result.voteChoice,
@@ -2467,12 +2472,18 @@
 
       // 显示移动路径信息或起飞信息
       if (canTakeOff) {
-        lastEffect.value = '起飞成功！移动到第1格'
+        lastEffect.value = t('takeoff_success_move_1')
       } else if (effect) {
         lastEffect.value = effect
       } else {
-        const fromText = fromPosition === 0 ? '起点' : `第${fromPosition}格`
-        const toText = newPosition === 0 ? '起点' : `第${newPosition}格`
+        const fromText =
+          fromPosition === 0
+            ? t('effect_display_origin')
+            : t('effect_display_cell_n', { n: fromPosition })
+        const toText =
+          newPosition === 0
+            ? t('effect_display_origin')
+            : t('effect_display_cell_n', { n: newPosition })
         lastEffect.value = `${fromText} → ${toText}`
       }
 
@@ -2662,18 +2673,21 @@
     toPosition: number,
     effectType: string
   ): string => {
-    const fromText = fromPosition === 0 ? '起点' : `第${fromPosition}格`
-    const toText = toPosition === 0 ? '起点' : `第${toPosition}格`
+    const fromText =
+      fromPosition === 0
+        ? t('effect_display_origin')
+        : t('effect_display_cell_n', { n: fromPosition })
+    const toText =
+      toPosition === 0 ? t('effect_display_origin') : t('effect_display_cell_n', { n: toPosition })
 
     switch (effectType) {
       case 'move':
-        return `${fromText} → ${toText}`
       case 'reverse':
         return `${fromText} → ${toText}`
       case 'restart':
-        return `${fromText} → 起点`
+        return `${fromText} → ${t('effect_display_origin')}`
       case 'rest':
-        return `在${fromText}休息一回合`
+        return t('app_rest_in_cell', { cell: fromText })
       default:
         return `${fromText} → ${toText}`
     }
@@ -2690,19 +2704,27 @@
       return getMoveDescription(originalPosition || 0, finalPosition, effectType)
     }
 
-    const originalText = originalPosition === 0 ? '起点' : `第${originalPosition}格`
-    const diceMoveText = diceMovePosition === 0 ? '起点' : `第${diceMovePosition}格`
-    const finalText = finalPosition === 0 ? '起点' : `第${finalPosition}格`
+    const originalText =
+      originalPosition === 0
+        ? t('effect_display_origin')
+        : t('effect_display_cell_n', { n: originalPosition })
+    const diceMoveText =
+      diceMovePosition === 0
+        ? t('effect_display_origin')
+        : t('effect_display_cell_n', { n: diceMovePosition })
+    const finalText =
+      finalPosition === 0
+        ? t('effect_display_origin')
+        : t('effect_display_cell_n', { n: finalPosition })
 
     switch (effectType) {
       case 'move':
-        return `${originalText} → ${diceMoveText} → ${finalText}`
       case 'reverse':
         return `${originalText} → ${diceMoveText} → ${finalText}`
       case 'restart':
-        return `${originalText} → ${diceMoveText} → 起点`
+        return `${originalText} → ${diceMoveText} → ${t('effect_display_origin')}`
       case 'rest':
-        return `${originalText} → ${diceMoveText} (休息一回合)`
+        return `${originalText} → ${diceMoveText} (${t('board_cell_rest_short')})`
       default:
         return `${originalText} → ${diceMoveText} → ${finalText}`
     }
