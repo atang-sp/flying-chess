@@ -118,12 +118,13 @@ body {
     BlinkMacSystemFont,
     'Segoe UI',
     Roboto,
-    Oxygen,
-    Ubuntu,
-    Cantarell,
-    'Fira Sans',
-    'Droid Sans',
     'Helvetica Neue',
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei',
+    'Hiragino Kaku Gothic ProN',
+    'Meiryo',
+    'Malgun Gothic',
     sans-serif;
   font-size: clamp(12px, 2.5vw, 16px);
   text-rendering: optimizeLegibility;
@@ -132,6 +133,7 @@ body {
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
   overflow-x: hidden;
+  overflow-wrap: break-word;
 }
 
 @media (max-width: 480px) {

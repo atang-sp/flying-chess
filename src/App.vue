@@ -1,6 +1,7 @@
 <script setup lang="ts">
   /* eslint-disable @typescript-eslint/ban-ts-comment */
   import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { useAuth } from './composables/useAuth'
   import { GameService } from './services/gameService'
   import { gameTelemetry } from './services/gameTelemetry'
@@ -184,14 +185,15 @@
   const partySession = computed(() => partyMode.session.value)
   const partyReaction = computed(() => partySession.value?.reaction ?? null)
   const partyHighlight = computed(() => partyMode.highlight.value)
+  const { t } = useI18n()
   const partyActLabel = computed(() => {
     switch (partySession.value?.act) {
       case 'heating':
-        return '升温'
+        return t('app_party_state_warming')
       case 'finale':
-        return '终局'
+        return t('app_party_state_finale')
       default:
-        return '暖场'
+        return t('app_party_state_warmup')
     }
   })
   const currentPartyTokens = computed(
@@ -4857,7 +4859,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0;
+    gap: 0.25rem;
+    flex-wrap: wrap;
     margin-bottom: clamp(1rem, 3vw, 1.5rem);
     padding: clamp(0.5rem, 2vw, 0.75rem) clamp(0.5rem, 2vw, 1rem);
     background: var(--bg-secondary);

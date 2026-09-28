@@ -660,7 +660,7 @@
                 class="scenario-card__quick-btn"
                 :class="{ 'scenario-card__quick-btn--featured': preset.featured }"
                 :data-testid="`quick-start-preset-${preset.id}`"
-                :title="`以【${preset.title}】一键开局`"
+                :title="$t('quick_start_preset', { title: preset.title })"
                 @click.stop="quickStartPreset(preset)"
               >
                 <Play :size="13" class="btn-play-icon" />
@@ -793,7 +793,7 @@
             <div class="count-controls">
               <button
                 class="btn btn-secondary count-btn minus"
-                aria-label="减少玩家人数"
+                :aria-label="$t('player_count_label')"
                 :disabled="playerCount <= 1"
                 @click="onPlayerCountChange(Math.max(1, playerCount - 1))"
               >
@@ -805,7 +805,7 @@
               </div>
               <button
                 class="btn btn-secondary count-btn plus"
-                aria-label="增加玩家人数"
+                :aria-label="$t('player_count_label')"
                 @click="onPlayerCountChange(playerCount + 1)"
               >
                 <Plus :size="18" />
@@ -826,7 +826,7 @@
                   type="text"
                   :value="name"
                   class="name-input"
-                  :placeholder="`玩家${index + 1}`"
+                  :placeholder="localeContent.defaultPlayerName(index)"
                   maxlength="10"
                   @input="updatePlayerName(index, ($event.target as HTMLInputElement).value)"
                 />
@@ -900,7 +900,7 @@
       </div>
 
       <!-- 高级局况定制与工坊（置于开始按钮下方，按需定制） -->
-      <section class="advanced-settings-section" aria-label="局况定制与工坊">
+      <section class="advanced-settings-section" :aria-label="$t('advanced_settings_workshop')">
         <VictoryConfigPanel
           v-if="selectedMode === 'party'"
           :config="victoryConfig"
@@ -935,7 +935,7 @@
         <div class="cache-controls">
           <button
             class="btn btn-danger clear-cache-btn"
-            title="清除保存在此设备上的游戏配置、玩家设置和引导偏好"
+            :title="$t('clear_cache_hint')"
             @click="clearCache"
           >
             <Eraser :size="16" />
@@ -995,7 +995,6 @@
     position: relative;
     overflow-x: hidden;
     overflow-y: auto;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   }
 
   /* 语言选择器 / Language Switcher */
@@ -1447,6 +1446,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .scenario-card__title {
@@ -1463,6 +1463,7 @@
     background: rgba(148, 163, 184, 0.15);
     color: var(--text-secondary);
     white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .scenario-card--featured .scenario-card__badge {
@@ -1479,7 +1480,8 @@
   .scenario-card__meta {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.4rem 0.75rem;
+    flex-wrap: wrap;
     margin-top: 0.35rem;
     font-size: 0.72rem;
     color: var(--text-muted);
@@ -1582,7 +1584,7 @@
     display: grid;
     grid-template-columns: auto 1fr;
     gap: 0.85rem;
-    min-height: 132px;
+    min-height: auto;
     padding: 1.1rem;
     color: var(--text-primary);
     text-align: left;
@@ -1612,6 +1614,7 @@
     justify-content: space-between;
     gap: 0.5rem;
     margin-bottom: 0.25rem;
+    flex-wrap: wrap;
   }
 
   .mode-card__badge--featured {
@@ -1672,16 +1675,23 @@
   }
 
   .mode-card__badge {
-    position: absolute;
-    right: 0.75rem;
-    bottom: 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.5rem;
+    border-radius: 9999px;
     color: #c7d2fe;
+    background: rgba(255, 255, 255, 0.08);
     font-size: 0.68rem;
+    font-weight: 700;
     letter-spacing: 0.04em;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .mode-card__badge--party {
     color: #fecdd3;
+    background: rgba(244, 63, 94, 0.2);
+    border: 1px solid rgba(244, 63, 94, 0.35);
   }
 
   .player-settings {
@@ -1945,6 +1955,14 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
+  }
+
+  .quick-start-btn .btn-text,
+  .start-btn .btn-text {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.25;
+    word-break: break-word;
   }
 
   .game-info {

@@ -50,7 +50,7 @@
       <header class="victory-header">
         <div class="finish-mark" aria-hidden="true">
           <img :src="finishFlagUrl" alt="" />
-          <span>FINISH</span>
+          <span>{{ $t('board_cell_finish_label') }}</span>
         </div>
         <div class="victory-copy">
           <p>{{ $t('victory_screen_log') }}</p>

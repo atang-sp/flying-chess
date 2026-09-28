@@ -42,7 +42,7 @@
     :aria-label="$t('game_turn_dock_aria')"
   >
     <div v-if="currentPlayer" class="turn-player">
-      <span class="turn-kicker">CURRENT TURN</span>
+      <span class="turn-kicker">{{ $t('game_turn_dock_aria') }}</span>
       <div class="player-line">
         <PlayerMeeple
           :color="currentPlayer.color"
@@ -195,7 +195,10 @@
     color: #d8c49e;
     font-size: 0.62rem;
     font-weight: 700;
-    white-space: nowrap;
+    text-align: center;
+    line-height: 1.2;
+    max-width: 100px;
+    word-break: break-word;
     transition:
       color 0.25s ease,
       text-shadow 0.25s ease;

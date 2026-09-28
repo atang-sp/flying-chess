@@ -29,6 +29,9 @@ function resolveInitialLanguage(): string {
 
 /** BCP-47 tag resolved at module-load time.  May be overridden via `setActiveLanguage`. */
 export let activeLanguage: string = resolveInitialLanguage()
+if (typeof document !== 'undefined') {
+  document.documentElement.lang = activeLanguage
+}
 
 /** Stable singleton for the detected locale. */
 export let localeContent: LocaleContent = getLocaleContent(activeLanguage)
@@ -42,6 +45,9 @@ export function setActiveLanguage(language: string): LocaleContent {
   activeLanguage = language
   localeContent = getLocaleContent(language)
   saveLocalePreference(language)
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = language
+  }
   if (i18n.global) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     i18n.global.locale.value = language as any
