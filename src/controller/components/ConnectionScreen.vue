@@ -25,16 +25,16 @@
     <div class="connection-card">
       <div class="logo-area">
         <span class="logo-icon">🎮</span>
-        <h1>飞行棋手柄</h1>
+        <h1>{{ $t('ctrl_app_title') }}</h1>
       </div>
 
       <template v-if="status === 'disconnected'">
-        <p class="hint">同一 WiFi 下，将主屏的“局域网配对邀请”粘贴到这里。</p>
+        <p class="hint">{{ $t('ctrl_connect_hint') }}</p>
         <form class="room-form" @submit.prevent="handleConnect">
           <textarea
             v-model="pairingOffer"
             class="pairing-textarea"
-            placeholder="粘贴主屏配对邀请 JSON"
+            :placeholder="$t('ctrl_connect_placeholder')"
             autocomplete="off"
             autofocus
             data-testid="lan-pairing-offer-input"
@@ -44,7 +44,7 @@
             class="btn btn-primary connect-btn"
             :disabled="!pairingOffer.trim()"
           >
-            生成配对应答
+            {{ $t('ctrl_connect_generate') }}
           </button>
         </form>
         <p v-if="error" class="error-text">{{ error }}</p>
@@ -53,7 +53,7 @@
       <template v-else-if="status === 'connecting'">
         <div class="connecting-indicator">
           <template v-if="pairingAnswer">
-            <p>把下面的配对应答复制回主屏；数据连接将直接在局域网内建立。</p>
+            <p>{{ $t('ctrl_connect_response_hint') }}</p>
             <textarea
               class="pairing-textarea"
               :value="pairingAnswer"

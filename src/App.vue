@@ -37,6 +37,7 @@
     Pause,
     Home,
     User,
+    Languages,
   } from '@lucide/vue'
   import type {
     Player,
@@ -119,7 +120,13 @@
     validateConfigSnapshot,
     validateTrapConfig,
   } from '@flying-chess/game-core/config'
-  import { localeContent } from './utils/locale'
+  import {
+    localeContent,
+    setActiveLanguage,
+    currentLanguageRef,
+    SUPPORTED_LANGUAGES,
+    isChineseLocale,
+  } from './utils/locale'
   import {
     createPartyPunishmentChoices,
     getActConstraints,
@@ -204,6 +211,13 @@
   )
   const partyRewardNotice = ref('')
   let partyRewardNoticeTimer: ReturnType<typeof setTimeout> | null = null
+  const showLanguageMenu = ref(false)
+  const currentLanguage = currentLanguageRef
+  const supportedLanguages = SUPPORTED_LANGUAGES
+  const handleSwitchLanguage = (lang: string) => {
+    setActiveLanguage(lang)
+    showLanguageMenu.value = false
+  }
   const canCurrentPlayerReroll = computed(
     () =>
       currentPartyTokens.value > 0 &&
@@ -579,10 +593,12 @@
       const previous = previousTokens[playerIndex] ?? 0
       const next = nextTokens[playerIndex] ?? 0
       if (next <= previous) return []
-      return [`${gameState.players[playerIndex]?.name ?? '玩家'} 获得 1 枚气势筹码（${next}/3）`]
+      const playerName =
+        gameState.players[playerIndex]?.name ?? localeContent.defaultPlayerName(playerIndex)
+      return [t('app_party_token_reward', { name: playerName, next })]
     })
     if (rewarded.length === 0) return
-    partyRewardNotice.value = rewarded.join('；')
+    partyRewardNotice.value = rewarded.join(isChineseLocale() ? '；' : '; ')
     if (partyRewardNoticeTimer) clearTimeout(partyRewardNoticeTimer)
     partyRewardNoticeTimer = setTimeout(() => {
       partyRewardNotice.value = ''
@@ -677,7 +693,10 @@
     const resolution = boundPartyPunishments.value.shift()
     if (!resolution) return false
     displayedBoundPunishment.value = true
-    lastEffect.value = `${gameState.players[resolution.targetPlayerIndex]?.name ?? '绑定玩家'} 共同承担本次惩罚`
+    const boundName =
+      gameState.players[resolution.targetPlayerIndex]?.name ??
+      localeContent.defaultPlayerName(resolution.targetPlayerIndex)
+    lastEffect.value = t('app_party_bound_punishment', { name: boundName })
     presentResolvedPunishment(
       resolution,
       gameState.players[resolution.actorIndex],
@@ -874,7 +893,7 @@
 
     if (hasLandingTrigger) {
       if (effectChainCount.value >= MAX_EFFECT_CHAIN_COUNT) {
-        lastEffect.value = `连锁效果超过${MAX_EFFECT_CHAIN_COUNT}次，已强制结束本回合`
+        lastEffect.value = t('app_chain_limit_exceeded', { max: MAX_EFFECT_CHAIN_COUNT })
         await continueAfterMove()
         return
       }
@@ -1169,11 +1188,13 @@
         gameState.players.length
       )
       partyMode.spendToken(outcome.spentByPlayerIndex, outcome.action)
-      const playerName = gameState.players[outcome.spentByPlayerIndex]?.name ?? '玩家'
+      const playerName =
+        gameState.players[outcome.spentByPlayerIndex]?.name ??
+        localeContent.defaultPlayerName(outcome.spentByPlayerIndex)
 
       if (!outcome.resolution) {
         localPartyMomentum.cancel()
-        lastEffect.value = `${playerName} 使用免疫，取消了本次惩罚`
+        lastEffect.value = t('app_party_immune_used', { name: playerName })
         pendingRuleResolution.value = null
         gameState.gameStatus = 'waiting'
         await continueAfterPunishment()
@@ -1192,10 +1213,13 @@
         ])
       }
       const resolvedTarget = gameState.players[outcome.resolution.targetPlayerIndex]
+      const targetName =
+        resolvedTarget?.name ??
+        localeContent.defaultPlayerName(outcome.resolution.targetPlayerIndex)
       lastEffect.value =
         outcome.action === 'transfer'
-          ? `${playerName} 把惩罚转嫁给了 ${resolvedTarget?.name ?? '其他玩家'}`
-          : `${playerName} 把本次惩罚加码为 2 倍`
+          ? t('app_party_transfer_used', { name: playerName, target: targetName })
+          : t('app_party_amplify_used', { name: playerName })
       queueBoundPunishmentIfNeeded(outcome.resolution)
       presentResolvedPunishment(
         outcome.resolution,
@@ -1225,8 +1249,8 @@
       pendingRuleResolution.value = resolved
       currentPunishment.value = toMutablePunishmentAction(resolved.action)
       lastEffect.value = action.conditionMet
-        ? `条件“${action.condition}”已完成，本次惩罚减半`
-        : `条件“${action.condition}”未完成，本次惩罚照常执行`
+        ? t('app_party_condition_met', { condition: action.condition })
+        : t('app_party_condition_failed', { condition: action.condition })
       return
     }
 
@@ -1240,8 +1264,10 @@
       resolution: deferredResolution,
       momentum: localPartyMomentum.defer(),
     })
-    const targetName = gameState.players[deferredResolution.targetPlayerIndex]?.name ?? '受罚玩家'
-    lastEffect.value = `${targetName} 的惩罚已延迟到其下一个回合开始前`
+    const targetName =
+      gameState.players[deferredResolution.targetPlayerIndex]?.name ??
+      localeContent.defaultPlayerName(deferredResolution.targetPlayerIndex)
+    lastEffect.value = t('app_party_defer_queued', { name: targetName })
     await skipPunishment()
   }
 
@@ -1258,7 +1284,10 @@
     displayedPunishmentResumesTurn.value = true
     const triggeringPlayer = gameState.players[resolution.actorIndex]
     presentResolvedPunishment(resolution, triggeringPlayer, gameState.diceValue ?? undefined)
-    lastEffect.value = `${gameState.players[resolution.targetPlayerIndex]?.name ?? '当前玩家'} 的延迟惩罚现在执行`
+    const currentTargetName =
+      gameState.players[resolution.targetPlayerIndex]?.name ??
+      localeContent.defaultPlayerName(resolution.targetPlayerIndex)
+    lastEffect.value = t('app_party_defer_executed', { name: currentTargetName })
     return true
   }
 
@@ -2115,15 +2144,22 @@
       const tally = card.effect.options
         .map((option, index) => `${option} ${result.voteCounts?.[index] ?? 0} 票`)
         .join('，')
-      lastEffect.value = `事件“${card.title}”投票结果：${result.voteChoice}（${tally}）`
+      lastEffect.value = t('app_party_event_vote_result', {
+        title: card.title,
+        choice: result.voteChoice,
+        tally,
+      })
     } else if (result.rpsWinnerPlayerIndices) {
       const winners = result.rpsWinnerPlayerIndices
-        .map(index => gameState.players[index]?.name)
+        .map(index => gameState.players[index]?.name ?? localeContent.defaultPlayerName(index))
         .filter(Boolean)
-        .join('、')
-      lastEffect.value = `事件“${card.title}”猜拳结果：${winners || '全员'}获胜`
+        .join(isChineseLocale() ? '、' : ', ')
+      lastEffect.value = t('app_party_event_rps_result', {
+        title: card.title,
+        winners: winners || t('app_party_event_rps_all'),
+      })
     } else {
-      lastEffect.value = `事件“${card.title}”已激活`
+      lastEffect.value = t('app_party_event_activated', { title: card.title })
     }
     currentPartyEvent.value = null
     gameState.gameStatus = 'waiting'
@@ -2319,7 +2355,7 @@
     const pendingTurn = consumePendingSkippedTurn(currentPlayer)
     if (pendingTurn.shouldSkip) {
       gameState.players[currentPlayerIndex] = pendingTurn.player
-      lastEffect.value = `${currentPlayer.name}休息一回合，本回合已跳过`
+      lastEffect.value = t('app_rest_skip_turn', { name: currentPlayer.name })
       advanceToNextPlayablePlayer()
       return
     }
@@ -2682,7 +2718,7 @@
       if (!consumedTurn.shouldSkip) break
 
       gameState.players[playerIndex] = consumedTurn.player
-      lastEffect.value = `${player.name}休息一回合，本回合已跳过`
+      lastEffect.value = t('app_rest_skip_turn', { name: player.name })
       if (completePartyTurnForPlayer(playerIndex) === 'ended') return
       gameState.currentPlayerIndex = GameService.getNextPlayer(
         playerIndex,
@@ -2765,7 +2801,7 @@
       ) {
         const returnedResolution = createMutualPunishmentReturn(punishmentResolution)
         mercyRequested.value = true
-        lastEffect.value = '双向惩罚第一次已完成，现在交换角色执行第二次'
+        lastEffect.value = t('app_party_mutual_next')
         presentResolvedPunishment(
           returnedResolution,
           gameState.players[returnedResolution.actorIndex],
@@ -2782,7 +2818,7 @@
       ) {
         const returnedResolution = createEncorePunishmentReturn(punishmentResolution)
         mercyRequested.value = true
-        lastEffect.value = '返场惩罚第一次已完成，现在由同一玩家执行减半后的第二次'
+        lastEffect.value = t('app_party_encore_next')
         presentResolvedPunishment(
           returnedResolution,
           gameState.players[returnedResolution.actorIndex],
@@ -3061,7 +3097,7 @@
       ) {
         const returnedResolution = createMutualPunishmentReturn(punishmentResolution)
         mercyRequested.value = true
-        lastEffect.value = '双向惩罚第一次已完成，现在交换角色执行第二次'
+        lastEffect.value = t('app_party_mutual_next')
         presentResolvedPunishment(
           returnedResolution,
           gameState.players[returnedResolution.actorIndex],
@@ -3077,7 +3113,7 @@
       ) {
         const returnedResolution = createEncorePunishmentReturn(punishmentResolution)
         mercyRequested.value = true
-        lastEffect.value = '返场惩罚第一次已完成，现在由同一玩家执行减半后的第二次'
+        lastEffect.value = t('app_party_encore_next')
         presentResolvedPunishment(
           returnedResolution,
           gameState.players[returnedResolution.actorIndex],
@@ -3205,25 +3241,25 @@
   const gameStatusText = computed(() => {
     switch (gameState.gameStatus) {
       case 'waiting':
-        return '等待玩家操作'
+        return t('game_controls_status_waiting')
       case 'rolling':
-        return '骰子滚动中'
+        return t('game_controls_status_rolling')
       case 'moving':
-        return '棋子移动中'
+        return t('game_controls_status_moving')
       case 'showing_effect':
-        return '显示效果中'
+        return t('game_controls_status_showing_effect')
       case 'finished':
-        return '游戏结束'
+        return t('game_controls_status_finished')
       case 'configuring':
-        return '配置中'
+        return t('game_controls_status_configuring')
       case 'intro':
-        return '开始页面'
+        return t('game_controls_status_intro')
       case 'board_settings':
-        return '棋盘设置'
+        return t('game_controls_status_board_settings')
       case 'settings':
-        return '惩罚设置'
+        return t('game_controls_status_settings')
       default:
-        return '未知状态'
+        return t('game_controls_status_unknown')
     }
   })
 
@@ -3360,7 +3396,7 @@
 
   const exitToHome = () => {
     if (gameStarted.value && !gameFinished.value) {
-      if (!confirm('确定要退出当前游戏返回主页吗？未保存的进度将会丢失。')) {
+      if (!confirm(t('app_confirm_exit_game'))) {
         return
       }
     }
@@ -3526,38 +3562,40 @@
     }
   }
 
-  // 开始页面引导
-  const startIntroGuide = () => {
-    const driver = createDriver({
+  const createGuideDriver = () =>
+    createDriver({
       allowClose: true,
       overlayOpacity: 0.4,
-      nextBtnText: '下一步',
-      prevBtnText: '上一步',
-      doneBtnText: '完成',
+      nextBtnText: t('guide_btn_next'),
+      prevBtnText: t('guide_btn_prev'),
+      doneBtnText: t('guide_btn_done'),
     })
+
+  // 开始页面引导
+  const startIntroGuide = () => {
+    const driver = createGuideDriver()
     driver.setSteps([
       {
         element: '.game-title',
         popover: {
-          title: '欢迎来到惩罚飞行棋！',
-          description: '这是一个刺激有趣的飞行棋游戏，支持自定义惩罚机制',
+          title: t('guide_intro_welcome_title'),
+          description: t('guide_intro_welcome_desc'),
           position: 'bottom',
         },
       },
       {
         element: '.player-settings',
         popover: {
-          title: '玩家设置',
-          description: '设置游戏的玩家数量和昵称',
+          title: t('guide_intro_players_title'),
+          description: t('guide_intro_players_desc'),
           position: 'top',
         },
       },
-
       {
         element: '.start-btn',
         popover: {
-          title: '开始游戏',
-          description: '点击开始游戏，进入棋盘设置页面进行详细配置',
+          title: t('guide_intro_start_title'),
+          description: t('guide_intro_start_desc'),
           position: 'top',
         },
       },
@@ -3567,44 +3605,37 @@
 
   // 棋盘设置页面引导
   const startBoardSettingsGuide = () => {
-    const driver = createDriver({
-      allowClose: true,
-      overlayOpacity: 0.4,
-      nextBtnText: '下一步',
-      prevBtnText: '上一步',
-      doneBtnText: '完成',
-    })
+    const driver = createGuideDriver()
     driver.setSteps([
       {
         element: '.settings-header',
         popover: {
-          title: '棋盘设置',
-          description: '在这里配置游戏棋盘的基本参数',
+          title: t('guide_board_title'),
+          description: t('guide_board_desc'),
           position: 'bottom',
         },
       },
       {
         element: '.board-config',
         popover: {
-          title: '格子数量配置',
-          description: '设置不同类型格子的数量：惩罚格、奖励格、特殊格子等',
+          title: t('guide_board_cells_title'),
+          description: t('guide_board_cells_desc'),
           position: 'right',
         },
       },
       {
         element: '.trap-config',
         popover: {
-          title: '机关陷阱配置',
-          description: '配置棋盘上的机关陷阱，增加游戏的刺激性和随机性',
+          title: t('guide_board_traps_title'),
+          description: t('guide_board_traps_desc'),
           position: 'right',
         },
       },
-
       {
         element: '.page-actions',
         popover: {
-          title: '操作按钮',
-          description: '可以返回上一页或进入下一步的惩罚设置',
+          title: t('guide_board_actions_title'),
+          description: t('guide_board_actions_desc'),
           position: 'top',
         },
       },
@@ -3614,51 +3645,45 @@
 
   // 惩罚设置页面引导
   const startPunishmentSettingsGuide = () => {
-    const driver = createDriver({
-      allowClose: true,
-      overlayOpacity: 0.4,
-      nextBtnText: '下一步',
-      prevBtnText: '上一步',
-      doneBtnText: '完成',
-    })
+    const driver = createGuideDriver()
     driver.setSteps([
       {
         element: '.settings-header',
         popover: {
-          title: '惩罚设置',
-          description: '在这里配置游戏中的惩罚内容',
+          title: t('guide_punishment_title'),
+          description: t('guide_punishment_desc'),
           position: 'bottom',
         },
       },
       {
         element: '.config-section:nth-child(1)',
         popover: {
-          title: '惩罚工具',
-          description: '选择和配置惩罚中使用的工具，每种工具有不同的强度和比例',
+          title: t('guide_punishment_tools_title'),
+          description: t('guide_punishment_tools_desc'),
           position: 'right',
         },
       },
       {
         element: '.config-section:nth-child(2)',
         popover: {
-          title: '身体部位',
-          description: '选择和配置惩罚的身体部位，每个部位有不同的敏感度',
+          title: t('guide_punishment_body_title'),
+          description: t('guide_punishment_body_desc'),
           position: 'right',
         },
       },
       {
         element: '.config-section:nth-child(3)',
         popover: {
-          title: '受罚姿势',
-          description: '配置受罚时的姿势，不同姿势有不同的难度',
+          title: t('guide_punishment_posture_title'),
+          description: t('guide_punishment_posture_desc'),
           position: 'right',
         },
       },
       {
         element: '.config-section:nth-child(4)',
         popover: {
-          title: '惩罚次数',
-          description: '设置惩罚的最小和最大次数范围，以及最大起飞失败次数',
+          title: t('guide_punishment_counts_title'),
+          description: t('guide_punishment_counts_desc'),
           position: 'right',
         },
       },
@@ -3668,35 +3693,29 @@
 
   // 游戏页面引导
   const startGameGuide = () => {
-    const driver = createDriver({
-      allowClose: true,
-      overlayOpacity: 0.4,
-      nextBtnText: '下一步',
-      prevBtnText: '上一步',
-      doneBtnText: '完成',
-    })
+    const driver = createGuideDriver()
     driver.setSteps([
       {
         element: '.dice-container',
         popover: {
-          title: '骰子区域',
-          description: '点击骰子开始掷骰子，看看能否起飞或移动多少步！',
+          title: t('guide_game_dice_title'),
+          description: t('guide_game_dice_desc'),
           position: 'bottom',
         },
       },
       {
         element: '.player-status-section',
         popover: {
-          title: '游戏状态',
-          description: '查看当前回合数、游戏状态和当前玩家信息',
+          title: t('guide_game_status_title'),
+          description: t('guide_game_status_desc'),
           position: 'left',
         },
       },
       {
         element: '.board-section',
         popover: {
-          title: '游戏棋盘',
-          description: '这里是主要的游戏区域，显示棋盘和玩家的飞机位置',
+          title: t('guide_game_board_title'),
+          description: t('guide_game_board_desc'),
           position: 'top',
         },
       },
@@ -3706,43 +3725,37 @@
 
   // 惩罚确认页面引导
   const startPunishmentConfirmationGuide = () => {
-    const driver = createDriver({
-      allowClose: true,
-      overlayOpacity: 0.4,
-      nextBtnText: '下一步',
-      prevBtnText: '上一步',
-      doneBtnText: '完成',
-    })
+    const driver = createGuideDriver()
     driver.setSteps([
       {
         element: '.step-indicator',
         popover: {
-          title: '惩罚组合确认',
-          description: '系统已为你生成了惩罚组合，可以点击"配置"返回修改设置',
+          title: t('guide_confirm_title'),
+          description: t('guide_confirm_desc'),
           position: 'bottom',
         },
       },
       {
         element: '.stats-summary',
         popover: {
-          title: '分布统计',
-          description: '环形图实时显示工具、部位和姿势的分布情况，删除组合时会自动更新',
+          title: t('guide_confirm_stats_title'),
+          description: t('guide_confirm_stats_desc'),
           position: 'bottom',
         },
       },
       {
         element: '.combinations-list',
         popover: {
-          title: '组合列表',
-          description: '点击任意组合查看详情，在详情中可以删除或恢复组合',
+          title: t('guide_confirm_list_title'),
+          description: t('guide_confirm_list_desc'),
           position: 'right',
         },
       },
       {
         element: '.confirm-actions',
         popover: {
-          title: '操作按钮',
-          description: '可以重新生成组合或确认当前组合开始游戏',
+          title: t('guide_confirm_actions_title'),
+          description: t('guide_confirm_actions_desc'),
           position: 'top',
         },
       },
@@ -3752,19 +3765,13 @@
 
   // 默认引导（兼容性）
   const startDefaultGuide = () => {
-    const driver = createDriver({
-      allowClose: true,
-      overlayOpacity: 0.4,
-      nextBtnText: '下一步',
-      prevBtnText: '上一步',
-      doneBtnText: '完成',
-    })
+    const driver = createGuideDriver()
     driver.setSteps([
       {
         element: '.app',
         popover: {
-          title: '惩罚飞行棋',
-          description: '欢迎使用惩罚飞行棋游戏！点击右下角的帮助按钮可以获取当前页面的详细引导。',
+          title: t('guide_default_title'),
+          description: t('guide_default_desc'),
           position: 'center',
         },
       },
@@ -4625,6 +4632,33 @@
 
     <!-- 用户引导按钮和设置 -->
     <div class="guide-controls">
+      <!-- 语言切换按钮与下拉菜单 -->
+      <div class="lang-controls">
+        <button
+          class="lang-btn"
+          :title="$t('app_language_selector_title')"
+          data-testid="app-language-btn"
+          @click="showLanguageMenu = !showLanguageMenu"
+        >
+          <Languages :size="20" />
+        </button>
+
+        <div v-if="showLanguageMenu" class="lang-menu glass-card">
+          <div class="lang-menu-title">{{ $t('app_language_selector_label') }}</div>
+          <div class="lang-options">
+            <button
+              v-for="lang in supportedLanguages"
+              :key="lang.code"
+              class="lang-option-btn"
+              :class="{ active: currentLanguage === lang.code }"
+              @click="handleSwitchLanguage(lang.code)"
+            >
+              {{ lang.name }}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- 配置导出按钮 -->
       <button class="export-btn" :title="$t('config_export_title')" @click="openConfigExport">
         <Upload :size="20" />
@@ -5285,7 +5319,8 @@
   }
 
   .export-btn,
-  .auth-btn {
+  .auth-btn,
+  .lang-btn {
     background: rgba(59, 130, 246, 0.75);
     color: white;
     border: 1px solid rgba(59, 130, 246, 0.35);
@@ -5304,11 +5339,87 @@
   }
 
   .export-btn:hover,
-  .auth-btn:hover {
+  .auth-btn:hover,
+  .lang-btn:hover {
     transform: translateY(-2px);
     background: rgba(59, 130, 246, 0.9);
     border-color: rgba(59, 130, 246, 0.5);
     box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
+  }
+
+  /* 语言切换按钮与菜单 */
+  .lang-controls {
+    position: relative;
+  }
+
+  .lang-btn {
+    background: rgba(16, 185, 129, 0.75);
+    border-color: rgba(16, 185, 129, 0.35);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
+  }
+
+  .lang-btn:hover {
+    background: rgba(16, 185, 129, 0.9);
+    border-color: rgba(16, 185, 129, 0.5);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+  }
+
+  .lang-menu {
+    position: absolute;
+    top: 0;
+    left: calc(100% + 0.75rem);
+    min-width: 170px;
+    background: rgba(15, 23, 42, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 0.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    z-index: 1200;
+    backdrop-filter: blur(12px);
+  }
+
+  .lang-menu-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted, #94a3b8);
+    padding: 0.25rem 0.5rem 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 0.25rem;
+  }
+
+  .lang-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+
+  .lang-option-btn {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.35rem 0.6rem;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #e2e8f0;
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+  }
+
+  .lang-option-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+
+  .lang-option-btn.active {
+    background: rgba(16, 185, 129, 0.25);
+    color: #34d399;
+    font-weight: 600;
   }
 
   .export-icon {
@@ -5531,7 +5642,9 @@
       bottom: calc(max(0.45rem, env(safe-area-inset-bottom)) + 99px);
     }
 
-    .export-btn {
+    .export-btn,
+    .auth-btn,
+    .lang-btn {
       width: 50px;
       height: 50px;
       font-size: 1rem;

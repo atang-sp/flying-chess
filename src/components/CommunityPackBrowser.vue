@@ -3,13 +3,16 @@
   import { useI18n } from 'vue-i18n'
   import { CloudDownload, Link, Star } from '@lucide/vue'
   import {
+    getLocalizedPackDescription,
+    getLocalizedPackTags,
+    getLocalizedPackTitle,
     loadCommunityCatalog,
     loadRemoteCommunityPack,
     type CommunityCatalogEntry,
     type CommunityPack,
   } from '../services/communityPacks'
 
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   const emit = defineEmits<{ (event: 'apply', pack: CommunityPack): void }>()
   const catalog = ref<readonly CommunityCatalogEntry[]>([])
@@ -24,7 +27,7 @@
     try {
       const pack = await loadRemoteCommunityPack(url)
       emit('apply', pack)
-      status.value = t('community_loaded', { title: pack.title })
+      status.value = t('community_loaded', { title: getLocalizedPackTitle(pack, locale.value) })
     } catch (error) {
       status.value = error instanceof Error ? error.message : t('community_load_failed')
     } finally {
@@ -55,15 +58,15 @@
       <div v-if="catalog.length" class="pack-grid">
         <article v-for="entry in catalog" :key="entry.id">
           <div class="pack-heading">
-            <strong>{{ entry.title }}</strong>
+            <strong>{{ getLocalizedPackTitle(entry, locale) }}</strong>
             <span>
               <Star :size="14" />
               {{ entry.rating.toFixed(1) }}
             </span>
           </div>
-          <p>{{ entry.description }}</p>
+          <p>{{ getLocalizedPackDescription(entry, locale) }}</p>
           <div class="tags">
-            <span v-for="tag in entry.tags" :key="tag">{{ tag }}</span>
+            <span v-for="tag in getLocalizedPackTags(entry, locale)" :key="tag">{{ tag }}</span>
           </div>
           <button
             type="button"

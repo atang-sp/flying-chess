@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { computed } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import type { PlayerView } from '../../types/network'
   import MiniBoard from './MiniBoard.vue'
   import ActionPanel from './ActionPanel.vue'
@@ -14,11 +15,20 @@
     action: [payload: { type: string; [key: string]: unknown }]
   }>()
 
+  const { t } = useI18n()
   const myPlayer = computed(() => props.view.allPlayers[props.view.myIndex])
 
   const actLabel = computed(() => {
-    const map: Record<string, string> = { warmup: '暖场', heating: '升温', finale: '终局' }
-    return map[props.view.currentAct] ?? props.view.currentAct
+    switch (props.view.currentAct) {
+      case 'warmup':
+        return t('ctrl_stage_warmup')
+      case 'heating':
+        return t('ctrl_stage_heating')
+      case 'finale':
+        return t('ctrl_stage_finale')
+      default:
+        return props.view.currentAct
+    }
   })
 
   const showDice = computed(
@@ -37,20 +47,22 @@
     <header class="controller-header">
       <div class="player-identity">
         <span class="player-dot" :style="{ background: myPlayer?.color ?? '#888' }" />
-        <span class="player-name">{{ myPlayer?.name ?? '玩家' }}</span>
+        <span class="player-name">{{ myPlayer?.name ?? $t('party_event_player') }}</span>
         <ConnectionStatus status="connected" />
       </div>
       <div class="game-meta">
         <span class="act-badge">{{ actLabel }}</span>
         <span class="round-label">R{{ view.roundNumber }}</span>
-        <span class="token-badge" title="干预筹码">🎫 {{ view.tokensRemaining }}</span>
+        <span class="token-badge" :title="$t('ctrl_tokens_aria')">
+          🎫 {{ view.tokensRemaining }}
+        </span>
       </div>
     </header>
 
     <MiniBoard :players="view.allPlayers" :my-index="view.myIndex" :board-size="view.boardSize" />
 
     <div class="turn-indicator" :class="{ active: view.isMyTurn }">
-      {{ view.isMyTurn ? '你的回合' : '等待其他玩家...' }}
+      {{ view.isMyTurn ? $t('ctrl_turn_yours') : $t('ctrl_turn_waiting') }}
     </div>
 
     <!-- Dice area when it's my turn and no pending action -->

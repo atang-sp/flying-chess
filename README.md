@@ -1,5 +1,7 @@
 # 🎲 惩罚飞行棋（Ludo Punishment Game）
 
+[English](README.en.md) | [中文文档](README.md)
+
 一个基于 **Vue 3 + TypeScript** 的创新飞行棋游戏，支持自定义惩罚机制、机关陷阱、匿名统计和多端适配。适合聚会、娱乐和“自律”场景。
 
 ---
@@ -254,4 +256,4 @@ MIT License
 
 ---
 
-如需英文版或更详细的开发文档，请联系维护者。
+英文版使用文档请参见 [README.en.md](README.en.md)。如需更多开发支持，欢迎提交 Issue。

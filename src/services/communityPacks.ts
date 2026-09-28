@@ -10,8 +10,11 @@ export interface CommunityPackMetadata {
   readonly schemaVersion: 1
   readonly id: string
   readonly title: string
+  readonly title_i18n?: Readonly<Record<string, string>>
   readonly description: string
+  readonly description_i18n?: Readonly<Record<string, string>>
   readonly tags: readonly string[]
+  readonly tags_i18n?: Readonly<Record<string, readonly string[]>>
   readonly rating: number
 }
 
@@ -45,6 +48,26 @@ const validateMetadata = (value: unknown): CommunityPackValidation => {
       return { ok: false, error: `社区配置包 ${field} 无效` }
     }
   }
+  if (value.title_i18n !== undefined) {
+    if (
+      !isRecord(value.title_i18n) ||
+      Object.values(value.title_i18n).some(
+        text => typeof text !== 'string' || !text.trim() || text.length > 240
+      )
+    ) {
+      return { ok: false, error: '社区配置包 title_i18n 无效' }
+    }
+  }
+  if (value.description_i18n !== undefined) {
+    if (
+      !isRecord(value.description_i18n) ||
+      Object.values(value.description_i18n).some(
+        text => typeof text !== 'string' || !text.trim() || text.length > 240
+      )
+    ) {
+      return { ok: false, error: '社区配置包 description_i18n 无效' }
+    }
+  }
   if (
     !Array.isArray(value.tags) ||
     value.tags.length === 0 ||
@@ -53,10 +76,60 @@ const validateMetadata = (value: unknown): CommunityPackValidation => {
   ) {
     return { ok: false, error: '社区配置包标签必须包含 1–8 个短标签' }
   }
+  if (value.tags_i18n !== undefined) {
+    if (
+      !isRecord(value.tags_i18n) ||
+      Object.values(value.tags_i18n).some(
+        tags =>
+          !Array.isArray(tags) ||
+          tags.length === 0 ||
+          tags.length > 8 ||
+          tags.some(tag => typeof tag !== 'string' || !tag.trim() || tag.length > 20)
+      )
+    ) {
+      return { ok: false, error: '社区配置包 tags_i18n 无效' }
+    }
+  }
   if (typeof value.rating !== 'number' || value.rating < 0 || value.rating > 5) {
     return { ok: false, error: '社区配置包评分必须为 0–5' }
   }
   return { ok: true }
+}
+
+export function getLocalizedPackTitle(
+  metadata: Pick<CommunityPackMetadata, 'title' | 'title_i18n'>,
+  locale: string
+): string {
+  if (metadata.title_i18n) {
+    if (metadata.title_i18n[locale]) return metadata.title_i18n[locale]
+    const short = locale.split('-')[0]
+    if (metadata.title_i18n[short]) return metadata.title_i18n[short]
+  }
+  return metadata.title
+}
+
+export function getLocalizedPackDescription(
+  metadata: Pick<CommunityPackMetadata, 'description' | 'description_i18n'>,
+  locale: string
+): string {
+  if (metadata.description_i18n) {
+    if (metadata.description_i18n[locale]) return metadata.description_i18n[locale]
+    const short = locale.split('-')[0]
+    if (metadata.description_i18n[short]) return metadata.description_i18n[short]
+  }
+  return metadata.description
+}
+
+export function getLocalizedPackTags(
+  metadata: Pick<CommunityPackMetadata, 'tags' | 'tags_i18n'>,
+  locale: string
+): readonly string[] {
+  if (metadata.tags_i18n) {
+    if (metadata.tags_i18n[locale]) return metadata.tags_i18n[locale]
+    const short = locale.split('-')[0]
+    if (metadata.tags_i18n[short]) return metadata.tags_i18n[short]
+  }
+  return metadata.tags
 }
 
 export function validateCommunityPack(value: unknown): CommunityPackValidation {

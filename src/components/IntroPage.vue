@@ -38,7 +38,12 @@
   } from '../utils/cache'
   import { SecureRandom } from '../utils/secureRandom'
   import { devLog } from '../utils/logger'
-  import { localeContent, setActiveLanguage, activeLanguage } from '../utils/locale'
+  import {
+    localeContent,
+    setActiveLanguage,
+    currentLanguageRef,
+    SUPPORTED_LANGUAGES,
+  } from '../utils/locale'
   import VersionDisplay from './VersionDisplay.vue'
   import PartySceneSelector from './PartySceneSelector.vue'
   import VictoryConfigPanel from './VictoryConfig.vue'
@@ -94,24 +99,11 @@
   const studioConfig = ref<PartyStudioConfig>(loadPartyStudioConfig())
 
   // ---- Language selector state ----
-  const currentLanguage = ref(activeLanguage)
-
-  const supportedLanguages = [
-    { code: 'zh', name: '🇨🇳 中文' },
-    { code: 'en', name: '🌐 English' },
-    { code: 'ja', name: '🇯🇵 日本語' },
-    { code: 'ko', name: '🇰🇷 한국어' },
-    { code: 'es', name: '🇪🇸 Español' },
-    { code: 'fr', name: '🇫🇷 Français' },
-    { code: 'de', name: '🇩🇪 Deutsch' },
-    { code: 'ru', name: '🇷🇺 Русский' },
-    { code: 'pt', name: '🇵🇹 Português' },
-    { code: 'it', name: '🇮🇹 Italiano' },
-  ]
+  const currentLanguage = currentLanguageRef
+  const supportedLanguages = SUPPORTED_LANGUAGES
 
   const switchLanguage = (lang: string) => {
     setActiveLanguage(lang)
-    currentLanguage.value = lang
 
     // Re-derive default player names using the new locale
     const isGeneric = playerNames.value.every(

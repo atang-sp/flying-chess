@@ -14,11 +14,25 @@
  *   localeContent.punishmentConfig  // locale-appropriate defaults
  *   localeContent.defaultPlayerName(0)  // "玩家1" or "Player 1"
  */
+import { ref } from 'vue'
 import { getLocaleContent, type LocaleContent } from '@flying-chess/game-core/config'
 import { loadLocalePreference, saveLocalePreference } from './cache'
 import { i18n } from '../i18n'
 
 export type { LocaleContent }
+
+export const SUPPORTED_LANGUAGES = [
+  { code: 'zh', name: '🇨🇳 中文' },
+  { code: 'en', name: '🌐 English' },
+  { code: 'ja', name: '🇯🇵 日本語' },
+  { code: 'ko', name: '🇰🇷 한국어' },
+  { code: 'es', name: '🇪🇸 Español' },
+  { code: 'fr', name: '🇫🇷 Français' },
+  { code: 'de', name: '🇩🇪 Deutsch' },
+  { code: 'ru', name: '🇷🇺 Русский' },
+  { code: 'pt', name: '🇵🇹 Português' },
+  { code: 'it', name: '🇮🇹 Italiano' },
+] as const
 
 /** Resolve the initial language: saved preference > 'zh'. */
 function resolveInitialLanguage(): string {
@@ -29,6 +43,8 @@ function resolveInitialLanguage(): string {
 
 /** BCP-47 tag resolved at module-load time.  May be overridden via `setActiveLanguage`. */
 export let activeLanguage: string = resolveInitialLanguage()
+export const currentLanguageRef = ref(activeLanguage)
+
 if (typeof document !== 'undefined') {
   document.documentElement.lang = activeLanguage
 }
@@ -43,6 +59,7 @@ export let localeContent: LocaleContent = getLocaleContent(activeLanguage)
  */
 export function setActiveLanguage(language: string): LocaleContent {
   activeLanguage = language
+  currentLanguageRef.value = language
   localeContent = getLocaleContent(language)
   saveLocalePreference(language)
   if (typeof document !== 'undefined') {

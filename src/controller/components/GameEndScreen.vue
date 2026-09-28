@@ -12,12 +12,16 @@
   <div class="game-end-screen">
     <div class="end-card">
       <div class="trophy">🏆</div>
-      <h1>游戏结束</h1>
+      <h1>{{ $t('ctrl_game_over') }}</h1>
       <p v-if="winnerName" class="winner-text">
-        {{ winnerName === myName ? '恭喜你获胜！' : `${winnerName} 获得了胜利` }}
+        {{
+          winnerName === myName
+            ? $t('ctrl_congrats_win')
+            : $t('ctrl_player_won', { name: winnerName })
+        }}
       </p>
       <div v-if="settlement" class="settlement-card">
-        <span>第 {{ settlement.place }} 名结算</span>
+        <span>{{ $t('ctrl_place_settlement', { place: settlement.place }) }}</span>
         <strong>
           {{ settlement.actionText }} {{ settlement.count }} {{ settlement.countUnit }}
         </strong>

@@ -34,32 +34,34 @@
   <div v-if="pending" class="action-panel">
     <!-- Prediction: low / high -->
     <div v-if="pending.type === 'predict'" class="action-group">
-      <p class="action-prompt">预测骰子范围</p>
+      <p class="action-prompt">{{ $t('ctrl_action_guess_prompt') }}</p>
       <div class="action-buttons">
         <button
           class="btn btn-secondary action-btn"
           @click="send({ type: 'predict', prediction: 'low' })"
         >
-          ⬇️ 小 (1-3)
+          {{ $t('ctrl_action_guess_small') }}
         </button>
         <button
           class="btn btn-secondary action-btn"
           @click="send({ type: 'predict', prediction: 'high' })"
         >
-          ⬆️ 大 (4-6)
+          {{ $t('ctrl_action_guess_big') }}
         </button>
       </div>
     </div>
 
     <!-- Reaction decision: keep / mirror -->
     <div v-else-if="pending.type === 'reaction_decision'" class="action-group">
-      <p class="action-prompt">预测成功！骰子点数: {{ pending.rolledValue }}</p>
+      <p class="action-prompt">
+        {{ $t('ctrl_action_guess_success', { val: pending.rolledValue }) }}
+      </p>
       <div class="action-buttons">
         <button
           class="btn btn-secondary action-btn"
           @click="send({ type: 'reaction_decision', decision: 'keep' })"
         >
-          保留 {{ pending.rolledValue }}
+          {{ $t('ctrl_action_keep', { val: pending.rolledValue }) }}
         </button>
         <button
           class="btn btn-primary action-btn"

@@ -150,10 +150,13 @@
         emit('export-success', result.filename)
         emit('close')
       } else {
-        emit('export-error', result.error || '导出失败')
+        emit('export-error', result.error || t('config_export_error_failed'))
       }
     } catch (error) {
-      emit('export-error', error instanceof Error ? error.message : '导出过程中发生错误')
+      emit(
+        'export-error',
+        error instanceof Error ? error.message : t('config_export_error_general')
+      )
     } finally {
       isExporting.value = false
     }
@@ -171,7 +174,7 @@
       qrCodeDataURL.value = qrCode
       showQRCode.value = true
     } catch (error) {
-      emit('export-error', error instanceof Error ? error.message : '二维码生成失败')
+      emit('export-error', error instanceof Error ? error.message : t('config_export_error_qrcode'))
     } finally {
       isExporting.value = false
     }
@@ -190,10 +193,13 @@
         emit('export-success', result.filename)
         emit('close')
       } else {
-        emit('export-error', result.error || '二维码导出失败')
+        emit('export-error', result.error || t('config_export_error_qrcode_export'))
       }
     } catch (error) {
-      emit('export-error', error instanceof Error ? error.message : '二维码导出过程中发生错误')
+      emit(
+        'export-error',
+        error instanceof Error ? error.message : t('config_export_error_qrcode_general')
+      )
     } finally {
       isExporting.value = false
     }
@@ -241,7 +247,7 @@
           emit('import-success', importSuccessMessage(result.warnings))
           emit('close')
         } else {
-          emit('import-error', result.error || '导入失败')
+          emit('import-error', result.error || t('config_import_error_failed'))
         }
       } else if (file.type.startsWith('image/')) {
         // 二维码图片导入
@@ -251,13 +257,16 @@
           emit('import-success', importSuccessMessage(result.warnings))
           emit('close')
         } else {
-          emit('import-error', result.error || '二维码导入失败')
+          emit('import-error', result.error || t('config_import_error_qrcode'))
         }
       } else {
-        emit('import-error', '不支持的文件格式，请选择JSON文件或图片文件')
+        emit('import-error', t('config_import_error_unsupported_format'))
       }
     } catch (error) {
-      emit('import-error', error instanceof Error ? error.message : '导入过程中发生错误')
+      emit(
+        'import-error',
+        error instanceof Error ? error.message : t('config_import_error_general')
+      )
     } finally {
       isImporting.value = false
       target.value = '' // 清空文件选择
@@ -267,7 +276,7 @@
   // 处理JSON文本导入
   const handleJsonTextImport = async () => {
     if (!importJsonText.value.trim()) {
-      emit('import-error', '请输入配置数据')
+      emit('import-error', t('config_import_error_empty_data'))
       return
     }
 
@@ -281,10 +290,13 @@
         showImportDialog.value = false
         emit('close')
       } else {
-        emit('import-error', result.error || '导入失败')
+        emit('import-error', result.error || t('config_import_error_failed'))
       }
     } catch (error) {
-      emit('import-error', error instanceof Error ? error.message : '导入过程中发生错误')
+      emit(
+        'import-error',
+        error instanceof Error ? error.message : t('config_import_error_general')
+      )
     } finally {
       isImporting.value = false
     }
@@ -594,7 +606,7 @@
         <div v-else-if="currentMode === 'import'" class="import-tip">
           <p class="tip-content">
             <Lightbulb :size="16" />
-            请选择上方的导入方式来导入配置
+            {{ $t('config_export_import_tip') }}
           </p>
         </div>
       </div>
@@ -606,7 +618,7 @@
         <div class="documentation-header">
           <h3>
             <BookOpen :size="20" />
-            配置文档
+            {{ $t('config_export_doc_title') }}
           </h3>
           <button class="close-btn" @click="showDocumentation = false">
             <X :size="20" />
@@ -616,28 +628,28 @@
           <div class="doc-section">
             <h4>
               <Target :size="18" />
-              配置类型说明
+              {{ $t('config_export_doc_type_title') }}
             </h4>
             <ul>
               <li>
-                <strong>玩家设置：</strong>
-                包含玩家数量和姓名配置
+                <strong>{{ $t('config_export_doc_players') }}</strong>
+                {{ $t('config_export_doc_players_desc') }}
               </li>
               <li>
-                <strong>惩罚设置：</strong>
-                包含工具、部位、姿势等惩罚相关配置
+                <strong>{{ $t('config_export_doc_punishments') }}</strong>
+                {{ $t('config_export_doc_punishments_desc') }}
               </li>
               <li>
-                <strong>棋盘设置：</strong>
-                包含各种格子类型的数量配置
+                <strong>{{ $t('config_export_doc_board') }}</strong>
+                {{ $t('config_export_doc_board_desc') }}
               </li>
               <li>
-                <strong>机关设置：</strong>
-                包含机关格子的配置和效果
+                <strong>{{ $t('config_export_doc_traps') }}</strong>
+                {{ $t('config_export_doc_traps_desc') }}
               </li>
               <li>
-                <strong>棋盘布局：</strong>
-                包含完整的棋盘布局和随机种子
+                <strong>{{ $t('config_export_doc_layout') }}</strong>
+                {{ $t('config_export_doc_layout_desc') }}
               </li>
             </ul>
           </div>
@@ -645,68 +657,70 @@
           <div class="doc-section">
             <h4>
               <Upload :size="18" />
-              导出功能
+              {{ $t('config_export_doc_export_title') }}
             </h4>
             <ul>
               <li>
-                <strong>JSON文件：</strong>
-                适合完整配置的分享和备份
+                <strong>{{ $t('config_export_doc_json') }}</strong>
+                {{ $t('config_export_doc_json_desc') }}
               </li>
               <li>
-                <strong>二维码：</strong>
-                适合快速分享简单配置，可扫描或保存图片
+                <strong>{{ $t('config_export_doc_qr') }}</strong>
+                {{ $t('config_export_doc_qr_desc') }}
               </li>
-              <li>支持选择性导出，只导出需要的配置项</li>
-              <li>自动生成包含时间戳的文件名</li>
+              <li>{{ $t('config_export_doc_selective') }}</li>
+              <li>{{ $t('config_export_doc_timestamp') }}</li>
             </ul>
           </div>
 
           <div class="doc-section">
             <h4>
               <Download :size="18" />
-              导入功能
+              {{ $t('config_export_doc_import_title') }}
             </h4>
             <ul>
               <li>
-                <strong>文件导入：</strong>
-                支持JSON文件和二维码图片
+                <strong>{{ $t('config_export_doc_file_import') }}</strong>
+                {{ $t('config_export_doc_file_import_desc') }}
               </li>
               <li>
-                <strong>文本导入：</strong>
-                直接粘贴配置数据
+                <strong>{{ $t('config_export_doc_text_import') }}</strong>
+                {{ $t('config_export_doc_text_import_desc') }}
               </li>
-              <li>导入前会自动验证数据完整性</li>
-              <li>导入时会自动备份当前配置</li>
+              <li>{{ $t('config_export_doc_validate') }}</li>
+              <li>{{ $t('config_export_doc_backup') }}</li>
             </ul>
           </div>
 
           <div class="doc-section">
             <h4>
               <AlertTriangle :size="18" />
-              注意事项
+              {{ $t('config_export_doc_notes_title') }}
             </h4>
             <ul>
-              <li>导入配置会覆盖当前设置，请注意备份</li>
-              <li>二维码适合小量数据，大配置建议使用JSON文件</li>
-              <li>只导入来自可信来源的配置文件</li>
-              <li>如果导入失败，可以尝试恢复备份配置</li>
+              <li>{{ $t('config_export_doc_note_overwrite') }}</li>
+              <li>{{ $t('config_export_doc_note_size') }}</li>
+              <li>{{ $t('config_export_doc_note_trust') }}</li>
+              <li>{{ $t('config_export_doc_note_recovery') }}</li>
             </ul>
           </div>
 
           <div class="doc-section">
             <h4>
               <Wrench :size="18" />
-              版本兼容性
+              {{ $t('config_export_doc_compat_title') }}
             </h4>
             <p>
-              当前配置版本：
+              {{ $t('config_export_doc_version_label') }}
               <code>1.0.0</code>
             </p>
-            <p>支持向后兼容，新版本可以读取旧版本的配置文件。</p>
+            <p>{{ $t('config_export_doc_compat_desc') }}</p>
           </div>
         </div>
         <div class="documentation-footer">
-          <button class="btn btn-primary" @click="showDocumentation = false">我知道了</button>
+          <button class="btn btn-primary" @click="showDocumentation = false">
+            {{ $t('config_export_doc_got_it') }}
+          </button>
         </div>
       </div>
     </div>
