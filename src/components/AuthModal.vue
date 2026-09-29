@@ -172,6 +172,10 @@
     loading.value = false
   }
 
+  const getRedirectUrl = () => {
+    return window.location.origin + window.location.pathname
+  }
+
   /** X (Twitter) OAuth 2.0 */
   const loginWithX = async () => {
     if (!isSupabaseConfigured) {
@@ -182,7 +186,7 @@
     errorMsg.value = ''
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'x',
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: getRedirectUrl() },
     })
     if (error) {
       errorMsg.value = error.message
@@ -202,7 +206,7 @@
       provider: 'custom:discourse' as Provider,
       options: {
         queryParams: { provider: 'discourse' },
-        redirectTo: window.location.origin,
+        redirectTo: getRedirectUrl(),
       },
     })
     if (error) {
