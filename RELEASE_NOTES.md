@@ -1,5 +1,14 @@
 # 飞行棋 Release Notes
 
+## v1.20.1 — 修复 OAuth 回调重定向路径与优化论坛登录（2026-09-30）
+
+### 🐛 问题修复 / Bug Fixes
+
+- **修复 OAuth 重定向路径**：修正 `AuthModal.vue` 中第三方登录的 `redirectTo` 地址，携带完整 `pathname`（如 `/flying-chess/`），确保在 GitHub Pages 二级子目录下授权后正确重定向回游戏页面。
+- **完善 SP 社区论坛单点登录接入**：服务端部署基于 DiscourseConnect 的 OpenID Connect/OAuth2 桥接器与 JWKS 密钥服务，打通论坛一键登录认证全链路。
+
+---
+
 ## v1.20.0 — Supabase 账号系统与云端同步（2026-09-29）
 
 ### ☁️ 云端同步与账号系统 / Supabase Cloud Sync & Account System
