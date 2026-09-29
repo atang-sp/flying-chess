@@ -1,5 +1,13 @@
 # 飞行棋 Release Notes
 
+## v1.20.2 — 生产环境 OAuth 回调全量硬编码锁定（2026-09-30）
+
+### 🐛 问题修复 / Bug Fixes
+
+- **强制锁定生产环境 OAuth 重定向目标**：`AuthModal.vue` 在生产环境下显式锁定回调地址为 `https://atang-sp.github.io/flying-chess/`，彻底杜绝任何由于相对路径解析偏差或缓存导致的根域名 404 跳转。
+
+---
+
 ## v1.20.1 — 修复 OAuth 回调重定向路径与优化论坛登录（2026-09-30）
 
 ### 🐛 问题修复 / Bug Fixes
