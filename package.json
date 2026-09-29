@@ -40,7 +40,8 @@
     "verify:online-acceptance": "node scripts/online-acceptance-evidence.mjs",
     "test:e2e": "playwright test tests/e2e",
     "test:e2e:webkit-smoke": "playwright test --config=playwright.webkit.config.ts",
-    "i18n:check": "node scripts/check-i18n.js"
+    "i18n:check": "node scripts/check-i18n.js",
+    "db:setup": "node scripts/apply-supabase-schema.mjs"
   },
   "lint-staged": {
     "*.{js,ts,vue}": [
@@ -74,6 +75,7 @@
     "@playwright/test": "^1.58.2",
     "@types/file-saver": "^2.0.7",
     "@types/node": "^22.10.2",
+    "@types/pg": "^8.23.1",
     "@types/qrcode": "^1.5.6",
     "@types/three": "^0.183.1",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
@@ -86,6 +88,7 @@
     "eslint-plugin-vue": "^9.33.0",
     "husky": "^9.0.11",
     "lint-staged": "^15.2.2",
+    "pg": "^8.23.0",
     "prettier": "^3.2.5",
     "typescript": "^5.0.2",
     "vite": "^6.2.4",

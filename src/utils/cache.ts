@@ -141,9 +141,12 @@ export interface CachedConfig {
 }
 
 /**
- * 保存配置到 localStorage
+ * 直接写入配置到 storage，不触发云同步 push（供 pullAndMerge 使用）
  */
-export function saveConfig(data: Omit<CachedConfig, 'savedAt'>): boolean {
+export function saveConfigDirectly(
+  data: Omit<CachedConfig, 'savedAt'> & { savedAt?: number },
+  storage: Storage = localStorage
+): boolean {
   if (
     !validateBoardConfig(data.boardConfig) ||
     !validatePunishmentConfig(data.punishmentConfig) ||
@@ -160,21 +163,38 @@ export function saveConfig(data: Omit<CachedConfig, 'savedAt'>): boolean {
     boardConfig: normalized.boardConfig,
     punishmentConfig: normalized.punishmentConfig,
     trapConfig: normalized.traps,
-    savedAt: Date.now(),
+    savedAt: data.savedAt ?? Date.now(),
   }
   try {
-    localStorage.setItem(GAME_CONFIG_STORAGE_KEY, JSON.stringify(payload))
-    // 异步云端同步，失败不阻塞本地游戏
-    import('../services/syncEngine')
-      .then(({ syncEngine }) => {
-        syncEngine.pushConfig(payload)
-      })
-      .catch(() => {})
+    storage.setItem(GAME_CONFIG_STORAGE_KEY, JSON.stringify(payload))
     return true
   } catch (err) {
     console.warn('保存配置到 localStorage 失败:', err)
     return false
   }
+}
+
+/**
+ * 保存配置到 localStorage 并异步推送到云端
+ */
+export function saveConfig(data: Omit<CachedConfig, 'savedAt'>): boolean {
+  const success = saveConfigDirectly(data)
+  if (success) {
+    const payload: CachedConfig = {
+      boardConfig: data.boardConfig,
+      punishmentConfig: data.punishmentConfig,
+      trapConfig: data.trapConfig,
+      savedAt: Date.now(),
+    }
+    // 异步云端同步，失败不阻塞本地游戏
+    import('../services/syncEngine')
+      .then(({ pushSettingsDebounced, syncEngine }) => {
+        pushSettingsDebounced()
+        syncEngine.pushConfig(payload).catch(() => {})
+      })
+      .catch(() => {})
+  }
+  return success
 }
 
 /**
@@ -240,12 +260,27 @@ export interface PlayerSettings {
 
 type PlayerSettingsStorageReader = Pick<Storage, 'getItem'>
 
-export function savePlayerSettings(settings: PlayerSettings) {
+export function savePlayerSettingsDirectly(
+  settings: PlayerSettings,
+  storage: Pick<Storage, 'setItem'> = localStorage
+): void {
   try {
-    localStorage.setItem(PLAYER_SETTINGS_STORAGE_KEY, JSON.stringify(settings))
+    storage.setItem(PLAYER_SETTINGS_STORAGE_KEY, JSON.stringify(settings))
   } catch (err) {
     console.warn('保存玩家设置失败:', err)
   }
+}
+
+export function savePlayerSettings(
+  settings: PlayerSettings,
+  storage: Pick<Storage, 'setItem'> = localStorage
+): void {
+  savePlayerSettingsDirectly(settings, storage)
+  import('../services/syncEngine')
+    .then(({ pushSettingsDebounced }) => {
+      pushSettingsDebounced()
+    })
+    .catch(() => {})
 }
 
 export function loadPlayerSettings(
@@ -298,7 +333,10 @@ export function loadGameMode(storage: GameModeStorageReader = localStorage): Gam
   }
 }
 
-export function saveGameMode(mode: GameMode, storage: GameModeStorageWriter = localStorage): void {
+export function saveGameModeDirectly(
+  mode: GameMode,
+  storage: GameModeStorageWriter = localStorage
+): void {
   try {
     storage.setItem(
       GAME_MODE_STORAGE_KEY,
@@ -307,6 +345,15 @@ export function saveGameMode(mode: GameMode, storage: GameModeStorageWriter = lo
   } catch (error) {
     console.warn('保存本局玩法失败:', error)
   }
+}
+
+export function saveGameMode(mode: GameMode, storage: GameModeStorageWriter = localStorage): void {
+  saveGameModeDirectly(mode, storage)
+  import('../services/syncEngine')
+    .then(({ pushSettingsDebounced }) => {
+      pushSettingsDebounced()
+    })
+    .catch(() => {})
 }
 
 type VictoryConfigStorageReader = Pick<Storage, 'getItem'>
@@ -324,7 +371,7 @@ export function loadVictoryConfig(
   }
 }
 
-export function saveVictoryConfig(
+export function saveVictoryConfigDirectly(
   config: VictoryConfig,
   storage: VictoryConfigStorageWriter = localStorage
 ): void {
@@ -333,6 +380,18 @@ export function saveVictoryConfig(
   } catch (error) {
     console.warn('保存终局奖惩配置失败:', error)
   }
+}
+
+export function saveVictoryConfig(
+  config: VictoryConfig,
+  storage: VictoryConfigStorageWriter = localStorage
+): void {
+  saveVictoryConfigDirectly(config, storage)
+  import('../services/syncEngine')
+    .then(({ pushSettingsDebounced }) => {
+      pushSettingsDebounced()
+    })
+    .catch(() => {})
 }
 
 type PartyEventDeckStorageReader = Pick<Storage, 'getItem'>
@@ -353,7 +412,7 @@ export function loadPartyEventDeck(
   }
 }
 
-export function savePartyEventDeck(
+export function savePartyEventDeckDirectly(
   deck: readonly PartyEventCard[],
   storage: PartyEventDeckStorageWriter = localStorage
 ): boolean {
@@ -365,6 +424,21 @@ export function savePartyEventDeck(
     console.warn('保存升温局事件卡包失败:', error)
     return false
   }
+}
+
+export function savePartyEventDeck(
+  deck: readonly PartyEventCard[],
+  storage: PartyEventDeckStorageWriter = localStorage
+): boolean {
+  const ok = savePartyEventDeckDirectly(deck, storage)
+  if (ok) {
+    import('../services/syncEngine')
+      .then(({ pushSettingsDebounced }) => {
+        pushSettingsDebounced()
+      })
+      .catch(() => {})
+  }
+  return ok
 }
 
 type LocalProgressStorageReader = Pick<Storage, 'getItem'>
@@ -383,24 +457,34 @@ export function loadLocalProgress(
   }
 }
 
-export function saveLocalProgress(
+export function saveLocalProgressDirectly(
   progress: LocalProgress,
   storage: LocalProgressStorageWriter = localStorage
 ): boolean {
   if (!validateLocalProgress(progress)) return false
   try {
     storage.setItem(LOCAL_PROGRESS_STORAGE_KEY, JSON.stringify(progress))
+    return true
+  } catch (error) {
+    console.warn('直接保存本地成就进度失败:', error)
+    return false
+  }
+}
+
+export function saveLocalProgress(
+  progress: LocalProgress,
+  storage: LocalProgressStorageWriter = localStorage
+): boolean {
+  const ok = saveLocalProgressDirectly(progress, storage)
+  if (ok) {
     // 异步云端同步，失败不阻塞本地游戏
     import('../services/syncEngine')
       .then(({ syncEngine }) => {
         syncEngine.pushProgress(progress)
       })
       .catch(() => {})
-    return true
-  } catch (error) {
-    console.warn('保存本地成就进度失败:', error)
-    return false
   }
+  return ok
 }
 
 type PartyStudioStorageReader = Pick<Storage, 'getItem'>
@@ -421,7 +505,7 @@ export function loadPartyStudioConfig(
   }
 }
 
-export function savePartyStudioConfig(
+export function savePartyStudioConfigDirectly(
   config: PartyStudioConfig,
   storage: PartyStudioStorageWriter = localStorage
 ): boolean {
@@ -435,18 +519,48 @@ export function savePartyStudioConfig(
   }
 }
 
+export function savePartyStudioConfig(
+  config: PartyStudioConfig,
+  storage: PartyStudioStorageWriter = localStorage
+): boolean {
+  const ok = savePartyStudioConfigDirectly(config, storage)
+  if (ok) {
+    import('../services/syncEngine')
+      .then(({ pushSettingsDebounced }) => {
+        pushSettingsDebounced()
+      })
+      .catch(() => {})
+  }
+  return ok
+}
+
 // ================= 语言偏好缓存 =================
 
 /**
- * Persist the user's manual language choice so it survives page reloads.
+ * 直接保存语言偏好到 storage，不触发云同步 push
  */
-export function saveLocalePreference(lang: string, storage?: Pick<Storage, 'setItem'>): void {
+export function saveLocalePreferenceDirectly(
+  lang: string,
+  storage?: Pick<Storage, 'setItem'>
+): void {
   try {
     const targetStorage = storage ?? (typeof localStorage !== 'undefined' ? localStorage : null)
     targetStorage?.setItem(LOCALE_STORAGE_KEY, lang)
   } catch (error) {
     console.warn('保存语言偏好失败:', error)
   }
+}
+
+/**
+ * Persist the user's manual language choice so it survives page reloads.
+ */
+export function saveLocalePreference(lang: string, storage?: Pick<Storage, 'setItem'>): void {
+  saveLocalePreferenceDirectly(lang, storage)
+  import('../services/syncEngine')
+    .then(({ pushSettingsDebounced }) => {
+      pushSettingsDebounced()
+    })
+    .catch(() => {})
 }
 
 /**
