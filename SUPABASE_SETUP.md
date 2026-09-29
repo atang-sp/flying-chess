@@ -71,35 +71,23 @@ VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ### SP 社区论坛 (Discourse) OAuth
 
 > 论坛运行在 `atang-sp.run.place`，使用 Discourse 软件。
+> 服务器上已部署 DiscourseConnect OAuth2 Bridge 桥接服务（基于 Systemd 运行在 `8788` 端口，并通过 Nginx `/oauth/` 安全对外暴露）。
 
-**论坛侧配置（需 SSH 进入服务器）：**
+**Supabase 控制台配置步骤：**
 
-```bash
-ssh root@atang-sp.run.place
-```
+1. 登录 Supabase 控制台，进入项目 Dashboard：
+   **Authentication → Providers → Custom Providers → Add Provider** (或 **New Provider**)
+2. 填入以下配置：
+   - **Provider identifier**: `custom:discourse`
+   - **Client ID**: `flying-chess`
+   - **Client Secret**: `flying-chess-secret`
+   - **Authorization URL**: `https://atang-sp.run.place/oauth/authorize`
+   - **Token URL**: `https://atang-sp.run.place/oauth/token`
+   - **User Info URL**: `https://atang-sp.run.place/oauth/userinfo`
+   - _(或直接使用 OIDC Issuer URL: `https://atang-sp.run.place/oauth`)_
+3. 点击 **Save** 保存并启用。
 
-在 Discourse 管理后台 (`/admin/settings`) 中启用 OAuth2 Basic 插件并配置：
-
-```
-# Discourse 管理后台 → Settings → Login
-enable oauth2 basic providers: true
-```
-
-或通过 Rails 控制台配置 OAuth2 Application（如论坛已安装 `discourse-oauth2-basic` 插件）。
-
-**Supabase 侧配置：**
-
-1. Dashboard → Authentication → Providers → **Custom OAuth2**
-2. 填入以下信息：
-   ```
-   Provider name:    discourse
-   Client ID:        (Discourse OAuth App 的 client_id)
-   Client Secret:    (Discourse OAuth App 的 client_secret)
-   Authorization URL: https://atang-sp.run.place/oauth/authorize
-   Token URL:        https://atang-sp.run.place/oauth/token
-   User Info URL:    https://atang-sp.run.place/oauth/userinfo  (或 /session/current.json)
-   Scopes:           read
-   ```
+用户在飞行棋点击「SP 社区论坛登录」时，将通过桥接器无缝跳转至论坛单点登录并完成身份认证。
 
 ## 架构说明
 
