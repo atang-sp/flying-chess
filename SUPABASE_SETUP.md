@@ -13,6 +13,9 @@
 
 ## 第二步：配置环境变量
 
+### 本地开发测试（两种方式任选其一）
+
+**方式 A：使用 `.env.local` 文件（推荐本地开发）**
 复制 `.env.local.example` 为 `.env.local` 并填入真实值：
 
 ```bash
@@ -26,16 +29,30 @@ VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ```
 
+**方式 B：网页端临时快速测试（无需重启构建）**
+打开游戏网页，点击右上角账户图标，在弹窗中展开「🛠️ 本地临时凭据快速测试」，填入 Project URL 与 Anon Key，点击「保存并在本地连接」即可即时刷新测试。
+
+### 线上部署自动化注入（GitHub Actions）
+
+进入 GitHub 仓库：
+**Settings → Secrets and variables → Actions**
+在 **Repository secrets** 或 **Repository variables** 中添加：
+
+- `VITE_SUPABASE_URL`: `https://your-project-id.supabase.co`
+- `VITE_SUPABASE_ANON_KEY`: `your-anon-key-here`
+
+后续通过 Git Tag 触发自动构建（`v*`）时，GitHub Pages 产物将自动集成云同步服务。
+
 ## 第三步：执行数据库 Schema
 
 在 Supabase Dashboard → **SQL Editor** 中，粘贴并执行 [`supabase-schema.sql`](./supabase-schema.sql) 的全部内容。
 
-该 Schema 会创建：
-| 表 | 说明 |
-|---|---|
-| `profiles` | 账号基础信息（昵称、头像、登录方式） |
-| `user_configs` | 游戏配置（棋盘、惩罚、陷阱） |
-| `game_progress` | 成就进度 + 耻辱墙 |
+该 Schema 会创建并支持：
+| 表 | 说明 | 同步范围 |
+|---|---|---|
+| `profiles` | 账号基础信息（昵称、头像、登录方式） | 用户个人资料 |
+| `user_configs` | 玩家全局配置与偏好 | 棋盘配置、惩罚/机关设置、玩家名单、终局奖惩规则、事件卡包、Party Studio 场景与语言模式 |
+| `game_progress` | 成就进度 + 耻辱墙 | 总局数、受罚次数、求饶次数、连击纪录、四种变体完成数及玩家耻辱墙映射 |
 
 所有表均已启用 **Row Level Security**，用户只能读写自己的数据。
 
