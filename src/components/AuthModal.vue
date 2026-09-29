@@ -173,7 +173,12 @@
   }
 
   const getRedirectUrl = () => {
-    return window.location.origin + window.location.pathname
+    if (typeof window === 'undefined') return ''
+    const { origin, pathname } = window.location
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      return origin + pathname
+    }
+    return 'https://atang-sp.github.io/flying-chess/'
   }
 
   /** X (Twitter) OAuth 2.0 */
