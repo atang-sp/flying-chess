@@ -1,29 +1,11 @@
-import { DEFAULT_GAME_MODE, RULESET_VERSION_BY_MODE, type GameMode } from '../config/modes'
-import { VERSION } from '../config/version'
-
 export type GameEndOutcome = 'completed' | 'user_ended' | 'config_import'
 
 export interface GameTelemetry {
-  setMode(mode: GameMode): void
-  selectMode(mode: GameMode): void
-  openApp(): void
-  startSetup(playerCount: number): void
-  startGame(playerCount: number): void
-  finishGame(outcome: GameEndOutcome, turnCount: number): void
-  playAgain(): void
+  startGame(): void
+  finishGame(outcome: GameEndOutcome): void
 }
 
-export type TelemetryEventName =
-  | 'app_open'
-  | 'setup_started'
-  | 'game_started'
-  | 'game_completed'
-  | 'game_ended'
-  | 'play_again'
-  | 'mode_selected'
-  | 'mode_switched'
-
-type DeviceType = 'mobile' | 'desktop'
+export type TelemetryEventName = 'game_started' | 'game_completed'
 
 export type TelemetryEventData = Readonly<Record<string, string>>
 
@@ -44,8 +26,6 @@ declare global {
 
 interface GameTelemetryOptions {
   readonly adapter: TelemetryAdapter
-  readonly now?: () => number
-  readonly getViewportWidth?: () => number
 }
 
 interface UmamiTracker {
@@ -68,67 +48,6 @@ interface UmamiAdapterOptions {
 }
 
 const MAX_BUFFERED_EVENTS = 20
-const COMMON_FIELDS = ['app_version', 'mode_id', 'ruleset_version', 'device_type'] as const
-const EVENT_FIELDS: Record<TelemetryEventName, readonly string[]> = {
-  app_open: COMMON_FIELDS,
-  mode_selected: COMMON_FIELDS,
-  mode_switched: [...COMMON_FIELDS, 'previous_mode_id'],
-  setup_started: [...COMMON_FIELDS, 'player_count_bucket'],
-  game_started: [...COMMON_FIELDS, 'player_count_bucket'],
-  game_completed: [
-    ...COMMON_FIELDS,
-    'player_count_bucket',
-    'duration_bucket',
-    'turn_count_bucket',
-    'end_type',
-  ],
-  game_ended: [
-    ...COMMON_FIELDS,
-    'player_count_bucket',
-    'duration_bucket',
-    'turn_count_bucket',
-    'end_type',
-  ],
-  play_again: [
-    ...COMMON_FIELDS,
-    'player_count_bucket',
-    'duration_bucket',
-    'turn_count_bucket',
-    'end_type',
-  ],
-}
-
-function bucketPlayerCount(playerCount: number): string {
-  if (playerCount <= 1) return '1'
-  if (playerCount === 2) return '2'
-  if (playerCount <= 4) return '3_4'
-  return '5_plus'
-}
-
-function bucketDuration(elapsedMs: number): string {
-  if (elapsedMs < 10 * 60_000) return 'lt_10m'
-  if (elapsedMs < 20 * 60_000) return '10_20m'
-  if (elapsedMs < 40 * 60_000) return '20_40m'
-  return '40m_plus'
-}
-
-function bucketTurnCount(turnCount: number): string {
-  if (turnCount <= 10) return '1_10'
-  if (turnCount <= 20) return '11_20'
-  if (turnCount <= 40) return '21_40'
-  return '41_plus'
-}
-
-function sanitizeEventData(
-  name: TelemetryEventName,
-  candidate: Record<string, unknown>
-): TelemetryEventData {
-  return Object.fromEntries(
-    EVENT_FIELDS[name]
-      .filter(key => typeof candidate[key] === 'string')
-      .map(key => [key, candidate[key] as string])
-  )
-}
 
 function loadBrowserScript(options: UmamiScriptLoadOptions): void {
   const script = document.createElement('script')
@@ -227,29 +146,12 @@ export class MemoryTelemetryAdapter implements TelemetryAdapter {
   }
 }
 
-export function createGameTelemetry({
-  adapter,
-  now = () => performance.now(),
-  getViewportWidth = () => window.innerWidth,
-}: GameTelemetryOptions): GameTelemetry {
-  let appOpened = false
-  let currentMode: GameMode = DEFAULT_GAME_MODE
-  let activeGame: { readonly playerCount: number; readonly startedAt: number } | undefined
-  let lastCompletedGame: Record<string, string> | undefined
+export function createGameTelemetry({ adapter }: GameTelemetryOptions): GameTelemetry {
+  let activeGame = false
 
-  const getDeviceType = (): DeviceType => (getViewportWidth() <= 768 ? 'mobile' : 'desktop')
-
-  const commonData = (): Record<string, unknown> => ({
-    app_version: VERSION,
-    mode_id: currentMode,
-    ruleset_version: RULESET_VERSION_BY_MODE[currentMode],
-    device_type: getDeviceType(),
-  })
-
-  const track = (name: TelemetryEventName, candidate: Record<string, unknown>): void => {
+  const track = (name: TelemetryEventName): void => {
     try {
-      const data = sanitizeEventData(name, candidate)
-      const result = adapter.track(name, data)
+      const result = adapter.track(name, {})
       void Promise.resolve(result).catch(() => undefined)
     } catch {
       // Telemetry must never interrupt game play.
@@ -265,78 +167,20 @@ export function createGameTelemetry({
   }
 
   return {
-    setMode(mode: GameMode): void {
-      safely(() => {
-        currentMode = mode
-      })
-    },
-    selectMode(mode: GameMode): void {
-      safely(() => {
-        const previousMode = currentMode
-        currentMode = mode
-        track('mode_selected', commonData())
-        if (previousMode !== mode) {
-          track('mode_switched', {
-            ...commonData(),
-            previous_mode_id: previousMode,
-          })
-        }
-      })
-    },
-    openApp(): void {
-      safely(() => {
-        if (appOpened) return
-        appOpened = true
-        track('app_open', commonData())
-      })
-    },
-    startSetup(playerCount: number): void {
-      safely(() => {
-        track('setup_started', {
-          ...commonData(),
-          player_count_bucket: bucketPlayerCount(playerCount),
-        })
-      })
-    },
-    startGame(playerCount: number): void {
+    startGame(): void {
       safely(() => {
         if (activeGame) return
-        lastCompletedGame = undefined
-        activeGame = { playerCount, startedAt: now() }
-        track('game_started', {
-          ...commonData(),
-          player_count_bucket: bucketPlayerCount(playerCount),
-        })
+        activeGame = true
+        track('game_started')
       })
     },
-    finishGame(outcome: GameEndOutcome, turnCount: number): void {
+    finishGame(outcome: GameEndOutcome): void {
       safely(() => {
         if (!activeGame) return
-
-        const summary = {
-          player_count_bucket: bucketPlayerCount(activeGame.playerCount),
-          duration_bucket: bucketDuration(Math.max(0, now() - activeGame.startedAt)),
-          turn_count_bucket: bucketTurnCount(turnCount),
-          end_type: outcome,
+        activeGame = false
+        if (outcome === 'completed') {
+          track('game_completed')
         }
-        activeGame = undefined
-        lastCompletedGame = outcome === 'completed' ? summary : undefined
-
-        track(outcome === 'completed' ? 'game_completed' : 'game_ended', {
-          ...commonData(),
-          ...summary,
-        })
-      })
-    },
-    playAgain(): void {
-      safely(() => {
-        if (!lastCompletedGame) return
-        const summary = lastCompletedGame
-        lastCompletedGame = undefined
-        track('play_again', {
-          ...commonData(),
-          ...summary,
-        })
       })
     },
   }
