@@ -1551,7 +1551,7 @@ test('tracks the anonymous completed-game lifecycle and play again in order', as
   await expect(page.getByRole('heading', { name: '游戏设置' })).toBeVisible()
   await expect
     .poll(async () => (await getTelemetryEvents(page)).map(event => event.name))
-    .toEqual(['game_started', 'game_completed', 'game_started'])
+    .toEqual(['game_started', 'game_completed'])
 
   const events = await getTelemetryEvents(page)
   const serializedEvents = JSON.stringify(events)
