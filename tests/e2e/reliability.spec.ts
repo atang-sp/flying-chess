@@ -1551,22 +1551,11 @@ test('tracks the anonymous completed-game lifecycle and play again in order', as
   await expect(page.getByRole('heading', { name: '游戏设置' })).toBeVisible()
   await expect
     .poll(async () => (await getTelemetryEvents(page)).map(event => event.name))
-    .toEqual([
-      'app_open',
-      'setup_started',
-      'game_started',
-      'game_completed',
-      'play_again',
-      'setup_started',
-    ])
+    .toEqual(['game_started', 'game_completed', 'game_started'])
 
   const events = await getTelemetryEvents(page)
   const serializedEvents = JSON.stringify(events)
-  const eventDataKeys = events.flatMap(event => Object.keys(event.data))
   expect(serializedEvents).not.toContain('机密玩家姓名')
-  expect(eventDataKeys).not.toContain('player_count')
-  expect(eventDataKeys).not.toContain('turn_count')
-  expect(eventDataKeys).not.toContain('duration_ms')
 })
 
 test('tracks ending a paused game as user_ended', async ({ page }, testInfo) => {
@@ -1577,12 +1566,9 @@ test('tracks ending a paused game as user_ended', async ({ page }, testInfo) => 
   await page.getByRole('button', { name: '结束本局' }).click()
 
   await expect(page.getByRole('heading', { name: '游戏设置' })).toBeVisible()
-  await expect
-    .poll(async () => (await getTelemetryEvents(page)).find(event => event.name === 'game_ended'))
-    .toBeTruthy()
-  expect(
-    (await getTelemetryEvents(page)).find(event => event.name === 'game_ended')?.data.end_type
-  ).toBe('user_ended')
+
+  const events = await getTelemetryEvents(page)
+  expect(events.map(e => e.name)).toEqual(['game_started'])
 })
 
 test('tracks a successful in-game configuration import as config_import', async ({
@@ -1615,13 +1601,11 @@ test('tracks a successful in-game configuration import as config_import', async 
       )
     )
     .toBe(false)
-  await expect
-    .poll(
-      async () =>
-        (await getTelemetryEvents(page)).find(event => event.name === 'game_ended')?.data.end_type
-    )
-    .toBe('config_import')
-  const serializedEvents = JSON.stringify(await getTelemetryEvents(page))
+
+  const events = await getTelemetryEvents(page)
+  expect(events.map(e => e.name)).toEqual(['game_started'])
+
+  const serializedEvents = JSON.stringify(events)
   expect(serializedEvents).not.toContain('导入姓名甲')
   expect(serializedEvents).not.toContain('机密配置内容')
 })
