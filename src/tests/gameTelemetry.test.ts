@@ -1,205 +1,113 @@
 import { describe, expect, it } from 'vitest'
-import { VERSION } from '../config/version'
 import {
-  createGameTelemetry,
   createUmamiAdapter,
   MemoryTelemetryAdapter,
-  type TelemetryEvent,
+  createGameTelemetry,
 } from '../services/gameTelemetry'
 
-describe('gameTelemetry', () => {
-  it('emits app_open once with only the common anonymous fields', () => {
+describe('createGameTelemetry', () => {
+  it('emits game_started when startGame is called', () => {
     const adapter = new MemoryTelemetryAdapter()
-    const telemetry = createGameTelemetry({
-      adapter,
-      getViewportWidth: () => 768,
-    })
+    const telemetry = createGameTelemetry({ adapter })
 
-    telemetry.openApp()
-    telemetry.openApp()
+    telemetry.startGame()
 
-    expect(adapter.events).toEqual<TelemetryEvent[]>([
-      {
-        name: 'app_open',
-        data: {
-          app_version: VERSION,
-          mode_id: 'classic',
-          ruleset_version: 'classic_v1',
-          device_type: 'mobile',
-        },
-      },
-    ])
+    expect(adapter.events).toEqual([{ name: 'game_started', data: {} }])
   })
 
-  it('tracks a real mode selection and switch with only categorical mode fields', () => {
+  it('emits game_completed when finishGame is called with completed outcome', () => {
     const adapter = new MemoryTelemetryAdapter()
-    const telemetry = createGameTelemetry({
-      adapter,
-      getViewportWidth: () => 1280,
-    })
+    const telemetry = createGameTelemetry({ adapter })
 
-    telemetry.setMode('party')
-    telemetry.selectMode('classic')
+    telemetry.startGame()
+    telemetry.finishGame('completed')
 
-    expect(adapter.events).toEqual([
-      {
-        name: 'mode_selected',
-        data: {
-          app_version: VERSION,
-          mode_id: 'classic',
-          ruleset_version: 'classic_v1',
-          device_type: 'desktop',
-        },
-      },
-      {
-        name: 'mode_switched',
-        data: {
-          app_version: VERSION,
-          mode_id: 'classic',
-          ruleset_version: 'classic_v1',
-          device_type: 'desktop',
-          previous_mode_id: 'party',
-        },
-      },
-    ])
+    expect(adapter.events.map(e => e.name)).toEqual(['game_started', 'game_completed'])
   })
 
-  it.each([
-    [1, '1'],
-    [2, '2'],
-    [3, '3_4'],
-    [4, '3_4'],
-    [5, '5_plus'],
-    [12, '5_plus'],
-  ])('buckets setup player count %i as %s without sending the raw count', (playerCount, bucket) => {
+  it('does not emit game_completed for user_ended outcome', () => {
     const adapter = new MemoryTelemetryAdapter()
-    const telemetry = createGameTelemetry({
-      adapter,
-      getViewportWidth: () => 769,
-    })
+    const telemetry = createGameTelemetry({ adapter })
 
-    telemetry.startSetup(playerCount)
+    telemetry.startGame()
+    telemetry.finishGame('user_ended')
 
-    expect(adapter.events).toEqual([
-      {
-        name: 'setup_started',
-        data: {
-          app_version: VERSION,
-          mode_id: 'classic',
-          ruleset_version: 'classic_v1',
-          device_type: 'desktop',
-          player_count_bucket: bucket,
-        },
-      },
-    ])
-    expect(adapter.events[0].data).not.toHaveProperty('player_count')
+    expect(adapter.events.map(e => e.name)).toEqual(['game_started'])
   })
 
-  it('records setup before one game start and suppresses duplicate starts', () => {
+  it('does not emit game_completed for config_import outcome', () => {
     const adapter = new MemoryTelemetryAdapter()
-    const telemetry = createGameTelemetry({ adapter, getViewportWidth: () => 1280 })
+    const telemetry = createGameTelemetry({ adapter })
 
-    telemetry.startSetup(4)
-    telemetry.startGame(4)
-    telemetry.startGame(4)
+    telemetry.startGame()
+    telemetry.finishGame('config_import')
 
-    expect(adapter.events.map(event => event.name)).toEqual(['setup_started', 'game_started'])
-    expect(adapter.events[1].data).toMatchObject({
-      player_count_bucket: '3_4',
-    })
+    expect(adapter.events.map(e => e.name)).toEqual(['game_started'])
   })
 
-  it.each([
-    [0, 1, 'lt_10m', '1_10'],
-    [599_999, 10, 'lt_10m', '1_10'],
-    [600_000, 11, '10_20m', '11_20'],
-    [1_199_999, 20, '10_20m', '11_20'],
-    [1_200_000, 21, '20_40m', '21_40'],
-    [2_399_999, 40, '20_40m', '21_40'],
-    [2_400_000, 41, '40m_plus', '41_plus'],
-  ])(
-    'buckets a completed game at %i ms and %i turns as %s / %s',
-    (elapsedMs, turns, durationBucket, turnBucket) => {
-      const adapter = new MemoryTelemetryAdapter()
-      let currentTime = 0
-      const telemetry = createGameTelemetry({
-        adapter,
-        now: () => currentTime,
-        getViewportWidth: () => 1280,
-      })
-
-      telemetry.startGame(2)
-      currentTime = elapsedMs
-      telemetry.finishGame('completed', turns)
-
-      expect(adapter.events[1]).toEqual({
-        name: 'game_completed',
-        data: {
-          app_version: VERSION,
-          mode_id: 'classic',
-          ruleset_version: 'classic_v1',
-          device_type: 'desktop',
-          player_count_bucket: '2',
-          duration_bucket: durationBucket,
-          turn_count_bucket: turnBucket,
-          end_type: 'completed',
-        },
-      })
-      expect(adapter.events[1].data).not.toHaveProperty('duration_ms')
-      expect(adapter.events[1].data).not.toHaveProperty('turn_count')
-    }
-  )
-
-  it.each(['user_ended', 'config_import'] as const)('records %s as game_ended once', outcome => {
+  it('ignores duplicate startGame calls while a game is active', () => {
     const adapter = new MemoryTelemetryAdapter()
-    const telemetry = createGameTelemetry({
-      adapter,
-      now: () => 60_000,
-      getViewportWidth: () => 1280,
-    })
+    const telemetry = createGameTelemetry({ adapter })
 
-    telemetry.startGame(3)
-    telemetry.finishGame(outcome, 8)
-    telemetry.finishGame('completed', 99)
+    telemetry.startGame()
+    telemetry.startGame()
+    telemetry.startGame()
 
-    expect(adapter.events.map(event => event.name)).toEqual(['game_started', 'game_ended'])
-    expect(adapter.events[1].data.end_type).toBe(outcome)
+    expect(adapter.events.map(e => e.name)).toEqual(['game_started'])
   })
 
-  it('reuses the completed-game summary for play_again and emits it only once', () => {
+  it('ignores finishGame when no game is active', () => {
     const adapter = new MemoryTelemetryAdapter()
-    let currentTime = 100
-    const telemetry = createGameTelemetry({
-      adapter,
-      now: () => currentTime,
-      getViewportWidth: () => 390,
-    })
+    const telemetry = createGameTelemetry({ adapter })
 
-    telemetry.playAgain()
-    telemetry.startGame(3)
-    currentTime += 1_300_000
-    telemetry.finishGame('completed', 22)
-    telemetry.playAgain()
-    telemetry.playAgain()
+    telemetry.finishGame('completed')
 
-    expect(adapter.events.map(event => event.name)).toEqual([
+    expect(adapter.events).toEqual([])
+  })
+
+  it('allows a new game after the previous one finished', () => {
+    const adapter = new MemoryTelemetryAdapter()
+    const telemetry = createGameTelemetry({ adapter })
+
+    telemetry.startGame()
+    telemetry.finishGame('completed')
+    telemetry.startGame()
+    telemetry.finishGame('completed')
+
+    expect(adapter.events.map(e => e.name)).toEqual([
       'game_started',
       'game_completed',
-      'play_again',
+      'game_started',
+      'game_completed',
     ])
-    expect(adapter.events[2]).toEqual({
-      name: 'play_again',
-      data: {
-        app_version: VERSION,
-        mode_id: 'classic',
-        ruleset_version: 'classic_v1',
-        device_type: 'mobile',
-        player_count_bucket: '3_4',
-        duration_bucket: '20_40m',
-        turn_count_bucket: '21_40',
-        end_type: 'completed',
-      },
-    })
+  })
+
+  it('allows a new game after a non-completed finish', () => {
+    const adapter = new MemoryTelemetryAdapter()
+    const telemetry = createGameTelemetry({ adapter })
+
+    telemetry.startGame()
+    telemetry.finishGame('user_ended')
+    telemetry.startGame()
+    telemetry.finishGame('completed')
+
+    expect(adapter.events.map(e => e.name)).toEqual([
+      'game_started',
+      'game_started',
+      'game_completed',
+    ])
+  })
+
+  it('sends empty event data for all events', () => {
+    const adapter = new MemoryTelemetryAdapter()
+    const telemetry = createGameTelemetry({ adapter })
+
+    telemetry.startGame()
+    telemetry.finishGame('completed')
+
+    for (const event of adapter.events) {
+      expect(event.data).toEqual({})
+    }
   })
 
   it('swallows both synchronous throws and asynchronous rejections from the adapter', async () => {
@@ -212,37 +120,17 @@ describe('gameTelemetry', () => {
           return Promise.reject(new Error('async transport failure'))
         },
       },
-      getViewportWidth: () => 1280,
     })
 
-    expect(() => telemetry.openApp()).not.toThrow()
-    expect(() => telemetry.startSetup(2)).not.toThrow()
+    expect(() => telemetry.startGame()).not.toThrow()
+    expect(() => telemetry.finishGame('completed')).not.toThrow()
     await Promise.resolve()
 
     expect(callCount).toBe(2)
   })
+})
 
-  it('keeps every public method non-throwing when clock or viewport access fails', () => {
-    let clockReads = 0
-    const telemetry = createGameTelemetry({
-      adapter: new MemoryTelemetryAdapter(),
-      now: () => {
-        clockReads += 1
-        if (clockReads > 1) throw new Error('clock unavailable')
-        return 0
-      },
-      getViewportWidth: () => {
-        throw new Error('viewport unavailable')
-      },
-    })
-
-    expect(() => telemetry.openApp()).not.toThrow()
-    expect(() => telemetry.startSetup(2)).not.toThrow()
-    expect(() => telemetry.startGame(2)).not.toThrow()
-    expect(() => telemetry.finishGame('completed', 1)).not.toThrow()
-    expect(() => telemetry.playAgain()).not.toThrow()
-  })
-
+describe('createUmamiAdapter', () => {
   it('buffers at most 20 events until the Umami script loads and then flushes in order', () => {
     const tracked: string[] = []
     let completeLoad: () => void = () => undefined
@@ -262,13 +150,13 @@ describe('gameTelemetry', () => {
       },
       getTracker: () => ({
         track: (_name, data) => {
-          tracked.push(data.sequence)
+          tracked.push((data as Record<string, string>).sequence)
         },
       }),
     })
 
     for (let sequence = 0; sequence < 25; sequence += 1) {
-      adapter.track('app_open', { sequence: String(sequence) })
+      adapter.track('game_started', { sequence: String(sequence) })
     }
     completeLoad()
 
@@ -293,9 +181,9 @@ describe('gameTelemetry', () => {
       }),
     })
 
-    adapter.track('app_open', {})
+    adapter.track('game_started', {})
     failLoad()
-    adapter.track('setup_started', {})
+    adapter.track('game_completed', {})
     completeLoad()
 
     expect(tracked).toEqual([])

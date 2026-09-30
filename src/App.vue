@@ -362,13 +362,13 @@
 
   watch(gameStarted, (started, wasStarted) => {
     if (started && !wasStarted) {
-      gameTelemetry.startGame(gameState.players.length)
+      gameTelemetry.startGame()
     }
   })
 
   watch(gameFinished, (finished, wasFinished) => {
     if (finished && !wasFinished) {
-      gameTelemetry.finishGame('completed', turnCount.value)
+      gameTelemetry.finishGame('completed')
     }
   })
 
@@ -1476,8 +1476,6 @@
   }
 
   onMounted(() => {
-    gameTelemetry.setMode(selectedMode.value)
-    gameTelemetry.openApp()
     audioService.init()
     audioEnabled.value = audioService.enabled
 
@@ -1804,7 +1802,6 @@
   const handleModeSelected = (mode: GameMode) => {
     selectedMode.value = mode
     saveGameMode(mode)
-    gameTelemetry.selectMode(mode)
   }
 
   const handleLanguageChanged = (lang: string) => {
@@ -1952,7 +1949,6 @@
       ? applyPartyBoardLayout(generatedBoard, studio.cellLayout)
       : generatedBoard
     gameState.gameStatus = 'waiting'
-    gameTelemetry.setMode('party')
     partyMode.start(gameState.players.length, studio?.director)
     localPartyMomentum.cancel()
     partyRewardNotice.value = ''
@@ -2111,7 +2107,7 @@
 
   const endPausedSession = () => {
     sessionPaused.value = false
-    gameTelemetry.finishGame('user_ended', turnCount.value)
+    gameTelemetry.finishGame('user_ended')
     resetGame()
   }
 
@@ -3208,8 +3204,6 @@
   }) => {
     selectedMode.value = playerConfig.mode
     saveGameMode(playerConfig.mode)
-    gameTelemetry.setMode(playerConfig.mode)
-    gameTelemetry.startSetup(playerConfig.count)
     victoryConfig.value = { ...playerConfig.victoryConfig }
 
     if (playerConfig.mode === 'party') {
@@ -3453,8 +3447,6 @@
     const partyReplayConfig = activePartyStartConfig.value
       ? cloneConfig(activePartyStartConfig.value)
       : null
-    const playerCount = gameState.players.length
-    gameTelemetry.playAgain()
     showVictoryScreen.value = false
     resetGame()
 
@@ -3471,8 +3463,6 @@
       }
       return
     }
-
-    gameTelemetry.startSetup(playerCount)
   }
 
   const confirmTakeoffRelief = async () => {
@@ -3896,7 +3886,7 @@
   const prepareForConfigImport = () => {
     const importedDuringActiveSession = gameStarted.value || activeMode.value !== null
     if (gameStarted.value) {
-      gameTelemetry.finishGame('config_import', turnCount.value)
+      gameTelemetry.finishGame('config_import')
     }
     if (importedDuringActiveSession) {
       resetGame()
