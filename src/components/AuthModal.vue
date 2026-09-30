@@ -154,14 +154,25 @@
 
     if (error) {
       if (error.message.includes('Invalid login credentials')) {
-        const { error: signUpErr } = await supabase.auth.signUp({
+        const { error: signUpErr, data } = await supabase.auth.signUp({
           email: email.value,
           password: password.value,
         })
         if (signUpErr) {
-          errorMsg.value = signUpErr.message
+          // If signup fails with user already exists, it means they just typed the wrong password.
+          if (signUpErr.message.includes('User already registered')) {
+            errorMsg.value = t('auth_error_invalid_password') || 'Invalid password.'
+          } else {
+            errorMsg.value = signUpErr.message
+          }
         } else {
-          errorMsg.value = t('auth_signup_success_check_email')
+          // Signup might succeed but require email confirmation, or auto-login
+          if (data?.session) {
+            closeModal()
+          } else {
+            errorMsg.value =
+              t('auth_signup_success_check_email') || 'Sign up successful. Please check your email.'
+          }
         }
       } else {
         errorMsg.value = error.message

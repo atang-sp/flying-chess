@@ -186,6 +186,9 @@ export function collectLocalSettings(): CloudUserSettings {
 let pushTimeout: ReturnType<typeof setTimeout> | null = null
 
 export function pushSettingsDebounced(delay = 800): void {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('local_settings_updated_at', Date.now().toString())
+  }
   if (pushTimeout) clearTimeout(pushTimeout)
   pushTimeout = setTimeout(() => {
     syncEngine.pushSettings().catch(() => {})
@@ -236,8 +239,18 @@ export const syncEngine = {
             : undefined
 
         const localGameConfig = loadConfig()
-        const localSavedAt = localGameConfig?.savedAt ?? 0
-        const cloudSavedAt = cloudGameConfig?.savedAt ?? 0
+        let localSavedAt = localGameConfig?.savedAt ?? 0
+        if (typeof localStorage !== 'undefined') {
+          const lsu = parseInt(localStorage.getItem('local_settings_updated_at') || '0', 10)
+          if (!isNaN(lsu) && lsu > localSavedAt) {
+            localSavedAt = lsu
+          }
+        }
+        // Use the bundle's savedAt as the primary timestamp, fallback to gameConfig's savedAt
+        const cloudSavedAt =
+          (typeof rawSettings.savedAt === 'number'
+            ? rawSettings.savedAt
+            : cloudGameConfig?.savedAt) ?? 0
 
         if (cloudGameConfig) {
           if (!localGameConfig || cloudSavedAt > localSavedAt) {
@@ -427,9 +440,6 @@ export const syncEngine = {
       if (!ok) {
         throw new Error(syncError.value || 'Sync failed')
       }
-      // 保证本地全量最新状态推送到云端
-      await syncEngine.pushSettings()
-      await syncEngine.pushProgress(loadLocalProgress())
 
       syncStatus.value = 'success'
       const now = Date.now()
