@@ -176,11 +176,11 @@ create table public.game_progress (
 - [x] 开发 `AuthModal.vue` 界面并与 `App.vue` 融合
 - [x] 通过 `vue-tsc` 类型安全检查与生产环境无破坏性回归验证
 
-### 阶段二：创建独立 Supabase 项目与部署 Schema【待用户提供凭证】
+### 阶段二：创建独立 Supabase 项目与部署 Schema【已完成】
 
-- [ ] 用户在 Supabase 创建独立项目（如 `flying-chess`），提供 `Project URL` 与 `anon key`
-- [ ] 写入本地 `.env.local`
-- [ ] 执行 `supabase-schema.sql` 完成数据库初始化及 RLS 配置
+- [x] 用户在 Supabase 创建独立项目（如 `flying-chess`），提供 `Project URL` 与 `anon key`
+- [x] 写入本地 `.env.local`
+- [x] 执行 `supabase-schema.sql` 完成数据库初始化及 RLS 配置
 
 ### 阶段三：配置 X (Twitter) OAuth 渠道【计划中】
 
@@ -188,11 +188,11 @@ create table public.game_progress (
 - [ ] 在 Supabase Dashboard 启用 Twitter Provider 并填入回调地址
 - [ ] 客户端真实登录调通验证
 
-### 阶段四：打通 SP 专属社区论坛 (atang-sp.run.place) 登录【计划中】
+### 阶段四：打通 SP 专属社区论坛 (atang-sp.run.place) 登录【已完成】
 
-- [ ] 基于论坛的 DiscourseConnect 协议配置对接适配桥接
-- [ ] 在论坛后台开启 SSO Provider 授权
-- [ ] 客户端“SP 专属社区登录”联调验证
+- [x] 基于论坛的 DiscourseConnect 协议配置对接适配桥接
+- [x] 在论坛后台开启 SSO Provider 授权
+- [x] 客户端“SP 专属社区登录”联调验证
 
 ### 阶段五：跨设备多端联调与发布上线【计划中】
 
