@@ -274,24 +274,11 @@ test('selects and starts party mode with anonymous mode telemetry', async ({ pag
 
   await expect
     .poll(async () => (await getTelemetryEvents(page)).map(event => event.name))
-    .toEqual(['app_open', 'mode_selected', 'mode_switched', 'setup_started', 'game_started'])
+    .toEqual(['game_started'])
 
   const events = await getTelemetryEvents(page)
-  expect(events[1].data).toMatchObject({
-    mode_id: 'party',
-    ruleset_version: 'party_v3',
-  })
-  expect(events[2].data).toMatchObject({
-    mode_id: 'party',
-    previous_mode_id: 'classic',
-    ruleset_version: 'party_v3',
-  })
-  expect(events[4].data).toMatchObject({
-    mode_id: 'party',
-    ruleset_version: 'party_v3',
-    player_count_bucket: '2',
-  })
   for (const event of events) {
+    expect(event.data).toEqual({})
     expect(event.data).not.toHaveProperty('player_name')
     expect(event.data).not.toHaveProperty('punishment')
     expect(event.data).not.toHaveProperty('duration_ms')
