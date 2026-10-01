@@ -201,7 +201,7 @@
     loading.value = true
     errorMsg.value = ''
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'x',
+      provider: 'twitter',
       options: { redirectTo: getRedirectUrl() },
     })
     if (error) {
