@@ -33,8 +33,8 @@
   "classic_desc": "Komplette klassische Regeln · Start, Schlagen und Strategie (2–4 Spieler)",
   "party_badge": "🔥 Party-Erweiterung",
   "party_desc": "Interaktives Party-Gameplay · Ca. 20 Min · 3 Akte, Chip-Eingriffe und Wahrheit oder Pflicht",
-  "multi_device_mode": "Mehrgeräte-Modus",
-  "multi_device_desc": "Jeder Spieler benutzt sein eigenes Smartphone",
+  "multi_device_mode": "Lokale Handy-Steuerung",
+  "multi_device_desc": "Teilt ein Brett im selben Raum und koppelt Handys manuell. Offline spielbar.",
   "online_party_title": "Online-Partymodus",
   "online_party_desc": "2–8 Spieler treten per QR-Code bei, Synchronisation über Raum-Server",
   "player_settings": "Spieler-Einstellungen",
@@ -413,7 +413,7 @@
   "app_guide_auto": "Anleitung automatisch anzeigen",
   "app_guide_reset": "Anleitung zurücksetzen",
   "app_guide_reset_status": "Anleitungsstatus zurücksetzen",
-  "app_guide_first_visit": "Anleitung beim ersten Besuch anzeigen",
+  "app_guide_first_visit": "Anleitung jederzeit öffnen; automatische Hinweise sind standardmäßig aus",
   "app_settings_view_rules": "Regeln und Einstellungen ansehen",
   "app_lan_connect_btn": "LAN-Direktverbindung herstellen",
   "app_lan_instruction_detail": "1. Controller-Adresse am Handy öffnen; 2. Einladung einfügen; 3. Antwort vom Handy hier einfügen.",
@@ -756,7 +756,7 @@
   "guide_intro_players_title": "Spieler-Setup",
   "guide_intro_players_desc": "Spieleranzahl und Spitznamen festlegen",
   "guide_intro_start_title": "Spiel Starten",
-  "guide_intro_start_desc": "Klicken, um zu den detaillierten Brett- und Regeleinstellungen zu gelangen",
+  "guide_intro_start_desc": "Wählt Spieler und Szene, dann Schnellstart. Erweiterte Einstellungen bei Bedarf öffnen. Diese Anleitung lässt sich jederzeit schließen oder erneut öffnen.",
   "guide_board_title": "Brett-Einstellungen",
   "guide_board_desc": "Hier kannst du die grundlegenden Brettparameter anpassen",
   "guide_board_cells_title": "Feldanzahl-Setup",
@@ -905,5 +905,7 @@
   "auth_reset_sent": "Falls ein Konto besteht, wurde eine E-Mail zum Zurücksetzen gesendet.",
   "auth_new_password": "Passwort (mindestens 6 Zeichen)",
   "auth_save_password": "Neues Passwort speichern",
-  "auth_active_game_tip": "Beende das aktuelle Spiel, bevor du dich abmeldest oder Gastdaten importierst."
+  "auth_active_game_tip": "Beende das aktuelle Spiel, bevor du dich abmeldest oder Gastdaten importierst.",
+  "local_party_title": "Lokale Party-Runde",
+  "advanced_options": "Erweiterte Einstellungen und lokaler Fortschritt"
 }

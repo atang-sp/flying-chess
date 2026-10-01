@@ -3,6 +3,27 @@ import packageJson from '../../package.json' with { type: 'json' }
 
 const SESSION_STORAGE_KEY = 'flying-chess-online-session-v1'
 
+test('iPhone WebKit exposes local defaults, optional editors and offline quick start', async ({
+  page,
+}) => {
+  await page.goto('/flying-chess/')
+  await expect(page.locator('.driver-popover')).toBeHidden()
+  await expect(page.getByTestId('online-party-entry')).toBeVisible()
+  await page.getByTestId('mode-party').click()
+  await expect(page.getByTestId('quick-start-game')).toBeInViewport({ ratio: 1 })
+  await page.getByTestId('start-game').click()
+  await expect(page.locator('#advanced-settings')).toHaveAttribute('open', '')
+  await expect(page.locator('.game-board')).toBeHidden()
+  await page.getByTestId('advanced-settings-toggle').click()
+  await page.locator('.name-input').first().fill('Alice')
+  await page.locator('.name-input').first().press('Enter')
+  await page.context().setOffline(true)
+  await page.getByTestId('quick-start-game').click()
+  await expect(page.getByTestId('party-status')).toContainText('party_v3')
+  await expect(page.getByTestId('party-status')).toContainText('Alice')
+  await page.context().setOffline(false)
+})
+
 interface StoredSession {
   readonly roomCode: string
   readonly playerId: string

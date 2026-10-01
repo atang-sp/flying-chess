@@ -196,7 +196,7 @@ test('升温局把幕、轮次、筹码和玩家进度合并到统一 HUD', asyn
 
   await page.goto('/flying-chess/')
   await page.getByTestId('mode-party').click()
-  await page.getByTestId('start-game').click()
+  await page.getByTestId('quick-start-game').click()
 
   const hud = page.getByTestId('party-status')
   await expect(hud).toHaveClass(/game-roster/)

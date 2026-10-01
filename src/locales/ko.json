@@ -33,8 +33,8 @@
   "classic_desc": "클래식 비행기 전체 규칙 · 정통 이륙, 충돌 귀환 및 전략적 대결 (2–4인 지원)",
   "party_badge": "🔥 파티 확장",
   "party_desc": "파티 인터랙티브 모드 · 약 20분 · 3막 진행, 칩 개입 및 진실 혹은 대담",
-  "multi_device_mode": "다중 기기 모드",
-  "multi_device_desc": "각자의 스마트폰으로 조작",
+  "multi_device_mode": "같은 장소의 휴대폰 컨트롤러",
+  "multi_device_desc": "같은 장소에서 보드를 공유하고 휴대폰을 수동 연결합니다. 오프라인으로 플레이할 수 있습니다.",
   "online_party_title": "온라인 파티 모드",
   "online_party_desc": "QR 코드로 2–8인 참여, 룸 서버를 통한 게임 동기화",
   "player_settings": "플레이어 설정",
@@ -413,7 +413,7 @@
   "app_guide_auto": "가이드 자동 표시",
   "app_guide_reset": "가이드 초기화",
   "app_guide_reset_status": "가이드 상태 초기화",
-  "app_guide_first_visit": "첫 방문 시 가이드 표시",
+  "app_guide_first_visit": "언제든 안내를 열 수 있습니다. 자동 안내는 기본적으로 꺼져 있습니다",
   "app_settings_view_rules": "게임 규칙 및 설정 보기",
   "app_lan_connect_btn": "LAN 직접 연결 설정",
   "app_lan_instruction_detail": "1. 휴대폰으로 컨트롤러 주소 접속; 2. 초대를 휴대폰에 붙여넣기; 3. 휴대폰에서 생성된 응답을 여기에 붙여넣기.",
@@ -756,7 +756,7 @@
   "guide_intro_players_title": "플레이어 설정",
   "guide_intro_players_desc": "참여 인원과 닉네임을 설정합니다",
   "guide_intro_start_title": "게임 시작",
-  "guide_intro_start_desc": "클릭하여 보드판 및 세부 설정 화면으로 이동합니다",
+  "guide_intro_start_desc": "인원과 장면을 선택한 후 빠른 시작을 누르세요. 고급 설정은 필요할 때 펼치세요. 안내는 언제든 닫거나 다시 열 수 있습니다.",
   "guide_board_title": "보드판 설정",
   "guide_board_desc": "게임 보드판의 기본 매개변수를 구성합니다",
   "guide_board_cells_title": "칸 수량 설정",
@@ -905,5 +905,7 @@
   "auth_reset_sent": "계정이 존재하면 비밀번호 재설정 이메일이 전송되었습니다.",
   "auth_new_password": "비밀번호 (6자 이상)",
   "auth_save_password": "새 비밀번호 저장",
-  "auth_active_game_tip": "로그아웃하거나 데이터를 가져오기 전에 현재 게임을 종료하세요."
+  "auth_active_game_tip": "로그아웃하거나 데이터를 가져오기 전에 현재 게임을 종료하세요.",
+  "local_party_title": "로컬 파티 게임",
+  "advanced_options": "고급 설정 및 로컬 진행"
 }

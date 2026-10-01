@@ -33,8 +33,8 @@
   "classic_desc": "经典飞行棋完整规则 · 原汁原味起飞、撞子回航与策略博弈（支持 2–4 人）",
   "party_badge": "🔥 聚会拓展",
   "party_desc": "派对互动玩法 · 约 20 分钟 · 三幕进程、筹码干预与真心话大冒险",
-  "multi_device_mode": "多设备模式",
-  "multi_device_desc": "每人用自己的手机操作",
+  "multi_device_mode": "同场手机手柄",
+  "multi_device_desc": "同场共享棋盘，通过手动配对连接手机；离线可玩",
   "online_party_title": "联机升温局",
   "online_party_desc": "2–8 人扫码加入，由房间服务器同步局面",
   "player_settings": "玩家设置",
@@ -413,7 +413,7 @@
   "app_guide_auto": "自动显示引导",
   "app_guide_reset": "重置引导",
   "app_guide_reset_status": "重置引导状态",
-  "app_guide_first_visit": "首次访问页面时显示引导",
+  "app_guide_first_visit": "可随时打开引导；自动引导默认关闭",
   "app_settings_view_rules": "游戏规则及设置查看",
   "app_lan_connect_btn": "建立局域网直连",
   "app_lan_instruction_detail": "1. 手机打开上方手柄地址；2. 将邀请粘贴到手机；3. 把手机生成的应答粘贴回来。",
@@ -756,7 +756,7 @@
   "guide_intro_players_title": "玩家设置",
   "guide_intro_players_desc": "设置游戏的玩家数量和昵称",
   "guide_intro_start_title": "开始游戏",
-  "guide_intro_start_desc": "点击开始游戏，进入棋盘设置页面进行详细配置",
+  "guide_intro_start_desc": "人数与场景准备好后，点快速开局。高级配置可按需展开；引导可随时关闭或重新打开。",
   "guide_board_title": "棋盘设置",
   "guide_board_desc": "在这里配置游戏棋盘的基本参数",
   "guide_board_cells_title": "格子数量配置",
@@ -905,5 +905,7 @@
   "auth_reset_sent": "若账号存在，密码重置邮件已发送。",
   "auth_new_password": "密码（至少 6 位）",
   "auth_save_password": "保存新密码",
-  "auth_active_game_tip": "请先结束当前对局，再退出账号或导入游客数据。"
+  "auth_active_game_tip": "请先结束当前对局，再退出账号或导入游客数据。",
+  "local_party_title": "本地升温局",
+  "advanced_options": "高级配置与本地进度"
 }

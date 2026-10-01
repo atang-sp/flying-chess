@@ -33,8 +33,8 @@
   "classic_desc": "Regras clássicas completas · Decolagem autêntica, retorno por colisão e estratégia (2–4 jogadores)",
   "party_badge": "🔥 Extensão de Festa",
   "party_desc": "Jogo interativo para festas · Cerca de 20 min · Progressão em 3 atos, fichas e verdade ou desafio",
-  "multi_device_mode": "Modo Multidispositivo",
-  "multi_device_desc": "Cada jogador usa seu próprio celular",
+  "multi_device_mode": "Telemóveis como comandos locais",
+  "multi_device_desc": "Partilhem o tabuleiro na mesma sala e emparelhem os telemóveis manualmente. Funciona offline.",
   "online_party_title": "Modo Festa Online",
   "online_party_desc": "2 a 8 jogadores entram via QR code, sincronizados pelo servidor de sala",
   "player_settings": "Configurações de Jogadores",
@@ -413,7 +413,7 @@
   "app_guide_auto": "Mostrar guia automaticamente",
   "app_guide_reset": "Redefinir Guia",
   "app_guide_reset_status": "Redefinir estado do guia",
-  "app_guide_first_visit": "Mostrar guia na primeira visita",
+  "app_guide_first_visit": "Abra o guia quando quiser; a orientação automática vem desativada",
   "app_settings_view_rules": "Ver Regras e Configurações",
   "app_lan_connect_btn": "Estabelecer Conexão LAN",
   "app_lan_instruction_detail": "1. Abra o endereço do controle no celular; 2. Cole o convite no celular; 3. Cole a resposta do celular aqui.",
@@ -756,7 +756,7 @@
   "guide_intro_players_title": "Configuração de Jogadores",
   "guide_intro_players_desc": "Defina o número de participantes e seus apelidos",
   "guide_intro_start_title": "Iniciar Jogo",
-  "guide_intro_start_desc": "Clique para acessar as configurações de tabuleiro e regras",
+  "guide_intro_start_desc": "Escolha jogadores e cenário e use o início rápido. Abra as definições avançadas quando precisar. Pode fechar ou reabrir este guia.",
   "guide_board_title": "Configurações do Tabuleiro",
   "guide_board_desc": "Configure os parâmetros básicos do tabuleiro aqui",
   "guide_board_cells_title": "Quantidade de Casas",
@@ -905,5 +905,7 @@
   "auth_reset_sent": "Se a conta existir, um e-mail de redefinição foi enviado.",
   "auth_new_password": "Senha (mínimo de 6 caracteres)",
   "auth_save_password": "Salvar nova senha",
-  "auth_active_game_tip": "Termine a partida antes de sair ou importar dados."
+  "auth_active_game_tip": "Termine a partida antes de sair ou importar dados.",
+  "local_party_title": "Partida de festa local",
+  "advanced_options": "Definições avançadas e progresso local"
 }

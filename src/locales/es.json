@@ -33,8 +33,8 @@
   "classic_desc": "Reglas clásicas completas · Despegue auténtico, retorno por colisión y estrategia (2–4 jugadores)",
   "party_badge": "🔥 Extensión de Fiesta",
   "party_desc": "Modo interactivo para fiestas · Aprox. 20 min · 3 actos, fichas de intervención y verdad o reto",
-  "multi_device_mode": "Modo Multidispositivo",
-  "multi_device_desc": "Cada jugador usa su propio teléfono",
+  "multi_device_mode": "Mandos móviles locales",
+  "multi_device_desc": "Comparte el tablero en la misma sala y empareja móviles manualmente. Funciona sin conexión.",
   "online_party_title": "Modo Fiesta Online",
   "online_party_desc": "2–8 jugadores se unen mediante código QR, sincronizados por el servidor",
   "player_settings": "Ajustes de Jugadores",
@@ -413,7 +413,7 @@
   "app_guide_auto": "Mostrar guía automáticamente",
   "app_guide_reset": "Restablecer Guía",
   "app_guide_reset_status": "Restablecer estado de la guía",
-  "app_guide_first_visit": "Mostrar guía en la primera visita",
+  "app_guide_first_visit": "Abre la guía cuando quieras; la guía automática está desactivada por defecto",
   "app_settings_view_rules": "Ver Reglas y Ajustes",
   "app_lan_connect_btn": "Establecer Conexión LAN",
   "app_lan_instruction_detail": "1. Abre la dirección del mando en el móvil; 2. Pega la invitación en el móvil; 3. Pega la respuesta del móvil aquí.",
@@ -756,7 +756,7 @@
   "guide_intro_players_title": "Ajuste de Jugadores",
   "guide_intro_players_desc": "Configura el número de jugadores y sus nombres",
   "guide_intro_start_title": "Iniciar Juego",
-  "guide_intro_start_desc": "Haz clic para acceder a la configuración del tablero y de las reglas",
+  "guide_intro_start_desc": "Elige jugadores y escenario, luego Inicio rápido. Abre las opciones avanzadas cuando las necesites. Puedes cerrar o reabrir esta guía.",
   "guide_board_title": "Configuración del Tablero",
   "guide_board_desc": "Configura los parámetros básicos del tablero de juego aquí",
   "guide_board_cells_title": "Número de Casillas",
@@ -905,5 +905,7 @@
   "auth_reset_sent": "Si existe una cuenta, se ha enviado un correo para restablecer la contraseña.",
   "auth_new_password": "Contraseña (mínimo 6 caracteres)",
   "auth_save_password": "Guardar nueva contraseña",
-  "auth_active_game_tip": "Termina la partida antes de cerrar sesión o importar datos."
+  "auth_active_game_tip": "Termina la partida antes de cerrar sesión o importar datos.",
+  "local_party_title": "Partida local de fiesta",
+  "advanced_options": "Opciones avanzadas y progreso local"
 }

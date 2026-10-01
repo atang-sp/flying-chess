@@ -3635,7 +3635,7 @@
         },
       },
       {
-        element: '.start-btn',
+        element: '[data-testid="quick-start-game"]',
         popover: {
           title: t('guide_intro_start_title'),
           description: t('guide_intro_start_desc'),
@@ -3824,7 +3824,7 @@
 
   // 自动引导功能 - 当进入新页面时自动显示引导
   const hasShownGuide = ref(new Set<string>())
-  const autoGuideEnabled = ref(true) // 可以控制是否启用自动引导
+  const autoGuideEnabled = ref(false) // 可以控制是否启用自动引导
   const showGuideSettings = ref(false) // 控制引导设置菜单显示
 
   // 配置导出功能
@@ -4118,6 +4118,7 @@
   <div
     class="app"
     :class="{
+      'app--intro': gameState.gameStatus === 'intro',
       'app--settings':
         gameState.gameStatus === 'board_settings' || gameState.gameStatus === 'settings',
       'app--game':
@@ -5914,5 +5915,34 @@
 
   .connection-item.connected .connection-status-icon {
     color: #34d399;
+  }
+
+  .app--intro .guide-controls {
+    position: absolute;
+    top: 0.5rem;
+    bottom: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .app--intro .guide-btn {
+    position: static;
+  }
+  .app--intro .settings-menu,
+  .app--intro .lang-menu {
+    top: calc(100% + 0.5rem);
+    bottom: auto;
+    left: 0;
+  }
+  .app--intro .settings-menu {
+    left: auto;
+    right: 0;
+  }
+  .app--intro .guide-controls button:not(.lang-option-btn):not(.reset-btn) {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
   }
 </style>

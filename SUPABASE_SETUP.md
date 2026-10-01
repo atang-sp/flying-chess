@@ -80,7 +80,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key-here
 2. 填入以下配置：
    - **Provider identifier**: `custom:discourse`
    - **Client ID**: `flying-chess`
-   - **Client Secret**: `flying-chess-secret`
+   - **Client Secret**: 从安全配置读取已部署桥接器对应的值；不要使用文档示例密码或将凭据写入仓库。
    - **Authorization URL**: `https://atang-sp.run.place/oauth/authorize`
    - **Token URL**: `https://atang-sp.run.place/oauth/token`
    - **User Info URL**: `https://atang-sp.run.place/oauth/userinfo`

@@ -94,6 +94,7 @@
   const applicationVersion = VERSION
   const selectedScenePreset = ref<PartyScenePreset | 'default'>('default')
   const multiDeviceMode = ref(false)
+  const advancedOpen = ref(false)
   const victoryConfig = ref<VictoryConfig>(loadVictoryConfig())
   const eventDeck = ref<readonly PartyEventCard[]>(loadPartyEventDeck())
   const localProgress = ref(loadLocalProgress())
@@ -216,6 +217,7 @@
   const applyScenarioPreset = (preset: ScenarioPreset) => {
     activeScenarioId.value = preset.id
     selectedMode.value = preset.mode
+    emit('mode-selected', preset.mode)
     playerCount.value = preset.playerCount
     if (preset.scenePreset) {
       selectedScenePreset.value = preset.scenePreset
@@ -324,6 +326,7 @@
         applyingStoredState--
       })
       selectedMode.value = props.initialMode
+      activeScenarioId.value = null
       const players = loadPlayerSettings()
       playerCount.value = players?.playerCount ?? 2
       playerNames.value = players?.playerNames ?? [
@@ -407,6 +410,7 @@
 
   const selectMode = (mode: GameMode) => {
     selectedMode.value = mode
+    activeScenarioId.value = null
     emit('mode-selected', mode)
   }
 
@@ -588,34 +592,223 @@
           <span class="subtitle-text">{{ $t('game_subtitle') }}</span>
           <div class="subtitle-underline"></div>
         </div>
+      </div>
 
-        <div class="developer-info">
-          <div class="dev-card">
-            <div class="dev-avatar"><Code2 :size="28" /></div>
-            <div class="dev-details">
-              <span class="dev-name">{{ $t('developer') }}</span>
-              <!-- 论坛宣传链接 -->
-              <a
-                href="https://atang-sp.run.place"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="dev-link"
+      <section class="mode-chooser" aria-labelledby="mode-chooser-title">
+        <div class="settings-header">
+          <h2 id="mode-chooser-title" class="settings-title">
+            <Dices :size="22" class="settings-icon" />
+            <span class="settings-title-text">{{ $t('gameplay_mode') }}</span>
+          </h2>
+          <div class="settings-underline"></div>
+        </div>
+
+        <div class="mode-grid">
+          <button
+            type="button"
+            class="mode-card mode-card--classic"
+            :class="{
+              'mode-card--selected': selectedMode === 'classic',
+              'mode-card--recommended': true,
+            }"
+            :aria-pressed="selectedMode === 'classic'"
+            data-testid="mode-classic"
+            @click="selectMode('classic')"
+          >
+            <span class="mode-card__icon mode-card__icon--classic">
+              <ShieldCheck :size="26" />
+            </span>
+            <span class="mode-card__content">
+              <div class="mode-card__title-row">
+                <strong>{{ $t('classic_mode') }}</strong>
+                <span class="mode-card__badge mode-card__badge--featured">
+                  {{ $t('classic_badge') }}
+                </span>
+              </div>
+              <span class="mode-card__desc">
+                {{ $t('classic_desc') }}
+              </span>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            class="mode-card mode-card--party"
+            :class="{ 'mode-card--selected': selectedMode === 'party' }"
+            :aria-pressed="selectedMode === 'party'"
+            data-testid="mode-party"
+            @click="selectMode('party')"
+          >
+            <span class="mode-card__icon mode-card__icon--party">
+              <Flame :size="26" />
+            </span>
+            <span class="mode-card__content">
+              <div class="mode-card__title-row">
+                <strong>{{ $t('local_party_title') }}</strong>
+                <span class="mode-card__badge mode-card__badge--party">
+                  {{ $t('party_badge') }}
+                </span>
+              </div>
+              <span class="mode-card__desc">
+                {{ $t('party_desc') }}
+              </span>
+            </span>
+          </button>
+          <a
+            :href="onlinePartyUrl"
+            class="mode-card online-mode-link"
+            data-testid="online-party-entry"
+          >
+            <span class="mode-card__icon">🌐</span>
+            <span class="mode-card__content">
+              <strong>{{ $t('online_party_title') }}</strong>
+              <span>{{ $t('online_party_desc') }}</span>
+            </span>
+            <span class="mode-card__badge mode-card__badge--party">
+              v{{ applicationVersion }} · party_v3
+            </span>
+          </a>
+        </div>
+        <p class="selected-mode-description">
+          {{ selectedMode === 'party' ? $t('party_desc') : $t('classic_desc') }}
+        </p>
+      </section>
+
+      <!-- 玩家设置区域 -->
+      <div class="player-settings">
+        <div class="settings-header">
+          <h2 class="settings-title">
+            <Users :size="22" class="settings-icon" />
+            <span class="settings-title-text">{{ $t('player_settings') }}</span>
+          </h2>
+          <div class="settings-underline"></div>
+        </div>
+
+        <!-- 玩家数量设置 -->
+        <div class="player-count-section">
+          <div class="setting-item">
+            <label class="setting-label">
+              <User :size="20" class="label-icon" />
+              <span class="label-text">{{ $t('player_count_label') }}</span>
+            </label>
+            <div class="count-controls">
+              <button
+                class="btn btn-secondary count-btn minus"
+                :aria-label="$t('decrease_player_count_aria')"
+                :disabled="playerCount <= 1"
+                @click="onPlayerCountChange(Math.max(1, playerCount - 1))"
               >
-                <span class="dev-id">{{ $t('forum_link') }}</span>
-                <ExternalLink :size="14" class="link-icon" />
-              </a>
-              <a
-                href="https://x.com/sp_with_py"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="dev-link"
+                <Minus :size="18" />
+              </button>
+              <div class="count-display">
+                <span class="count-number">{{ playerCount }}</span>
+                <span v-if="$t('unit_people')" class="count-unit">{{ $t('unit_people') }}</span>
+              </div>
+              <button
+                class="btn btn-secondary count-btn plus"
+                :aria-label="$t('increase_player_count_aria')"
+                @click="onPlayerCountChange(playerCount + 1)"
               >
-                <span class="dev-id">@sp_with_py</span>
-                <ExternalLink :size="14" class="link-icon" />
-              </a>
+                <Plus :size="18" />
+              </button>
             </div>
           </div>
         </div>
+
+        <!-- 玩家名称设置 -->
+        <div class="player-names-section">
+          <div class="names-header">
+            <span class="names-title">{{ $t('player_names_label') }}</span>
+          </div>
+          <div class="names-list">
+            <div v-for="(name, index) in playerNames" :key="index" class="name-item">
+              <div class="name-input-container">
+                <input
+                  type="text"
+                  :value="name"
+                  class="name-input"
+                  :placeholder="localeContent.defaultPlayerName(index)"
+                  maxlength="10"
+                  :aria-label="`${$t('player_names_label')} ${index + 1}`"
+                  enterkeyhint="done"
+                  @keydown.enter="($event.target as HTMLInputElement).blur()"
+                  @input="updatePlayerName(index, ($event.target as HTMLInputElement).value)"
+                />
+                <div class="input-glow"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <details v-if="selectedMode === 'party'" class="scene-options">
+        <summary>
+          {{ $t('party_scene_title') }} · {{ $t(`party_scene_${selectedScenePreset}_title`) }}
+        </summary>
+        <PartySceneSelector :selected="selectedScenePreset" @select="selectScenePreset" />
+      </details>
+
+      <!-- 主操作区域：置顶直达 -->
+      <div class="intro-actions">
+        <div class="game-info">
+          <div class="info-item">
+            <Clock :size="16" class="info-icon" />
+            <span class="info-text">
+              {{ $t('game_duration_label')
+              }}{{
+                selectedMode === 'party'
+                  ? $t('game_duration_20m')
+                  : playerCount === 2
+                    ? $t('game_duration_10m')
+                    : $t('game_duration_15_20m')
+              }}
+            </span>
+          </div>
+          <div class="info-item">
+            <Target :size="16" class="info-icon" />
+            <span class="info-text">
+              {{ selectedMode === 'party' ? $t('game_target_adult') : $t('game_target_all') }}
+            </span>
+          </div>
+        </div>
+        <div class="action-buttons-group">
+          <!-- 一键快速开局 -->
+          <button
+            class="btn btn-primary quick-start-btn"
+            :disabled="!canStart"
+            data-testid="quick-start-game"
+            @click="startQuickGame"
+          >
+            <Rocket :size="22" />
+            <span class="btn-text">{{ quickStartBtnText }}</span>
+          </button>
+
+          <!-- 详细配置入口 -->
+          <button
+            class="btn btn-secondary start-btn"
+            :disabled="!canStart"
+            data-testid="start-game"
+            :aria-expanded="selectedMode === 'party' ? advancedOpen : undefined"
+            :aria-controls="selectedMode === 'party' ? 'advanced-settings' : undefined"
+            @click="selectedMode === 'party' ? (advancedOpen = !advancedOpen) : startGame()"
+          >
+            <Settings :size="18" />
+            <span class="btn-text">
+              {{
+                selectedMode === 'party'
+                  ? $t('advanced_settings_workshop')
+                  : $t('custom_rules_config')
+              }}
+            </span>
+          </button>
+        </div>
+
+        <p
+          v-if="selectedMode === 'party' && playerCount < PARTY_MIN_PLAYERS"
+          class="party-player-hint"
+        >
+          {{ $t('party_min_players_hint') }}
+        </p>
       </div>
 
       <!-- 快捷场景预设 (Scenario Presets) -->
@@ -706,74 +899,16 @@
         </div>
       </section>
 
-      <section class="mode-chooser" aria-labelledby="mode-chooser-title">
-        <div class="settings-header">
-          <h2 id="mode-chooser-title" class="settings-title">
-            <Dices :size="22" class="settings-icon" />
-            <span class="settings-title-text">{{ $t('gameplay_mode') }}</span>
-          </h2>
-          <div class="settings-underline"></div>
-        </div>
-
-        <div class="mode-grid">
-          <button
-            type="button"
-            class="mode-card mode-card--classic"
-            :class="{
-              'mode-card--selected': selectedMode === 'classic',
-              'mode-card--recommended': true,
-            }"
-            :aria-pressed="selectedMode === 'classic'"
-            data-testid="mode-classic"
-            @click="selectMode('classic')"
-          >
-            <span class="mode-card__icon mode-card__icon--classic">
-              <ShieldCheck :size="26" />
-            </span>
-            <span class="mode-card__content">
-              <div class="mode-card__title-row">
-                <strong>{{ $t('classic_mode') }}</strong>
-                <span class="mode-card__badge mode-card__badge--featured">
-                  {{ $t('classic_badge') }}
-                </span>
-              </div>
-              <span class="mode-card__desc">
-                {{ $t('classic_desc') }}
-              </span>
-            </span>
-          </button>
-
-          <button
-            type="button"
-            class="mode-card mode-card--party"
-            :class="{ 'mode-card--selected': selectedMode === 'party' }"
-            :aria-pressed="selectedMode === 'party'"
-            data-testid="mode-party"
-            @click="selectMode('party')"
-          >
-            <span class="mode-card__icon mode-card__icon--party">
-              <Flame :size="26" />
-            </span>
-            <span class="mode-card__content">
-              <div class="mode-card__title-row">
-                <strong>{{ $t('party_mode') }}</strong>
-                <span class="mode-card__badge mode-card__badge--party">
-                  {{ $t('party_badge') }}
-                </span>
-              </div>
-              <span class="mode-card__desc">
-                {{ $t('party_desc') }}
-              </span>
-            </span>
-          </button>
-        </div>
-
-        <PartySceneSelector
-          v-if="selectedMode === 'party'"
-          :selected="selectedScenePreset"
-          @select="selectScenePreset"
-        />
-
+      <!-- 高级局况定制与工坊（置于开始按钮下方，按需定制） -->
+      <details
+        id="advanced-settings"
+        class="advanced-settings-section"
+        :open="advancedOpen"
+        @toggle="advancedOpen = ($event.target as HTMLDetailsElement).open"
+      >
+        <summary data-testid="advanced-settings-toggle">
+          {{ $t('advanced_options') }}
+        </summary>
         <div v-if="selectedMode === 'party'" class="multi-device-toggle">
           <button
             class="mode-card"
@@ -785,152 +920,6 @@
             <span class="mode-card__desc">{{ $t('multi_device_desc') }}</span>
           </button>
         </div>
-
-        <a
-          v-if="selectedMode === 'party'"
-          :href="onlinePartyUrl"
-          class="mode-card online-mode-link"
-          data-testid="online-party-entry"
-        >
-          <span class="mode-card__icon">🌐</span>
-          <span class="mode-card__content">
-            <strong>{{ $t('online_party_title') }}</strong>
-            <span>{{ $t('online_party_desc') }}</span>
-          </span>
-          <span class="mode-card__badge mode-card__badge--party">
-            v{{ applicationVersion }} · party_v3
-          </span>
-        </a>
-      </section>
-
-      <!-- 玩家设置区域 -->
-      <div class="player-settings">
-        <div class="settings-header">
-          <h2 class="settings-title">
-            <Users :size="22" class="settings-icon" />
-            <span class="settings-title-text">{{ $t('player_settings') }}</span>
-          </h2>
-          <div class="settings-underline"></div>
-        </div>
-
-        <!-- 玩家数量设置 -->
-        <div class="player-count-section">
-          <div class="setting-item">
-            <label class="setting-label">
-              <User :size="20" class="label-icon" />
-              <span class="label-text">{{ $t('player_count_label') }}</span>
-            </label>
-            <div class="count-controls">
-              <button
-                class="btn btn-secondary count-btn minus"
-                :aria-label="$t('decrease_player_count_aria')"
-                :disabled="playerCount <= 1"
-                @click="onPlayerCountChange(Math.max(1, playerCount - 1))"
-              >
-                <Minus :size="18" />
-              </button>
-              <div class="count-display">
-                <span class="count-number">{{ playerCount }}</span>
-                <span v-if="$t('unit_people')" class="count-unit">{{ $t('unit_people') }}</span>
-              </div>
-              <button
-                class="btn btn-secondary count-btn plus"
-                :aria-label="$t('increase_player_count_aria')"
-                @click="onPlayerCountChange(playerCount + 1)"
-              >
-                <Plus :size="18" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 玩家名称设置 -->
-        <div class="player-names-section">
-          <div class="names-header">
-            <span class="names-title">{{ $t('player_names_label') }}</span>
-          </div>
-          <div class="names-list">
-            <div v-for="(name, index) in playerNames" :key="index" class="name-item">
-              <div class="name-input-container">
-                <input
-                  type="text"
-                  :value="name"
-                  class="name-input"
-                  :placeholder="localeContent.defaultPlayerName(index)"
-                  maxlength="10"
-                  @input="updatePlayerName(index, ($event.target as HTMLInputElement).value)"
-                />
-                <div class="input-glow"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 主操作区域：置顶直达 -->
-      <div class="intro-actions">
-        <div class="action-buttons-group">
-          <!-- 一键快速开局 -->
-          <button
-            class="btn btn-primary quick-start-btn"
-            :disabled="!canStart"
-            data-testid="quick-start-game"
-            @click="startQuickGame"
-          >
-            <Rocket :size="22" />
-            <span class="btn-text">{{ quickStartBtnText }}</span>
-          </button>
-
-          <!-- 详细配置入口 -->
-          <button
-            class="btn btn-secondary start-btn"
-            :disabled="!canStart"
-            data-testid="start-game"
-            @click="startGame"
-          >
-            <Settings :size="18" />
-            <span class="btn-text">
-              {{
-                selectedMode === 'party'
-                  ? $t('advanced_settings_workshop')
-                  : $t('custom_rules_config')
-              }}
-            </span>
-          </button>
-        </div>
-
-        <p
-          v-if="selectedMode === 'party' && playerCount < PARTY_MIN_PLAYERS"
-          class="party-player-hint"
-        >
-          {{ $t('party_min_players_hint') }}
-        </p>
-
-        <div class="game-info">
-          <div class="info-item">
-            <Clock :size="16" class="info-icon" />
-            <span class="info-text">
-              {{ $t('game_duration_label')
-              }}{{
-                selectedMode === 'party'
-                  ? $t('game_duration_20m')
-                  : playerCount === 2
-                    ? $t('game_duration_10m')
-                    : $t('game_duration_15_20m')
-              }}
-            </span>
-          </div>
-          <div class="info-item">
-            <Target :size="16" class="info-icon" />
-            <span class="info-text">
-              {{ selectedMode === 'party' ? $t('game_target_adult') : $t('game_target_all') }}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 高级局况定制与工坊（置于开始按钮下方，按需定制） -->
-      <section class="advanced-settings-section" :aria-label="$t('advanced_settings_workshop')">
         <VictoryConfigPanel
           v-if="selectedMode === 'party'"
           :config="victoryConfig"
@@ -953,7 +942,35 @@
         />
 
         <ProgressAchievements :progress="localProgress" />
-      </section>
+      </details>
+
+      <div class="developer-info">
+        <div class="dev-card">
+          <div class="dev-avatar"><Code2 :size="28" /></div>
+          <div class="dev-details">
+            <span class="dev-name">{{ $t('developer') }}</span>
+            <!-- 论坛宣传链接 -->
+            <a
+              href="https://atang-sp.run.place"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="dev-link"
+            >
+              <span class="dev-id">{{ $t('forum_link') }}</span>
+              <ExternalLink :size="14" class="link-icon" />
+            </a>
+            <a
+              href="https://x.com/sp_with_py"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="dev-link"
+            >
+              <span class="dev-id">@sp_with_py</span>
+              <ExternalLink :size="14" class="link-icon" />
+            </a>
+          </div>
+        </div>
+      </div>
 
       <!-- 底部隐私说明与数据管理 -->
       <div class="intro-footer-actions">
@@ -2764,5 +2781,191 @@
   .multi-device-toggle .mode-card__desc {
     font-size: 0.8rem;
     opacity: 0.6;
+  }
+
+  .intro-page {
+    padding-top: 64px;
+  }
+  .intro-page :deep(.version-display) {
+    position: static;
+    align-self: center;
+    margin: 1rem;
+  }
+  .game-subtitle {
+    margin: 0.3rem 0;
+    font-size: 1rem;
+  }
+  .language-switcher {
+    display: none;
+  }
+  .player-count-section {
+    margin-bottom: 0.5rem;
+  }
+  .quick-start-btn {
+    padding: 0.7rem 1rem;
+    min-height: 48px;
+    font-size: 1rem;
+  }
+  .player-names-section {
+    margin-top: 0.5rem;
+  }
+  .names-header {
+    margin-bottom: 0.4rem;
+  }
+  .setting-item {
+    padding: 0.5rem;
+  }
+  .mode-card__content {
+    gap: 0.2rem;
+  }
+  .mode-card__title-row {
+    margin-bottom: 0;
+  }
+  .mode-card__icon {
+    width: 36px;
+    height: 36px;
+  }
+  /* Keep the first local game within reach before optional presets and editors. */
+  .intro-header {
+    margin-bottom: 1rem;
+  }
+  .title-container {
+    margin-bottom: 0.4rem;
+  }
+  .game-title {
+    font-size: clamp(1.5rem, 4vw, 2.4rem);
+  }
+  .title-decoration {
+    display: none;
+  }
+  .mode-chooser,
+  .player-settings {
+    margin: 0.8rem 0;
+    padding: 1rem;
+  }
+  .mode-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+  .mode-card {
+    min-height: 100px;
+    padding: 0.8rem;
+  }
+  .mode-card__badge {
+    display: none;
+  }
+  .settings-header {
+    margin-bottom: 0.6rem;
+  }
+  .settings-title {
+    font-size: 1.1rem;
+    margin-bottom: 0.2rem;
+  }
+  .intro-actions {
+    gap: 0.5rem;
+    margin: 0.8rem 0;
+  }
+  .game-info {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .name-input {
+    font-size: 16px;
+    scroll-margin-block: 5rem;
+  }
+  .advanced-settings-section {
+    display: block;
+    text-align: left;
+  }
+  .scene-options > summary,
+  .advanced-settings-section > summary {
+    cursor: pointer;
+    padding: 1rem;
+    min-height: 44px;
+  }
+  .advanced-settings-section > :not(summary) {
+    margin-top: 1rem;
+  }
+  .developer-info {
+    margin-top: 1.5rem;
+  }
+  @media (max-width: 768px) {
+    .game-subtitle,
+    .language-switcher {
+      display: none;
+    }
+    .title-icon {
+      width: 32px;
+      height: 32px;
+    }
+    .intro-content {
+      padding: 0.5rem;
+    }
+    .language-switcher {
+      padding: 0 0 0.4rem;
+    }
+    .mode-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .mode-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      min-height: 80px;
+      padding: 0.35rem;
+      text-align: center;
+    }
+    .mode-card__content strong {
+      font-size: 0.9rem;
+      line-height: 1.3;
+    }
+    .mode-card__desc,
+    .online-mode-link .mode-card__content > span {
+      display: none;
+    }
+    .mode-card__title-row {
+      justify-content: center;
+    }
+    .mode-chooser,
+    .player-settings {
+      padding: 0.6rem;
+    }
+    .player-count-section {
+      margin-bottom: 0.5rem;
+    }
+    .names-list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.5rem;
+    }
+    .names-header {
+      display: none;
+    }
+    .scene-options > summary {
+      box-sizing: border-box;
+      padding: 0.5rem;
+      font-size: 0.9rem;
+    }
+    .action-buttons-group {
+      gap: 0.5rem;
+    }
+    .quick-start-btn,
+    .start-btn {
+      min-height: 44px;
+      padding: 0.6rem;
+    }
+  }
+  .selected-mode-description {
+    display: none;
+  }
+  @media (max-width: 768px) {
+    .selected-mode-description {
+      display: block;
+      margin: 0.5rem 0 0;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
   }
 </style>
