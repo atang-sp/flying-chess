@@ -1,5 +1,23 @@
 import { expect, test } from '@playwright/test'
 
+test('home toolbar menus remain within the viewport and persist guide preferences', async ({
+  page,
+}) => {
+  await page.goto('/flying-chess/')
+  await page.getByTitle('引导设置').click()
+  await expect(page.locator('.settings-menu')).toBeInViewport({ ratio: 1 })
+  const autoGuide = page.getByRole('checkbox', { name: '自动显示引导' })
+  await expect(autoGuide).not.toBeChecked()
+  await autoGuide.check()
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('autoGuideEnabled')))
+    .toBe('true')
+  await autoGuide.uncheck()
+  await page.getByTitle('引导设置').click()
+  await page.getByTestId('app-language-btn').click()
+  await expect(page.locator('.lang-menu')).toBeInViewport({ ratio: 1 })
+})
+
 test('first visit exposes three entries and starts locally without a guide', async ({ page }) => {
   await page.goto('/flying-chess/')
   await expect(page.getByTestId('mode-classic')).toHaveAttribute('aria-pressed', 'true')

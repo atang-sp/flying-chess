@@ -5936,6 +5936,10 @@
     bottom: auto;
     left: 0;
   }
+  .app--intro .settings-menu {
+    left: auto;
+    right: 0;
+  }
   .app--intro .guide-controls button:not(.lang-option-btn):not(.reset-btn) {
     width: 44px;
     height: 44px;
