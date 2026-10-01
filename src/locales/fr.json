@@ -33,8 +33,8 @@
   "classic_desc": "Règles classiques complètes · Décollage authentique, renvoi au départ et stratégie (2–4 joueurs)",
   "party_badge": "🔥 Extension Soirée",
   "party_desc": "Jeu interactif de soirée · Env. 20 min · Progression en 3 actes, jetons et action ou vérité",
-  "multi_device_mode": "Mode Multi-Appareils",
-  "multi_device_desc": "Chaque joueur utilise son propre téléphone",
+  "multi_device_mode": "Téléphones comme manettes locales",
+  "multi_device_desc": "Partagez le plateau dans la même pièce et associez les téléphones manuellement. Jouable hors ligne.",
   "online_party_title": "Mode Soirée en Ligne",
   "online_party_desc": "2 à 8 joueurs rejoignent via QR code, synchronisés par le serveur",
   "player_settings": "Paramètres des Joueurs",
@@ -413,7 +413,7 @@
   "app_guide_auto": "Afficher le guide automatiquement",
   "app_guide_reset": "Réinitialiser le Guide",
   "app_guide_reset_status": "Réinitialiser l'état du guide",
-  "app_guide_first_visit": "Afficher le guide lors de la première visite",
+  "app_guide_first_visit": "Ouvrez le guide à tout moment ; le guidage automatique est désactivé par défaut",
   "app_settings_view_rules": "Voir les Règles et Paramètres",
   "app_lan_connect_btn": "Établir la Connexion LAN",
   "app_lan_instruction_detail": "1. Ouvrez l'adresse de la manette sur mobile ; 2. Collez l'invitation ; 3. Collez la réponse du mobile ici.",
@@ -756,7 +756,7 @@
   "guide_intro_players_title": "Configuration des Joueurs",
   "guide_intro_players_desc": "Définissez le nombre de participants et leurs pseudos",
   "guide_intro_start_title": "Lancer la Partie",
-  "guide_intro_start_desc": "Cliquez pour accéder aux paramètres du plateau et des règles",
+  "guide_intro_start_desc": "Choisissez les joueurs et la scène, puis Démarrage rapide. Ouvrez les réglages avancés au besoin. Fermez ou rouvrez ce guide à tout moment.",
   "guide_board_title": "Paramètres du Plateau",
   "guide_board_desc": "Configurez les paramètres de base du plateau ici",
   "guide_board_cells_title": "Répartition des Cases",
@@ -905,5 +905,7 @@
   "auth_reset_sent": "Si le compte existe, un e-mail de réinitialisation a été envoyé.",
   "auth_new_password": "Mot de passe (6 caractères minimum)",
   "auth_save_password": "Enregistrer le nouveau mot de passe",
-  "auth_active_game_tip": "Terminez la partie avant de vous déconnecter ou d’importer des données."
+  "auth_active_game_tip": "Terminez la partie avant de vous déconnecter ou d’importer des données.",
+  "local_party_title": "Partie festive locale",
+  "advanced_options": "Réglages avancés et progression locale"
 }

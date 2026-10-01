@@ -33,8 +33,8 @@
   "classic_desc": "Complete classic rules · Authentic takeoff, collision return and strategy (2-4 players)",
   "party_badge": "🔥 Party Extension",
   "party_desc": "Party interactive gameplay · Around 20 mins · 3-act progression, token interventions and truth or dare",
-  "multi_device_mode": "Multi-Device Mode",
-  "multi_device_desc": "Each player uses their own phone",
+  "multi_device_mode": "Local phone controllers",
+  "multi_device_desc": "Share a board in the same room; manually pair phones. Works offline.",
   "online_party_title": "Online Party Mode",
   "online_party_desc": "2-8 players join via QR code, synchronized by room server",
   "player_settings": "Player Settings",
@@ -413,7 +413,7 @@
   "app_guide_auto": "Auto show guide",
   "app_guide_reset": "Reset Guide",
   "app_guide_reset_status": "Reset guide status",
-  "app_guide_first_visit": "Show guide on first visit",
+  "app_guide_first_visit": "Open the guide anytime; automatic guidance is off by default",
   "app_settings_view_rules": "View Rules and Settings",
   "app_lan_connect_btn": "Establish LAN Connection",
   "app_lan_instruction_detail": "1. Open controller address on phone; 2. Paste invitation to phone; 3. Paste answer from phone here.",
@@ -756,7 +756,7 @@
   "guide_intro_players_title": "Player Setup",
   "guide_intro_players_desc": "Configure player count and nicknames",
   "guide_intro_start_title": "Start Game",
-  "guide_intro_start_desc": "Click to begin and proceed to board & game settings",
+  "guide_intro_start_desc": "Choose players and a scene, then Quick Start. Expand advanced settings when needed. Close or reopen this guide anytime.",
   "guide_board_title": "Board Settings",
   "guide_board_desc": "Configure the board layout and parameters here",
   "guide_board_cells_title": "Cell Count Setup",
@@ -905,5 +905,7 @@
   "auth_reset_sent": "If an account exists, a password reset email has been sent.",
   "auth_new_password": "Password (at least 6 characters)",
   "auth_save_password": "Save new password",
-  "auth_active_game_tip": "Finish the current game before signing out or importing guest data."
+  "auth_active_game_tip": "Finish the current game before signing out or importing guest data.",
+  "local_party_title": "Local Party",
+  "advanced_options": "Advanced settings & local progress"
 }

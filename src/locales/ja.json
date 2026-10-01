@@ -33,8 +33,8 @@
   "classic_desc": "完全なクラシック飛行棋ルール · 出撃、撃墜、戦略的駆け引き（2〜4人対応）",
   "party_badge": "🔥 パーティー拡張",
   "party_desc": "パーティー用インタラクティブ対局 · 約20分 · 3幕の進行、チップ介入、真実か挑戦か",
-  "multi_device_mode": "複数端末モード",
-  "multi_device_desc": "各自のスマートフォンで操作",
+  "multi_device_mode": "同室のスマホコントローラー",
+  "multi_device_desc": "同じ部屋で盤面を共有し、スマホを手動でペアリング。オフラインで遊べます。",
   "online_party_title": "オンラインパーティー",
   "online_party_desc": "QRコードで2〜8人が参加、ルームサーバーで盤面を同期",
   "player_settings": "プレイヤー設定",
@@ -413,7 +413,7 @@
   "app_guide_auto": "ガイドを自動表示",
   "app_guide_reset": "ガイドをリセット",
   "app_guide_reset_status": "ガイド状態をリセット",
-  "app_guide_first_visit": "初回アクセス時にガイドを表示",
+  "app_guide_first_visit": "いつでもガイドを開けます。自動ガイドは初期設定でオフです",
   "app_settings_view_rules": "ルールと設定の確認",
   "app_lan_connect_btn": "LAN直接接続を確立",
   "app_lan_instruction_detail": "1. スマホでコントローラーURLを開く；2. 招待をスマホに貼り付け；3. スマホで生成された応答をここに貼り付ける。",
@@ -756,7 +756,7 @@
   "guide_intro_players_title": "プレイヤー設定",
   "guide_intro_players_desc": "参加人数とプレイヤーのニックネームを設定します",
   "guide_intro_start_title": "ゲーム開始",
-  "guide_intro_start_desc": "クリックして盤面とルールの詳細設定画面へ進みます",
+  "guide_intro_start_desc": "人数とシーンを選び、クイックスタート。詳細設定は必要時に開けます。ガイドはいつでも閉じたり再表示できます。",
   "guide_board_title": "盤面設定",
   "guide_board_desc": "ここでゲーム盤の基本パラメータをカスタマイズします",
   "guide_board_cells_title": "マス数設定",
@@ -905,5 +905,7 @@
   "auth_reset_sent": "アカウントが存在する場合、再設定メールを送信しました。",
   "auth_new_password": "パスワード（6文字以上）",
   "auth_save_password": "新しいパスワードを保存",
-  "auth_active_game_tip": "ログアウトやデータのインポート前に現在のゲームを終了してください。"
+  "auth_active_game_tip": "ログアウトやデータのインポート前に現在のゲームを終了してください。",
+  "local_party_title": "ローカル升温局",
+  "advanced_options": "詳細設定とローカル進捗"
 }

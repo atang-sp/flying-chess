@@ -33,8 +33,8 @@
   "classic_desc": "Regole classiche complete · Decollo autentico, ritorno per collisione e strategia (2–4 giocatori)",
   "party_badge": "🔥 Estensione Party",
   "party_desc": "Gioco interattivo per feste · Circa 20 min · Progressione in 3 atti, gettoni e obbligo o verità",
-  "multi_device_mode": "Modalità Multi-Dispositivo",
-  "multi_device_desc": "Ogni giocatore usa il proprio smartphone",
+  "multi_device_mode": "Telefoni come controller locali",
+  "multi_device_desc": "Condividete il tabellone nella stessa stanza e associate i telefoni manualmente. Funziona offline.",
   "online_party_title": "Modalità Party Online",
   "online_party_desc": "2–8 giocatori si uniscono tramite QR code, sincronizzati dal server della stanza",
   "player_settings": "Impostazioni Giocatori",
@@ -413,7 +413,7 @@
   "app_guide_auto": "Mostra guida automaticamente",
   "app_guide_reset": "Ripristina Guida",
   "app_guide_reset_status": "Ripristina stato della guida",
-  "app_guide_first_visit": "Mostra guida alla prima visita",
+  "app_guide_first_visit": "Apri la guida quando vuoi; la guida automatica è disattivata per impostazione predefinita",
   "app_settings_view_rules": "Visualizza Regole e Impostazioni",
   "app_lan_connect_btn": "Stabilisci Connessione LAN",
   "app_lan_instruction_detail": "1. Apri l'indirizzo del controller sullo smartphone; 2. Incolla l'invito sul telefono; 3. Incolla la risposta del telefono qui.",
@@ -756,7 +756,7 @@
   "guide_intro_players_title": "Impostazione Giocatori",
   "guide_intro_players_desc": "Configura numero di giocatori e nomi",
   "guide_intro_start_title": "Inizia Gioco",
-  "guide_intro_start_desc": "Clicca per accedere alle impostazioni dettagliate di tabellone e regole",
+  "guide_intro_start_desc": "Scegli giocatori e scenario, poi Avvio rapido. Apri le impostazioni avanzate quando servono. Puoi chiudere o riaprire questa guida.",
   "guide_board_title": "Impostazioni Tabellone",
   "guide_board_desc": "Configura i parametri base del tabellone qui",
   "guide_board_cells_title": "Numero Caselle",
@@ -905,5 +905,7 @@
   "auth_reset_sent": "Se l’account esiste, è stata inviata un’e-mail per reimpostare la password.",
   "auth_new_password": "Password (almeno 6 caratteri)",
   "auth_save_password": "Salva nuova password",
-  "auth_active_game_tip": "Termina la partita prima di uscire o importare dati."
+  "auth_active_game_tip": "Termina la partita prima di uscire o importare dati.",
+  "local_party_title": "Partita party locale",
+  "advanced_options": "Impostazioni avanzate e progressi locali"
 }

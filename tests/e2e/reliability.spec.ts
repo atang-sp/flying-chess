@@ -57,7 +57,7 @@ async function startDefaultGame(page: Page) {
 async function startPartyGame(page: Page) {
   await page.goto('/flying-chess/')
   await page.getByTestId('mode-party').click()
-  await page.getByTestId('start-game').click()
+  await page.getByTestId('quick-start-game').click()
   await expect(page.getByTestId('party-status')).toBeVisible()
   await expect(page.locator('.game-board')).toBeVisible()
 }
@@ -340,8 +340,9 @@ test('native WebRTC pairs two phone controllers without cloud signalling', async
 
   await page.goto('/flying-chess/')
   await page.getByTestId('mode-party').click()
-  await page.getByRole('button', { name: /多设备模式/ }).click()
-  await page.getByTestId('start-game').click()
+  await page.getByTestId('advanced-settings-toggle').click()
+  await page.getByRole('button', { name: /同场手机手柄/ }).click()
+  await page.getByTestId('quick-start-game').click()
 
   const lobby = page.locator('.multi-device-lobby')
   await expect(lobby).toBeVisible()
@@ -454,7 +455,7 @@ test('party mode preserves the classic custom configuration while running and af
     .toBe(10)
 
   await page.getByTestId('mode-party').click()
-  await page.getByTestId('start-game').click()
+  await page.getByTestId('quick-start-game').click()
   await expect(page.getByTestId('party-status')).toBeVisible()
   await expect
     .poll(() =>
@@ -928,6 +929,7 @@ test('custom victory settlement persists and renders a loser gradient', async ({
 
   await page.goto('/flying-chess/')
   await page.getByTestId('mode-party').click()
+  await page.getByTestId('advanced-settings-toggle').click()
   await expect(page.getByRole('heading', { name: '终局奖惩' })).toBeVisible()
   await page.getByLabel('奖惩动作').fill('完成指定挑战')
   await page.getByLabel('基础次数').fill('2')
@@ -935,7 +937,7 @@ test('custom victory settlement persists and renders a loser gradient', async ({
   await page.getByLabel('启用败者惩罚梯度').check()
   await page.getByLabel('每落后一档增加').fill('1')
   await page.locator('.count-btn.plus').click()
-  await page.getByTestId('start-game').click()
+  await page.getByTestId('quick-start-game').click()
 
   await expect
     .poll(() =>
@@ -1261,6 +1263,7 @@ test('community catalog one-click load and Party Studio custom theme stay opt-in
   await expect(page.getByRole('heading', { name: '终局奖惩' })).toBeHidden()
   await page.getByTestId('mode-party').click()
 
+  await page.getByTestId('advanced-settings-toggle').click()
   await page.getByText('社区配置市场').click()
   await expect(page.getByText('破冰加量包', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '一键加载' }).first().click()
@@ -1276,7 +1279,7 @@ test('community catalog one-click load and Party Studio custom theme stay opt-in
   await studioTotalCells.fill('20')
   await studioTotalCells.blur()
   await page.getByLabel('主题强调色').fill('#ff0000')
-  await page.getByTestId('start-game').click()
+  await page.getByTestId('quick-start-game').click()
   await expect(page.locator('.app')).toHaveClass(/app--party-studio/)
   await expect(page.locator('.board-title')).toContainText('20 格赛道')
   await expect(page.getByTestId('board-cell-20')).toBeAttached()
@@ -1316,6 +1319,7 @@ test('local progress panel renders achievements and shame wall without network i
     )
   })
   await page.goto('/flying-chess/')
+  await page.getByTestId('advanced-settings-toggle').click()
   await page.getByText('进度、成就与本地耻辱墙').click()
   const panel = page.locator('.progress-panel')
   await expect(panel).toContainText('42')
@@ -1349,8 +1353,9 @@ test('party play again preserves the selected scene configuration', async ({ pag
 
   await page.goto('/flying-chess/')
   await page.getByTestId('mode-party').click()
+  await page.locator('.scene-options > summary').click()
   await page.getByRole('button', { name: /初见破冰/ }).click()
-  await page.getByTestId('start-game').click()
+  await page.getByTestId('quick-start-game').click()
   await expect(page.locator('[data-kind="qa"]')).toHaveCount(8)
 
   await page.evaluate(() => {
@@ -1638,7 +1643,7 @@ test('in-game configuration import ends the old party session before applying a 
 
   await page.getByRole('button', { name: 'Close' }).click()
   await page.getByTestId('mode-party').click()
-  await page.getByTestId('start-game').click()
+  await page.getByTestId('quick-start-game').click()
 
   await expect(page.getByLabel('丙剩余1枚干预筹码')).toBeVisible()
 })
@@ -2038,8 +2043,9 @@ test('built-in party scenes preserve a configured 100-cell board', async ({ page
   await page.getByRole('button', { name: /返回首页/ }).click()
 
   await page.getByTestId('mode-party').click()
+  await page.locator('.scene-options > summary').click()
   await page.getByRole('button', { name: /初见破冰/ }).click()
-  await page.getByTestId('start-game').click()
+  await page.getByTestId('quick-start-game').click()
 
   await expect(page.locator('.board-title')).toContainText('100 格赛道')
   await expect(page.getByTestId('board-cell-100')).toBeAttached()
@@ -2133,7 +2139,7 @@ test('升温局开局前拒绝暖场阶段无法生成的惩罚配置', async ({
   })
 
   await page.getByTestId('mode-party').click()
-  await page.getByTestId('start-game').click()
+  await page.getByTestId('quick-start-game').click()
 
   await expect(page.getByRole('dialog', { name: '升温局配置无效' })).toBeVisible()
   await expect(page.locator('.game-board')).toBeHidden()
