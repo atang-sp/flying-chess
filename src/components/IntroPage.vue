@@ -669,6 +669,9 @@
             </span>
           </a>
         </div>
+        <p class="selected-mode-description">
+          {{ selectedMode === 'party' ? $t('party_desc') : $t('classic_desc') }}
+        </p>
       </section>
 
       <!-- 玩家设置区域 -->
@@ -2903,18 +2906,28 @@
       padding: 0 0 0.4rem;
     }
     .mode-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
     .mode-card {
-      min-height: 60px;
-      padding: 0.6rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      min-height: 80px;
+      padding: 0.35rem;
+      text-align: center;
+    }
+    .mode-card__content strong {
+      font-size: 0.9rem;
+      line-height: 1.3;
     }
     .mode-card__desc,
     .online-mode-link .mode-card__content > span {
-      font-size: 0.75rem;
+      display: none;
     }
     .mode-card__title-row {
-      justify-content: flex-start;
+      justify-content: center;
     }
     .mode-chooser,
     .player-settings {
@@ -2927,6 +2940,14 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 0.5rem;
     }
+    .names-header {
+      display: none;
+    }
+    .scene-options > summary {
+      box-sizing: border-box;
+      padding: 0.5rem;
+      font-size: 0.9rem;
+    }
     .action-buttons-group {
       gap: 0.5rem;
     }
@@ -2934,6 +2955,17 @@
     .start-btn {
       min-height: 44px;
       padding: 0.6rem;
+    }
+  }
+  .selected-mode-description {
+    display: none;
+  }
+  @media (max-width: 768px) {
+    .selected-mode-description {
+      display: block;
+      margin: 0.5rem 0 0;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
     }
   }
 </style>

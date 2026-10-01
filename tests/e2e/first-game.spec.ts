@@ -18,7 +18,11 @@ test('home toolbar menus remain within the viewport and persist guide preference
   await expect(page.locator('.lang-menu')).toBeInViewport({ ratio: 1 })
 })
 
-test('first visit exposes three entries and starts locally without a guide', async ({ page }) => {
+test('first visit exposes three entries and starts locally without a guide', async ({
+  page,
+}, testInfo) => {
+  if (testInfo.project.name === 'mobile-chrome')
+    await page.setViewportSize({ width: 390, height: 664 })
   await page.goto('/flying-chess/')
   await expect(page.getByTestId('mode-classic')).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByTestId('mode-party')).toContainText('本地升温局')
@@ -33,7 +37,9 @@ test('first visit exposes three entries and starts locally without a guide', asy
 
 test('party advanced action expands editors without starting or changing names', async ({
   page,
-}) => {
+}, testInfo) => {
+  if (testInfo.project.name === 'mobile-chrome')
+    await page.setViewportSize({ width: 390, height: 664 })
   await page.goto('/flying-chess/')
   await page.getByTestId('mode-party').click()
   await expect(page.getByTestId('quick-start-game')).toBeInViewport({ ratio: 1 })
