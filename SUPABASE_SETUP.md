@@ -89,33 +89,16 @@ VITE_SUPABASE_ANON_KEY=your-anon-key-here
 
 用户在飞行棋点击「SP 社区论坛登录」时，将通过桥接器无缝跳转至论坛单点登录并完成身份认证。
 
-## 架构说明
+## 同步与升级规则
 
-```
-用户操作 (修改配置/完成成就)
-       ↓
-  LocalStorage 写入 (立即)
-       ↓
-  syncEngine.push*() 异步调用
-       ↓ (失败静默忽略，不阻塞游戏)
-  Supabase UPSERT
+本地保存设置/进度时记录持久化待上传状态，网络失败不阻塞游戏。同步串行执行，先拉取，再以服务器 updated_at 条件更新；并发冲突重新读取。设置按整包编辑时间决定采用哪一侧，云端回填同时更新页面，进行中的对局不重置规则。
 
-用户登录
-       ↓
-  onAuthStateChange('SIGNED_IN')
-       ↓
-  syncEngine.pullAndMerge()
-       ↓ 合并策略：数值取最大值（进度不会丢失）
-  写回 LocalStorage
-```
+进度使用历史基线与每台设备的独立累计计数，元数据位于 game_progress.totals.\_\_replica。不同设备的新事件相加，同一设备的重试去重，最高连击取最大值。使用现有表和 updated_at 触发器；旧项目还须在 SQL Editor 执行 [supabase-sync-upgrade.sql](./supabase-sync-upgrade.sql)，拒绝旧客户端删除新版计数元数据。脚本可重复执行，不改动现有累计值。新版发布须等待此保护部署完成。
 
-### 关键文件
+旧历史统计按最大值保守合并；升级后新事件可以独立累加。如果旧客户端覆盖了设备元数据且数据不一致，新版停止上传并保留双方数据，需要人工核对并恢复已知有效元数据。发布后请先更新所有参与同步的设备，避免同时运行新旧版本。
 
-| 文件                             | 作用                                      |
-| -------------------------------- | ----------------------------------------- |
-| `src/services/supabaseClient.ts` | Supabase 客户端单例                       |
-| `src/composables/useAuth.ts`     | 全局 Auth 状态 + 监听器                   |
-| `src/services/syncEngine.ts`     | pull/push 同步逻辑                        |
-| `src/components/AuthModal.vue`   | 登录/注册/退出 UI                         |
-| `src/utils/cache.ts`             | 已拦截 `saveConfig` / `saveLocalProgress` |
-| `supabase-schema.sql`            | 数据库建表 + RLS 脚本                     |
+账号各自使用独立存储键，游客数据保留在原有本地键中。首次登录不自动上传游客数据；账号面板提供显式导入，导入会替换账号设置，历史进度按最大值合并。退出/切换账号后旧同步响应失效。
+
+邮箱注册、登录与密码找回分别操作。Supabase 的 Email confirmation 与 Password recovery 回调都应允许实际游戏地址 https://atang-sp.github.io/flying-chess/；SMTP/邮件投递及真实 OAuth 最终回调仍需真人账号验收。
+
+完整实施状态和验收清单见 [ACCOUNT_SYSTEM_INTEGRATION_PLAN.md](./ACCOUNT_SYSTEM_INTEGRATION_PLAN.md)。

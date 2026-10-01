@@ -895,5 +895,15 @@
   "ctrl_room_full": "Raum ist voll",
   "ctrl_pair_offer_failed": "Pairing-Angebot konnte nicht erstellt werden",
   "ctrl_pair_answer_failed": "Pairing-Antwort konnte nicht erstellt werden",
-  "ctrl_pair_answer_accept_failed": "Pairing-Antwort konnte nicht akzeptiert werden"
+  "ctrl_pair_answer_accept_failed": "Pairing-Antwort konnte nicht akzeptiert werden",
+  "auth_sync_pending": "Wartet auf Synchronisierung",
+  "auth_guest_import_tip": "Gastdaten in dieses Konto importieren? Die Gastsicherung bleibt erhalten; Kontoeinstellungen werden ersetzt.",
+  "auth_import_guest": "Gastdaten importieren",
+  "auth_login": "Anmelden",
+  "auth_register": "Konto erstellen",
+  "auth_reset_password": "Passwort zurücksetzen",
+  "auth_reset_sent": "Falls ein Konto besteht, wurde eine E-Mail zum Zurücksetzen gesendet.",
+  "auth_new_password": "Passwort (mindestens 6 Zeichen)",
+  "auth_save_password": "Neues Passwort speichern",
+  "auth_active_game_tip": "Beende das aktuelle Spiel, bevor du dich abmeldest oder Gastdaten importierst."
 }

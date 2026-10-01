@@ -895,5 +895,15 @@
   "ctrl_room_full": "部屋が満員です",
   "ctrl_pair_offer_failed": "ペアリング招待を生成できませんでした",
   "ctrl_pair_answer_failed": "ペアリング応答を作成できませんでした",
-  "ctrl_pair_answer_accept_failed": "ペアリング応答を受け入れられませんでした"
+  "ctrl_pair_answer_accept_failed": "ペアリング応答を受け入れられませんでした",
+  "auth_sync_pending": "同期待ち",
+  "auth_guest_import_tip": "ゲストデータをインポートしますか？バックアップは保持され、アカウントの設定は置き換わります。",
+  "auth_import_guest": "ゲストデータをインポート",
+  "auth_login": "ログイン",
+  "auth_register": "アカウントを作成",
+  "auth_reset_password": "パスワードをリセット",
+  "auth_reset_sent": "アカウントが存在する場合、再設定メールを送信しました。",
+  "auth_new_password": "パスワード（6文字以上）",
+  "auth_save_password": "新しいパスワードを保存",
+  "auth_active_game_tip": "ログアウトやデータのインポート前に現在のゲームを終了してください。"
 }

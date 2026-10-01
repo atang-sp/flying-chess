@@ -86,6 +86,7 @@
   import MercyDecision from './components/MercyDecision.vue'
   import SessionPauseOverlay from './components/SessionPauseOverlay.vue'
   import ConfigExport from './components/ConfigExport.vue'
+  import { storageRevision, activeAccount } from './services/syncRuntime'
   import AuthModal from './components/AuthModal.vue'
   import {
     saveConfig,
@@ -95,6 +96,7 @@
     loadVictoryConfig,
     loadPartyEventDeck,
     loadLocalProgress,
+    loadLocalePreference,
     saveLocalProgress,
     saveGameMode,
     saveLocalGameSnapshot,
@@ -514,11 +516,20 @@
     closeImportFeedback,
   } = useImportFeedbackDialog()
 
+  let applyingStoredState = 0
+
   // 持久化：监听配置变化并保存到 localStorage（12 个月过期）
   watch(
     () => [gameState.boardConfig, gameState.punishmentConfig, trapConfig.value],
     () => {
-      if (activeMode.value === 'party') return
+      if (activeMode.value === 'party' || applyingStoredState > 0) return
+      const saved = loadConfig()
+      if (
+        saved &&
+        JSON.stringify([saved.boardConfig, saved.punishmentConfig, saved.trapConfig]) ===
+          JSON.stringify([gameState.boardConfig, gameState.punishmentConfig, trapConfig.value])
+      )
+        return
       // 直接从响应式状态读取，避免类型推断问题
       saveConfig({
         boardConfig: gameState.boardConfig,
@@ -583,7 +594,7 @@
   })
 
   const recordProgress = (event: LocalProgressEvent) => {
-    localProgress.value = recordLocalProgress(localProgress.value, event)
+    localProgress.value = recordLocalProgress(loadLocalProgress(), event)
     saveLocalProgress(localProgress.value)
   }
 
@@ -3820,8 +3831,69 @@
   const showConfigExport = ref(false)
 
   // 账户 / 云同步
-  const showAuthModal = ref(false)
   const authSetup = useAuth()
+  const showAuthModal = ref(false)
+  watch(
+    () => authSetup.isPasswordRecovery.value,
+    recovery => {
+      if (recovery) showAuthModal.value = true
+    }
+  )
+  watch(
+    activeAccount,
+    () => {
+      // Cancel all prior-session state when an external login changes the account.
+      applyingStoredState++
+      initializeGame()
+      void nextTick(() => {
+        applyingStoredState--
+      })
+    },
+    { flush: 'sync' }
+  )
+  watch(
+    storageRevision,
+    () => {
+      localProgress.value = loadLocalProgress()
+      if (gameStarted.value) return
+      applyingStoredState++
+      void nextTick(() => {
+        applyingStoredState--
+      })
+      const language = loadLocalePreference()
+      setActiveLanguage(language || 'zh', false)
+      const cached = loadConfig()
+      const defaults = createModeConfig(
+        'classic',
+        createStandardConfigSnapshot({
+          boardConfig: GameService.createBoardConfig(),
+          punishmentConfig: localeContentRef.value.punishmentConfig,
+          traps: localeContentRef.value.standardTraps,
+        })
+      )
+      if (cached) {
+        gameState.boardConfig = cached.boardConfig
+        gameState.punishmentConfig = normalizePunishmentConfig(cached.punishmentConfig)
+        trapConfig.value = cached.trapConfig
+      } else {
+        gameState.boardConfig = defaults.boardConfig
+        gameState.punishmentConfig = defaults.punishmentConfig
+        trapConfig.value = defaults.traps
+      }
+      const players = loadPlayerSettings()
+      gameState.players = players ? createPlayersFromSettings(players) : GameService.createPlayers()
+      selectedMode.value = loadGameMode()
+      victoryConfig.value = loadVictoryConfig()
+      partyEventState.value = createPartyEventState(loadPartyEventDeck())
+      gameState.board = GameService.createBoard(
+        gameState.punishmentConfig,
+        gameState.boardConfig,
+        trapConfig.value
+      )
+    },
+    { flush: 'sync' }
+  )
+
   const { currentUser } = authSetup
 
   const showAutoGuide = (pageType: string) => {
@@ -4771,7 +4843,7 @@
     />
 
     <!-- 账户 / 云同步对话框 -->
-    <AuthModal :show="showAuthModal" @close="showAuthModal = false" />
+    <AuthModal :show="showAuthModal" :game-active="gameStarted" @close="showAuthModal = false" />
 
     <!-- 游戏设置查看对话框 -->
     <PDialog

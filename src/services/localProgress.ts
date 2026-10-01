@@ -199,7 +199,7 @@ export function getShameWall(progress: LocalProgress): readonly LocalPlayerProgr
 }
 
 const nonNegativeInteger = (value: unknown): boolean =>
-  Number.isInteger(value) && Number(value) >= 0
+  Number.isSafeInteger(value) && Number(value) >= 0
 
 export function validateLocalProgress(value: unknown): value is LocalProgress {
   if (!value || typeof value !== 'object') return false
@@ -211,7 +211,11 @@ export function validateLocalProgress(value: unknown): value is LocalProgress {
     !nonNegativeInteger(candidate.totals.mercyRequests) ||
     !nonNegativeInteger(candidate.totals.longestChain) ||
     !candidate.totals.variantCompletions ||
-    typeof candidate.totals.variantCompletions !== 'object'
+    typeof candidate.totals.variantCompletions !== 'object' ||
+    Array.isArray(candidate.totals.variantCompletions) ||
+    !Object.values(candidate.totals.variantCompletions).every(nonNegativeInteger) ||
+    typeof candidate.players !== 'object' ||
+    Array.isArray(candidate.players)
   ) {
     return false
   }

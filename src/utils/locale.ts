@@ -66,14 +66,14 @@ export const localeContentRef = ref<LocaleContent>(localeContent)
  * The choice is persisted to localStorage so it survives page reloads.
  * Returns the newly active content object.
  */
-export function setActiveLanguage(language: string): LocaleContent {
+export function setActiveLanguage(language: string, persist = true): LocaleContent {
   activeLanguage = language
   // Update localeContent BEFORE updating currentLanguageRef so that any
   // watchers that fire on currentLanguageRef already see the new content.
   localeContent = getLocaleContent(language)
   localeContentRef.value = localeContent
   currentLanguageRef.value = language
-  saveLocalePreference(language)
+  if (persist) saveLocalePreference(language)
   if (typeof document !== 'undefined') {
     document.documentElement.lang = language
   }

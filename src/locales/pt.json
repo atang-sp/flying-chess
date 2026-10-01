@@ -895,5 +895,15 @@
   "ctrl_room_full": "A sala está cheia",
   "ctrl_pair_offer_failed": "Falha ao gerar o convite de pareamento",
   "ctrl_pair_answer_failed": "Falha ao criar a resposta de pareamento",
-  "ctrl_pair_answer_accept_failed": "Falha ao aceitar a resposta de pareamento"
+  "ctrl_pair_answer_accept_failed": "Falha ao aceitar a resposta de pareamento",
+  "auth_sync_pending": "Sincronização pendente",
+  "auth_guest_import_tip": "Importar os dados de visitante? A cópia é mantida; as configurações da conta serão substituídas.",
+  "auth_import_guest": "Importar dados de visitante",
+  "auth_login": "Entrar",
+  "auth_register": "Criar conta",
+  "auth_reset_password": "Redefinir senha",
+  "auth_reset_sent": "Se a conta existir, um e-mail de redefinição foi enviado.",
+  "auth_new_password": "Senha (mínimo de 6 caracteres)",
+  "auth_save_password": "Salvar nova senha",
+  "auth_active_game_tip": "Termine a partida antes de sair ou importar dados."
 }

@@ -895,5 +895,15 @@
   "ctrl_room_full": "La stanza è piena",
   "ctrl_pair_offer_failed": "Impossibile generare l’offerta di abbinamento",
   "ctrl_pair_answer_failed": "Impossibile creare la risposta di abbinamento",
-  "ctrl_pair_answer_accept_failed": "Impossibile accettare la risposta di abbinamento"
+  "ctrl_pair_answer_accept_failed": "Impossibile accettare la risposta di abbinamento",
+  "auth_sync_pending": "Sincronizzazione in attesa",
+  "auth_guest_import_tip": "Importare i dati ospite? Il backup viene conservato; le impostazioni dell’account saranno sostituite.",
+  "auth_import_guest": "Importa dati ospite",
+  "auth_login": "Accedi",
+  "auth_register": "Crea account",
+  "auth_reset_password": "Reimposta password",
+  "auth_reset_sent": "Se l’account esiste, è stata inviata un’e-mail per reimpostare la password.",
+  "auth_new_password": "Password (almeno 6 caratteri)",
+  "auth_save_password": "Salva nuova password",
+  "auth_active_game_tip": "Termina la partita prima di uscire o importare dati."
 }

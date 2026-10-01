@@ -895,5 +895,15 @@
   "ctrl_room_full": "La sala está llena",
   "ctrl_pair_offer_failed": "No se pudo generar la oferta de emparejamiento",
   "ctrl_pair_answer_failed": "No se pudo crear la respuesta de emparejamiento",
-  "ctrl_pair_answer_accept_failed": "No se pudo aceptar la respuesta de emparejamiento"
+  "ctrl_pair_answer_accept_failed": "No se pudo aceptar la respuesta de emparejamiento",
+  "auth_sync_pending": "Pendiente de sincronización",
+  "auth_guest_import_tip": "¿Importar los datos de invitado? Se conserva la copia y se sustituyen los ajustes de la cuenta.",
+  "auth_import_guest": "Importar datos de invitado",
+  "auth_login": "Iniciar sesión",
+  "auth_register": "Crear cuenta",
+  "auth_reset_password": "Restablecer contraseña",
+  "auth_reset_sent": "Si existe una cuenta, se ha enviado un correo para restablecer la contraseña.",
+  "auth_new_password": "Contraseña (mínimo 6 caracteres)",
+  "auth_save_password": "Guardar nueva contraseña",
+  "auth_active_game_tip": "Termina la partida antes de cerrar sesión o importar datos."
 }
