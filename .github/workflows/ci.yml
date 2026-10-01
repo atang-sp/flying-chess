@@ -46,6 +46,9 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Verify Supabase RLS and sync upgrade
+        run: bash scripts/test-supabase-sync-upgrade.sh
+
       - name: Build web application
         run: npm run build
 

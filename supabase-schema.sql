@@ -140,3 +140,35 @@ create trigger set_game_progress_updated_at
 create trigger set_profiles_updated_at
   before update on public.profiles
   for each row execute procedure public.set_updated_at();
+
+-- 6. Protect device-counter metadata against old clients.
+-- Apply once before publishing the new device-counter client. Safe to reapply.
+-- Existing legacy rows remain readable and are migrated by the first new client.
+begin;
+
+create or replace function public.prevent_progress_replica_downgrade()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  if old.totals ? '__replica'
+     and (not (new.totals ? '__replica')
+          or jsonb_typeof(new.totals->'__replica') is distinct from 'object'
+          or (new.totals->'__replica'->>'version') is distinct from '2') then
+    raise exception 'Progress protocol downgrade rejected. Refresh this device before synchronizing.'
+      using errcode = '22023';
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.prevent_progress_replica_downgrade() from public;
+
+drop trigger if exists prevent_progress_replica_downgrade on public.game_progress;
+create trigger prevent_progress_replica_downgrade
+  before update on public.game_progress
+  for each row execute function public.prevent_progress_replica_downgrade();
+
+commit;

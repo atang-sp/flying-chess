@@ -895,5 +895,15 @@
   "ctrl_room_full": "Room is full",
   "ctrl_pair_offer_failed": "Failed to generate pairing offer",
   "ctrl_pair_answer_failed": "Failed to create pairing answer",
-  "ctrl_pair_answer_accept_failed": "Failed to accept pairing answer"
+  "ctrl_pair_answer_accept_failed": "Failed to accept pairing answer",
+  "auth_sync_pending": "Waiting to sync",
+  "auth_guest_import_tip": "Import guest data into this account? Your guest backup is kept; account settings will be replaced.",
+  "auth_import_guest": "Import guest data",
+  "auth_login": "Sign in",
+  "auth_register": "Create account",
+  "auth_reset_password": "Reset password",
+  "auth_reset_sent": "If an account exists, a password reset email has been sent.",
+  "auth_new_password": "Password (at least 6 characters)",
+  "auth_save_password": "Save new password",
+  "auth_active_game_tip": "Finish the current game before signing out or importing guest data."
 }

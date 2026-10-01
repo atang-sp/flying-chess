@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
+  import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
   import { useI18n } from 'vue-i18n'
   import {
     Dices,
@@ -36,6 +36,7 @@
     savePartyStudioConfig,
     saveVictoryConfig,
   } from '../utils/cache'
+  import { storageRevision } from '../services/syncRuntime'
   import { SecureRandom } from '../utils/secureRandom'
   import { devLog } from '../utils/logger'
   import {
@@ -95,7 +96,8 @@
   const multiDeviceMode = ref(false)
   const victoryConfig = ref<VictoryConfig>(loadVictoryConfig())
   const eventDeck = ref<readonly PartyEventCard[]>(loadPartyEventDeck())
-  const localProgress = loadLocalProgress()
+  const localProgress = ref(loadLocalProgress())
+  let applyingStoredState = 0
   const studioConfig = ref<PartyStudioConfig>(loadPartyStudioConfig())
 
   // ---- Language selector state ----
@@ -314,22 +316,58 @@
   // 初始化时尝试加载本地缓存的玩家设置
   loadAndApplyPlayerSettings()
 
+  watch(
+    storageRevision,
+    () => {
+      applyingStoredState++
+      void nextTick(() => {
+        applyingStoredState--
+      })
+      selectedMode.value = props.initialMode
+      const players = loadPlayerSettings()
+      playerCount.value = players?.playerCount ?? 2
+      playerNames.value = players?.playerNames ?? [
+        localeContent.defaultPlayerName(0),
+        localeContent.defaultPlayerName(1),
+      ]
+      loadAndApplyPlayerSettings()
+      victoryConfig.value = loadVictoryConfig()
+      eventDeck.value = loadPartyEventDeck()
+      studioConfig.value = loadPartyStudioConfig()
+      localProgress.value = loadLocalProgress()
+    },
+    { flush: 'post' }
+  )
+
   // 监听玩家数量和名称变化并持久化
   watch(
     () => [playerCount.value, playerNames.value],
     () => {
+      if (applyingStoredState > 0) return
       savePlayerSettings({ playerCount: playerCount.value, playerNames: playerNames.value })
     },
     { deep: true }
   )
 
-  watch(eventDeck, deck => savePartyEventDeck(deck), { deep: true })
-  watch(studioConfig, config => savePartyStudioConfig(config), { deep: true })
+  watch(
+    eventDeck,
+    deck => {
+      if (!applyingStoredState) savePartyEventDeck(deck)
+    },
+    { deep: true }
+  )
+  watch(
+    studioConfig,
+    config => {
+      if (!applyingStoredState) savePartyStudioConfig(config)
+    },
+    { deep: true }
+  )
 
   watch(
     victoryConfig,
     config => {
-      saveVictoryConfig(config)
+      if (!applyingStoredState) saveVictoryConfig(config)
     },
     { deep: true }
   )

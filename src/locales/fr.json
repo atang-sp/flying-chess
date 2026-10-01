@@ -895,5 +895,15 @@
   "ctrl_room_full": "Le salon est complet",
   "ctrl_pair_offer_failed": "Échec de création de l'invitation d'appairage",
   "ctrl_pair_answer_failed": "Échec de création de la réponse d'appairage",
-  "ctrl_pair_answer_accept_failed": "Échec de l'acceptation de la réponse d'appairage"
+  "ctrl_pair_answer_accept_failed": "Échec de l'acceptation de la réponse d'appairage",
+  "auth_sync_pending": "Synchronisation en attente",
+  "auth_guest_import_tip": "Importer les données invité ? La sauvegarde reste disponible ; les réglages du compte seront remplacés.",
+  "auth_import_guest": "Importer les données invité",
+  "auth_login": "Se connecter",
+  "auth_register": "Créer un compte",
+  "auth_reset_password": "Réinitialiser le mot de passe",
+  "auth_reset_sent": "Si le compte existe, un e-mail de réinitialisation a été envoyé.",
+  "auth_new_password": "Mot de passe (6 caractères minimum)",
+  "auth_save_password": "Enregistrer le nouveau mot de passe",
+  "auth_active_game_tip": "Terminez la partie avant de vous déconnecter ou d’importer des données."
 }

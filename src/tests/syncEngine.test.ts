@@ -127,7 +127,7 @@ describe('syncEngine & supabaseClient — 本地存储交互', () => {
     const settings = collectLocalSettings()
     expect(settings).toBeDefined()
     expect(typeof settings.savedAt).toBe('number')
-    expect(settings.savedAt).toBeGreaterThan(0)
+    expect(settings.savedAt).toBe(0) // Reading an empty snapshot must not invent a new edit timestamp
     expect(settings.victoryConfig).toBeDefined()
     expect(Array.isArray(settings.partyEventDeck)).toBe(true)
   })

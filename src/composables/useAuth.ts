@@ -1,65 +1,81 @@
 import { ref } from 'vue'
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient'
+import { initializeAccountStorage, switchAccountStorage } from '../services/accountStorage'
 
-// ============================================================
-// 全局单例 Auth 状态（在所有 composable 调用间共享）
-// ============================================================
 const currentUser = ref<User | null>(null)
 const currentSession = ref<Session | null>(null)
 const isInitialized = ref(false)
-let listenerAttached = false
+const isPasswordRecovery = ref(false)
+const authError = ref<string | null>(null)
+let initialization: Promise<void> | null = null
+let authRevision = 0
 
-/**
- * 全局 Auth Composable。
- * - 第一次调用时会设置 onAuthStateChange 监听（单次）。
- * - 其余调用直接共享相同的响应式状态。
- */
+function applySession(session: Session | null): void {
+  switchAccountStorage(session?.user.id ?? 'guest')
+  currentSession.value = session
+  currentUser.value = session?.user ?? null
+}
+
+function deferSync(): void {
+  // Supabase auth callbacks run under its session lock: never await API calls here.
+  setTimeout(() => {
+    void import('../services/syncEngine').then(({ syncEngine }) => syncEngine.pullAndMerge())
+  }, 0)
+}
+
 export function useAuth() {
-  const initAuth = async () => {
-    if (isInitialized.value) return
-    if (!isSupabaseConfigured) {
-      isInitialized.value = true
-      return
-    }
-
-    try {
-      // 取当前 session（页面刷新后恢复）
-      const { data } = await supabase.auth.getSession()
-      currentSession.value = data.session
-      currentUser.value = data.session?.user ?? null
-
-      // 挂载全局监听器（只挂一次）
-      if (!listenerAttached) {
-        listenerAttached = true
-        supabase.auth.onAuthStateChange(async (event, session) => {
-          currentSession.value = session
-          currentUser.value = session?.user ?? null
-
-          if (event === 'SIGNED_IN') {
-            // 登录时从云端拉取并合并数据
-            const { syncEngine } = await import('../services/syncEngine')
-            await syncEngine.pullAndMerge()
+  const initAuth = (): Promise<void> => {
+    if (initialization) return initialization
+    initialization = (async () => {
+      if (!isSupabaseConfigured) {
+        isInitialized.value = true
+        return
+      }
+      try {
+        initializeAccountStorage()
+        supabase.auth.onAuthStateChange((event, session) => {
+          authRevision++
+          try {
+            applySession(session)
+            if (event === 'PASSWORD_RECOVERY') isPasswordRecovery.value = true
+            if (!session) isPasswordRecovery.value = false
+            if (session && ['SIGNED_IN', 'INITIAL_SESSION', 'TOKEN_REFRESHED'].includes(event))
+              deferSync()
+          } catch (error) {
+            currentUser.value = null
+            currentSession.value = null
+            authError.value =
+              error instanceof Error ? error.message : 'Could not restore account data'
           }
         })
+        const revision = authRevision
+        const { data, error } = await supabase.auth.getSession()
+        if (error) throw error
+        if (revision === authRevision) {
+          applySession(data.session)
+          if (data.session) deferSync()
+        }
+      } catch (error) {
+        authError.value = error instanceof Error ? error.message : 'Authentication failed'
+      } finally {
+        isInitialized.value = true
       }
-    } catch (err) {
-      console.warn('[useAuth] 初始化失败:', err)
-    } finally {
-      isInitialized.value = true
-    }
+    })()
+    return initialization
   }
 
-  /** 退出登录 */
-  const signOut = async () => {
-    if (!isSupabaseConfigured) return
+  const signOut = async (): Promise<boolean> => {
+    if (!isSupabaseConfigured) return false
+    authError.value = null
     try {
-      await supabase.auth.signOut()
-    } catch (err) {
-      console.warn('[useAuth] 登出失败:', err)
-    } finally {
-      currentUser.value = null
-      currentSession.value = null
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      applySession(null)
+      return true
+    } catch (error) {
+      authError.value = error instanceof Error ? error.message : 'Sign out failed'
+      return false
     }
   }
 
@@ -67,6 +83,8 @@ export function useAuth() {
     currentUser,
     currentSession,
     isInitialized,
+    isPasswordRecovery,
+    authError,
     isSupabaseConfigured,
     initAuth,
     signOut,

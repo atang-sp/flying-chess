@@ -1,3 +1,6 @@
+import { scopedStorage } from '../services/scopedStorage'
+import { requestSync } from '../services/syncRuntime'
+import { recordProgressChange } from '../services/progressReplica'
 import type {
   BoardConfig,
   PunishmentConfig,
@@ -74,7 +77,7 @@ export interface LocalGameSnapshot {
 
 export function saveLocalGameSnapshot(
   snapshot: Omit<LocalGameSnapshot, 'timestamp'>,
-  storage: Storage = localStorage
+  storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> = scopedStorage
 ): boolean {
   try {
     storage.setItem(
@@ -95,7 +98,7 @@ export function saveLocalGameSnapshot(
 const SNAPSHOT_TTL = 1000 * 60 * 60 * 24
 
 export function loadLocalGameSnapshot(
-  storage: Storage = localStorage,
+  storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> = scopedStorage,
   ttl: number = SNAPSHOT_TTL
 ): LocalGameSnapshot | null {
   const raw = storage.getItem(LOCAL_GAME_SESSION_SNAPSHOT_KEY)
@@ -124,7 +127,9 @@ export function loadLocalGameSnapshot(
   }
 }
 
-export function clearLocalGameSnapshot(storage: Storage = localStorage): void {
+export function clearLocalGameSnapshot(
+  storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> = scopedStorage
+): void {
   storage.removeItem(LOCAL_GAME_SESSION_SNAPSHOT_KEY)
 }
 
@@ -145,7 +150,7 @@ export interface CachedConfig {
  */
 export function saveConfigDirectly(
   data: Omit<CachedConfig, 'savedAt'> & { savedAt?: number },
-  storage: Storage = localStorage
+  storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> = scopedStorage
 ): boolean {
   if (
     !validateBoardConfig(data.boardConfig) ||
@@ -180,19 +185,7 @@ export function saveConfigDirectly(
 export function saveConfig(data: Omit<CachedConfig, 'savedAt'>): boolean {
   const success = saveConfigDirectly(data)
   if (success) {
-    const payload: CachedConfig = {
-      boardConfig: data.boardConfig,
-      punishmentConfig: data.punishmentConfig,
-      trapConfig: data.trapConfig,
-      savedAt: Date.now(),
-    }
-    // 异步云端同步，失败不阻塞本地游戏
-    import('../services/syncEngine')
-      .then(({ pushSettingsDebounced, syncEngine }) => {
-        pushSettingsDebounced()
-        syncEngine.pushConfig(payload).catch(() => {})
-      })
-      .catch(() => {})
+    requestSync('settings')
   }
   return success
 }
@@ -203,7 +196,7 @@ export function saveConfig(data: Omit<CachedConfig, 'savedAt'>): boolean {
  * @returns 配置或 null
  */
 export function loadConfig(ttl: number = DEFAULT_TTL): CachedConfig | null {
-  const raw = localStorage.getItem(GAME_CONFIG_STORAGE_KEY)
+  const raw = scopedStorage.getItem(GAME_CONFIG_STORAGE_KEY)
   if (!raw) return null
   try {
     const parsed: unknown = JSON.parse(raw)
@@ -219,7 +212,7 @@ export function loadConfig(ttl: number = DEFAULT_TTL): CachedConfig | null {
     const cached = parsed as CachedConfig
     if (Date.now() - cached.savedAt > ttl) {
       // 过期，清理
-      localStorage.removeItem(GAME_CONFIG_STORAGE_KEY)
+      scopedStorage.removeItem(GAME_CONFIG_STORAGE_KEY)
       return null
     }
     const normalized = normalizeConfigSnapshot(cached)
@@ -244,11 +237,14 @@ export function loadConfig(ttl: number = DEFAULT_TTL): CachedConfig | null {
  * 清除本地缓存配置
  */
 export function clearConfig() {
-  localStorage.removeItem(GAME_CONFIG_STORAGE_KEY)
+  scopedStorage.removeItem(GAME_CONFIG_STORAGE_KEY)
 }
 
-export function clearAllLocalGameData(storage: Pick<Storage, 'removeItem'> = localStorage): void {
+export function clearAllLocalGameData(storage: Pick<Storage, 'removeItem'> = scopedStorage): void {
   LOCAL_GAME_STORAGE_KEYS.forEach(key => storage.removeItem(key))
+  storage.removeItem('flying_chess_progress_replica_v2')
+  storage.removeItem('flying_chess_pending_sync')
+  storage.removeItem('local_settings_updated_at')
 }
 
 // ================= 玩家设置缓存 =================
@@ -262,7 +258,7 @@ type PlayerSettingsStorageReader = Pick<Storage, 'getItem'>
 
 export function savePlayerSettingsDirectly(
   settings: PlayerSettings,
-  storage: Pick<Storage, 'setItem'> = localStorage
+  storage: Pick<Storage, 'setItem'> = scopedStorage
 ): void {
   try {
     storage.setItem(PLAYER_SETTINGS_STORAGE_KEY, JSON.stringify(settings))
@@ -273,18 +269,14 @@ export function savePlayerSettingsDirectly(
 
 export function savePlayerSettings(
   settings: PlayerSettings,
-  storage: Pick<Storage, 'setItem'> = localStorage
+  storage: Pick<Storage, 'setItem'> = scopedStorage
 ): void {
   savePlayerSettingsDirectly(settings, storage)
-  import('../services/syncEngine')
-    .then(({ pushSettingsDebounced }) => {
-      pushSettingsDebounced()
-    })
-    .catch(() => {})
+  requestSync('settings')
 }
 
 export function loadPlayerSettings(
-  storage: PlayerSettingsStorageReader = localStorage
+  storage: PlayerSettingsStorageReader = scopedStorage
 ): PlayerSettings | null {
   const raw = storage.getItem(PLAYER_SETTINGS_STORAGE_KEY)
   if (!raw) return null
@@ -314,7 +306,7 @@ export function loadPlayerSettings(
 type GameModeStorageReader = Pick<Storage, 'getItem'>
 type GameModeStorageWriter = Pick<Storage, 'setItem'>
 
-export function loadGameMode(storage: GameModeStorageReader = localStorage): GameMode {
+export function loadGameMode(storage: GameModeStorageReader = scopedStorage): GameMode {
   const raw = storage.getItem(GAME_MODE_STORAGE_KEY)
   if (!raw) return DEFAULT_GAME_MODE
 
@@ -335,7 +327,7 @@ export function loadGameMode(storage: GameModeStorageReader = localStorage): Gam
 
 export function saveGameModeDirectly(
   mode: GameMode,
-  storage: GameModeStorageWriter = localStorage
+  storage: GameModeStorageWriter = scopedStorage
 ): void {
   try {
     storage.setItem(
@@ -347,20 +339,16 @@ export function saveGameModeDirectly(
   }
 }
 
-export function saveGameMode(mode: GameMode, storage: GameModeStorageWriter = localStorage): void {
+export function saveGameMode(mode: GameMode, storage: GameModeStorageWriter = scopedStorage): void {
   saveGameModeDirectly(mode, storage)
-  import('../services/syncEngine')
-    .then(({ pushSettingsDebounced }) => {
-      pushSettingsDebounced()
-    })
-    .catch(() => {})
+  requestSync('settings')
 }
 
 type VictoryConfigStorageReader = Pick<Storage, 'getItem'>
 type VictoryConfigStorageWriter = Pick<Storage, 'setItem'>
 
 export function loadVictoryConfig(
-  storage: VictoryConfigStorageReader = localStorage
+  storage: VictoryConfigStorageReader = scopedStorage
 ): VictoryConfig {
   const raw = storage.getItem(VICTORY_CONFIG_STORAGE_KEY)
   if (!raw) return normalizeVictoryConfig(undefined)
@@ -373,7 +361,7 @@ export function loadVictoryConfig(
 
 export function saveVictoryConfigDirectly(
   config: VictoryConfig,
-  storage: VictoryConfigStorageWriter = localStorage
+  storage: VictoryConfigStorageWriter = scopedStorage
 ): void {
   try {
     storage.setItem(VICTORY_CONFIG_STORAGE_KEY, JSON.stringify(normalizeVictoryConfig(config)))
@@ -384,21 +372,17 @@ export function saveVictoryConfigDirectly(
 
 export function saveVictoryConfig(
   config: VictoryConfig,
-  storage: VictoryConfigStorageWriter = localStorage
+  storage: VictoryConfigStorageWriter = scopedStorage
 ): void {
   saveVictoryConfigDirectly(config, storage)
-  import('../services/syncEngine')
-    .then(({ pushSettingsDebounced }) => {
-      pushSettingsDebounced()
-    })
-    .catch(() => {})
+  requestSync('settings')
 }
 
 type PartyEventDeckStorageReader = Pick<Storage, 'getItem'>
 type PartyEventDeckStorageWriter = Pick<Storage, 'setItem'>
 
 export function loadPartyEventDeck(
-  storage: PartyEventDeckStorageReader = localStorage
+  storage: PartyEventDeckStorageReader = scopedStorage
 ): readonly PartyEventCard[] {
   const raw = storage.getItem(PARTY_EVENT_DECK_STORAGE_KEY)
   if (!raw) return DEFAULT_PARTY_EVENT_DECK
@@ -414,7 +398,7 @@ export function loadPartyEventDeck(
 
 export function savePartyEventDeckDirectly(
   deck: readonly PartyEventCard[],
-  storage: PartyEventDeckStorageWriter = localStorage
+  storage: PartyEventDeckStorageWriter = scopedStorage
 ): boolean {
   if (!validatePartyEventDeck(deck).ok) return false
   try {
@@ -428,15 +412,11 @@ export function savePartyEventDeckDirectly(
 
 export function savePartyEventDeck(
   deck: readonly PartyEventCard[],
-  storage: PartyEventDeckStorageWriter = localStorage
+  storage: PartyEventDeckStorageWriter = scopedStorage
 ): boolean {
   const ok = savePartyEventDeckDirectly(deck, storage)
   if (ok) {
-    import('../services/syncEngine')
-      .then(({ pushSettingsDebounced }) => {
-        pushSettingsDebounced()
-      })
-      .catch(() => {})
+    requestSync('settings')
   }
   return ok
 }
@@ -445,7 +425,7 @@ type LocalProgressStorageReader = Pick<Storage, 'getItem'>
 type LocalProgressStorageWriter = Pick<Storage, 'setItem'>
 
 export function loadLocalProgress(
-  storage: LocalProgressStorageReader = localStorage
+  storage: LocalProgressStorageReader = scopedStorage
 ): LocalProgress {
   const raw = storage.getItem(LOCAL_PROGRESS_STORAGE_KEY)
   if (!raw) return createLocalProgress()
@@ -459,7 +439,7 @@ export function loadLocalProgress(
 
 export function saveLocalProgressDirectly(
   progress: LocalProgress,
-  storage: LocalProgressStorageWriter = localStorage
+  storage: LocalProgressStorageWriter = scopedStorage
 ): boolean {
   if (!validateLocalProgress(progress)) return false
   try {
@@ -473,25 +453,36 @@ export function saveLocalProgressDirectly(
 
 export function saveLocalProgress(
   progress: LocalProgress,
-  storage: LocalProgressStorageWriter = localStorage
+  storage: LocalProgressStorageWriter = scopedStorage
 ): boolean {
-  const ok = saveLocalProgressDirectly(progress, storage)
-  if (ok) {
-    // 异步云端同步，失败不阻塞本地游戏
-    import('../services/syncEngine')
-      .then(({ syncEngine }) => {
-        syncEngine.pushProgress(progress)
-      })
-      .catch(() => {})
+  if (!validateLocalProgress(progress)) return false
+  const browserStorage = typeof localStorage !== 'undefined' && storage === scopedStorage
+  const oldReplica = browserStorage
+    ? scopedStorage.getItem('flying_chess_progress_replica_v2')
+    : null
+  try {
+    // Custom Storage adapters are used by import/tests and must not mutate browser sync state.
+    if (typeof localStorage !== 'undefined' && storage === scopedStorage)
+      recordProgressChange(loadLocalProgress(), progress)
+    const ok = saveLocalProgressDirectly(progress, storage)
+    if (!ok && browserStorage) {
+      if (oldReplica === null) scopedStorage.removeItem('flying_chess_progress_replica_v2')
+      else scopedStorage.setItem('flying_chess_progress_replica_v2', oldReplica)
+    }
+    if (ok && typeof localStorage !== 'undefined' && storage === scopedStorage)
+      requestSync('progress')
+    return ok
+  } catch (error) {
+    console.warn('保存进度失败:', error)
+    return false
   }
-  return ok
 }
 
 type PartyStudioStorageReader = Pick<Storage, 'getItem'>
 type PartyStudioStorageWriter = Pick<Storage, 'setItem'>
 
 export function loadPartyStudioConfig(
-  storage: PartyStudioStorageReader = localStorage
+  storage: PartyStudioStorageReader = scopedStorage
 ): PartyStudioConfig {
   const raw = storage.getItem(PARTY_STUDIO_STORAGE_KEY)
   if (!raw) return structuredClone(DEFAULT_PARTY_STUDIO_CONFIG)
@@ -507,7 +498,7 @@ export function loadPartyStudioConfig(
 
 export function savePartyStudioConfigDirectly(
   config: PartyStudioConfig,
-  storage: PartyStudioStorageWriter = localStorage
+  storage: PartyStudioStorageWriter = scopedStorage
 ): boolean {
   if (!validatePartyStudioConfig(config).ok) return false
   try {
@@ -521,15 +512,11 @@ export function savePartyStudioConfigDirectly(
 
 export function savePartyStudioConfig(
   config: PartyStudioConfig,
-  storage: PartyStudioStorageWriter = localStorage
+  storage: PartyStudioStorageWriter = scopedStorage
 ): boolean {
   const ok = savePartyStudioConfigDirectly(config, storage)
   if (ok) {
-    import('../services/syncEngine')
-      .then(({ pushSettingsDebounced }) => {
-        pushSettingsDebounced()
-      })
-      .catch(() => {})
+    requestSync('settings')
   }
   return ok
 }
@@ -556,11 +543,7 @@ export function saveLocalePreferenceDirectly(
  */
 export function saveLocalePreference(lang: string, storage?: Pick<Storage, 'setItem'>): void {
   saveLocalePreferenceDirectly(lang, storage)
-  import('../services/syncEngine')
-    .then(({ pushSettingsDebounced }) => {
-      pushSettingsDebounced()
-    })
-    .catch(() => {})
+  requestSync('settings')
 }
 
 /**

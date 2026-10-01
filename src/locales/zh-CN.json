@@ -895,5 +895,15 @@
   "ctrl_room_full": "房间已满",
   "ctrl_pair_offer_failed": "无法生成局域网配对邀请",
   "ctrl_pair_answer_failed": "无法创建局域网配对应答",
-  "ctrl_pair_answer_accept_failed": "无法接受局域网配对应答"
+  "ctrl_pair_answer_accept_failed": "无法接受局域网配对应答",
+  "auth_sync_pending": "等待同步",
+  "auth_guest_import_tip": "将游客数据导入此账号？游客备份会保留，账号配置将被替换。",
+  "auth_import_guest": "导入游客数据",
+  "auth_login": "登录",
+  "auth_register": "创建账号",
+  "auth_reset_password": "找回密码",
+  "auth_reset_sent": "若账号存在，密码重置邮件已发送。",
+  "auth_new_password": "密码（至少 6 位）",
+  "auth_save_password": "保存新密码",
+  "auth_active_game_tip": "请先结束当前对局，再退出账号或导入游客数据。"
 }

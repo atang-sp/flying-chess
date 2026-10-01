@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, computed } from 'vue'
+  import { ref, computed, watch } from 'vue'
   import { useI18n } from 'vue-i18n'
   import {
     User,
@@ -22,6 +22,8 @@
     clearDevSupabaseCredentials,
   } from '../services/supabaseClient'
   import { useAuth } from '../composables/useAuth'
+  import { hasGuestData } from '../services/accountStorage'
+  import { storageRevision } from '../services/syncRuntime'
   import { syncStatus, lastSyncedAt, syncError } from '../services/syncState'
 
   // ============================================================
@@ -29,15 +31,16 @@
   // ============================================================
   interface Props {
     show: boolean
+    gameActive?: boolean
   }
   interface Emits {
     (e: 'close'): void
   }
-  defineProps<Props>()
+  const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
 
   const { t } = useI18n()
-  const { currentUser, signOut } = useAuth()
+  const { currentUser, signOut, authError, isPasswordRecovery } = useAuth()
 
   // ============================================================
   // 本地 UI 状态
@@ -48,19 +51,36 @@
   const isSyncingManual = ref(false)
   const syncFeedbackMsg = ref('')
   const errorMsg = ref('')
-  const view = ref<'options' | 'email'>('options')
+  const view = ref<'options' | 'email' | 'signup' | 'reset' | 'recovery'>('options')
+  watch(
+    isPasswordRecovery,
+    recovery => {
+      if (recovery) view.value = 'recovery'
+    },
+    { immediate: true }
+  )
+  const guestAvailable = computed(() => {
+    void storageRevision.value
+    return currentUser.value && hasGuestData()
+  })
 
   // 本地临时凭据测试折叠面板
   const showDevConfig = ref(false)
   const devUrlInput = ref('')
   const devKeyInput = ref('')
 
+  const selectEmailView = (next: 'email' | 'signup' | 'reset') => {
+    view.value = next
+    errorMsg.value = ''
+    syncFeedbackMsg.value = ''
+  }
+
   const providerLabel = computed(() => {
     if (!currentUser.value) return ''
     const prov = currentUser.value.app_metadata?.provider ?? 'email'
     return prov === 'twitter' || prov === 'x'
       ? 'X (Twitter)'
-      : prov === 'discourse'
+      : prov === 'discourse' || prov === 'custom:discourse'
         ? t('auth_provider_forum')
         : t('auth_provider_email')
   })
@@ -87,7 +107,7 @@
   // ============================================================
   const closeModal = () => {
     emit('close')
-    view.value = 'options'
+    view.value = isPasswordRecovery.value ? 'recovery' : 'options'
     errorMsg.value = ''
     email.value = ''
     password.value = ''
@@ -96,9 +116,11 @@
 
   const handleSignOut = async () => {
     loading.value = true
-    await signOut()
+    if (props.gameActive) return
+    const ok = await signOut()
     loading.value = false
-    closeModal()
+    if (ok) closeModal()
+    else errorMsg.value = authError.value || t('auth_sync_failed')
   }
 
   const handleSyncNow = async () => {
@@ -139,48 +161,69 @@
       errorMsg.value = t('auth_error_service_unconfigured')
       return
     }
-    if (!email.value || !password.value) {
+    if (!email.value || (view.value !== 'reset' && !password.value)) {
       errorMsg.value = t('auth_error_enter_credentials')
       return
     }
     loading.value = true
     errorMsg.value = ''
-
-    // 先尝试登录，失败时自动注册
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.value,
-      password: password.value,
-    })
-
-    if (error) {
-      if (error.message.includes('Invalid login credentials')) {
-        const { error: signUpErr, data } = await supabase.auth.signUp({
+    try {
+      if (view.value === 'reset') {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.value, {
+          redirectTo: getRedirectUrl(),
+        })
+        if (error) throw error
+        syncFeedbackMsg.value = t('auth_reset_sent')
+      } else if (view.value === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.value,
+          password: password.value,
+          options: { emailRedirectTo: getRedirectUrl() },
+        })
+        if (error) throw error
+        if (data.session) closeModal()
+        else syncFeedbackMsg.value = t('auth_signup_success_check_email')
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
           email: email.value,
           password: password.value,
         })
-        if (signUpErr) {
-          // If signup fails with user already exists, it means they just typed the wrong password.
-          if (signUpErr.message.includes('User already registered')) {
-            errorMsg.value = t('auth_error_invalid_password') || 'Invalid password.'
-          } else {
-            errorMsg.value = signUpErr.message
-          }
-        } else {
-          // Signup might succeed but require email confirmation, or auto-login
-          if (data?.session) {
-            closeModal()
-          } else {
-            errorMsg.value =
-              t('auth_signup_success_check_email') || 'Sign up successful. Please check your email.'
-          }
-        }
-      } else {
-        errorMsg.value = error.message
+        if (error) throw error
+        closeModal()
       }
-    } else {
-      closeModal()
+    } catch (error) {
+      errorMsg.value = error instanceof Error ? error.message : t('auth_error_invalid_password')
+    } finally {
+      loading.value = false
     }
-    loading.value = false
+  }
+
+  const updatePassword = async () => {
+    loading.value = true
+    errorMsg.value = ''
+    try {
+      const { error } = await supabase.auth.updateUser({ password: password.value })
+      if (error) throw error
+      isPasswordRecovery.value = false
+      closeModal()
+    } catch (error) {
+      errorMsg.value = error instanceof Error ? error.message : t('auth_sync_failed')
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const importGuest = async () => {
+    if (props.gameActive) return
+    loading.value = true
+    try {
+      const { syncEngine } = await import('../services/syncEngine')
+      await syncEngine.importGuestData()
+    } catch (error) {
+      errorMsg.value = error instanceof Error ? error.message : t('auth_sync_failed')
+    } finally {
+      loading.value = false
+    }
   }
 
   const getRedirectUrl = () => {
@@ -249,8 +292,25 @@
 
         <!-- ===== Body ===== -->
         <div class="modal-body">
+          <p v-if="syncFeedbackMsg && !currentUser" role="status">{{ syncFeedbackMsg }}</p>
+          <p v-if="errorMsg && currentUser" role="alert">{{ errorMsg }}</p>
           <!-- ——— 已登录视图 ——— -->
-          <template v-if="currentUser">
+          <template v-if="isPasswordRecovery">
+            <input
+              v-model="password"
+              type="password"
+              autocomplete="new-password"
+              :placeholder="t('auth_new_password')"
+            />
+            <button
+              class="btn btn-primary"
+              :disabled="loading || password.length < 6"
+              @click="updatePassword"
+            >
+              {{ t('auth_save_password') }}
+            </button>
+          </template>
+          <template v-else-if="currentUser">
             <div class="user-info">
               <img v-if="userAvatar" :src="userAvatar" :alt="t('auth_avatar_alt')" class="avatar" />
               <div v-else class="avatar-placeholder">{{ userNickname[0] }}</div>
@@ -284,7 +344,9 @@
                         ? t('auth_syncing')
                         : syncStatus === 'error'
                           ? t('auth_sync_failed')
-                          : t('auth_sync_success')
+                          : syncStatus === 'success'
+                            ? t('auth_sync_success')
+                            : t('auth_sync_pending')
                     }}
                   </span>
                 </div>
@@ -318,7 +380,14 @@
               </p>
             </div>
 
-            <button class="btn btn-danger" :disabled="loading" @click="handleSignOut">
+            <p v-if="gameActive">{{ t('auth_active_game_tip') }}</p>
+            <div v-if="guestAvailable">
+              <p>{{ t('auth_guest_import_tip') }}</p>
+              <button class="btn" :disabled="loading || gameActive" @click="importGuest">
+                {{ t('auth_import_guest') }}
+              </button>
+            </div>
+            <button class="btn btn-danger" :disabled="loading || gameActive" @click="handleSignOut">
               <Loader v-if="loading" :size="16" class="spin" />
               <LogOut v-else :size="16" />
               {{ t('auth_btn_logout') }}
@@ -435,12 +504,13 @@
                 @keyup.enter="loginWithEmail"
               />
               <input
+                v-if="view !== 'reset'"
                 v-model="password"
                 type="password"
-                :placeholder="t('auth_input_password')"
+                :placeholder="t('auth_new_password')"
                 class="input-field"
                 :disabled="loading"
-                autocomplete="current-password"
+                :autocomplete="view === 'signup' ? 'new-password' : 'current-password'"
                 @keyup.enter="loginWithEmail"
               />
               <button
@@ -449,10 +519,29 @@
                 @click="loginWithEmail"
               >
                 <Loader v-if="loading" :size="16" class="spin" />
-                {{ loading ? t('auth_loading') : t('auth_btn_submit') }}
+                {{
+                  loading
+                    ? t('auth_loading')
+                    : view === 'signup'
+                      ? t('auth_register')
+                      : view === 'reset'
+                        ? t('auth_reset_password')
+                        : t('auth_login')
+                }}
               </button>
               <button class="btn btn-text" :disabled="loading" @click="view = 'options'">
                 {{ t('auth_btn_back') }}
+              </button>
+            </div>
+            <div v-if="view !== 'options'" class="auth-email-actions">
+              <button class="btn" @click="selectEmailView('email')">
+                {{ t('auth_login') }}
+              </button>
+              <button class="btn" @click="selectEmailView('signup')">
+                {{ t('auth_register') }}
+              </button>
+              <button class="btn" @click="selectEmailView('reset')">
+                {{ t('auth_reset_password') }}
               </button>
             </div>
           </template>
