@@ -54,6 +54,54 @@ test('iPhone WebKit previews and saves a local achievement poster offline', asyn
   await page.context().setOffline(false)
 })
 
+test('iPhone WebKit home achievements stack offline posters and return focus', async ({ page }) => {
+  await page.goto('/flying-chess/')
+  for (const mode of ['classic', 'party']) {
+    await page.getByTestId(`mode-${mode}`).click()
+    await page.getByTestId('my-achievements').click()
+    await expect(
+      page.getByTestId('achievements-dialog').getByText('???', { exact: true })
+    ).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('my-achievements')).toBeFocused()
+  }
+  await page.getByTestId('quick-start-game').click()
+  await page.evaluate(() => {
+    const debug = window as typeof window & { finishGameWithPlayer: (index: number) => void }
+    debug.finishGameWithPlayer(0)
+  })
+  await page.reload()
+  await page.getByTestId('my-achievements').click()
+  await expect(
+    page.getByTestId('achievements-dialog').locator('.totals-grid strong').first()
+  ).toHaveText('1')
+  await page.context().setOffline(true)
+  await page.getByTestId('achievement-create-poster').first().click()
+  await expect
+    .poll(() =>
+      page.getByTestId('poster-image').evaluate(image => (image as HTMLImageElement).naturalWidth)
+    )
+    .toBe(900)
+  const saved = page.waitForEvent('download')
+  await page.getByRole('button', { name: '保存图片', exact: true }).click()
+  expect((await saved).suggestedFilename()).toBe('flying-chess-highlight.png')
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('achievements-dialog')).toBeVisible()
+  await expect(page.getByTestId('achievement-create-poster').first()).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('dialog[open]')).toHaveCount(0)
+  await expect(page.getByTestId('my-achievements')).toBeFocused()
+  await page.getByTestId('my-achievements').click()
+  await page.getByTestId('achievement-create-poster').first().click()
+  await expect(page.getByTestId('poster-image')).toBeVisible()
+  await page
+    .getByTestId('achievements-dialog')
+    .evaluate(dialog => dialog.dispatchEvent(new Event('cancel', { cancelable: true })))
+  await expect(page.locator('dialog[open]')).toHaveCount(0)
+  await expect(page.getByTestId('my-achievements')).toBeFocused()
+  await page.context().setOffline(false)
+})
+
 interface StoredSession {
   readonly roomCode: string
   readonly playerId: string
