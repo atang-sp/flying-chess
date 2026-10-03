@@ -59,13 +59,17 @@
           <article
             v-for="achievement in achievements"
             :key="achievement.id"
-            :class="{ locked: !achievement.unlocked }"
+            :class="[{ locked: !achievement.unlocked }, achievement.rarity]"
           >
-            <Award v-if="achievement.unlocked" :size="18" />
-            <Lock v-else :size="18" />
-            <div>
-              <strong>{{ $t(achievement.title) }}</strong>
-              <small>{{ $t(achievement.description) }}</small>
+            <Award v-if="achievement.unlocked" :size="20" class="achievement-icon" />
+            <Lock v-else :size="20" class="achievement-icon" />
+            <div class="achievement-content">
+              <strong>{{ achievement.isHidden && !achievement.unlocked ? '???' : $t(achievement.title) }}</strong>
+              <small>{{ achievement.isHidden && !achievement.unlocked ? $t('achievement_hidden_desc') : $t(achievement.description) }}</small>
+              <div v-if="achievement.maxProgress && achievement.maxProgress > 1" class="progress-bar-container">
+                <div class="progress-bar" :style="{ width: `${(achievement.progress || 0) / achievement.maxProgress * 100}%` }"></div>
+                <span class="progress-text">{{ achievement.progress || 0 }} / {{ achievement.maxProgress }}</span>
+              </div>
             </div>
           </article>
         </div>
@@ -188,13 +192,47 @@
     border-radius: 11px;
   }
 
+  .achievement-list article.common { border-left: 4px solid #94a3b8; }
+  .achievement-list article.rare { border-left: 4px solid #60a5fa; }
+  .achievement-list article.epic { border-left: 4px solid #c084fc; }
+  
   .achievement-list article.locked {
     color: #64748b;
     background: rgb(30 41 59 / 0.5);
+    border-left-color: transparent;
   }
 
-  .achievement-list div {
+  .achievement-content {
     display: grid;
+    width: 100%;
+  }
+
+  .progress-bar-container {
+    width: 100%;
+    height: 12px;
+    background: rgb(0 0 0 / 0.4);
+    border-radius: 6px;
+    position: relative;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: #f59e0b;
+    border-radius: 6px;
+    transition: width 0.3s ease;
+  }
+
+  .progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.55rem;
+    color: #fff;
+    white-space: nowrap;
+    line-height: 1;
   }
 
   ol {
