@@ -37,11 +37,15 @@ test('iPhone WebKit previews and saves a local achievement poster offline', asyn
   await page.getByTestId('victory-create-poster').click()
   await expect(page.getByTestId('poster-image')).toBeVisible()
   await expect(page.getByRole('checkbox', { name: '在海报上显示昵称' })).not.toBeChecked()
-  const size = await page.getByTestId('poster-image').evaluate(image => {
-    const img = image as HTMLImageElement
-    return [img.naturalWidth, img.naturalHeight]
-  })
-  expect(size).toEqual([900, 1200])
+  // WebKit can make the element visible before decoding its local blob URL.
+  await expect
+    .poll(() =>
+      page.getByTestId('poster-image').evaluate(image => {
+        const img = image as HTMLImageElement
+        return [img.naturalWidth, img.naturalHeight]
+      })
+    )
+    .toEqual([900, 1200])
   const saved = page.waitForEvent('download')
   await page.getByRole('button', { name: '保存图片', exact: true }).click()
   expect((await saved).suggestedFilename()).toBe('flying-chess-highlight.png')
