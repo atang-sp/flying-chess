@@ -92,7 +92,7 @@
         <ol class="shame-list">
           <li v-for="(player, index) in shameWall" :key="player.playerName" :class="{ 'shame-top': index === 0 }">
             <span class="player-name">
-              <span v-if="index === 0" class="shame-crown" title="Shame King">🤡</span>
+              <span v-if="index === 0" class="shame-crown" :title="$t('shame_king_title')">🤡</span>
               {{ player.playerName }}
             </span>
             <strong>
@@ -208,6 +208,10 @@
   .achievement-content {
     display: grid;
     width: 100%;
+  }
+
+  .achievement-icon {
+    flex-shrink: 0;
   }
 
   .progress-bar-container {
