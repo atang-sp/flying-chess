@@ -24,6 +24,32 @@ test('iPhone WebKit exposes local defaults, optional editors and offline quick s
   await page.context().setOffline(false)
 })
 
+test('iPhone WebKit previews and saves a local achievement poster offline', async ({ page }) => {
+  await page.goto('/flying-chess/')
+  await page.getByTestId('quick-start-game').click()
+  await expect(page.locator('.game-board')).toBeVisible()
+  await page.evaluate(() => {
+    const debug = window as typeof window & { finishGameWithPlayer: (index: number) => void }
+    debug.finishGameWithPlayer(0)
+  })
+  await expect(page.getByTestId('new-achievements')).toContainText('完成首航')
+  await page.context().setOffline(true)
+  await page.getByTestId('victory-create-poster').click()
+  await expect(page.getByTestId('poster-image')).toBeVisible()
+  await expect(page.getByRole('checkbox', { name: '在海报上显示昵称' })).not.toBeChecked()
+  const size = await page.getByTestId('poster-image').evaluate(image => {
+    const img = image as HTMLImageElement
+    return [img.naturalWidth, img.naturalHeight]
+  })
+  expect(size).toEqual([900, 1200])
+  const saved = page.waitForEvent('download')
+  await page.getByRole('button', { name: '保存图片', exact: true }).click()
+  expect((await saved).suggestedFilename()).toBe('flying-chess-highlight.png')
+  await page.getByRole('button', { name: '关闭海报', exact: true }).click()
+  await expect(page.getByTestId('victory-create-poster')).toBeFocused()
+  await page.context().setOffline(false)
+})
+
 interface StoredSession {
   readonly roomCode: string
   readonly playerId: string

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-  import { computed } from 'vue'
+  import { computed, ref, watch } from 'vue'
 
   import { Award, Lock, Trophy } from '@lucide/vue'
+  import SharePosterDialog from './SharePosterDialog.vue'
   import {
     getLocalAchievements,
     getShameWall,
@@ -10,6 +11,16 @@
   } from '../services/localProgress'
 
   const props = defineProps<{ progress: LocalProgress }>()
+  const posterAchievementId = ref<string | null>(null)
+  const posterAchievement = computed(() =>
+    achievements.value.find(item => item.id === posterAchievementId.value && item.unlocked)
+  )
+  watch(
+    () => props.progress,
+    () => {
+      posterAchievementId.value = null
+    }
+  )
   const achievements = computed(() => getLocalAchievements(props.progress))
   const shameWall = computed(() => getShameWall(props.progress).slice(0, 5))
   const unlocked = computed(() => getUnlockedPartyContent(props.progress))
@@ -74,6 +85,16 @@
                     : $t(achievement.description)
                 }}
               </small>
+              <button
+                v-if="achievement.unlocked"
+                type="button"
+                class="achievement-share"
+                data-testid="achievement-create-poster"
+                :aria-label="`${$t('poster_create')} · ${$t(achievement.title)}`"
+                @click="posterAchievementId = achievement.id"
+              >
+                {{ $t('poster_create') }}
+              </button>
               <div
                 v-if="achievement.maxProgress && achievement.maxProgress > 1"
                 class="progress-bar-container"
@@ -131,9 +152,26 @@
       <p class="privacy-copy">{{ $t('privacy_copy') }}</p>
     </div>
   </details>
+  <SharePosterDialog
+    :open="Boolean(posterAchievement)"
+    :title="posterAchievement ? $t(posterAchievement.title) : ''"
+    :lines="posterAchievement ? [$t(posterAchievement.description)] : []"
+    @close="posterAchievementId = null"
+  />
 </template>
 
 <style scoped>
+  .achievement-share {
+    min-height: 44px;
+    margin-top: 0.5rem;
+    padding: 0.4rem 0.7rem;
+    border: 1px solid #cbaa6355;
+    border-radius: 8px;
+    color: #fde68a;
+    background: #cbaa6310;
+    cursor: pointer;
+  }
+
   .progress-panel {
     margin-top: 1rem;
     color: var(--text-primary);

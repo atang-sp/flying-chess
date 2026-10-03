@@ -149,6 +149,20 @@ test('restored login applies cloud settings to the visible app without an upload
   })
 })
 
+test('cloud achievements stay silent during gameplay and settlement', async ({ page }) => {
+  await prepare(page)
+  await expect(page.locator('.name-input').first()).toHaveValue('Cloud Alice')
+  await page.getByTestId('quick-start-game').click()
+  await expect(page.locator('.game-board')).toBeVisible()
+  await expect(page.getByTestId('achievement-notice')).toBeHidden()
+  await page.evaluate(() => {
+    const debug = window as typeof window & { finishGameWithPlayer: (index: number) => void }
+    debug.finishGameWithPlayer(0)
+  })
+  await expect(page.getByTestId('victory-scorecard')).toBeVisible()
+  await expect(page.getByTestId('new-achievements')).toBeHidden()
+})
+
 test('manual sync reports offline failure and recovers while retaining the current game', async ({
   page,
 }) => {
