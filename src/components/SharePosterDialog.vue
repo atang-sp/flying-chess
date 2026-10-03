@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+  import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
   import { useI18n } from 'vue-i18n'
   import { Download, Share2, X } from '@lucide/vue'
   import { canSharePoster, createSharePoster } from '../services/sharePoster'
@@ -8,6 +8,7 @@
   const emit = defineEmits<{ close: [] }>()
   const { t } = useI18n()
   const dialog = ref<HTMLDialogElement | null>(null)
+  const titleId = useId()
   const nickname = ref('')
   const includeNickname = ref(false)
   const previewUrl = ref('')
@@ -105,6 +106,7 @@
   }
   onBeforeUnmount(() => {
     revision++
+    dialog.value?.close()
     clearPreview()
   })
 </script>
@@ -113,12 +115,12 @@
   <dialog
     ref="dialog"
     class="poster-dialog"
-    aria-labelledby="poster-dialog-title"
+    :aria-labelledby="titleId"
     data-testid="poster-dialog"
     @cancel.prevent="emit('close')"
   >
     <header>
-      <h2 id="poster-dialog-title">{{ $t('poster_preview') }}</h2>
+      <h2 :id="titleId">{{ $t('poster_preview') }}</h2>
       <button type="button" :aria-label="$t('poster_close')" @click="emit('close')">
         <X :size="22" />
       </button>

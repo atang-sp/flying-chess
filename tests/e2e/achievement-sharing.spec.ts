@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 
 async function startParty(page: Page) {
   await page.goto('/flying-chess/')
@@ -94,8 +95,11 @@ test('historical achievements do not replay after reload; poster exports offline
   })
   await page.reload()
   await expect(page.getByTestId('achievement-notice')).toBeHidden()
-  await page.getByTestId('advanced-settings-toggle').click()
-  await page.locator('.progress-panel summary').click()
+  await page.getByTestId('my-achievements').click()
+  await expect(page.getByTestId('achievements-dialog')).toBeVisible()
+  await expect(
+    page.getByTestId('achievements-dialog').locator('.totals-grid strong').first()
+  ).toHaveText('1')
   await page.getByTestId('achievement-create-poster').first().click()
   await expect(page.getByTestId('poster-image')).toBeVisible()
   // Actual exported pixels, including QR decoding; no auth or room URL may leak.
@@ -133,6 +137,28 @@ test('historical achievements do not replay after reload; poster exports offline
   await page.context().setOffline(false)
   await page.getByRole('button', { name: '关闭海报', exact: true }).click()
   await expect(page.getByTestId('achievement-create-poster').first()).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('achievements-dialog')).toBeHidden()
+  await expect(page.getByTestId('my-achievements')).toBeFocused()
+  await page.getByTestId('my-achievements').press('Enter')
+  await page.getByTestId('achievement-create-poster').first().click()
+  await expect(page.getByTestId('poster-image')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('achievements-dialog').getByTestId('poster-dialog')).toBeHidden()
+  await expect(page.getByTestId('achievements-dialog')).toBeVisible()
+  await expect(page.getByTestId('achievement-create-poster').first()).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('dialog[open]')).toHaveCount(0)
+  await expect(page.getByTestId('my-achievements')).toBeFocused()
+  // Closing the parent from application state also tears down its nested poster.
+  await page.getByTestId('my-achievements').click()
+  await page.getByTestId('achievement-create-poster').first().click()
+  await expect(page.getByTestId('poster-image')).toBeVisible()
+  await page
+    .getByTestId('achievements-dialog')
+    .evaluate(dialog => dialog.dispatchEvent(new Event('cancel', { cancelable: true })))
+  await expect(page.locator('dialog[open]')).toHaveCount(0)
+  await expect(page.getByTestId('my-achievements')).toBeFocused()
 })
 
 test('native share cancellation is silent and failures retain the save fallback', async ({
@@ -164,4 +190,70 @@ test('native share cancellation is silent and failures retain the save fallback'
   await page.getByRole('button', { name: '系统分享', exact: true }).click()
   await expect(page.getByTestId('poster-dialog').getByRole('alert')).toContainText('保存图片')
   await expect(page.getByRole('button', { name: '保存图片', exact: true })).toBeEnabled()
+})
+
+test('both home modes expose locked achievements directly with keyboard return on short screens', async ({
+  page,
+}, testInfo) => {
+  if (testInfo.project.name === 'mobile-chrome')
+    await page.setViewportSize({ width: 320, height: 568 })
+  await page.goto('/flying-chess/')
+  for (const mode of ['classic', 'party']) {
+    await page.getByTestId(`mode-${mode}`).click()
+    await expect(page.getByTestId('quick-start-game')).toBeInViewport({ ratio: 1 })
+    const entry = page.getByTestId('my-achievements')
+    await entry.focus()
+    await entry.press('Enter')
+    const dialog = page.getByTestId('achievements-dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog.locator('.totals-grid strong').first()).toHaveText('0')
+    await expect(dialog.locator('.achievement-list article.locked')).toHaveCount(11)
+    await expect(dialog.getByText('???', { exact: true })).toBeVisible()
+    await expect(dialog.getByTestId('achievement-create-poster')).toHaveCount(0)
+    await expect(dialog.locator('details')).toHaveCount(0)
+    await expect(dialog.getByRole('button', { name: '关闭成就', exact: true })).toBeFocused()
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+      .toBe(true)
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+    await expect(entry).toBeFocused()
+    await entry.press('Space')
+    await dialog.getByRole('button', { name: '关闭成就', exact: true }).click()
+    await expect(entry).toBeFocused()
+    await expect(page.locator('#advanced-settings')).not.toHaveAttribute('open', '')
+    await expect(page.locator('#advanced-settings .progress-panel')).toHaveCount(0)
+  }
+  await page.context().setOffline(true)
+  await page.getByTestId('my-achievements').click()
+  await expect(
+    page.getByTestId('achievements-dialog').getByText('???', { exact: true })
+  ).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.getByTestId('quick-start-game').click()
+  await expect(page.locator('.game-board')).toBeVisible()
+  await page.context().setOffline(false)
+})
+
+test('home achievement entry and close labels are translated in every existing language', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome')
+  await page.goto('/flying-chess/')
+  for (const language of ['zh', 'en', 'ja', 'ko', 'de', 'es', 'fr', 'it', 'pt', 'ru']) {
+    const dictionary = JSON.parse(
+      readFileSync(`src/locales/${language === 'zh' ? 'zh-CN' : language}.json`, 'utf8')
+    )
+    await page.evaluate(language => localStorage.setItem('flying-chess-locale', language), language)
+    await page.reload()
+    const entry = page.getByTestId('my-achievements')
+    await expect(entry).toHaveText(dictionary.my_achievements)
+    await entry.click()
+    const dialog = page.getByTestId('achievements-dialog')
+    await expect(
+      dialog.getByRole('heading', { name: dictionary.my_achievements, exact: true })
+    ).toBeVisible()
+    await dialog.getByRole('button', { name: dictionary.achievements_close, exact: true }).click()
+    await expect(entry).toBeFocused()
+  }
 })

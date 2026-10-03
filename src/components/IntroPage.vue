@@ -50,7 +50,7 @@
   import VictoryConfigPanel from './VictoryConfig.vue'
   import PartyEventDeckEditor from './PartyEventDeckEditor.vue'
   import CommunityPackBrowser from './CommunityPackBrowser.vue'
-  import ProgressAchievements from './ProgressAchievements.vue'
+  import AchievementsDialog from './AchievementsDialog.vue'
   import PartyStudioEditor from './PartyStudioEditor.vue'
   import type { GameMode } from '../config/modes'
   import { VERSION } from '../config/version'
@@ -95,6 +95,7 @@
   const selectedScenePreset = ref<PartyScenePreset | 'default'>('default')
   const multiDeviceMode = ref(false)
   const advancedOpen = ref(false)
+  const achievementsOpen = ref(false)
   const victoryConfig = ref<VictoryConfig>(loadVictoryConfig())
   const eventDeck = ref<readonly PartyEventCard[]>(loadPartyEventDeck())
   const localProgress = ref(loadLocalProgress())
@@ -741,13 +742,6 @@
         </div>
       </div>
 
-      <details v-if="selectedMode === 'party'" class="scene-options">
-        <summary>
-          {{ $t('party_scene_title') }} · {{ $t(`party_scene_${selectedScenePreset}_title`) }}
-        </summary>
-        <PartySceneSelector :selected="selectedScenePreset" @select="selectScenePreset" />
-      </details>
-
       <!-- 主操作区域：置顶直达 -->
       <div class="intro-actions">
         <div class="game-info">
@@ -810,6 +804,29 @@
           {{ $t('party_min_players_hint') }}
         </p>
       </div>
+
+      <button
+        type="button"
+        class="achievements-entry"
+        data-testid="my-achievements"
+        aria-haspopup="dialog"
+        @click="achievementsOpen = true"
+      >
+        <Trophy :size="19" />
+        {{ $t('my_achievements') }}
+      </button>
+      <AchievementsDialog
+        :open="achievementsOpen"
+        :progress="localProgress"
+        @close="achievementsOpen = false"
+      />
+
+      <details v-if="selectedMode === 'party'" class="scene-options">
+        <summary>
+          {{ $t('party_scene_title') }} · {{ $t(`party_scene_${selectedScenePreset}_title`) }}
+        </summary>
+        <PartySceneSelector :selected="selectedScenePreset" @select="selectScenePreset" />
+      </details>
 
       <!-- 快捷场景预设 (Scenario Presets) -->
       <section class="scenario-presets" aria-labelledby="scenario-presets-title">
@@ -940,8 +957,6 @@
           :config="studioConfig"
           @update="studioConfig = $event"
         />
-
-        <ProgressAchievements :progress="localProgress" />
       </details>
 
       <div class="developer-info">
@@ -1027,6 +1042,25 @@
 </template>
 
 <style scoped>
+  .achievements-entry {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    margin-block: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid #cbaa6380;
+    border-radius: 10px;
+    color: #fde68a;
+    background: #2a4437;
+    cursor: pointer;
+  }
+  .achievements-entry:focus-visible {
+    outline: 2px solid #f9edcf;
+    outline-offset: 3px;
+  }
+
   .intro-page {
     min-height: 100dvh;
     background: linear-gradient(
@@ -2966,6 +3000,44 @@
       margin: 0.5rem 0 0;
       font-size: 0.75rem;
       color: var(--text-secondary);
+    }
+  }
+  @media (max-width: 360px) {
+    .intro-page {
+      padding-top: 56px;
+    }
+    .intro-header {
+      margin-bottom: 0.5rem;
+    }
+    .mode-chooser,
+    .player-settings {
+      margin-block: 0.4rem;
+    }
+    .intro-actions {
+      margin-block: 0.4rem;
+    }
+    .player-count-section .setting-item {
+      flex-direction: row;
+      gap: 0.5rem;
+      padding: 0.25rem;
+    }
+    .setting-label {
+      font-size: 0.85rem;
+      gap: 0.25rem;
+    }
+    .count-controls {
+      gap: 0.35rem;
+      flex-shrink: 0;
+    }
+    .count-display {
+      min-width: 38px;
+      padding: 0.3rem;
+    }
+    .count-btn {
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      min-height: 44px;
     }
   }
 </style>

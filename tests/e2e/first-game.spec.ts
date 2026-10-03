@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test'
 test('home toolbar menus remain within the viewport and persist guide preferences', async ({
   page,
 }) => {
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') })
+  await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'))
   await page.goto('/flying-chess/')
   await page.getByTitle('引导设置').click()
   await expect(page.locator('.settings-menu')).toBeInViewport({ ratio: 1 })
@@ -13,6 +15,9 @@ test('home toolbar menus remain within the viewport and persist guide preference
     .poll(() => page.evaluate(() => localStorage.getItem('autoGuideEnabled')))
     .toBe('true')
   await autoGuide.uncheck()
+  await page.clock.runFor(2000)
+  await expect(page.locator('.driver-popover, .driver-overlay')).toHaveCount(0)
+  expect(await page.evaluate(() => localStorage.getItem('hasShownGuide'))).toBeNull()
   await page.getByTitle('引导设置').click()
   await page.getByTestId('app-language-btn').click()
   await expect(page.locator('.lang-menu')).toBeInViewport({ ratio: 1 })
@@ -93,4 +98,64 @@ test('short mobile viewport retains names after refresh and starts offline', asy
   await page.getByTestId('quick-start-game').click()
   await expect(page.locator('.game-board')).toBeVisible()
   await page.context().setOffline(false)
+})
+
+test('page and punishment step changes cancel stale automatic guides', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') })
+  await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'))
+  await page.goto('/flying-chess/')
+  await page.getByTitle('引导设置').click()
+  await page.getByRole('checkbox', { name: '自动显示引导' }).check()
+  await page.getByTitle('引导设置').click()
+  await page.getByTestId('start-game').click()
+  await page.clock.runFor(800)
+  await expect(page.locator('.driver-popover')).toBeVisible()
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('hasShownGuide') || '[]'))
+  ).toEqual(['board_settings'])
+  // Switching pages destroys the active driver before scheduling the next one.
+  await page.evaluate(() => {
+    const debug = window as typeof window & {
+      gameState: { gameStatus: string }
+      punishmentStep: { value: string }
+    }
+    debug.punishmentStep.value = 'confirm'
+  })
+  await expect(page.locator('.driver-overlay')).toHaveCount(0)
+  await page.clock.runFor(500)
+  await page.evaluate(() => {
+    const debug = window as typeof window & { punishmentStep: { value: string } }
+    debug.punishmentStep.value = 'config'
+  })
+  await page.locator('.settings-stepper button').nth(1).click()
+  await page.clock.runFor(800)
+  // Let Driver.js paint its SVG on the next animation frame.
+  await page.clock.resume()
+  await expect(page.locator('.driver-overlay')).toHaveCount(1)
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('hasShownGuide') || '[]'))
+  ).toEqual(['board_settings', 'settings'])
+  await page.locator('.driver-popover-close-btn').click()
+  await expect(page.locator('.driver-overlay')).toHaveCount(0)
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100))
+  await page.evaluate(() => {
+    const debug = window as typeof window & { punishmentStep: { value: string } }
+    debug.punishmentStep.value = 'confirm'
+  })
+  await page.clock.runFor(800)
+  await expect(page.locator('.driver-popover')).toBeVisible()
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('hasShownGuide') || '[]'))
+  ).toEqual(['board_settings', 'settings', 'punishment_confirmation'])
+  await page.locator('.driver-popover-close-btn').click()
+  await page.clock.resume()
+  // Home exposes the manual guide on mobile too; it takes ownership of pending work.
+  await page.evaluate(() => {
+    const debug = window as typeof window & { gameState: { gameStatus: string } }
+    debug.gameState.gameStatus = 'intro'
+  })
+  await page.locator('.guide-btn').click()
+  await expect(page.locator('.driver-popover')).toBeVisible()
+  await page.locator('.driver-popover-close-btn').click()
+  await expect(page.locator('.driver-overlay')).toHaveCount(0)
 })

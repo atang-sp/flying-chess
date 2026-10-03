@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue'
 
-  import { Award, Lock, Trophy } from '@lucide/vue'
+  import { Award, Lock } from '@lucide/vue'
   import SharePosterDialog from './SharePosterDialog.vue'
   import {
     getLocalAchievements,
@@ -30,16 +30,12 @@
 </script>
 
 <template>
-  <details class="progress-panel">
-    <summary>
-      <span>
-        <Trophy :size="19" />
-        {{ $t('progress_achievements_title') }}
-      </span>
+  <section class="progress-panel">
+    <p class="achievement-count">
       <small>
         {{ unlockedAchievementCount }}/{{ achievements.length }} {{ $t('achievements_count') }}
       </small>
-    </summary>
+    </p>
 
     <div class="progress-body">
       <div class="totals-grid">
@@ -151,7 +147,7 @@
       </section>
       <p class="privacy-copy">{{ $t('privacy_copy') }}</p>
     </div>
-  </details>
+  </section>
   <SharePosterDialog
     :open="Boolean(posterAchievement)"
     :title="posterAchievement ? $t(posterAchievement.title) : ''"
@@ -181,22 +177,18 @@
     border-radius: var(--radius-xl);
   }
 
-  summary,
-  summary span,
   h3 {
     display: flex;
     align-items: center;
     gap: 0.45rem;
   }
 
-  summary {
-    justify-content: space-between;
-    min-height: 58px;
-    padding: 0.85rem 1rem;
-    cursor: pointer;
+  .achievement-count {
+    margin: 0;
+    padding: 0.75rem 1rem;
   }
 
-  summary small,
+  .achievement-count small,
   section p,
   .privacy-copy {
     color: var(--text-muted);

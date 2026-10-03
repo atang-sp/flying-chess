@@ -150,6 +150,7 @@
     type PartyPunishmentInterventionOption,
   } from '@flying-chess/game-core/party-interventions'
   import { driver as createDriver } from 'driver.js'
+  import { createAutoGuideScheduler } from './services/autoGuideScheduler'
   import {
     activatePartyEvent,
     applyPartyEventPunishmentRules,
@@ -1418,8 +1419,6 @@
   const healthCheckIntervalId = ref<number | null>(null)
   const movingStateEnteredAt = ref<number | null>(null)
   const playerMovingTimeoutMap = new Map<number, number>()
-  let initialGuideTimer: number | null = null
-  let autoGuideTimer: number | null = null
 
   const clearAllPlayerMovingTimeouts = () => {
     playerMovingTimeoutMap.forEach(timeoutId => {
@@ -1678,26 +1677,8 @@
       }
     }
 
-    // 页面加载完成后，检查是否需要显示当前页面的引导
-    // 使用nextTick立即检查一次
-    nextTick(() => {
-      const currentStatus = gameState.gameStatus
-      devLog(`nextTick检查，当前状态: ${currentStatus}`)
-      if (['intro', 'board_settings', 'settings'].includes(currentStatus)) {
-        devLog(`立即触发自动引导检查`)
-        showAutoGuide(currentStatus)
-      }
-    })
-
-    // 延迟检查作为备用
-    initialGuideTimer = window.setTimeout(() => {
-      const currentStatus = gameState.gameStatus
-      devLog(`页面加载完成，当前状态: ${currentStatus}`)
-      if (['intro', 'board_settings', 'settings'].includes(currentStatus)) {
-        devLog(`触发页面加载时的自动引导检查`)
-        showAutoGuide(currentStatus)
-      }
-    }, 1200) // 延迟1.2秒确保页面完全渲染
+    // One render-aware request; disposal also guards this queued nextTick.
+    void nextTick(() => showAutoGuide())
   })
 
   onBeforeUnmount(() => {
@@ -1711,15 +1692,8 @@
       snapshotSaveTimer = null
     }
 
-    if (initialGuideTimer !== null) {
-      clearTimeout(initialGuideTimer)
-      initialGuideTimer = null
-    }
-
-    if (autoGuideTimer !== null) {
-      clearTimeout(autoGuideTimer)
-      autoGuideTimer = null
-    }
+    guideScheduler.dispose()
+    destroyGuide()
 
     cancelLastEffectTimer()
 
@@ -3588,10 +3562,14 @@
 
   // 用户指引
   const startGuide = () => {
+    guideScheduler.cancel()
     const currentStatus = gameState.gameStatus
 
     // 如果惩罚确认步骤正在显示，优先显示确认页面引导
-    if (punishmentStep.value === 'confirm') {
+    if (
+      ['board_settings', 'settings'].includes(currentStatus) &&
+      punishmentStep.value === 'confirm'
+    ) {
       startPunishmentConfirmationGuide()
       return
     }
@@ -3602,10 +3580,10 @@
         startIntroGuide()
         break
       case 'board_settings':
-        startBoardSettingsGuide()
-        break
       case 'settings':
-        startPunishmentSettingsGuide()
+        if (settingsTab.value === 'board') startBoardSettingsGuide()
+        else if (settingsTab.value === 'punishment') startPunishmentSettingsGuide()
+        else startDefaultGuide()
         break
       case 'waiting':
       case 'rolling':
@@ -3618,14 +3596,27 @@
     }
   }
 
-  const createGuideDriver = () =>
-    createDriver({
+  let guideDriver: ReturnType<typeof createDriver> | null = null
+  const destroyGuide = () => {
+    const previous = guideDriver
+    guideDriver = null
+    previous?.destroy()
+  }
+  const createGuideDriver = () => {
+    destroyGuide()
+    const instance = createDriver({
       allowClose: true,
       overlayOpacity: 0.4,
       nextBtnText: t('guide_btn_next'),
       prevBtnText: t('guide_btn_prev'),
       doneBtnText: t('guide_btn_done'),
+      onDestroyed: () => {
+        if (guideDriver === instance) guideDriver = null
+      },
     })
+    guideDriver = instance
+    return instance
+  }
 
   // 开始页面引导
   const startIntroGuide = () => {
@@ -3909,36 +3900,37 @@
 
   const { currentUser } = authSetup
 
-  const showAutoGuide = (pageType: string) => {
-    devLog(
-      `检查自动引导 - 页面类型: ${pageType}, 自动引导开启: ${autoGuideEnabled.value}, 已显示过: ${hasShownGuide.value.has(pageType)}`
-    )
-
-    if (autoGuideEnabled.value && !hasShownGuide.value.has(pageType)) {
-      devLog(`准备显示自动引导 - 页面: ${pageType}`)
-      // 延迟一下确保页面元素已经渲染
-      if (autoGuideTimer !== null) {
-        clearTimeout(autoGuideTimer)
-        autoGuideTimer = null
-      }
-      autoGuideTimer = window.setTimeout(() => {
-        devLog(`执行自动引导 - 页面: ${pageType}`)
-        // 针对特定页面，直接调用专门的引导函数
-        if (pageType === 'punishment_confirmation') {
-          startPunishmentConfirmationGuide()
-        } else if (pageType === 'game') {
-          startGameGuide()
-        } else {
-          startGuide()
-        }
-        hasShownGuide.value.add(pageType)
-        autoGuideTimer = null
-      }, 800) // 稍微减少延迟时间
+  const currentGuidePage = () => {
+    const status = gameState.gameStatus
+    if (['board_settings', 'settings'].includes(status)) {
+      if (punishmentStep.value === 'confirm') return 'punishment_confirmation'
+      if (settingsTab.value === 'board') return 'board_settings'
+      if (settingsTab.value === 'punishment') return 'settings'
+      return null
     }
+    if (status === 'intro') return 'intro'
+    if (status === 'waiting') return 'game'
+    return null
   }
+  const guideScheduler = createAutoGuideScheduler({
+    context: () => `${gameState.gameStatus}:${punishmentStep.value}:${settingsTab.value}`,
+    canStart: page =>
+      autoGuideEnabled.value &&
+      currentGuidePage() === page &&
+      !hasShownGuide.value.has(page) &&
+      !guideDriver?.isActive() &&
+      !document.querySelector('dialog[open], [aria-modal="true"]'),
+    start: page => {
+      if (page === 'punishment_confirmation') startPunishmentConfirmationGuide()
+      else if (page === 'game') startGameGuide()
+      else startGuide()
+      return Boolean(guideDriver?.isActive())
+    },
+    markShown: page => hasShownGuide.value.add(page),
+  })
+  const showAutoGuide = () => guideScheduler.schedule(currentGuidePage())
 
   const persistAutoGuideSetting = () => {
-    devLog(`自动引导开关设置为: ${autoGuideEnabled.value}`)
     localStorage.setItem('autoGuideEnabled', autoGuideEnabled.value.toString())
   }
 
@@ -4077,44 +4069,24 @@
     showImportError(error)
   }
 
-  // 监听游戏状态变化，自动显示引导
+  // Cancel synchronously on every page/step transition, before stale tasks can run.
   watch(
-    () => gameState.gameStatus,
-    (newStatus, oldStatus) => {
-      devLog(`游戏状态变化: ${oldStatus} -> ${newStatus}`)
-      if (oldStatus && newStatus !== oldStatus) {
-        // 仅在特定页面自动显示引导
-        if (['intro', 'board_settings', 'settings'].includes(newStatus)) {
-          showAutoGuide(newStatus)
-        }
-        // 当进入游戏页面时（waiting状态），显示游戏引导
-        else if (
-          newStatus === 'waiting' &&
-          !['waiting', 'rolling', 'moving', 'showing_effect'].includes(oldStatus)
-        ) {
-          // 只有从非游戏状态进入waiting状态时才显示引导（避免游戏过程中重复显示）
-          showAutoGuide('game')
-        }
-      }
-    }
+    [() => gameState.gameStatus, punishmentStep, settingsTab],
+    () => {
+      guideScheduler.cancel()
+      destroyGuide()
+      showAutoGuide()
+    },
+    { flush: 'sync' }
   )
-
-  // 监听惩罚确认步骤，自动显示引导
   watch(
-    () => punishmentStep.value,
-    newValue => {
-      devLog(`惩罚步骤变化: ${newValue}`)
-      if (newValue === 'confirm') {
-        if (autoGuideTimer !== null) {
-          clearTimeout(autoGuideTimer)
-          autoGuideTimer = null
-        }
-        autoGuideTimer = window.setTimeout(() => {
-          showAutoGuide('punishment_confirmation')
-          autoGuideTimer = null
-        }, 500)
-      }
-    }
+    autoGuideEnabled,
+    enabled => {
+      guideScheduler.cancel()
+      if (enabled) showAutoGuide()
+      else destroyGuide()
+    },
+    { flush: 'sync' }
   )
 
   // 保存引导状态
