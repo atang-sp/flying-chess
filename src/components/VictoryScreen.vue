@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { computed } from 'vue'
+  import { computed, ref, watch } from 'vue'
   import { Gamepad2, Sparkles } from '@lucide/vue'
   import finishFlagUrl from '../assets/kenney/flag_triangle.svg?url'
   import type { GameMode } from '../config/modes'
@@ -10,6 +10,8 @@
     resolveVictorySettlement,
   } from '@flying-chess/game-core/victory-settlement'
   import PlayerMeeple from './PlayerMeeple.vue'
+  import SharePosterDialog from './SharePosterDialog.vue'
+  import type { LocalAchievement } from '../services/localProgress'
 
   interface Props {
     show: boolean
@@ -18,6 +20,8 @@
     mode?: GameMode | null
     partyHighlight?: PartyHighlight | null
     victoryConfig?: VictoryConfig
+    newAchievements?: readonly LocalAchievement[]
+    posterHighlights?: readonly string[]
   }
 
   interface Emits {
@@ -26,6 +30,13 @@
 
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
+  const showPoster = ref(false)
+  watch(
+    () => props.show,
+    show => {
+      if (!show) showPoster.value = false
+    }
+  )
 
   const winnerIndex = computed(() =>
     props.winner ? props.allPlayers.findIndex(player => player.id === props.winner?.id) : -1
@@ -128,9 +139,30 @@
             <span>{{ partyHighlight.chainSummary }}</span>
           </div>
         </section>
+        <section
+          v-if="newAchievements?.length"
+          class="new-achievements"
+          data-testid="new-achievements"
+        >
+          <h2>{{ $t('achievement_new_this_game') }}</h2>
+          <ul>
+            <li v-for="achievement in newAchievements" :key="achievement.id">
+              <strong>{{ $t(achievement.title) }}</strong>
+              <p>{{ $t(achievement.description) }}</p>
+            </li>
+          </ul>
+        </section>
       </div>
 
       <footer class="victory-actions">
+        <button
+          type="button"
+          class="poster-button"
+          data-testid="victory-create-poster"
+          @click="showPoster = true"
+        >
+          {{ $t('poster_create') }}
+        </button>
         <button type="button" class="play-again-button" @click="emit('play-again')">
           <Gamepad2 :size="19" aria-hidden="true" />
           {{ $t('victory_screen_play_again') }}
@@ -138,9 +170,46 @@
       </footer>
     </section>
   </div>
+  <SharePosterDialog
+    :open="showPoster"
+    :title="$t('victory_screen_game_highlight')"
+    :lines="[
+      ...(posterHighlights?.length ? posterHighlights : [$t('poster_completed')]),
+      ...(newAchievements ?? []).map(item => $t(item.title)),
+    ]"
+    @close="showPoster = false"
+  />
 </template>
 
 <style scoped>
+  .new-achievements {
+    padding: 1rem;
+    border: 1px solid #cbaa6355;
+    border-radius: 14px;
+    background: #cbaa6310;
+  }
+  .new-achievements h2 {
+    margin: 0;
+    font-size: 1rem;
+  }
+  .new-achievements ul {
+    padding-left: 1.2rem;
+  }
+  .new-achievements p {
+    margin: 0.3rem 0 0.7rem;
+    color: #cfdbd1;
+    font-size: 0.85rem;
+  }
+  .poster-button {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    border: 1px solid #cbaa63;
+    border-radius: 12px;
+    color: #f9edcf;
+    background: transparent;
+    cursor: pointer;
+  }
+
   .victory-screen-overlay {
     position: fixed;
     z-index: 2000;
@@ -370,6 +439,8 @@
 
   .victory-actions {
     display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
     justify-content: flex-end;
     padding: 1rem 1.5rem 1.4rem;
   }

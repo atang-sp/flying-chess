@@ -79,6 +79,8 @@
   import QADisplay from './components/QADisplay.vue'
   import DareDisplay from './components/DareDisplay.vue'
   import VictoryScreen from './components/VictoryScreen.vue'
+  import AchievementNotice from './components/AchievementNotice.vue'
+  import { useAchievementSession } from './composables/useAchievementSession'
   import TakeoffReliefDisplay from './components/TakeoffReliefDisplay.vue'
   import BounceDisplay from './components/BounceDisplay.vue'
   import DoublePunishmentReveal from './components/DoublePunishmentReveal.vue'
@@ -259,6 +261,9 @@
   const currentPartyMiniGameKind = ref<PartyMiniGameKind | null>(null)
   const currentPartyMiniGameSource = ref<'event' | 'trap' | null>(null)
   const localProgress = ref(loadLocalProgress())
+  const achievementSession = useAchievementSession()
+  const newSessionAchievements = achievementSession.unlocked
+  const pendingAchievementNotices = achievementSession.pending
   const activePartyStudioConfig = ref<PartyStudioConfig | null>(null)
   interface PartyStartConfig {
     count: number
@@ -594,8 +599,10 @@
   })
 
   const recordProgress = (event: LocalProgressEvent) => {
-    localProgress.value = recordLocalProgress(loadLocalProgress(), event)
+    const before = loadLocalProgress()
+    localProgress.value = recordLocalProgress(before, event)
     saveLocalProgress(localProgress.value)
+    achievementSession.record(before, localProgress.value)
   }
 
   const recordCompletedPunishment = (resolution: ResolvedPunishmentResult) => {
@@ -1613,6 +1620,7 @@
         activeMode: typeof activeMode
         partyMode: typeof partyMode
         partyEventQueue: typeof partyEventQueue
+        recordProgress: typeof recordProgress
         finishGameWithPlayer: typeof finishGameWithPlayer
         completePartyTurnForPlayer: typeof completePartyTurnForPlayer
         resolveNaturalVictory: typeof resolveNaturalVictory
@@ -1646,6 +1654,7 @@
       debugWindow.activeMode = activeMode
       debugWindow.partyMode = partyMode
       debugWindow.partyEventQueue = partyEventQueue
+      debugWindow.recordProgress = recordProgress
       debugWindow.finishGameWithPlayer = finishGameWithPlayer
       debugWindow.completePartyTurnForPlayer = completePartyTurnForPlayer
       debugWindow.resolveNaturalVictory = resolveNaturalVictory
@@ -1724,6 +1733,7 @@
 
   // 初始化游戏
   const initializeGame = () => {
+    achievementSession.reset()
     gameState.players = GameService.createPlayers()
     gameState.currentPlayerIndex = 0
     gameState.diceValue = null
@@ -1943,6 +1953,7 @@
       partyBoardConfig
     )
 
+    achievementSession.reset()
     activePartyStartConfig.value = cloneConfig(playerConfig)
     classicConfigSnapshot.value = nextClassicSnapshot
     activeMode.value = 'party'
@@ -2039,6 +2050,7 @@
 
   // 重置游戏
   const resetGame = () => {
+    achievementSession.reset()
     const resetMode = activeMode.value
     if (resetMode === 'party' && classicConfigSnapshot.value) {
       gameState.boardConfig = classicConfigSnapshot.value.boardConfig
@@ -3234,6 +3246,7 @@
       return
     }
 
+    achievementSession.reset()
     activeMode.value = 'classic'
     activePartyStudioConfig.value = null
     partyMode.clear()
@@ -4629,6 +4642,12 @@
       @winner="finishPartyTieBreak"
     />
 
+    <AchievementNotice
+      :achievements="pendingAchievementNotices"
+      :blocked="!canRollDice || showAuthModal || showConfigExport || showSettingsModal"
+      @consumed="pendingAchievementNotices = []"
+    />
+
     <!-- 胜利结算画面 -->
     <VictoryScreen
       :show="showVictoryScreen"
@@ -4636,6 +4655,15 @@
       :all-players="gameState.players"
       :mode="activeMode"
       :party-highlight="partyHighlight"
+      :new-achievements="newSessionAchievements"
+      :poster-highlights="
+        partySession
+          ? [
+              $t('poster_reactions', { count: partySession.successfulReactionCount }),
+              $t('poster_chain', { count: partySession.longestChain }),
+            ]
+          : undefined
+      "
       :victory-config="activeMode === 'party' ? victoryConfig : undefined"
       @play-again="handleVictoryPlayAgain"
     />

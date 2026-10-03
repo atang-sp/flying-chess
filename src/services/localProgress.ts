@@ -36,6 +36,10 @@ export interface LocalAchievement {
   readonly title: string
   readonly description: string
   readonly unlocked: boolean
+  readonly progress?: number
+  readonly maxProgress?: number
+  readonly isHidden?: boolean
+  readonly rarity?: 'common' | 'rare' | 'epic'
 }
 
 export interface UnlockedPartyContent {
@@ -145,30 +149,98 @@ export function getLocalAchievements(progress: LocalProgress): readonly LocalAch
       title: 'achievement_first_game_title',
       description: 'achievement_first_game_desc',
       unlocked: progress.totals.completedGames >= 1,
+      progress: Math.min(progress.totals.completedGames, 1),
+      maxProgress: 1,
+      rarity: 'common',
+    }),
+    Object.freeze({
+      id: 'veteran_10',
+      title: 'achievement_veteran_10_title',
+      description: 'achievement_veteran_10_desc',
+      unlocked: progress.totals.completedGames >= 10,
+      progress: Math.min(progress.totals.completedGames, 10),
+      maxProgress: 10,
+      rarity: 'rare',
+    }),
+    Object.freeze({
+      id: 'veteran_50',
+      title: 'achievement_veteran_50_title',
+      description: 'achievement_veteran_50_desc',
+      unlocked: progress.totals.completedGames >= 50,
+      progress: Math.min(progress.totals.completedGames, 50),
+      maxProgress: 50,
+      rarity: 'epic',
     }),
     Object.freeze({
       id: 'endurance_30',
       title: 'achievement_endurance_title',
       description: 'achievement_endurance_desc',
       unlocked: progress.totals.punishmentCount >= 30,
+      progress: Math.min(progress.totals.punishmentCount, 30),
+      maxProgress: 30,
+      rarity: 'rare',
+    }),
+    Object.freeze({
+      id: 'endurance_100',
+      title: 'achievement_endurance_100_title',
+      description: 'achievement_endurance_100_desc',
+      unlocked: progress.totals.punishmentCount >= 100,
+      progress: Math.min(progress.totals.punishmentCount, 100),
+      maxProgress: 100,
+      rarity: 'epic',
     }),
     Object.freeze({
       id: 'mercy_five',
       title: 'achievement_mercy_expert_title',
       description: 'achievement_mercy_expert_desc',
       unlocked: progress.totals.mercyRequests >= 5,
+      progress: Math.min(progress.totals.mercyRequests, 5),
+      maxProgress: 5,
+      rarity: 'common',
+    }),
+    Object.freeze({
+      id: 'mercy_50',
+      title: 'achievement_mercy_50_title',
+      description: 'achievement_mercy_50_desc',
+      unlocked: progress.totals.mercyRequests >= 50,
+      progress: Math.min(progress.totals.mercyRequests, 50),
+      maxProgress: 50,
+      rarity: 'epic',
     }),
     Object.freeze({
       id: 'chain_three',
       title: 'achievement_chain_pilot_title',
       description: 'achievement_chain_pilot_desc',
       unlocked: progress.totals.longestChain >= 3,
+      progress: Math.min(progress.totals.longestChain, 3),
+      maxProgress: 3,
+      rarity: 'rare',
+    }),
+    Object.freeze({
+      id: 'chain_five',
+      title: 'achievement_chain_five_title',
+      description: 'achievement_chain_five_desc',
+      unlocked: progress.totals.longestChain >= 5,
+      progress: Math.min(progress.totals.longestChain, 5),
+      maxProgress: 5,
+      rarity: 'epic',
     }),
     Object.freeze({
       id: 'variant_collector',
       title: 'achievement_fate_collector_title',
       description: 'achievement_fate_collector_desc',
       unlocked: variantsSeen >= 4,
+      progress: Math.min(variantsSeen, 4),
+      maxProgress: 4,
+      rarity: 'epic',
+    }),
+    Object.freeze({
+      id: 'unlucky',
+      title: 'achievement_unlucky_title',
+      description: 'achievement_unlucky_desc',
+      unlocked: progress.totals.punishmentCount >= 50,
+      isHidden: true,
+      rarity: 'epic',
     }),
   ])
 }
