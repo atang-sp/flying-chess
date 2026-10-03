@@ -64,11 +64,29 @@
             <Award v-if="achievement.unlocked" :size="20" class="achievement-icon" />
             <Lock v-else :size="20" class="achievement-icon" />
             <div class="achievement-content">
-              <strong>{{ achievement.isHidden && !achievement.unlocked ? '???' : $t(achievement.title) }}</strong>
-              <small>{{ achievement.isHidden && !achievement.unlocked ? $t('achievement_hidden_desc') : $t(achievement.description) }}</small>
-              <div v-if="achievement.maxProgress && achievement.maxProgress > 1" class="progress-bar-container">
-                <div class="progress-bar" :style="{ width: `${(achievement.progress || 0) / achievement.maxProgress * 100}%` }"></div>
-                <span class="progress-text">{{ achievement.progress || 0 }} / {{ achievement.maxProgress }}</span>
+              <strong>
+                {{ achievement.isHidden && !achievement.unlocked ? '???' : $t(achievement.title) }}
+              </strong>
+              <small>
+                {{
+                  achievement.isHidden && !achievement.unlocked
+                    ? $t('achievement_hidden_desc')
+                    : $t(achievement.description)
+                }}
+              </small>
+              <div
+                v-if="achievement.maxProgress && achievement.maxProgress > 1"
+                class="progress-bar-container"
+              >
+                <div
+                  class="progress-bar"
+                  :style="{
+                    width: `${((achievement.progress || 0) / achievement.maxProgress) * 100}%`,
+                  }"
+                ></div>
+                <span class="progress-text">
+                  {{ achievement.progress || 0 }} / {{ achievement.maxProgress }}
+                </span>
               </div>
             </div>
           </article>
@@ -90,7 +108,11 @@
       <section v-if="shameWall.length">
         <h3>{{ $t('local_shame_wall') }}</h3>
         <ol class="shame-list">
-          <li v-for="(player, index) in shameWall" :key="player.playerName" :class="{ 'shame-top': index === 0 }">
+          <li
+            v-for="(player, index) in shameWall"
+            :key="player.playerName"
+            :class="{ 'shame-top': index === 0 }"
+          >
             <span class="player-name">
               <span v-if="index === 0" class="shame-crown" :title="$t('shame_king_title')">🤡</span>
               {{ player.playerName }}
@@ -195,10 +217,16 @@
     border-radius: 11px;
   }
 
-  .achievement-list article.common { border-left: 4px solid #94a3b8; }
-  .achievement-list article.rare { border-left: 4px solid #60a5fa; }
-  .achievement-list article.epic { border-left: 4px solid #c084fc; }
-  
+  .achievement-list article.common {
+    border-left: 4px solid #94a3b8;
+  }
+  .achievement-list article.rare {
+    border-left: 4px solid #60a5fa;
+  }
+  .achievement-list article.epic {
+    border-left: 4px solid #c084fc;
+  }
+
   .achievement-list article.locked {
     color: #64748b;
     background: rgb(30 41 59 / 0.5);
