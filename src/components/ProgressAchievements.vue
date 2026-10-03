@@ -89,9 +89,12 @@
 
       <section v-if="shameWall.length">
         <h3>{{ $t('local_shame_wall') }}</h3>
-        <ol>
-          <li v-for="player in shameWall" :key="player.playerName">
-            <span>{{ player.playerName }}</span>
+        <ol class="shame-list">
+          <li v-for="(player, index) in shameWall" :key="player.playerName" :class="{ 'shame-top': index === 0 }">
+            <span class="player-name">
+              <span v-if="index === 0" class="shame-crown" title="Shame King">🤡</span>
+              {{ player.playerName }}
+            </span>
             <strong>
               {{
                 $t('shame_wall_stats', {
@@ -235,7 +238,7 @@
     line-height: 1;
   }
 
-  ol {
+  ol.shame-list {
     display: grid;
     gap: 0.35rem;
     margin: 0;
@@ -246,6 +249,26 @@
     display: flex;
     justify-content: space-between;
     gap: 0.75rem;
+    align-items: center;
+  }
+
+  li.shame-top {
+    color: #fca5a5;
+    font-weight: bold;
+    background: rgb(220 38 38 / 0.15);
+    padding: 4px 8px;
+    border-radius: 6px;
+    margin-left: -8px;
+  }
+
+  .player-name {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .shame-crown {
+    font-size: 1.1em;
   }
 
   li strong {
