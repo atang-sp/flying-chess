@@ -43,7 +43,9 @@ function drawText(
   return y
 }
 
-export async function createSharePoster(content: SharePosterContent): Promise<Blob> {
+export async function createSharePoster(
+  content: SharePosterContent
+): Promise<{ blob: Blob; dataUrl: string }> {
   const canvas = document.createElement('canvas')
   canvas.width = 900
   canvas.height = 1200
@@ -106,12 +108,13 @@ export async function createSharePoster(content: SharePosterContent): Promise<Bl
     } else footerLine += character
   }
   if (footerY <= 1094) context.fillText(footerLine, 302, footerY)
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      blob => (blob ? resolve(blob) : reject(new Error('PNG export failed'))),
-      'image/png'
-    )
-  })
+  // Keep preview/download independent of blob URL and FileReader resource loads,
+  // which WebKit can reject under offline network emulation.
+  const dataUrl = canvas.toDataURL('image/png')
+  if (!dataUrl.startsWith('data:image/png;base64,')) throw new Error('PNG export failed')
+  const binary = atob(dataUrl.split(',')[1])
+  const bytes = Uint8Array.from(binary, character => character.charCodeAt(0))
+  return { blob: new Blob([bytes], { type: 'image/png' }), dataUrl }
 }
 
 export function canSharePoster(file: File): boolean {

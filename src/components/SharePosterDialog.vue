@@ -30,24 +30,18 @@
     if (!props.open) return
     busy.value = true
     try {
-      const blob = await createSharePoster({
+      const poster = await createSharePoster({
         brand: t('poster_brand'),
         title: props.title,
         lines: props.lines,
         invitation: t('poster_invitation'),
         nickname: includeNickname.value ? nickname.value : undefined,
       })
-      // WebKit's offline mode can block blob URL image loads. Inline the PNG
-      // for preview/download; the prepared File still powers native sharing.
-      const url = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(String(reader.result))
-        reader.onerror = () => reject(reader.error)
-        reader.readAsDataURL(blob)
-      })
       if (current !== revision) return
-      posterFile.value = new File([blob], 'flying-chess-highlight.png', { type: 'image/png' })
-      previewUrl.value = url
+      posterFile.value = new File([poster.blob], 'flying-chess-highlight.png', {
+        type: 'image/png',
+      })
+      previewUrl.value = poster.dataUrl
     } catch {
       if (current === revision) error.value = t('poster_failed')
     } finally {
