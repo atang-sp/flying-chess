@@ -19,7 +19,6 @@
   let revision = 0
 
   function clearPreview() {
-    if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
     previewUrl.value = ''
     posterFile.value = null
   }
@@ -38,9 +37,17 @@
         invitation: t('poster_invitation'),
         nickname: includeNickname.value ? nickname.value : undefined,
       })
+      // WebKit's offline mode can block blob URL image loads. Inline the PNG
+      // for preview/download; the prepared File still powers native sharing.
+      const url = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result))
+        reader.onerror = () => reject(reader.error)
+        reader.readAsDataURL(blob)
+      })
       if (current !== revision) return
       posterFile.value = new File([blob], 'flying-chess-highlight.png', { type: 'image/png' })
-      previewUrl.value = URL.createObjectURL(blob)
+      previewUrl.value = url
     } catch {
       if (current === revision) error.value = t('poster_failed')
     } finally {
@@ -78,15 +85,13 @@
   )
 
   function savePoster() {
-    if (!posterFile.value) return
+    if (!posterFile.value || !previewUrl.value) return
     const link = document.createElement('a')
-    const url = URL.createObjectURL(posterFile.value)
-    link.href = url
+    link.href = previewUrl.value
     link.download = posterFile.value.name
     document.body.appendChild(link)
     link.click()
     link.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 30_000)
   }
 
   async function sharePoster() {

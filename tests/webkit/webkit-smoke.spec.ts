@@ -37,7 +37,7 @@ test('iPhone WebKit previews and saves a local achievement poster offline', asyn
   await page.getByTestId('victory-create-poster').click()
   await expect(page.getByTestId('poster-image')).toBeVisible()
   await expect(page.getByRole('checkbox', { name: '在海报上显示昵称' })).not.toBeChecked()
-  // WebKit can make the element visible before decoding its local blob URL.
+  // Wait for actual PNG decoding, not just visibility of the preview element.
   await expect
     .poll(() =>
       page.getByTestId('poster-image').evaluate(image => {
