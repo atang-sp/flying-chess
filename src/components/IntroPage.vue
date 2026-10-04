@@ -46,6 +46,7 @@
     SUPPORTED_LANGUAGES,
   } from '../utils/locale'
   import VersionDisplay from './VersionDisplay.vue'
+  import SponsorButton from './SponsorButton.vue'
   import PartySceneSelector from './PartySceneSelector.vue'
   import VictoryConfigPanel from './VictoryConfig.vue'
   import PartyEventDeckEditor from './PartyEventDeckEditor.vue'
@@ -1038,6 +1039,9 @@
 
     <!-- 版本显示组件 -->
     <VersionDisplay />
+    
+    <!-- 赞助按钮 -->
+    <SponsorButton />
   </div>
 </template>
 
