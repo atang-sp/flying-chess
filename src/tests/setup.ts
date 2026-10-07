@@ -8,5 +8,5 @@ if (!globalThis.crypto) {
 import WebSocket from 'ws'
 
 if (!globalThis.WebSocket) {
-  globalThis.WebSocket = WebSocket as any
+  globalThis.WebSocket = WebSocket as any // eslint-disable-line @typescript-eslint/no-explicit-any
 }
