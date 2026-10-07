@@ -1,6 +1,6 @@
 {
   "name": "ludo-vue-demo",
-  "version": "1.21.2",
+  "version": "1.21.3",
   "private": true,
   "workspaces": [
     "packages/*",
@@ -78,6 +78,7 @@
     "@types/pg": "^8.23.1",
     "@types/qrcode": "^1.5.6",
     "@types/three": "^0.183.1",
+    "@types/ws": "^8.18.2",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "@vitejs/plugin-vue": "^5.2.3",
@@ -95,6 +96,7 @@
     "vite-plugin-pwa": "^1.0.1",
     "vite-plugin-vue-devtools": "^7.7.2",
     "vitest": "^4.0.18",
-    "vue-tsc": "^3.2.5"
+    "vue-tsc": "^3.2.5",
+    "ws": "^8.22.0"
   }
 }

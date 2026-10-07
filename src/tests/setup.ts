@@ -4,3 +4,9 @@ import { webcrypto } from 'node:crypto'
 if (!globalThis.crypto) {
   globalThis.crypto = webcrypto as Crypto
 }
+
+import WebSocket from 'ws'
+
+if (!globalThis.WebSocket) {
+  globalThis.WebSocket = WebSocket as any // eslint-disable-line @typescript-eslint/no-explicit-any
+}

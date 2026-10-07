@@ -10,6 +10,7 @@
     resolveVictorySettlement,
   } from '@flying-chess/game-core/victory-settlement'
   import PlayerMeeple from './PlayerMeeple.vue'
+  import SponsorButton from './SponsorButton.vue'
   import SharePosterDialog from './SharePosterDialog.vue'
   import type { LocalAchievement } from '../services/localProgress'
 
@@ -163,6 +164,7 @@
         >
           {{ $t('poster_create') }}
         </button>
+        <SponsorButton :inline="true" class="victory-sponsor-btn" />
         <button type="button" class="play-again-button" @click="emit('play-again')">
           <Gamepad2 :size="19" aria-hidden="true" />
           {{ $t('victory_screen_play_again') }}
@@ -443,6 +445,11 @@
     gap: 0.75rem;
     justify-content: flex-end;
     padding: 1rem 1.5rem 1.4rem;
+  }
+
+  .victory-sponsor-btn {
+    min-height: 48px;
+    border-radius: 999px !important;
   }
 
   .play-again-button {
