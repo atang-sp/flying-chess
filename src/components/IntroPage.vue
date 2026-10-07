@@ -1039,7 +1039,7 @@
 
     <!-- 版本显示组件 -->
     <VersionDisplay />
-    
+
     <!-- 赞助按钮 -->
     <SponsorButton />
   </div>
