@@ -75,6 +75,24 @@
   const activatedPosition = ref<number | null>(null)
   const landingPosition = ref<number | null>(null)
   const cellRefs = new Map<number, HTMLButtonElement>()
+  const cellPositions = ref<Map<number, { left: number; top: number }>>(new Map())
+
+  const updateCellPositions = () => {
+    const gridEl = boardRef.value?.querySelector('.board-grid')
+    if (!gridEl) return
+    const gridRect = gridEl.getBoundingClientRect()
+    if (gridRect.width === 0 && gridRect.height === 0) return
+
+    const newPositions = new Map()
+    cellRefs.forEach((el, position) => {
+      const rect = el.getBoundingClientRect()
+      newPositions.set(position, {
+        left: rect.left - gridRect.left + rect.width / 2,
+        top: rect.top - gridRect.top,
+      })
+    })
+    cellPositions.value = newPositions
+  }
   let resizeObserver: ResizeObserver | null = null
   let activationTimer: ReturnType<typeof setTimeout> | null = null
   let landingTimer: ReturnType<typeof setTimeout> | null = null
@@ -111,6 +129,29 @@
   }))
 
   const getPlayersOnCell = (position: number) => playersByPosition.value.get(position) ?? []
+
+  const activePlayersOnBoard = computed(() => {
+    return props.players
+      .map((player, index) => ({ player, index }))
+      .filter(({ player }) => player.position > 0) // Only on board
+  })
+
+  const getMeepleStyle = (player: Player) => {
+    const pos = cellPositions.value.get(player.position)
+    if (!pos) return { display: 'none' }
+
+    const playersOnCell = getPlayersOnCell(player.position)
+    const tokenIndex = playersOnCell.findIndex(p => p.player.id === player.id)
+    const totalTokens = Math.min(playersOnCell.length, 3)
+
+    // Calculate cluster offset if multiple pieces are on the same cell
+    const offsetX =
+      tokenIndex >= 0 && tokenIndex < 3 ? (tokenIndex - (totalTokens - 1) / 2) * 16 : 0
+
+    return {
+      transform: `translate(calc(${pos.left}px - 50% + ${offsetX}px), calc(${pos.top}px - 28px))`,
+    }
+  }
 
   const getCellStyle = (grid: SnakeGridPosition) => ({
     gridRow: grid.row,
@@ -258,9 +299,11 @@
 
   watch(
     () => props.board.length,
-    length => {
+    async length => {
       if (length === 0) return
       focusedPosition.value = Math.min(Math.max(focusedPosition.value, 1), length)
+      await nextTick()
+      updateCellPositions()
     }
   )
 
@@ -270,6 +313,12 @@
     resizeObserver = new ResizeObserver(entries => {
       const width = entries[0]?.contentRect.width
       if (width) containerWidth.value = width
+      updateCellPositions()
+    })
+
+    // Initial position calculation
+    nextTick(() => {
+      setTimeout(updateCellPositions, 100)
     })
     resizeObserver.observe(boardRef.value)
   })
@@ -370,37 +419,27 @@
             />
             <span class="cell-label">{{ item.presentation.shortLabel }}</span>
           </span>
-
-          <span
-            v-if="getPlayersOnCell(item.cell.position).length > 0"
-            class="cell-players"
-            aria-hidden="true"
-          >
-            <PlayerMeeple
-              v-for="({ player, index }, tokenIndex) in getPlayersOnCell(item.cell.position).slice(
-                0,
-                3
-              )"
-              :key="player.id"
-              class="player-token"
-              :class="{
-                'current-player': index === currentPlayerIndex,
-                'player-moving': player.isMoving,
-              }"
-              :style="{
-                '--token-index': tokenIndex,
-                '--total-tokens': Math.min(getPlayersOnCell(item.cell.position).length, 3),
-              }"
-              :color="player.color"
-              :number="index + 1"
-              :name="player.name"
-              size="small"
-            />
-            <span v-if="getPlayersOnCell(item.cell.position).length > 3" class="player-overflow">
-              +{{ getPlayersOnCell(item.cell.position).length - 3 }}
-            </span>
-          </span>
         </button>
+
+        <div class="meeples-overlay" aria-hidden="true">
+          <template v-for="{ player, index } in activePlayersOnBoard" :key="player.id">
+            <div
+              v-if="cellPositions.has(player.position)"
+              class="meeple-mover"
+              :class="{ 'is-moving': player.isMoving }"
+              :style="getMeepleStyle(player)"
+            >
+              <PlayerMeeple
+                class="player-token"
+                :class="{ 'current-player': index === currentPlayerIndex }"
+                :color="player.color"
+                :number="index + 1"
+                :name="player.name"
+                size="small"
+              />
+            </div>
+          </template>
+        </div>
       </div>
     </div>
 
@@ -729,6 +768,48 @@
       0 18px 25px rgba(0, 0, 0, 0.38);
   }
 
+  .cell-landing .cell-surface {
+    box-shadow:
+      0 0 0 3px #12332b,
+      0 0 0 6px #d7b66f,
+      0 8px 0 color-mix(in srgb, var(--cell-accent) 30%, #30281e),
+      0 18px 25px rgba(0, 0, 0, 0.38);
+  }
+
+  .cell-landing::after {
+    content: '';
+    position: absolute;
+    inset: -12px;
+    border: 3px solid #ffde8a;
+    border-radius: 20px;
+    animation: targetHighlight 0.7s ease-out;
+    pointer-events: none;
+    z-index: 20;
+  }
+
+  @keyframes targetHighlight {
+    0% {
+      transform: scale(0.8);
+      opacity: 1;
+      border-width: 6px;
+    }
+    100% {
+      transform: scale(1.3);
+      opacity: 0;
+      border-width: 0px;
+    }
+  }
+
+  /* 3D Board Perspective */
+  .game-board {
+    perspective: 1200px;
+  }
+
+  .board-scroll {
+    transform: rotateX(8deg);
+    transform-style: preserve-3d;
+  }
+
   .cell-normal {
     --cell-accent: #93836a;
     --cell-paper: #eee4cf;
@@ -868,36 +949,41 @@
     transform: scale(1.06);
   }
 
-  .cell-players {
+  .meeples-overlay {
     position: absolute;
-    z-index: 8;
-    top: -8px;
-    left: 50%;
-    width: 100%;
-    height: 28px;
-    transform: translateX(-50%);
+    inset: 0;
     pointer-events: none;
+    z-index: 10;
   }
 
-  .player-token {
+  .meeple-mover {
     position: absolute;
-    left: calc(50% + (var(--token-index) - (var(--total-tokens, 1) - 1) / 2) * 16px);
-    width: 26px;
-    height: 28px;
-    transform: translateX(-50%);
-    transition:
-      left 0.2s ease,
-      transform 0.2s ease;
+    left: 0;
+    top: 0;
+    transition: transform 180ms linear;
+    z-index: 1;
+  }
+
+  .meeple-mover.is-moving {
+    z-index: 10;
   }
 
   .player-token.current-player {
-    filter: drop-shadow(0 0 2px #3e2d14) drop-shadow(0 0 5px #f4cf7e)
-      drop-shadow(0 4px 4px rgb(0 0 0 / 0.52));
+    animation: playerPulse 2s infinite ease-in-out;
   }
 
-  .player-token.player-moving {
-    animation: meepleHopStep 180ms ease-out both;
-    z-index: 10;
+  @keyframes playerPulse {
+    0%,
+    100% {
+      transform: scale(1) translateY(0);
+      filter: drop-shadow(0 0 2px #3e2d14) drop-shadow(0 0 5px #f4cf7e)
+        drop-shadow(0 4px 4px rgb(0 0 0 / 0.52));
+    }
+    50% {
+      transform: scale(1.08) translateY(-3px);
+      filter: drop-shadow(0 0 2px #3e2d14) drop-shadow(0 0 10px #fceab6)
+        drop-shadow(0 8px 8px rgb(0 0 0 / 0.42));
+    }
   }
 
   @keyframes meepleHopStep {
