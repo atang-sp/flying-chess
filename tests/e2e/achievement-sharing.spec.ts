@@ -207,7 +207,7 @@ test('both home modes expose locked achievements directly with keyboard return o
     const dialog = page.getByTestId('achievements-dialog')
     await expect(dialog).toBeVisible()
     await expect(dialog.locator('.totals-grid strong').first()).toHaveText('0')
-    await expect(dialog.locator('.achievement-list article.locked')).toHaveCount(11)
+    await expect(dialog.locator('.achievement-list article.locked')).toHaveCount(16)
     await expect(dialog.getByText('???', { exact: true })).toBeVisible()
     await expect(dialog.getByTestId('achievement-create-poster')).toHaveCount(0)
     await expect(dialog.locator('details')).toHaveCount(0)
