@@ -2563,40 +2563,61 @@
   }
   @media (max-width: 360px) {
     .intro-page {
-      padding-top: 56px;
+      padding-top: 48px;
     }
     .intro-header {
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.35rem;
     }
     .mode-chooser,
     .player-settings {
-      margin-block: 0.4rem;
+      margin-block: 0.3rem;
+      padding: 0.4rem;
     }
     .intro-actions {
-      margin-block: 0.4rem;
+      margin-block: 0.3rem;
+    }
+    .selected-mode-description {
+      display: none;
+    }
+    .game-info {
+      display: none;
     }
     .player-count-section .setting-item {
       flex-direction: row;
-      gap: 0.5rem;
+      align-items: center;
+      gap: 0.35rem;
       padding: 0.25rem;
     }
     .setting-label {
-      font-size: 0.85rem;
-      gap: 0.25rem;
+      font-size: 0.82rem;
+      gap: 0.2rem;
     }
     .count-controls {
-      gap: 0.35rem;
+      gap: 0.25rem;
       flex-shrink: 0;
+      flex-wrap: nowrap;
+    }
+    .player-count-chips {
+      gap: 0.2rem;
+      padding: 1px;
+    }
+    .count-chip {
+      padding: 0.2rem 0.4rem;
+      min-height: 32px;
+      font-size: 0.78rem;
+    }
+    .count-stepper {
+      gap: 0.2rem;
     }
     .count-display {
-      min-width: 38px;
-      padding: 0.3rem;
+      min-width: 28px;
+      padding: 0.2rem 0.3rem;
     }
     .count-btn {
-      width: 44px;
-      height: 44px;
-      min-width: 44px;
-      min-height: 44px;
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      min-height: 34px;
     }
   }
 </style>
