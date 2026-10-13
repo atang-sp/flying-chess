@@ -18,10 +18,7 @@
     Check,
     Flame,
     ShieldCheck,
-    Sparkles,
     Trophy,
-    Zap,
-    Play,
     Settings,
   } from '@lucide/vue'
   import {
@@ -131,13 +128,6 @@
       )
     }
 
-    // Update scenario preset default names
-    scenarioPresets.value.forEach(preset => {
-      preset.defaultNames = Array.from({ length: preset.playerCount }, (_, i) =>
-        localeContent.defaultPlayerName(i)
-      )
-    })
-
     // Notify parent (App.vue) so it can reinitialize game defaults
     emit('language-changed', lang)
   }
@@ -148,114 +138,6 @@
       (playerCount.value >= PARTY_MIN_PLAYERS &&
         (!studioConfig.value.enabled || validatePartyStudioConfig(studioConfig.value).ok))
   )
-
-  interface ScenarioPreset {
-    id: 'classic' | 'classic-2' | 'classic-3' | 'party'
-    title: string
-    tag: string
-    badge?: string
-    desc: string
-    playerCount: number
-    defaultNames: string[]
-    mode: GameMode
-    scenePreset?: PartyScenePreset | 'default'
-    featured?: boolean
-    icon: unknown
-  }
-
-  // 快捷对局预设：优先推广经典局（3款经典对决 + 1款派对拓展）
-  const scenarioPresets = computed<ScenarioPreset[]>(() => [
-    {
-      id: 'classic',
-      title: t('classic_4_title'),
-      tag: t('official_recommended'),
-      badge: t('classic_4_badge'),
-      desc: t('classic_4_desc'),
-      playerCount: 4,
-      defaultNames: [0, 1, 2, 3].map(i => localeContent.defaultPlayerName(i)),
-      mode: 'classic',
-      featured: true,
-      icon: Trophy,
-    },
-    {
-      id: 'classic-2',
-      title: t('classic_2_title'),
-      tag: t('classic_2_tag'),
-      badge: t('classic_2_badge'),
-      desc: t('classic_2_desc'),
-      playerCount: 2,
-      defaultNames: [0, 1].map(i => localeContent.defaultPlayerName(i)),
-      mode: 'classic',
-      icon: Zap,
-    },
-    {
-      id: 'classic-3',
-      title: t('classic_3_title'),
-      tag: t('classic_3_tag'),
-      badge: t('classic_3_badge'),
-      desc: t('classic_3_desc'),
-      playerCount: 3,
-      defaultNames: [0, 1, 2].map(i => localeContent.defaultPlayerName(i)),
-      mode: 'classic',
-      icon: Users,
-    },
-    {
-      id: 'party',
-      title: t('party_4_title'),
-      tag: t('party_4_tag'),
-      badge: t('party_4_badge'),
-      desc: t('party_4_desc'),
-      playerCount: 4,
-      defaultNames: [0, 1, 2, 3].map(i => localeContent.defaultPlayerName(i)),
-      mode: 'party',
-      scenePreset: 'icebreaker',
-      icon: Flame,
-    },
-  ])
-
-  const activeScenarioId = ref<string | null>('classic-2')
-  const presetFeedback = ref<string>('')
-
-  const applyScenarioPreset = (preset: ScenarioPreset) => {
-    activeScenarioId.value = preset.id
-    selectedMode.value = preset.mode
-    emit('mode-selected', preset.mode)
-    playerCount.value = preset.playerCount
-    if (preset.scenePreset) {
-      selectedScenePreset.value = preset.scenePreset
-    }
-    const isGeneric = playerNames.value.every(
-      (name, idx) =>
-        !name ||
-        name === localeContent.defaultPlayerName(idx) ||
-        name === `玩家${idx + 1}` ||
-        name === `Player ${idx + 1}` ||
-        name === '男生' ||
-        name === '女生'
-    )
-    if (isGeneric) {
-      playerNames.value = [...preset.defaultNames]
-    } else {
-      updatePlayerNames()
-    }
-    presetFeedback.value = t('preset_feedback', { title: preset.title })
-  }
-
-  // 点击卡片上的"一键开局"按钮直接开局
-  const quickStartPreset = (preset: ScenarioPreset) => {
-    applyScenarioPreset(preset)
-    emit('start', {
-      count: playerCount.value,
-      names: [...playerNames.value],
-      mode: preset.mode,
-      scenePreset: preset.scenePreset,
-      multiDevice: multiDeviceMode.value,
-      victoryConfig: { ...victoryConfig.value },
-      eventDeck: eventDeck.value,
-      studioConfig: studioConfig.value,
-      quickStart: true,
-    })
-  }
 
   // 主操作区：一键快速开局（直接跳过配置步骤进入对局）
   const startQuickGame = () => {
@@ -294,10 +176,6 @@
     if (selectedMode.value === 'party') {
       return t('quick_start_party')
     }
-    const currentPreset = scenarioPresets.value.find(p => p.id === activeScenarioId.value)
-    if (currentPreset && currentPreset.mode === 'classic') {
-      return t('quick_start_preset', { title: currentPreset.title })
-    }
     return t('quick_start_classic', { count: playerCount.value })
   })
 
@@ -308,12 +186,6 @@
       devLog('IntroPage: 加载玩家设置', cachedSettings)
       playerCount.value = cachedSettings.playerCount
       playerNames.value = [...cachedSettings.playerNames]
-    }
-    if (selectedMode.value === 'classic') {
-      if (playerCount.value === 4) activeScenarioId.value = 'classic'
-      else if (playerCount.value === 2) activeScenarioId.value = 'classic-2'
-      else if (playerCount.value === 3) activeScenarioId.value = 'classic-3'
-      else activeScenarioId.value = null
     }
   }
 
@@ -328,7 +200,6 @@
         applyingStoredState--
       })
       selectedMode.value = props.initialMode
-      activeScenarioId.value = null
       const players = loadPlayerSettings()
       playerCount.value = players?.playerCount ?? 2
       playerNames.value = players?.playerNames ?? [
@@ -397,12 +268,6 @@
   const onPlayerCountChange = (newCount: number) => {
     playerCount.value = newCount
     updatePlayerNames()
-    if (selectedMode.value === 'classic') {
-      if (newCount === 4) activeScenarioId.value = 'classic'
-      else if (newCount === 2) activeScenarioId.value = 'classic-2'
-      else if (newCount === 3) activeScenarioId.value = 'classic-3'
-      else activeScenarioId.value = null
-    }
   }
 
   // 更新单个玩家名称
@@ -412,7 +277,6 @@
 
   const selectMode = (mode: GameMode) => {
     selectedMode.value = mode
-    activeScenarioId.value = null
     emit('mode-selected', mode)
   }
 
@@ -694,25 +558,40 @@
               <span class="label-text">{{ $t('player_count_label') }}</span>
             </label>
             <div class="count-controls">
-              <button
-                class="btn btn-secondary count-btn minus"
-                :aria-label="$t('decrease_player_count_aria')"
-                :disabled="playerCount <= 1"
-                @click="onPlayerCountChange(Math.max(1, playerCount - 1))"
-              >
-                <Minus :size="18" />
-              </button>
-              <div class="count-display">
-                <span class="count-number">{{ playerCount }}</span>
-                <span v-if="$t('unit_people')" class="count-unit">{{ $t('unit_people') }}</span>
+              <div class="player-count-chips" role="group" :aria-label="$t('player_count_label')">
+                <button
+                  v-for="count in [2, 3, 4]"
+                  :key="count"
+                  type="button"
+                  class="count-chip"
+                  :class="{ 'count-chip--active': playerCount === count }"
+                  :data-testid="`player-count-${count}`"
+                  @click="onPlayerCountChange(count)"
+                >
+                  {{ count }}{{ $t('unit_people') || '人' }}
+                </button>
               </div>
-              <button
-                class="btn btn-secondary count-btn plus"
-                :aria-label="$t('increase_player_count_aria')"
-                @click="onPlayerCountChange(playerCount + 1)"
-              >
-                <Plus :size="18" />
-              </button>
+              <div class="count-stepper">
+                <button
+                  class="btn btn-secondary count-btn minus"
+                  :aria-label="$t('decrease_player_count_aria')"
+                  :disabled="playerCount <= 1"
+                  @click="onPlayerCountChange(Math.max(1, playerCount - 1))"
+                >
+                  <Minus :size="18" />
+                </button>
+                <div class="count-display">
+                  <span class="count-number">{{ playerCount }}</span>
+                  <span v-if="$t('unit_people')" class="count-unit">{{ $t('unit_people') }}</span>
+                </div>
+                <button
+                  class="btn btn-secondary count-btn plus"
+                  :aria-label="$t('increase_player_count_aria')"
+                  @click="onPlayerCountChange(playerCount + 1)"
+                >
+                  <Plus :size="18" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -828,94 +707,6 @@
         </summary>
         <PartySceneSelector :selected="selectedScenePreset" @select="selectScenePreset" />
       </details>
-
-      <!-- 快捷场景预设 (Scenario Presets) -->
-      <section class="scenario-presets" aria-labelledby="scenario-presets-title">
-        <div class="settings-header">
-          <h2 id="scenario-presets-title" class="settings-title">
-            <Sparkles :size="22" class="settings-icon" />
-            <span class="settings-title-text">{{ $t('quick_start_recommend') }}</span>
-            <span class="settings-title-badge">{{ $t('classic_priority') }}</span>
-          </h2>
-          <div class="settings-underline"></div>
-        </div>
-        <p class="presets-intro-subtitle">
-          {{ $t('presets_intro') }}
-        </p>
-
-        <div class="scenario-grid">
-          <div
-            v-for="preset in scenarioPresets"
-            :key="preset.id"
-            class="scenario-card"
-            :class="{
-              'scenario-card--selected': activeScenarioId === preset.id,
-              'scenario-card--featured': preset.featured,
-            }"
-            :data-testid="`scenario-preset-${preset.id}`"
-            role="button"
-            tabindex="0"
-            @click="applyScenarioPreset(preset)"
-            @keydown.enter="applyScenarioPreset(preset)"
-            @keydown.space.prevent="applyScenarioPreset(preset)"
-          >
-            <div class="scenario-card__header">
-              <span class="scenario-card__icon" :class="`scenario-card__icon--${preset.id}`">
-                <component :is="preset.icon" :size="20" />
-              </span>
-              <span
-                class="scenario-card__tag"
-                :class="{ 'scenario-card__tag--featured': preset.featured }"
-              >
-                {{ preset.tag }}
-              </span>
-            </div>
-
-            <div class="scenario-card__body">
-              <div class="scenario-card__title-row">
-                <strong class="scenario-card__title">{{ preset.title }}</strong>
-                <span v-if="preset.badge" class="scenario-card__badge">{{ preset.badge }}</span>
-              </div>
-              <span class="scenario-card__desc">{{ preset.desc }}</span>
-              <div class="scenario-card__meta">
-                <span class="scenario-card__meta-item">
-                  <Users :size="13" />
-                  {{ preset.playerCount }}{{ $t('players_duel') }}
-                </span>
-                <span class="scenario-card__meta-item">
-                  <Clock :size="13" />
-                  {{
-                    preset.mode === 'party'
-                      ? $t('preset_time_20m')
-                      : preset.playerCount === 2
-                        ? $t('preset_time_10m')
-                        : $t('preset_time_15m')
-                  }}
-                </span>
-              </div>
-            </div>
-
-            <div class="scenario-card__action">
-              <button
-                type="button"
-                class="scenario-card__quick-btn"
-                :class="{ 'scenario-card__quick-btn--featured': preset.featured }"
-                :data-testid="`quick-start-preset-${preset.id}`"
-                :title="$t('quick_start_preset', { title: preset.title })"
-                @click.stop="quickStartPreset(preset)"
-              >
-                <Play :size="13" class="btn-play-icon" />
-                <span>{{ $t('quick_start_btn') }}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="presetFeedback" class="preset-feedback-banner" role="status">
-          <Check :size="16" class="feedback-icon" />
-          <span class="feedback-text">{{ presetFeedback }}</span>
-        </div>
-      </section>
 
       <!-- 高级局况定制与工坊（置于开始按钮下方，按需定制） -->
       <details
@@ -1365,288 +1156,6 @@
     transform: scale(1.2);
   }
 
-  /* 快捷场景预设 */
-  /* 快捷场景预设 */
-  .scenario-presets {
-    margin: clamp(1.8rem, 5vw, 2.5rem) 0 0;
-    padding: clamp(1.2rem, 3.5vw, 1.6rem);
-    background: rgba(15, 23, 42, 0.76);
-    border: var(--glass-border);
-    border-radius: var(--radius-xl);
-    backdrop-filter: blur(var(--glass-blur));
-    box-shadow: var(--glass-shadow);
-  }
-
-  .settings-title-badge {
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 0.2rem 0.6rem;
-    border-radius: 9999px;
-    background: rgba(245, 158, 11, 0.18);
-    border: 1px solid rgba(245, 158, 11, 0.4);
-    color: #fbbf24;
-    margin-left: 0.5rem;
-    letter-spacing: 0.5px;
-    display: inline-flex;
-    align-items: center;
-  }
-
-  .presets-intro-subtitle {
-    margin: 0.35rem 0 1rem;
-    font-size: 0.82rem;
-    color: var(--text-secondary);
-    line-height: 1.4;
-  }
-
-  .scenario-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.85rem;
-  }
-
-  @media (max-width: 960px) {
-    .scenario-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
-  @media (max-width: 520px) {
-    .scenario-grid {
-      grid-template-columns: 1fr;
-      gap: 0.75rem;
-    }
-  }
-
-  .scenario-card {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    padding: 1rem;
-    border-radius: var(--radius-lg);
-    background: rgba(30, 41, 59, 0.6);
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    color: var(--text-primary);
-    cursor: pointer;
-    text-align: left;
-    transition:
-      transform var(--transition-fast),
-      border-color var(--transition-fast),
-      background var(--transition-fast),
-      box-shadow var(--transition-fast);
-  }
-
-  .scenario-card:hover {
-    transform: translateY(-2px);
-    background: rgba(30, 41, 59, 0.88);
-    border-color: rgba(129, 140, 248, 0.5);
-  }
-
-  .scenario-card--selected {
-    background: rgba(49, 46, 129, 0.35);
-    border-color: #818cf8;
-    box-shadow:
-      0 0 0 2px rgba(129, 140, 248, 0.28),
-      0 8px 24px rgba(15, 23, 42, 0.4);
-  }
-
-  .scenario-card--featured {
-    border-color: rgba(245, 158, 11, 0.45);
-    background: rgba(30, 41, 59, 0.75);
-    box-shadow: 0 4px 18px rgba(245, 158, 11, 0.1);
-  }
-
-  .scenario-card--featured:hover {
-    border-color: rgba(245, 158, 11, 0.8);
-    box-shadow: 0 6px 22px rgba(245, 158, 11, 0.2);
-  }
-
-  .scenario-card--featured.scenario-card--selected {
-    border-color: #f59e0b;
-    box-shadow:
-      0 0 0 2px rgba(245, 158, 11, 0.35),
-      0 8px 24px rgba(245, 158, 11, 0.25);
-  }
-
-  .scenario-card__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    margin-bottom: 0.6rem;
-  }
-
-  .scenario-card__icon {
-    display: grid;
-    place-items: center;
-    width: 38px;
-    height: 38px;
-    border-radius: 12px;
-  }
-
-  .scenario-card__icon--classic {
-    color: #f59e0b;
-    background: rgba(245, 158, 11, 0.18);
-  }
-
-  .scenario-card__icon--classic-2 {
-    color: #38bdf8;
-    background: rgba(56, 189, 248, 0.16);
-  }
-
-  .scenario-card__icon--classic-3 {
-    color: #a855f7;
-    background: rgba(168, 85, 247, 0.16);
-  }
-
-  .scenario-card__icon--party {
-    color: #f43f5e;
-    background: rgba(244, 63, 94, 0.16);
-  }
-
-  .scenario-card__tag {
-    font-size: 0.68rem;
-    font-weight: 700;
-    padding: 0.15rem 0.45rem;
-    border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--text-secondary);
-  }
-
-  .scenario-card__tag--featured {
-    background: rgba(245, 158, 11, 0.22);
-    color: #fbbf24;
-    border: 1px solid rgba(245, 158, 11, 0.35);
-  }
-
-  .scenario-card__body {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    width: 100%;
-  }
-
-  .scenario-card__title-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-
-  .scenario-card__title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-
-  .scenario-card__badge {
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 0.1rem 0.4rem;
-    border-radius: 4px;
-    background: rgba(148, 163, 184, 0.15);
-    color: var(--text-secondary);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .scenario-card--featured .scenario-card__badge {
-    background: rgba(245, 158, 11, 0.2);
-    color: #fbbf24;
-  }
-
-  .scenario-card__desc {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    line-height: 1.35;
-  }
-
-  .scenario-card__meta {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem 0.75rem;
-    flex-wrap: wrap;
-    margin-top: 0.35rem;
-    font-size: 0.72rem;
-    color: var(--text-muted);
-  }
-
-  .scenario-card__meta-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
-
-  .scenario-card__action {
-    margin-top: 0.85rem;
-    width: 100%;
-  }
-
-  .scenario-card__quick-btn {
-    width: 100%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.35rem;
-    padding: 0.42rem 0.75rem;
-    border-radius: var(--radius-md);
-    background: rgba(99, 102, 241, 0.22);
-    border: 1px solid rgba(129, 140, 248, 0.45);
-    color: #c7d2fe;
-    font-size: 0.78rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-  }
-
-  .scenario-card__quick-btn:hover {
-    background: #6366f1;
-    border-color: #6366f1;
-    color: #ffffff;
-    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
-    transform: translateY(-1px);
-  }
-
-  .scenario-card__quick-btn:active {
-    transform: translateY(0);
-  }
-
-  .scenario-card__quick-btn--featured {
-    background: rgba(245, 158, 11, 0.22);
-    border-color: rgba(245, 158, 11, 0.55);
-    color: #fef08a;
-  }
-
-  .scenario-card__quick-btn--featured:hover {
-    background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
-    border-color: #f59e0b;
-    color: #1a1a2e;
-    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.45);
-  }
-
-  .btn-play-icon {
-    flex-shrink: 0;
-  }
-
-  .preset-feedback-banner {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.85rem;
-    padding: 0.5rem 0.85rem;
-    border-radius: var(--radius-md);
-    background: rgba(16, 185, 129, 0.14);
-    border: 1px solid rgba(16, 185, 129, 0.35);
-    color: #6ee7b7;
-    font-size: 0.82rem;
-  }
-
-  .feedback-icon {
-    flex-shrink: 0;
-    color: #34d399;
-  }
-
   /* 玩法选择区域 */
   .mode-chooser {
     margin: clamp(2rem, 6vw, 3rem) 0 0;
@@ -1864,7 +1373,53 @@
   .count-controls {
     display: flex;
     align-items: center;
-    gap: clamp(0.8rem, 2vw, 1rem);
+    gap: clamp(0.6rem, 1.8vw, 1rem);
+    flex-wrap: wrap;
+  }
+
+  .player-count-chips {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: rgba(15, 23, 42, 0.45);
+    padding: 3px;
+    border-radius: var(--radius-full);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .count-chip {
+    padding: 0.35rem 0.85rem;
+    font-size: 0.92rem;
+    font-weight: 600;
+    border-radius: var(--radius-full);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .count-chip:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .count-chip--active {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: #ffffff;
+    border-color: rgba(165, 180, 252, 0.5);
+    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.4);
+  }
+
+  .count-stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: clamp(0.35rem, 1vw, 0.5rem);
   }
 
   .count-btn {
@@ -3008,40 +2563,61 @@
   }
   @media (max-width: 360px) {
     .intro-page {
-      padding-top: 56px;
+      padding-top: 48px;
     }
     .intro-header {
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.35rem;
     }
     .mode-chooser,
     .player-settings {
-      margin-block: 0.4rem;
+      margin-block: 0.3rem;
+      padding: 0.4rem;
     }
     .intro-actions {
-      margin-block: 0.4rem;
+      margin-block: 0.3rem;
+    }
+    .selected-mode-description {
+      display: none;
+    }
+    .game-info {
+      display: none;
     }
     .player-count-section .setting-item {
       flex-direction: row;
-      gap: 0.5rem;
+      align-items: center;
+      gap: 0.35rem;
       padding: 0.25rem;
     }
     .setting-label {
-      font-size: 0.85rem;
-      gap: 0.25rem;
+      font-size: 0.82rem;
+      gap: 0.2rem;
     }
     .count-controls {
-      gap: 0.35rem;
+      gap: 0.25rem;
       flex-shrink: 0;
+      flex-wrap: nowrap;
+    }
+    .player-count-chips {
+      gap: 0.2rem;
+      padding: 1px;
+    }
+    .count-chip {
+      padding: 0.2rem 0.4rem;
+      min-height: 32px;
+      font-size: 0.78rem;
+    }
+    .count-stepper {
+      gap: 0.2rem;
     }
     .count-display {
-      min-width: 38px;
-      padding: 0.3rem;
+      min-width: 28px;
+      padding: 0.2rem 0.3rem;
     }
     .count-btn {
-      width: 44px;
-      height: 44px;
-      min-width: 44px;
-      min-height: 44px;
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      min-height: 34px;
     }
   }
 </style>
