@@ -106,7 +106,7 @@
           :title="$t('ratio_distributor_equal')"
           @click="emit('equal-distribute')"
         >
-          <Equal :size="14" />
+          <Equal :size="16" />
         </button>
         <button
           class="rd-btn-action rd-btn-add"
@@ -114,7 +114,7 @@
           :title="$t('ratio_distributor_add')"
           @click="toggleAddForm"
         >
-          <Plus :size="14" />
+          <Plus :size="16" />
         </button>
       </div>
     </div>
@@ -272,6 +272,12 @@
   .rd-btn-action {
     width: 28px;
     height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    padding: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
     border: var(--glass-border);
     background: var(--bg-secondary);
     color: var(--text-secondary);
@@ -281,6 +287,11 @@
     align-items: center;
     justify-content: center;
     transition: all var(--transition-fast);
+  }
+
+  .rd-btn-action :deep(svg) {
+    flex-shrink: 0;
+    display: block;
   }
 
   .rd-btn-action:hover {
@@ -503,8 +514,14 @@
   }
 
   .btn-stat {
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    min-height: 26px;
+    padding: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
     border: var(--glass-border);
     background: var(--bg-secondary);
     color: var(--text-primary);
@@ -515,6 +532,11 @@
     justify-content: center;
     transition: all var(--transition-fast);
     flex-shrink: 0;
+  }
+
+  .btn-stat :deep(svg) {
+    flex-shrink: 0;
+    display: block;
   }
 
   .btn-stat:hover:not(:disabled) {
@@ -624,8 +646,10 @@
     }
 
     .rd-btn-action {
-      width: 26px;
-      height: 26px;
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
+      min-height: 28px;
     }
 
     .rd-detail {
@@ -634,8 +658,10 @@
     }
 
     .btn-stat {
-      width: 22px;
-      height: 22px;
+      width: 26px;
+      height: 26px;
+      min-width: 26px;
+      min-height: 26px;
     }
   }
 </style>

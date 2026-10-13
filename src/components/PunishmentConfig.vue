@@ -806,8 +806,14 @@
   }
 
   .btn-stat {
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    min-height: 26px;
+    padding: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
     border: var(--glass-border);
     background: var(--bg-secondary);
     color: var(--text-primary);
@@ -817,6 +823,11 @@
     align-items: center;
     justify-content: center;
     transition: all var(--transition-fast);
+  }
+
+  .btn-stat :deep(svg) {
+    flex-shrink: 0;
+    display: block;
   }
 
   .btn-stat:hover:not(:disabled) {
@@ -1121,8 +1132,10 @@
     }
 
     .btn-stat {
-      width: 22px;
-      height: 22px;
+      width: 26px;
+      height: 26px;
+      min-width: 26px;
+      min-height: 26px;
     }
 
     .config-actions {

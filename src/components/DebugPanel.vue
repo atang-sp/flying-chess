@@ -346,11 +346,17 @@
   }
 
   .close-btn {
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 0;
     background: rgba(255, 255, 255, 0.2);
     border: none;
     color: white;
     width: 28px;
     height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    box-sizing: border-box;
     border-radius: 50%;
     cursor: pointer;
     display: flex;

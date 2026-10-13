@@ -5562,12 +5562,21 @@
   }
 
   .settings-toggle {
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 0;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: var(--bg-glass);
     color: var(--text-primary);
     border: var(--glass-border);
     border-radius: 50%;
     width: 50px;
     height: 50px;
+    min-width: 50px;
+    min-height: 50px;
     font-size: 1.2rem;
     cursor: pointer;
     box-shadow: var(--glass-shadow);
@@ -5762,6 +5771,8 @@
     .settings-toggle {
       width: 40px;
       height: 40px;
+      min-width: 40px;
+      min-height: 40px;
       font-size: 1rem;
     }
 

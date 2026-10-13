@@ -217,16 +217,28 @@
   }
 
   .btn-remove {
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    box-sizing: border-box;
     background: rgba(239, 68, 68, 0.15);
     border: 1px solid rgba(239, 68, 68, 0.3);
     border-radius: var(--radius-sm);
-    padding: 6px 8px;
     color: var(--color-danger);
     cursor: pointer;
     transition: all var(--transition-normal);
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .btn-remove :deep(svg) {
+    flex-shrink: 0;
+    display: block;
   }
 
   .btn-remove:hover:not(:disabled) {
