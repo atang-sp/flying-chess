@@ -120,11 +120,13 @@ test.describe('Progress Achievements', () => {
     // Default zh-CN
     await expect(panel.locator('.achievement-list')).toContainText('完成首航')
 
-    // Close dialog by clicking outside or close button.
-    await page.keyboard.press('Escape')
+    // Close dialog
+    await page.locator('.achievements-dialog > header > button').click()
+    await expect(page.locator('.achievements-dialog')).toBeHidden()
 
     // Switch to English
-    await page.getByTestId('lang-select').selectOption('en')
+    await page.getByTestId('app-language-btn').click()
+    await page.locator('.lang-option-btn', { hasText: 'English' }).click()
 
     // Open dialog again
     await page.getByTestId('my-achievements').click()
@@ -132,6 +134,6 @@ test.describe('Progress Achievements', () => {
     // Expect the English title
     await expect(panel.locator('.achievement-list')).toContainText('First Flight')
     // And for locked ones
-    await expect(panel.locator('.achievement-list')).toContainText('Master of Suffering')
+    await expect(panel.locator('.achievement-list')).toContainText('Endurance')
   })
 })

@@ -1089,6 +1089,11 @@
   @media (max-width: 599px) {
     .game-board {
       border-radius: 18px;
+      perspective: none;
+    }
+
+    .board-scroll {
+      transform: none;
     }
 
     .board-toolbar {
