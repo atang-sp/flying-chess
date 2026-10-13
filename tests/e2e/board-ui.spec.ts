@@ -351,19 +351,19 @@ test('重构后的回合区保留掷骰和落格触觉反馈', async ({ page }, 
 test('一键快速开局按钮可跳过配置直接进入经典对局并可掷骰', async ({ page }) => {
   await page.goto('/flying-chess/')
 
-  // 验证经典局优先推广：卡片展示与核心模式推荐标识
-  const classicPreset = page.getByTestId('scenario-preset-classic')
-  await expect(classicPreset).toBeVisible()
-  await expect(classicPreset).toContainText('经典 4 人标准局')
-  await expect(classicPreset).toContainText('官方推荐')
-  await classicPreset.click()
-
+  // 验证模式推荐标识
   const modeClassic = page.getByTestId('mode-classic')
   await expect(modeClassic).toContainText('官方推荐')
+
+  // 切换为 4 人局
+  const count4Btn = page.getByTestId('player-count-4')
+  await expect(count4Btn).toBeVisible()
+  await count4Btn.click()
 
   // 点击一键快速开局，直接进入对局，跳过繁琐配置流程
   const quickStartBtn = page.getByTestId('quick-start-game')
   await expect(quickStartBtn).toBeVisible()
+  await expect(quickStartBtn).toContainText('4')
   await quickStartBtn.click()
 
   // 立即呈现棋盘，4名玩家就位，骰子立即可掷
@@ -373,13 +373,18 @@ test('一键快速开局按钮可跳过配置直接进入经典对局并可掷�
   await expect(page.getByTestId('roster-player-3')).toBeVisible()
 })
 
-test('预设卡片内的一键开局按钮可直接以指定配置开局', async ({ page }) => {
+test('双人快捷选择后点击快速开局直接生成2人对局', async ({ page }) => {
   await page.goto('/flying-chess/')
 
-  // 点击经典双人局卡片上的直接开局按钮
-  const quick2pBtn = page.getByTestId('quick-start-preset-classic-2')
-  await expect(quick2pBtn).toBeVisible()
-  await quick2pBtn.click()
+  // 快捷选择 2 人局
+  const count2Btn = page.getByTestId('player-count-2')
+  await expect(count2Btn).toBeVisible()
+  await count2Btn.click()
+
+  const quickStartBtn = page.getByTestId('quick-start-game')
+  await expect(quickStartBtn).toBeVisible()
+  await expect(quickStartBtn).toContainText('2')
+  await quickStartBtn.click()
 
   // 立即呈现棋盘，2名玩家就位
   await expect(page.locator('.game-board')).toBeVisible()
