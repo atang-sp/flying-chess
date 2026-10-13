@@ -204,6 +204,15 @@ a,
     min-height: 44px;
     touch-action: manipulation;
   }
+
+  .rd-btn-action,
+  .btn-stat,
+  .btn-remove,
+  .close-btn,
+  .count-btn,
+  .settings-toggle {
+    min-height: unset;
+  }
 }
 
 @media (max-width: 360px) {
@@ -211,6 +220,16 @@ a,
   .btn {
     min-height: 40px;
     padding: 0.5rem 0.75rem;
+  }
+
+  .rd-btn-action,
+  .btn-stat,
+  .btn-remove,
+  .close-btn,
+  .count-btn,
+  .settings-toggle {
+    min-height: unset;
+    padding: 0;
   }
 }
 

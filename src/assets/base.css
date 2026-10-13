@@ -147,3 +147,13 @@ body {
     font-size: 12px;
   }
 }
+
+button {
+  -webkit-appearance: none;
+  appearance: none;
+  font-family: inherit;
+}
+
+button svg {
+  flex-shrink: 0;
+}

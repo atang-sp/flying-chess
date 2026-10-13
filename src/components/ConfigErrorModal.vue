@@ -141,6 +141,9 @@
   }
 
   .close-btn {
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
     background: var(--bg-glass);
     border: var(--glass-border);
     color: var(--text-secondary);
@@ -148,11 +151,18 @@
     padding: 0;
     width: 32px;
     height: 32px;
+    min-width: 32px;
+    min-height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: var(--radius-sm);
     transition: all var(--transition-fast);
+  }
+
+  .close-btn :deep(svg) {
+    flex-shrink: 0;
+    display: block;
   }
 
   .close-btn:hover {
