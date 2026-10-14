@@ -721,9 +721,20 @@
     }
 
     .punishment-actions {
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
       flex-direction: column;
       gap: 0.75rem;
       padding-top: 0.75rem;
+      margin: 0 -1rem -1rem -1rem;
+      padding-left: 1rem;
+      padding-right: 1rem;
+      padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+      background: rgba(18, 28, 24, 0.95);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
     }
 
     .punishment-actions .btn {
@@ -793,6 +804,10 @@
     .punishment-actions {
       gap: 0.5rem;
       padding-top: 0.5rem;
+      margin: 0 -0.75rem -0.75rem -0.75rem;
+      padding-left: 0.75rem;
+      padding-right: 0.75rem;
+      padding-bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
     }
 
     .punishment-actions .btn {
@@ -826,6 +841,13 @@
 
     .value {
       font-size: 0.9rem;
+    }
+
+    .punishment-actions {
+      margin: 0 -0.5rem -0.5rem -0.5rem;
+      padding-left: 0.5rem;
+      padding-right: 0.5rem;
+      padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
     }
 
     .punishment-actions .btn {

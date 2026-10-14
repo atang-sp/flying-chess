@@ -4309,6 +4309,15 @@
               📱 {{ multiDevice.getConnectedPlayerCount() }}/{{ gameState.players.length }}
             </span>
             <button
+              v-if="canPauseSession && !sessionPaused"
+              class="header-icon-btn header-pause-btn"
+              :title="$t('app_pause_game')"
+              :aria-label="$t('app_pause_game')"
+              @click="pauseSession"
+            >
+              <Pause :size="18" aria-hidden="true" />
+            </button>
+            <button
               v-if="gameStarted"
               class="header-icon-btn"
               :title="$t('app_settings_view_settings')"
@@ -5717,20 +5726,16 @@
 
   /* 移动端适配 */
   @media (max-width: 768px) {
-    .app--settings .guide-controls {
+    .app--settings .guide-controls,
+    .app--game .guide-controls {
+      display: none;
+    }
+
+    .app--game .guide-btn {
       display: none;
     }
 
     .session-pause-trigger {
-      right: 0.75rem;
-      bottom: calc(max(0.45rem, env(safe-area-inset-bottom)) + 99px);
-    }
-
-    .session-pause-trigger--blocked {
-      display: none;
-    }
-
-    .session-pause-trigger span {
       display: none;
     }
 
@@ -5749,11 +5754,6 @@
     .guide-controls {
       bottom: 1rem;
       left: 1rem;
-    }
-
-    .app--game .guide-btn,
-    .app--game .guide-controls {
-      bottom: calc(max(0.45rem, env(safe-area-inset-bottom)) + 99px);
     }
 
     .export-btn,
