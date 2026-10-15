@@ -46,6 +46,51 @@
   })
 
   const focusCloseButton = () => closeButtonRef.value?.focus()
+
+  // 移动端向下滑动关闭手势 (Swipe down to dismiss)
+  const dragOffsetY = ref(0)
+  const isDragging = ref(false)
+  let startY = 0
+  let isTracking = false
+
+  const onTouchStart = (e: TouchEvent) => {
+    if (!props.mobile || e.touches.length !== 1) return
+    const target = e.target as HTMLElement | null
+    const bodyEl = inspectorRef.value?.querySelector('.inspector-body')
+    if (bodyEl && target && bodyEl.contains(target) && bodyEl.scrollTop > 0) {
+      isTracking = false
+      return
+    }
+    const touch = e.touches[0]
+    startY = touch.clientY
+    isTracking = true
+    isDragging.value = false
+    dragOffsetY.value = 0
+  }
+
+  const onTouchMove = (e: TouchEvent) => {
+    if (!isTracking || !props.mobile || e.touches.length !== 1) return
+    const currentY = e.touches[0].clientY
+    const deltaY = currentY - startY
+    if (deltaY > 0) {
+      isDragging.value = true
+      dragOffsetY.value = deltaY
+    } else {
+      dragOffsetY.value = 0
+    }
+  }
+
+  const onTouchEnd = () => {
+    if (!isTracking) return
+    isTracking = false
+    isDragging.value = false
+    if (dragOffsetY.value > 70) {
+      dragOffsetY.value = 0
+      emit('close')
+    } else {
+      dragOffsetY.value = 0
+    }
+  }
 </script>
 
 <template>
@@ -60,6 +105,14 @@
         'is-mobile': mobile,
       },
     ]"
+    :style="
+      mobile && dragOffsetY > 0
+        ? {
+            transform: `translateY(${dragOffsetY}px)`,
+            transition: isDragging ? 'none' : 'transform 200ms ease',
+          }
+        : undefined
+    "
     :role="mobile ? 'dialog' : 'complementary'"
     :aria-modal="mobile ? 'true' : undefined"
     :open="!mobile"
@@ -68,6 +121,10 @@
     data-testid="cell-inspector"
     @cancel.prevent="emit('close')"
     @transitionend="focusCloseButton"
+    @touchstart="onTouchStart"
+    @touchmove="onTouchMove"
+    @touchend="onTouchEnd"
+    @touchcancel="onTouchEnd"
   >
     <div v-if="mobile" class="sheet-handle" aria-hidden="true"></div>
 
